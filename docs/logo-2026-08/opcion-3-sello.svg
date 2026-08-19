@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <title>Morcast del Norte — Opción 3: sello de cumplimiento</title>
+  <polygon points="100,14 175,57 175,143 100,186 25,143 25,57"
+           fill="none" stroke="#144C4F" stroke-width="14"/>
+  <path d="M 62 128 L 62 82 L 112 82 L 140 106 L 140 128 Z"
+        fill="none" stroke="#144C4F" stroke-width="13" stroke-linejoin="miter"/>
+</svg>

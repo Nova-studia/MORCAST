@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="620" viewBox="0 0 480 620" font-family="Arial, sans-serif">
+  <rect width="480" height="620" fill="#f4f6f8"/>
+  <rect x="24" y="24" width="432" height="572" rx="10" fill="#ffffff" stroke="#e1e6e9"/>
+  <rect x="24" y="24" width="432" height="70" rx="10" fill="#ec0000"/>
+  <rect x="24" y="70" width="432" height="24" fill="#ec0000"/>
+  <text x="48" y="66" fill="#ffffff" font-size="20" font-weight="bold">Santander</text>
+  <text x="432" y="60" fill="#ffd6d6" font-size="12" text-anchor="end">Comprobante de transferencia</text>
+  <text x="432" y="78" fill="#ffd6d6" font-size="12" text-anchor="end">SPEI</text>
+
+  <text x="48" y="140" fill="#6b7680" font-size="12">Estatus</text>
+  <text x="48" y="162" fill="#1f9d55" font-size="18" font-weight="bold">✓ Operación aplicada</text>
+
+  <line x1="48" y1="186" x2="432" y2="186" stroke="#e1e6e9"/>
+
+  <text x="48" y="216" fill="#6b7680" font-size="12">Monto transferido</text>
+  <text x="432" y="216" fill="#1a2221" font-size="24" font-weight="bold" text-anchor="end">$12,200.00</text>
+  <text x="432" y="236" fill="#6b7680" font-size="11" text-anchor="end">MXN</text>
+
+  <line x1="48" y1="256" x2="432" y2="256" stroke="#e1e6e9"/>
+
+  <text x="48" y="286" fill="#6b7680" font-size="12">Fecha</text>
+  <text x="432" y="286" fill="#1a2221" font-size="13" text-anchor="end">16/jul/2026 16:08 hrs</text>
+
+  <text x="48" y="316" fill="#6b7680" font-size="12">Ordenante</text>
+  <text x="432" y="316" fill="#1a2221" font-size="13" text-anchor="end">Centro Comercial Puerta Norte</text>
+
+  <text x="48" y="346" fill="#6b7680" font-size="12">Beneficiario</text>
+  <text x="432" y="346" fill="#1a2221" font-size="13" text-anchor="end">Morcast del Norte SA de CV</text>
+
+  <text x="48" y="376" fill="#6b7680" font-size="12">CLABE destino</text>
+  <text x="432" y="376" fill="#1a2221" font-size="13" text-anchor="end">012 000 ******* 0</text>
+
+  <text x="48" y="406" fill="#6b7680" font-size="12">Concepto</text>
+  <text x="432" y="406" fill="#1a2221" font-size="13" text-anchor="end">Pago servicios de recoleccion</text>
+
+  <text x="48" y="436" fill="#6b7680" font-size="12">Referencia</text>
+  <text x="432" y="436" fill="#1a2221" font-size="13" text-anchor="end">Contrato MOR-2025-0233</text>
+
+  <text x="48" y="466" fill="#6b7680" font-size="12">Folio</text>
+  <text x="432" y="466" fill="#1a2221" font-size="13" text-anchor="end">STDR-2026-071608-2233</text>
+
+  <line x1="48" y1="490" x2="432" y2="490" stroke="#e1e6e9"/>
+  <rect x="48" y="510" width="384" height="60" rx="8" fill="#fdeeee"/>
+  <text x="240" y="536" fill="#6b7680" font-size="11" text-anchor="middle">Comprobante de DEMOSTRACIÓN — datos ficticios</text>
+  <text x="240" y="556" fill="#9aa4ac" font-size="10" text-anchor="middle">Generado para el prototipo del Portal Morcast</text>
+</svg>

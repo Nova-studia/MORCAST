@@ -1,0 +1,34 @@
+# Qué NO mandarle a EAS Build.
+#
+# Este archivo va en la RAÍZ del repositorio, no en la carpeta de la app: como
+# la app vive dentro de un repo git junto con la web, EAS empaqueta desde la
+# raíz. La primera compilación subió 1023 MB y tardó 5 minutos y 21 segundos
+# solo en subir, casi todo Web/node_modules y Web/.next, que a una compilación
+# de Android no le sirven de nada.
+
+# La web entera: no interviene en la app
+Web/
+
+# La app de iPhone: se compila aparte
+App IOS/
+
+# Dependencias y artefactos (EAS instala y compila desde cero en su máquina)
+**/node_modules/
+**/.expo/
+**/dist/
+**/dist-check/
+**/build/
+**/.gradle/
+**/.cxx/
+
+# Respaldos, documentos y utilidades que no son código de la app
+respaldo/
+docs/
+iconos anteriores/
+.gstack/
+
+*.log
+*.apk
+*.aab
+.DS_Store
+Thumbs.db

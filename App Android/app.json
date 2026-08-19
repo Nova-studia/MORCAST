@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Morcast",
+    "slug": "morcast-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f1615",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "mx.morcast.app"
+    },
+    "android": {
+      "package": "mx.morcast.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1615",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Morcast usa tus fotos para subir el comprobante de pago.",
+          "cameraPermission": "Morcast usa la cámara para tomar la foto del comprobante de pago."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Morcast usa la cámara para escanear el QR del contenedor y tomar la foto de la recolección."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "52f57e01-9209-404a-bb45-f25bab58f105"
+      }
+    },
+    "owner": "morcastmx"
+  }
+}

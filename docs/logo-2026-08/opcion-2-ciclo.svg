@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <title>Morcast del Norte — Opción 2: el ciclo</title>
+  <g fill="none" stroke-width="20" stroke-linecap="butt">
+    <path d="M 52 62 A 62 62 0 0 1 150 74" stroke="#4EB34A"/>
+    <path d="M 148 138 A 62 62 0 0 1 50 126" stroke="#144C4F"/>
+  </g>
+  <polygon points="152,44 176,80 132,86" fill="#4EB34A"/>
+  <polygon points="48,156 24,120 68,114" fill="#144C4F"/>
+</svg>

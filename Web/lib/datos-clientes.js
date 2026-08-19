@@ -1,0 +1,274 @@
+"use client";
+
+/**
+ * Acceso a CLIENTES, SALDOS y USUARIOS del equipo.
+ *
+ * Como en el resto, aquí no hay reglas de seguridad: las pone el RLS dentro
+ * de Postgres. Un cliente que llamara a `listarClientes()` recibiría una sola
+ * fila, la suya, sin que este archivo haga nada.
+ */
+
+import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { CLIENTES_ADMIN, USUARIOS_ADMIN } from "@/lib/admin-datos";
+
+const ROLES_LEGIBLES = {
+  dueno: "Dueño",
+  admin: "Administrador",
+  operador: "Chofer / Operador",
+  cliente: "Cliente",
+  pendiente: "Sin asignar",
+};
+
+/* ==================================================================== */
+/* CLIENTES                                                             */
+/* ==================================================================== */
+
+/**
+ * Clientes con su saldo ya calculado.
+ *
+ * El saldo viene de la vista `saldos_clientes`, que lo suma de los
+ * movimientos. Se pide en la misma llamada que los clientes para no hacer una
+ * consulta de saldo por cada fila de la tabla.
+ */
+export async function listarClientes() {
+  if (!haySupabaseNavegador()) return CLIENTES_ADMIN;
+
+  const supabase = supabaseNavegador();
+  const [{ data: clientes, error }, { data: saldos }] = await Promise.all([
+    supabase
+      .from("clientes")
+      .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito")
+      .order("empresa"),
+    supabase.from("saldos_clientes").select("cliente_id, saldo, cargos, por_verificar"),
+  ]);
+
+  if (error) {
+    console.error("[clientes] No se pudieron leer:", error.message);
+    return [];
+  }
+
+  const porId = Object.fromEntries((saldos || []).map((s) => [s.cliente_id, s]));
+
+  return (clientes || []).map((c) => ({
+    id: c.folio,
+    uuid: c.id,
+    empresa: c.empresa,
+    contacto: c.contacto || "—",
+    correo: c.correo || "",
+    telefono: c.telefono || "",
+    plan: c.plan || "Sin plan",
+    estatus: c.estado === "activo" ? "activo" : c.estado,
+    desde: c.desde,
+    saldo: Number(porId[c.id]?.saldo ?? 0),
+    porPagar: Number(porId[c.id]?.cargos ?? 0),
+  }));
+}
+
+/**
+ * Da de alta una empresa. No crea ninguna cuenta ni contraseña: el acceso al
+ * portal se manda después, por invitación, para que el cliente escoja la
+ * suya. Aquí solo nace el expediente de la empresa.
+ *
+ * El folio se calcula a partir del más alto del año, no de cuántos clientes
+ * hay: si alguno se da de baja, contar produciría un folio repetido.
+ */
+export async function crearCliente(datos) {
+  if (!haySupabaseNavegador()) return { ok: true, demo: true };
+
+  const supabase = supabaseNavegador();
+  const año = new Date().getFullYear();
+
+  const { data: previos } = await supabase
+    .from("clientes")
+    .select("folio")
+    .like("folio", `MOR-${año}-%`)
+    .order("folio", { ascending: false })
+    .limit(1);
+
+  const n = previos?.[0]?.folio ? Number(String(previos[0].folio).split("-").pop()) : 0;
+  const folio = `MOR-${año}-${String((Number.isFinite(n) ? n : 0) + 1).padStart(4, "0")}`;
+
+  const { data, error } = await supabase
+    .from("clientes")
+    .insert({
+      folio,
+      empresa: datos.empresa,
+      contacto: datos.contacto || null,
+      correo: datos.correo || null,
+      telefono: datos.telefono || null,
+      plan: datos.plan || null,
+      estado: "activo",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[clientes] No se pudo crear:", error.message);
+    return { ok: false, motivo: error.message };
+  }
+
+  return {
+    ok: true,
+    cliente: {
+      id: data.folio,
+      uuid: data.id,
+      empresa: data.empresa,
+      contacto: data.contacto || "—",
+      correo: data.correo || "",
+      telefono: data.telefono || "",
+      plan: data.plan || "Sin plan",
+      estatus: "activo",
+      desde: data.desde,
+      saldo: 0,
+      porPagar: 0,
+    },
+  };
+}
+
+/* ==================================================================== */
+/* SALDOS Y RECARGAS                                                    */
+/* ==================================================================== */
+
+/** Movimientos de saldo visibles para la sesión (todos, o los de su empresa). */
+export async function listarMovimientos() {
+  if (!haySupabaseNavegador()) return [];
+
+  const { data, error } = await supabaseNavegador()
+    .from("movimientos_saldo")
+    .select("id, folio, tipo, concepto, monto, estado, fecha, banco, referencia, comprobante, comprobante_nombre, notas, clientes ( folio, empresa )")
+    .order("fecha", { ascending: false });
+
+  if (error) {
+    console.error("[saldos] No se pudieron leer:", error.message);
+    return [];
+  }
+
+  return (data || []).map((m) => ({
+    id: m.id,
+    folio: m.folio || "",
+    fecha: m.fecha,
+    tipo: m.tipo,
+    concepto: m.concepto,
+    monto: Number(m.monto),
+    estado: m.estado,
+    banco: m.banco || "",
+    referencia: m.referencia || "",
+    comprobante: m.comprobante || null,
+    comprobanteNombre: m.comprobante_nombre || "",
+    notas: m.notas || "",
+    clienteId: m.clientes?.folio || "",
+    cliente: m.clientes?.empresa || "—",
+  }));
+}
+
+/** El saldo de la empresa del cliente que tiene la sesión. */
+export async function miSaldo() {
+  if (!haySupabaseNavegador()) return null;
+
+  const { data } = await supabaseNavegador()
+    .from("saldos_clientes")
+    .select("saldo, cargos, por_verificar")
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+  return {
+    saldoActual: Number(data.saldo),
+    porPagar: Number(data.cargos),
+    porVerificar: Number(data.por_verificar),
+  };
+}
+
+/**
+ * El cliente reporta un depósito. Nace SIEMPRE "por-verificar": nadie puede
+ * aumentarse el saldo solo. La política de RLS lo obliga aunque se manipule
+ * la llamada.
+ */
+export async function reportarDeposito({ monto, banco, referencia, comprobanteNombre, notas }) {
+  if (!haySupabaseNavegador()) return { ok: true, demo: true };
+
+  const supabase = supabaseNavegador();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, motivo: "No hay sesión." };
+
+  const { data: perfil } = await supabase
+    .from("perfiles").select("cliente_id").eq("id", user.id).single();
+  if (!perfil?.cliente_id) return { ok: false, motivo: "Tu cuenta no tiene empresa asignada." };
+
+  const { error } = await supabase.from("movimientos_saldo").insert({
+    cliente_id: perfil.cliente_id,
+    tipo: "abono",
+    concepto: `Depósito reportado${banco ? ` — ${banco}` : ""}`,
+    monto: Number(monto),
+    estado: "por-verificar",
+    banco: banco || null,
+    referencia: referencia || null,
+    comprobante_nombre: comprobanteNombre || null,
+    notas: notas || null,
+  });
+
+  if (error) {
+    console.error("[saldos] No se pudo reportar:", error.message);
+    return { ok: false, motivo: error.message };
+  }
+  return { ok: true };
+}
+
+/**
+ * Morcast aplica o rechaza un depósito.
+ * Aplicarlo es lo que lo convierte en dinero; por eso el RLS lo reserva al
+ * dueño.
+ */
+export async function resolverDeposito(id, estado, notas) {
+  if (!haySupabaseNavegador()) return { ok: true, demo: true };
+
+  const { data: { user } } = await supabaseNavegador().auth.getUser();
+
+  const { data, error } = await supabaseNavegador()
+    .from("movimientos_saldo")
+    .update({ estado, notas: notas || null, verificado_por: user?.id || null })
+    .eq("id", id)
+    .select("id");
+
+  if (error) {
+    console.error("[saldos] No se pudo resolver:", error.message);
+    return { ok: false, motivo: error.message };
+  }
+  // Un UPDATE que el RLS bloquea NO da error: cambia CERO filas y responde
+  // 200. Se cuentan las filas devueltas en vez de confiar en `error`.
+  if (!data?.length) {
+    return { ok: false, motivo: "No se aplicó nada: el permiso de la base no te deja tocar ese movimiento." };
+  }
+  return { ok: true };
+}
+
+/* ==================================================================== */
+/* USUARIOS DEL EQUIPO                                                  */
+/* ==================================================================== */
+
+/** Perfiles del personal de Morcast (no los clientes). */
+export async function listarUsuarios() {
+  if (!haySupabaseNavegador()) return USUARIOS_ADMIN;
+
+  const { data, error } = await supabaseNavegador()
+    .from("perfiles")
+    .select("id, nombre, rol, activo, creado, telefono")
+    .in("rol", ["dueno", "admin", "operador", "pendiente"])
+    .order("creado");
+
+  if (error) {
+    console.error("[usuarios] No se pudieron leer:", error.message);
+    return [];
+  }
+
+  return (data || []).map((p, i) => ({
+    id: `U-${String(i + 1).padStart(3, "0")}`,
+    nombre: p.nombre || "Sin nombre",
+    // El correo vive en auth.users, que no es consultable desde el navegador
+    // por seguridad. Se muestra el teléfono, que sí es del perfil.
+    correo: p.telefono || "—",
+    rol: ROLES_LEGIBLES[p.rol] || p.rol,
+    estatus: p.activo ? "activo" : "inactivo",
+    ultimo: (p.creado || "").slice(0, 10),
+  }));
+}

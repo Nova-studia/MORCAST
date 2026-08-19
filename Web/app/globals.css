@@ -1,0 +1,1938 @@
+/* ==========================================================================
+   MORCAST DEL NORTE — Sistema de diseño
+   Colores muestreados del material oficial de la empresa (folleto v3).
+   ========================================================================== */
+
+:root {
+  /* Marca */
+  --mc-verde: #4eb34a;
+  --mc-verde-osc: #2da529;
+  --mc-verde-prof: #11990c;
+  --mc-verde-claro: #7cc576;
+  --mc-teal: #144c4f;
+  --mc-teal-2: #1e6b6f;
+  --mc-teal-claro: #2d8a8f;
+  --mc-naranja: #db652d;
+  --mc-naranja-osc: #c05423;
+
+  /* Neutros — TEMA OSCURO
+     (para volver al claro: tinta #0f2427, gris #5b6b6d, gris-claro #8b9a9c,
+      linea #e3e9ea, hueso #f5f8f8, blanco #ffffff) */
+  --mc-tinta: #eef4f2;        /* texto principal (claro) */
+  --mc-gris: #a6b6b3;         /* texto secundario */
+  --mc-gris-claro: #7e908d;   /* placeholders / apagado */
+  --mc-linea: #27332f;        /* bordes sutiles */
+  --mc-hueso: #111b1a;        /* secciones alternas (oscuro) */
+  --mc-blanco: #0d1514;       /* fondo base de la página */
+  --mc-negro: #090f0e;        /* fondo profundo (footer / hero) */
+  --mc-superficie: #17211f;   /* tarjetas y superficies */
+
+  /* Sistema */
+  --mc-radio: 14px;
+  --mc-radio-sm: 9px;
+  --mc-sombra: 0 4px 20px rgba(15, 36, 39, 0.07);
+  --mc-sombra-md: 0 12px 34px rgba(15, 36, 39, 0.11);
+  --mc-sombra-lg: 0 24px 60px rgba(15, 36, 39, 0.16);
+  --mc-transicion: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Bootstrap override */
+  --bs-primary: #4eb34a;
+  --bs-body-color: #eef4f2;
+}
+
+/* ---------- Base ---------- */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 90px;
+  /* Texto general +20% (escala todo lo definido en rem de forma proporcional) */
+  font-size: 120%;
+}
+
+body {
+  color: var(--mc-tinta);
+  background: var(--mc-blanco);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* En el telefono no basta con ponerselo al body: Safari de iPhone deja que la
+   pagina se corra de lado igual. Tiene que estar tambien en html.
+   Va con "clip" y no con "hidden" a proposito: "hidden" convierte al html en
+   contenedor de scroll y eso ROMPE el navbar (position: sticky) y el
+   scroll-padding-top de los anclajes. "clip" recorta sin crear ese contenedor.
+   La linea "hidden" de arriba queda como respaldo para navegadores viejos que
+   no entiendan "clip", que simplemente ignoran la segunda. */
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* ---------- Tipografía: el espaciado cambia con el tamaño ----------
+   Antes todos los títulos, del h1 al h6, compartían el mismo
+   letter-spacing (-0.02em) y el mismo line-height (1.12). Un valor único
+   para todos los tamaños está mal en algún lado por definición: las letras
+   se ven MÁS separadas conforme crece la fuente, así que un titular
+   gigante necesita juntarlas y un subtítulo chico necesita soltarlas.
+   Igual el interlineado: apretado en lo grande, holgado en lo chico.
+   Es de las cosas que no se saben nombrar pero se notan: es la diferencia
+   entre "compuesto" y "puesto ahí". */
+h1, h2, h3, h4, h5, h6, .mc-display {
+  font-family: var(--fuente-titulo), system-ui, sans-serif;
+  font-weight: 800;
+  color: var(--mc-tinta);
+  font-optical-sizing: auto;
+  /* Evita que la última palabra caiga sola en un renglón. */
+  text-wrap: balance;
+}
+
+h1, .mc-display { letter-spacing: -0.035em; line-height: 1.02; }
+h2             { letter-spacing: -0.028em; line-height: 1.07; }
+h3             { letter-spacing: -0.022em; line-height: 1.14; }
+h4             { letter-spacing: -0.014em; line-height: 1.22; }
+h5             { letter-spacing: -0.006em; line-height: 1.3; }
+h6             { letter-spacing: 0;        line-height: 1.35; }
+
+a {
+  text-decoration: none;
+  transition: color var(--mc-transicion);
+}
+
+section {
+  position: relative;
+}
+
+/* ---------- Utilidades de marca ---------- */
+.mc-eyebrow {
+  font-family: var(--fuente-titulo), sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-naranja);
+  margin-bottom: 0.85rem;
+  display: block;
+}
+
+.mc-eyebrow-claro {
+  color: var(--mc-verde-claro);
+}
+
+.mc-titulo-seccion {
+  font-size: clamp(1.85rem, 4vw, 2.9rem);
+  margin-bottom: 1rem;
+}
+
+.mc-lead {
+  font-size: 1.06rem;
+  line-height: 1.7;
+  color: var(--mc-gris);
+}
+
+.mc-seccion {
+  padding: clamp(4rem, 9vw, 7rem) 0;
+}
+
+.mc-seccion-hueso {
+  background: var(--mc-hueso);
+}
+
+.mc-texto-verde { color: var(--mc-verde); }
+.mc-texto-teal  { color: var(--mc-teal); }
+.mc-texto-naranja { color: var(--mc-naranja); }
+
+/* Subrayado orgánico bajo palabra clave.
+   Se pinta como background del propio span: un pseudo-elemento con
+   z-index:-1 se esconde detrás del fondo de las secciones con color. */
+.mc-marcado {
+  display: inline;
+  background-image: linear-gradient(
+    to top,
+    rgba(78, 179, 74, 0.3) 0.3em,
+    rgba(78, 179, 74, 0) 0.3em
+  );
+  background-repeat: no-repeat;
+  padding-bottom: 0.04em;
+}
+
+/* ---------- Chevron: el elemento firma de la marca ---------- */
+.mc-chevron {
+  position: absolute;
+  background: var(--mc-verde);
+  clip-path: polygon(0 0, 82% 0, 100% 50%, 82% 100%, 0 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mc-chevron-izq {
+  clip-path: polygon(18% 0, 100% 0, 100% 100%, 18% 100%, 0 50%);
+}
+
+/* ---------- Botones ---------- */
+.mc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  font-family: var(--fuente-titulo), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  padding: 0.9rem 1.75rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--mc-transicion);
+  white-space: nowrap;
+}
+
+.mc-btn-verde {
+  background: var(--mc-verde);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(78, 179, 74, 0.34);
+}
+.mc-btn-verde:hover {
+  background: var(--mc-verde-osc);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(78, 179, 74, 0.42);
+}
+
+.mc-btn-naranja {
+  background: var(--mc-naranja);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(219, 101, 45, 0.34);
+}
+.mc-btn-naranja:hover {
+  background: var(--mc-naranja-osc);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.mc-btn-teal {
+  background: var(--mc-teal);
+  color: #fff;
+}
+.mc-btn-teal:hover {
+  background: var(--mc-teal-2);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.mc-btn-linea {
+  background: transparent;
+  color: var(--mc-tinta);
+  border-color: var(--mc-linea);
+}
+.mc-btn-linea:hover {
+  border-color: var(--mc-verde);
+  color: var(--mc-verde);
+  background: rgba(78, 179, 74, 0.05);
+}
+
+.mc-btn-linea-blanca {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(6px);
+}
+.mc-btn-linea-blanca:hover {
+  background: #fff;
+  color: var(--mc-teal);
+  border-color: #fff;
+  transform: translateY(-2px);
+}
+
+/* ---------- Navbar ---------- */
+.mc-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  background-color: var(--mc-negro);
+  /* Sin línea ni desenfoque bajo el navbar (estilo AMP, limpio) */
+  border-bottom: none;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.3s ease;
+  will-change: transform;
+}
+.mc-nav-scroll {
+  box-shadow: none;
+}
+/* Se oculta al bajar: se desliza fuera de la vista; reaparece al subir */
+.mc-nav-oculto {
+  transform: translateY(-100%);
+}
+
+.mc-nav-barra {
+  background: var(--mc-teal);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.82rem;
+  padding: 0.5rem 0;
+}
+.mc-nav-barra a {
+  color: rgba(255, 255, 255, 0.9);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.mc-nav-barra a:hover {
+  color: var(--mc-verde-claro);
+}
+
+.mc-nav-link {
+  font-family: var(--fuente-titulo), sans-serif;
+  font-weight: 600;
+  font-size: 0.93rem;
+  color: var(--mc-tinta) !important;
+  padding: 0.5rem 0.95rem !important;
+  position: relative;
+}
+.mc-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0.95rem;
+  right: 0.95rem;
+  bottom: 0.15rem;
+  height: 2.5px;
+  background: var(--mc-verde);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--mc-transicion);
+}
+.mc-nav-link:hover::after,
+.mc-nav-link.activo::after {
+  transform: scaleX(1);
+}
+.mc-nav-link.activo {
+  color: var(--mc-verde) !important;
+}
+
+/* ---------- Hero (minimalista, estilo cinematográfico) ---------- */
+.mc-hero {
+  position: relative;
+  min-height: 92vh;
+  display: flex;
+  align-items: flex-end;
+  background: var(--mc-negro);
+  overflow: hidden;
+  color: #fff;
+}
+
+.mc-hero-foto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.mc-hero-foto img {
+  object-fit: cover;
+  object-position: center 50%;
+}
+
+/* Velo oscuro: legible arriba (navbar transparente) y abajo (titular grande) */
+.mc-hero-velo {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 26, 28, 0.74) 0%,
+      rgba(10, 26, 28, 0.12) 20%,
+      rgba(10, 26, 28, 0) 42%,
+      rgba(10, 26, 28, 0.5) 74%,
+      rgba(10, 26, 28, 0.88) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(10, 26, 28, 0.55) 0%,
+      rgba(10, 26, 28, 0.12) 46%,
+      rgba(10, 26, 28, 0) 72%
+    );
+}
+
+/* Acento chevron verde, sutil, abajo-derecha */
+.mc-hero-chevron {
+  position: absolute;
+  bottom: -20%;
+  right: -6%;
+  width: 30%;
+  height: 64%;
+  background: var(--mc-verde);
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%);
+  opacity: 0.13;
+  z-index: 2;
+}
+.mc-hero-chevron-2 {
+  display: none;
+}
+
+.mc-hero-contenido {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  padding-top: 8rem;
+  padding-bottom: clamp(2.6rem, 5vw, 4.5rem);
+}
+.mc-hero-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.4rem;
+}
+.mc-hero-titular {
+  max-width: 100%;
+}
+.mc-hero h1 {
+  font-size: clamp(1.95rem, 9vw, 6.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  /* Letras más pegadas */
+  letter-spacing: -0.052em;
+  /* Grosor ~+15%: la fuente topa en 800, se engrosa el trazo */
+  font-weight: 800;
+  -webkit-text-stroke: 0.021em currentColor;
+  color: #fff;
+  margin: 0.5rem 0 0;
+  text-shadow: 0 2px 34px rgba(0, 0, 0, 0.28);
+}
+/* Eyebrow del hero: blanco con sombra para no perderse sobre el cielo azul */
+.mc-hero .mc-eyebrow-claro {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Desktop: el bloque de texto del hero corre un poco a la izquierda */
+@media (min-width: 992px) {
+  .mc-hero-grid {
+    margin-left: -2rem;
+  }
+}
+
+.mc-hero-lateral {
+  max-width: 520px;
+}
+.mc-hero-lateral p {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 1.02rem;
+  line-height: 1.62;
+  margin-bottom: 1.4rem;
+}
+/* Botones del hero, uno junto al otro (se apilan solo en móvil) */
+.mc-hero-botones {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: nowrap;
+}
+@media (max-width: 575.98px) {
+  .mc-hero-botones {
+    flex-direction: column;
+  }
+}
+.mc-hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+.mc-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  padding: 0.36rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.mc-hero-pill svg {
+  color: var(--mc-verde-claro);
+  flex-shrink: 0;
+}
+
+/* Navbar en modo hero: transparente sobre la foto, sólido al bajar */
+.mc-nav-hero {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: transparent;
+  border-bottom: none;
+}
+.mc-nav-hero:not(.mc-nav-scroll) .mc-nav-link,
+.mc-nav-hero:not(.mc-nav-scroll) .mc-nav-link.activo {
+  color: #fff !important;
+}
+/* El boton de menu de Bootstrap viene con el icono OSCURO, pensado para
+   navbars claras. Aqui la navbar es casi negra en TODAS las paginas, asi que
+   sin esto el boton practicamente no se ve (pasaba en /servicios y demas
+   paginas internas: solo el inicio lo tenia aclarado). */
+.mc-nav .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.mc-nav .navbar-toggler-icon {
+  filter: invert(1) brightness(2.4);
+}
+.mc-nav .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(78, 179, 74, 0.45);
+}
+/* En el inicio el navbar NUNCA se vuelve negro: se queda transparente
+   (solo se oculta al bajar y reaparece al subir, sin franja negra) */
+.mc-nav-hero.mc-nav-scroll {
+  background-color: transparent;
+  border-bottom: none;
+}
+
+/* ---------- Píldoras de permisos ---------- */
+.mc-pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: 999px;
+  padding: 0.45rem 1rem 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--mc-tinta);
+  box-shadow: var(--mc-sombra);
+}
+.mc-pildora svg {
+  color: var(--mc-verde);
+  flex-shrink: 0;
+}
+
+/* ---------- Barra de confianza ---------- */
+.mc-confianza {
+  background: var(--mc-teal);
+  color: #fff;
+  padding: 2.4rem 0;
+  position: relative;
+  overflow: hidden;
+}
+.mc-confianza-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  z-index: 2;
+}
+.mc-confianza-icono {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(78, 179, 74, 0.22);
+  color: var(--mc-verde-claro);
+  font-size: 1.35rem;
+}
+.mc-confianza-num {
+  font-family: var(--fuente-titulo), sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+.mc-confianza-txt {
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 0.2rem;
+}
+
+/* ---------- Tarjetas de servicio ---------- */
+.mc-tarjeta {
+  position: relative;
+  height: 100%;
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  padding: 2rem 1.65rem;
+  transition: all var(--mc-transicion);
+  overflow: hidden;
+}
+.mc-tarjeta::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 4px;
+  background: var(--mc-verde);
+  transition: width var(--mc-transicion);
+}
+.mc-tarjeta:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--mc-sombra-md);
+  border-color: transparent;
+}
+.mc-tarjeta:hover::before {
+  width: 100%;
+}
+.mc-tarjeta:hover .mc-tarjeta-icono {
+  background: var(--mc-verde);
+  color: #fff;
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.mc-tarjeta-icono {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(78, 179, 74, 0.11);
+  color: var(--mc-verde);
+  font-size: 1.55rem;
+  margin-bottom: 1.15rem;
+  transition: all var(--mc-transicion);
+}
+.mc-tarjeta-icono.azul {
+  background: rgba(45, 138, 143, 0.11);
+  color: var(--mc-teal-claro);
+}
+.mc-tarjeta-icono.naranja {
+  background: rgba(219, 101, 45, 0.11);
+  color: var(--mc-naranja);
+}
+
+/* ---------- Iconos PNG a color (iconografía del cliente) ---------- */
+.mc-icono-img {
+  /* Tamaño por defecto: evita que un PNG se pinte a su tamaño natural
+     (enorme) en cualquier contexto sin medida explícita. Cada contexto
+     puede sobreescribirlo abajo, o con la prop size. */
+  width: 1.9rem;
+  height: 1.9rem;
+  object-fit: contain;
+  vertical-align: middle;
+  display: inline-block;
+}
+/* En las tarjetas de servicio */
+.mc-tarjeta-icono img.mc-icono-img {
+  width: 42px;
+  height: 42px;
+}
+/* Al pasar el mouse: conserva el giro/escala pero NO pinta el fondo verde
+   sólido detrás del icono a color (se vería sucio). Deja el tinte suave. */
+.mc-tarjeta:hover .mc-tarjeta-icono:has(img.mc-icono-img) {
+  background: rgba(78, 179, 74, 0.11);
+}
+/* En las filas de sectores */
+.mc-sector img.mc-icono-img {
+  width: 30px;
+  height: 30px;
+}
+/* En la barra de estadísticas (confianza): icono a color en caja neutra */
+.mc-confianza-icono img.mc-icono-img {
+  width: 40px;
+  height: 40px;
+}
+.mc-confianza-icono:has(img.mc-icono-img) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mc-tarjeta h3 {
+  font-size: 1.12rem;
+  margin-bottom: 0.6rem;
+}
+.mc-tarjeta p {
+  font-size: 0.93rem;
+  line-height: 1.62;
+  color: var(--mc-gris);
+  margin: 0;
+}
+
+.mc-tarjeta-etiqueta {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  background: rgba(78, 179, 74, 0.12);
+  color: var(--mc-verde-osc);
+}
+.mc-tarjeta-etiqueta.gris {
+  background: rgba(91, 107, 109, 0.1);
+  color: var(--mc-gris);
+}
+
+/* Caja para el logo oficial de un permiso */
+.mc-permiso-logo {
+  flex-shrink: 0;
+  width: 100px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--mc-linea);
+  border-radius: 10px;
+  padding: 8px;
+}
+.mc-permiso-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ---------- Foto con corte diagonal (lenguaje del folleto) ---------- */
+.mc-foto-diag {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--mc-radio-sm);
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
+}
+.mc-foto-diag-inv {
+  clip-path: polygon(0 12%, 100% 0, 100% 100%, 0 100%);
+}
+.mc-foto-marco {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--mc-radio);
+  box-shadow: var(--mc-sombra-md);
+}
+.mc-foto-marco img {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mc-foto-marco:hover img {
+  transform: scale(1.06);
+}
+
+/* ---------- Galería de flota ---------- */
+.mc-flota-item {
+  position: relative;
+  border-radius: var(--mc-radio-sm);
+  overflow: hidden;
+  background: var(--mc-hueso);
+  aspect-ratio: 4 / 3;
+}
+.mc-flota-item img {
+  object-fit: cover;
+  transition: transform 0.55s ease;
+}
+.mc-flota-item:hover img {
+  transform: scale(1.08);
+}
+/* Mosaico de 2 columnas donde cada foto conserva su proporción completa. */
+.mc-galeria-mosaico {
+  columns: 2;
+  column-gap: 1.5rem;
+}
+@media (max-width: 575px) {
+  .mc-galeria-mosaico {
+    columns: 1;
+  }
+}
+.mc-galeria-mosaico .mc-galeria-item {
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
+}
+/* Como mc-flota-item pero sin proporción fija: la foto se muestra completa. */
+.mc-galeria-item {
+  position: relative;
+  border-radius: var(--mc-radio-sm);
+  overflow: hidden;
+  background: var(--mc-hueso);
+}
+.mc-galeria-item img {
+  display: block;
+  transition: transform 0.55s ease;
+}
+.mc-galeria-item:hover img {
+  transform: scale(1.05);
+}
+.mc-flota-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.4rem 1rem 0.85rem;
+  background: linear-gradient(transparent, rgba(15, 36, 39, 0.88));
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* ---------- Lista con check ---------- */
+.mc-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.mc-lista li {
+  position: relative;
+  padding-left: 1.9rem;
+  margin-bottom: 0.72rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--mc-gris);
+}
+.mc-lista li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: rgba(78, 179, 74, 0.14);
+}
+.mc-lista li::after {
+  content: "";
+  position: absolute;
+  left: 0.36rem;
+  top: 0.66em;
+  width: 0.34rem;
+  height: 0.6rem;
+  border: solid var(--mc-verde);
+  border-width: 0 2.2px 2.2px 0;
+  transform: rotate(45deg);
+}
+
+/* ---------- Sectores ---------- */
+.mc-sector {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--mc-tinta);
+  transition: all var(--mc-transicion);
+  height: 100%;
+}
+.mc-sector:hover {
+  border-color: var(--mc-verde);
+  transform: translateY(-3px);
+  box-shadow: var(--mc-sombra);
+}
+.mc-sector svg {
+  color: var(--mc-verde);
+  flex-shrink: 0;
+  font-size: 1.3rem;
+}
+
+/* ---------- Clientes ---------- */
+.mc-cliente {
+  display: grid;
+  place-items: center;
+  height: 92px;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  transition: all var(--mc-transicion);
+}
+.mc-cliente:hover {
+  border-color: var(--mc-verde);
+  box-shadow: var(--mc-sombra);
+}
+.mc-cliente-txt {
+  font-family: var(--fuente-titulo), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--mc-teal);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+/* Logos de clientes: siempre a color; --esc los agranda de base
+   (para logos que se ven chicos) y crecen 30% más al pasar el mouse */
+.mc-cliente img {
+  max-width: 100%;
+  max-height: 56px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  transform: scale(var(--esc, 1));
+  transition: transform var(--mc-transicion);
+}
+.mc-cliente:hover img {
+  transform: scale(calc(var(--esc, 1) * 1.3));
+}
+
+/* ---------- Banda CTA ---------- */
+.mc-cta {
+  position: relative;
+  background: linear-gradient(115deg, var(--mc-teal) 0%, #0d3538 100%);
+  color: #fff;
+  overflow: hidden;
+  padding: clamp(3.5rem, 7vw, 5.5rem) 0;
+}
+.mc-cta h2 {
+  color: #fff;
+  font-size: clamp(1.7rem, 3.6vw, 2.6rem);
+}
+.mc-cta-chevron {
+  position: absolute;
+  top: -20%;
+  right: -6%;
+  width: 38%;
+  height: 140%;
+  background: var(--mc-verde);
+  clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%);
+  opacity: 0.14;
+}
+
+/* ---------- Formulario ---------- */
+.mc-form {
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  padding: clamp(1.6rem, 3.5vw, 2.5rem);
+  box-shadow: var(--mc-sombra-lg);
+}
+.mc-form label {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--mc-verde-claro);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+.mc-form .form-control,
+.mc-form .form-select {
+  background: var(--mc-blanco);
+  color: var(--mc-tinta);
+  border: 1.5px solid var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  padding: 0.72rem 0.95rem;
+  font-size: 0.94rem;
+  transition: all var(--mc-transicion);
+}
+.mc-form .form-control:focus,
+.mc-form .form-select:focus {
+  background: var(--mc-blanco);
+  color: var(--mc-tinta);
+}
+.mc-form .form-select option {
+  background: var(--mc-superficie);
+  color: var(--mc-tinta);
+}
+.mc-form .form-control:focus,
+.mc-form .form-select:focus {
+  border-color: var(--mc-verde);
+  box-shadow: 0 0 0 3.5px rgba(78, 179, 74, 0.14);
+}
+.mc-form .form-control::placeholder {
+  color: var(--mc-gris-claro);
+}
+.mc-requerido {
+  color: var(--mc-naranja);
+}
+
+.mc-alerta {
+  border-radius: var(--mc-radio-sm);
+  padding: 0.9rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.mc-alerta-ok {
+  background: rgba(78, 179, 74, 0.1);
+  border: 1px solid rgba(78, 179, 74, 0.35);
+  color: #1d6b1a;
+}
+.mc-alerta-error {
+  background: rgba(219, 101, 45, 0.09);
+  border: 1px solid rgba(219, 101, 45, 0.32);
+  color: #9c3f16;
+}
+
+/* ---------- Contacto ---------- */
+.mc-contacto-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--mc-linea);
+}
+.mc-contacto-item:last-child {
+  border-bottom: none;
+}
+.mc-contacto-icono {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(78, 179, 74, 0.11);
+  color: var(--mc-verde);
+  font-size: 1.15rem;
+}
+.mc-contacto-item h4 {
+  font-size: 0.79rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--mc-gris-claro);
+  margin-bottom: 0.28rem;
+  font-weight: 700;
+}
+.mc-contacto-item a,
+.mc-contacto-item p {
+  color: var(--mc-tinta);
+  font-weight: 600;
+  font-size: 0.96rem;
+  margin: 0;
+  word-break: break-word;
+}
+.mc-contacto-item a:hover {
+  color: var(--mc-verde);
+}
+
+/* ---------- Footer ---------- */
+.mc-footer {
+  background: var(--mc-negro);
+  color: rgba(255, 255, 255, 0.62);
+  padding: clamp(3rem, 6vw, 4.5rem) 0 0;
+  font-size: 0.9rem;
+}
+.mc-footer h5 {
+  color: #fff;
+  font-size: 0.83rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  margin-bottom: 1.15rem;
+  font-weight: 700;
+}
+.mc-footer a {
+  color: rgba(255, 255, 255, 0.62);
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+  transition: all var(--mc-transicion);
+}
+.mc-footer a:hover {
+  color: var(--mc-verde-claro);
+  transform: translateX(3px);
+}
+.mc-footer-base {
+  margin-top: 3rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ---------- WhatsApp flotante ---------- */
+.mc-wa {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1040;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  box-shadow: 0 6px 22px rgba(37, 211, 102, 0.45);
+  transition: all var(--mc-transicion);
+}
+.mc-wa:hover {
+  color: #fff;
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 10px 30px rgba(37, 211, 102, 0.6);
+}
+
+/* ---------- Encabezado de página interna ---------- */
+.mc-encabezado {
+  position: relative;
+  background: linear-gradient(115deg, var(--mc-teal) 0%, #0d3a3d 100%);
+  color: #fff;
+  padding: clamp(3.5rem, 7vw, 5.5rem) 0 clamp(3rem, 6vw, 4.5rem);
+  overflow: hidden;
+}
+.mc-encabezado h1 {
+  color: #fff;
+  font-size: clamp(2rem, 4.6vw, 3.2rem);
+  margin-bottom: 0.9rem;
+  position: relative;
+  z-index: 2;
+}
+.mc-encabezado p {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 1.03rem;
+  max-width: 620px;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+  line-height: 1.65;
+}
+.mc-encabezado-chevron {
+  position: absolute;
+  top: -30%;
+  right: -5%;
+  width: 34%;
+  height: 160%;
+  background: var(--mc-verde);
+  clip-path: polygon(32% 0, 100% 0, 100% 100%, 32% 100%, 0 50%);
+  opacity: 0.17;
+  z-index: 1;
+}
+.mc-miga {
+  font-size: 0.83rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 2;
+}
+.mc-miga a {
+  color: rgba(255, 255, 255, 0.72);
+}
+.mc-miga a:hover {
+  color: var(--mc-verde-claro);
+}
+
+/* ---------- Nota / aviso ---------- */
+.mc-nota {
+  background: var(--mc-hueso);
+  border-left: 3px solid var(--mc-verde);
+  border-radius: 0 var(--mc-radio-sm) var(--mc-radio-sm) 0;
+  padding: 1.1rem 1.3rem;
+  font-size: 0.87rem;
+  line-height: 1.62;
+  color: var(--mc-gris);
+}
+
+/* ---------- Portafolio ---------- */
+/* Ficha de datos duros de la empresa (etiqueta arriba, valor abajo). */
+.mc-ficha {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.4rem 2rem;
+}
+@media (max-width: 575px) {
+  .mc-ficha {
+    grid-template-columns: 1fr;
+  }
+}
+.mc-dato-et {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--mc-verde-claro);
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.mc-dato-val {
+  display: block;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: var(--mc-tinta);
+  /* Los correos son largos y no traen espacios donde cortar. */
+  overflow-wrap: anywhere;
+}
+
+.mc-tarjeta-titulo {
+  font-size: 1.12rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--mc-tinta);
+}
+
+/* Lista con viñeta de marca en vez del bullet del navegador. */
+.mc-lista-marca {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mc-lista-marca li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.72rem;
+  font-size: 0.93rem;
+  line-height: 1.6;
+  color: var(--mc-gris);
+}
+.mc-lista-marca li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--mc-verde);
+  transform: rotate(45deg);
+}
+
+.mc-equipo-rejilla {
+  display: grid;
+  gap: 1.1rem;
+  margin-bottom: 1.2rem;
+}
+.mc-equipo-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.mc-equipo-tipo {
+  min-width: 132px;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: var(--mc-tinta);
+}
+.mc-equipo-medidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.mc-medida {
+  display: inline-block;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--mc-linea);
+  border-radius: 999px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--mc-verde-claro);
+  background: var(--mc-hueso);
+}
+
+/* ---------- Galería de trabajos (mosaico) ---------- */
+.mc-galeria-trabajos {
+  columns: 3;
+  column-gap: 1rem;
+}
+@media (max-width: 991.98px) {
+  .mc-galeria-trabajos {
+    columns: 2;
+  }
+}
+@media (max-width: 575.98px) {
+  .mc-galeria-trabajos {
+    columns: 1;
+  }
+}
+.mc-galeria-trabajos .mc-galeria-item {
+  margin-bottom: 1rem;
+  break-inside: avoid;
+}
+
+/* ---------- Tarjeta "foto próximamente" ---------- */
+.mc-pendiente {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: center;
+  height: 100%;
+  min-height: 155px;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  background: var(--mc-hueso);
+}
+.mc-pendiente svg {
+  color: var(--mc-verde);
+  opacity: 0.55;
+  font-size: 1.7rem;
+}
+.mc-pendiente .nombre {
+  font-weight: 700;
+  color: var(--mc-tinta);
+  font-size: 0.98rem;
+}
+.mc-pendiente .etq {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--mc-gris-claro);
+}
+
+/* ---------- Preguntas frecuentes (acordeón) ---------- */
+.mc-faq {
+  max-width: 820px;
+  margin: 0 auto;
+}
+.mc-faq-item {
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  margin-bottom: 0.85rem;
+  background: var(--mc-superficie);
+  transition: border-color var(--mc-transicion);
+}
+.mc-faq-item.activa {
+  border-color: rgba(78, 179, 74, 0.5);
+}
+.mc-faq-pregunta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 1.15rem 1.35rem;
+  text-align: left;
+  font-family: var(--fuente-titulo), sans-serif;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--mc-tinta);
+}
+.mc-faq-icono {
+  flex-shrink: 0;
+  color: var(--mc-verde);
+  font-size: 1.3rem;
+  transition: transform var(--mc-transicion);
+}
+.mc-faq-item.activa .mc-faq-icono {
+  transform: rotate(45deg);
+}
+.mc-faq-respuesta {
+  padding: 0 1.35rem 1.2rem;
+}
+.mc-faq-respuesta p {
+  margin: 0;
+  color: var(--mc-gris);
+  font-size: 0.96rem;
+  line-height: 1.7;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 991.98px) {
+  .mc-hero {
+    min-height: 88vh;
+  }
+  .mc-hero-contenido {
+    padding-top: 6.5rem;
+  }
+  .mc-hero-grid {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.6rem;
+  }
+  .mc-hero-lateral {
+    flex-basis: auto;
+  }
+  .mc-hero-chevron {
+    width: 52%;
+    height: 40%;
+  }
+  .mc-nav-barra {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .mc-btn {
+    width: 100%;
+  }
+  /* En el telefono el chevron estaba al 0.75 (en escritorio va al 0.13): en vez
+     de leerse como acento de marca, partia en diagonal el boton de WhatsApp y
+     quedaba media palabra sobre verde y media sobre la foto. Se baja para que
+     acompanie sin estorbar, y se sube un poco para dejarle libre la esquina al
+     boton flotante de WhatsApp, que tambien es verde. */
+  .mc-hero-chevron {
+    opacity: 0.2;
+    bottom: -6%;
+  }
+  .mc-wa {
+    width: 52px;
+    height: 52px;
+    font-size: 1.55rem;
+    right: 14px;
+    bottom: 14px;
+  }
+}
+
+/* ---------- Revelado al hacer scroll ---------- */
+.rv {
+  opacity: 0;
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.rv-abajo  { transform: translateY(30px); }
+.rv-izq    { transform: translateX(-34px); }
+.rv-der    { transform: translateX(34px); }
+.rv-escala { transform: scale(0.955); }
+
+/* En el telefono los revelados laterales empujan la pagina de lado mientras
+   dura la animacion: un bloque que ya ocupa todo el ancho, corrido 34px, se
+   sale por la derecha. En pantalla chica no se gana nada con el movimiento
+   lateral, asi que ahi entran subiendo, igual que los demas. */
+@media (max-width: 767.98px) {
+  .rv-izq,
+  .rv-der { transform: translateY(24px); }
+}
+
+.rv-on {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* ---------- Accesibilidad ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .rv {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .mc-tarjeta:hover,
+  .mc-sector:hover,
+  .mc-btn:hover,
+  .mc-footer a:hover {
+    transform: none;
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--mc-verde);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---------- Mapa de zonas (Leaflet) ---------- */
+.mc-mapa {
+  width: 100%;
+  border-radius: var(--mc-radio-sm);
+  border: 1px solid var(--mc-linea);
+  overflow: hidden;
+  z-index: 0; /* debajo del navbar */
+}
+/* Las teselas de OSM son claras; se atenúan para que peguen con el tema oscuro. */
+.mc-mapa .leaflet-tile-pane {
+  filter: brightness(0.72) saturate(0.85) contrast(1.05);
+}
+.mc-mapa .leaflet-control-attribution {
+  background: rgba(13, 21, 20, 0.82);
+  color: var(--mc-gris);
+  font-size: 0.66rem;
+}
+.mc-mapa .leaflet-control-attribution a {
+  color: var(--mc-verde-claro);
+}
+.mc-mapa-nota {
+  font-size: 0.78rem;
+  color: var(--mc-gris);
+  margin-top: 0.5rem;
+}
+
+/* =====================================================================
+   RESPUESTA AL TACTO
+   ---------------------------------------------------------------------
+   Antes no había un solo estado :active en toda la hoja: nada acusaba
+   recibo de que lo estabas presionando. Es lo primero que separa una
+   interfaz que se siente viva de una que se siente una foto — la
+   respuesta va en el momento de APRETAR, no al soltar.
+
+   Son 100 ms y un 2% de escala: no se ve, se siente. Solo transform,
+   que corre en el compositor y no obliga a recalcular la página.
+   ===================================================================== */
+.mc-btn,
+.mc-tarjeta,
+.mc-sector,
+.mc-cliente,
+.mc-faq-pregunta,
+.mc-wa {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 220ms ease,
+              border-color 220ms ease,
+              opacity 220ms ease,
+              filter 220ms ease;
+}
+
+.mc-btn:active,
+.mc-faq-pregunta:active,
+.mc-wa:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+/* Las tarjetas son superficies grandes: se hunden menos que un botón,
+   porque a igual escala una pieza grande se ve como si saltara. */
+.mc-tarjeta:active,
+.mc-sector:active,
+.mc-cliente:active {
+  transform: scale(0.988);
+  transition-duration: 100ms;
+}
+
+/* =====================================================================
+   MOVIMIENTO LIGADO AL SCROLL
+   ---------------------------------------------------------------------
+   La diferencia con lo que ya había: las animaciones de revelado se
+   DISPARAN al entrar y se reproducen solas, siempre igual, ignorando lo
+   que hagas. Esto se mueve CONTIGO: cada píxel de scroll mueve la foto
+   una fracción. Si te detienes, se detiene; si te regresas, se regresa.
+   Es lo que hace que una página se sienta un espacio y no una diapositiva.
+
+   Va con animation-timeline nativo, no con JavaScript: corre en el
+   compositor, no cuesta cuadros y no hay listener de scroll que se
+   atrase. Donde el navegador no lo soporte simplemente no pasa nada,
+   que es exactamente lo que debe pasar.
+   ===================================================================== */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .mc-hero-foto {
+      animation: mc-hero-parallax linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 92vh;
+      will-change: transform;
+    }
+
+    /* La escala de 1.12 no es decorativa: da el margen para poder mover
+       la foto sin que se asome el fondo por arriba o por abajo. */
+    /* EN REPOSO LA FOTO NO SE TOCA: arranca en escala 1 y sin desplazar,
+       o sea exactamente en la composicion aprobada. Antes empezaba corrida
+       -7% hacia arriba y eso le subia la cara al operador hasta el boton de
+       "Cotizar ahora", que se la tapaba. La regla: una animacion ligada al
+       scroll empieza en el diseno, nunca desplazada respecto a el.
+
+       El movimiento se consigue creciendo: al final la escala es 1.18, que
+       deja 9% de margen por lado, mas que suficiente para bajar 6% sin que
+       se asome el fondo. */
+    @keyframes mc-hero-parallax {
+      from { transform: scale(1) translate3d(0, 0, 0); }
+      to   { transform: scale(1.18) translate3d(0, 6%, 0); }
+    }
+
+    /* El texto se va un poco antes que la foto: al moverse a distinta
+       velocidad, el ojo lee profundidad. Es el mismo truco de mirar por
+       la ventanilla del coche. */
+    .mc-hero-contenido {
+      animation: mc-hero-texto linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 25vh 92vh;
+    }
+    @keyframes mc-hero-texto {
+      from { transform: translate3d(0, 0, 0); opacity: 1; }
+      to   { transform: translate3d(0, -9%, 0); opacity: 0.42; }
+    }
+  }
+}
+
+/* =====================================================================
+   MOVIMIENTO EN TODA LA PÁGINA, NO SOLO EN EL HERO
+   ---------------------------------------------------------------------
+   El parallax del hero solo se siente en la primera pantalla. De ahí para
+   abajo la página volvía a estar quieta. Esto le da movimiento ligado al
+   scroll a las piezas grandes de todas las secciones: las fotos se
+   acercan mientras pasan por la pantalla y los títulos de sección entran
+   con el scroll, no "al entrar en cuadro".
+
+   view() mide el avance del elemento DENTRO de la ventana, así que cada
+   uno lleva su propio tiempo según dónde va. Nada de esto usa JavaScript.
+   ===================================================================== */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+
+    /* Fotos grandes: se acercan al pasar. Es lo que hace que una foto
+       deje de ser un recorte pegado y se sienta una ventana. */
+    .mc-galeria-trabajos img,
+    .mc-galeria-mosaico img,
+    .mc-foto-diagonal img,
+    .mc-seccion figure img {
+      animation: mc-foto-acerca linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+      will-change: transform;
+    }
+    @keyframes mc-foto-acerca {
+      from { transform: scale(1.14); }
+      to   { transform: scale(1); }
+    }
+
+    /* Encabezados de sección: suben con el scroll mientras entran.
+       Se detiene cuando el bloque queda a media pantalla, para que no
+       siga moviéndose mientras lo lees. */
+    .mc-titulo-seccion,
+    .mc-eyebrow {
+      animation: mc-titulo-sube linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 42%;
+    }
+    @keyframes mc-titulo-sube {
+      from { transform: translate3d(0, 34px, 0); opacity: 0.25; }
+      to   { transform: translate3d(0, 0, 0);    opacity: 1; }
+    }
+  }
+}
+
+/* =====================================================================
+   NAVBAR COMO MATERIAL
+   ---------------------------------------------------------------------
+   Era una franja negra sólida que ocupaba una tira fija de pantalla.
+   Ahora es una capa translúcida con desenfoque: el contenido se ve pasar
+   por debajo. Es lo que hace que una interfaz se sienta con capas y no
+   con bloques apilados.
+
+   El inicio NO se toca: ahí el navbar es transparente a propósito
+   (decisión de Luis en julio) y así se queda.
+   ===================================================================== */
+.mc-nav:not(.mc-nav-hero) {
+  background-color: rgba(9, 15, 14, 0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  /* Borde superior claro: es la luz pegando en el canto del material. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Si el sistema pide menos transparencia, se vuelve sólido.
+   OJO al diagnosticar esto: el compilador deja SOLO la version con prefijo
+   (-webkit-backdrop-filter) y borra la estandar, asi que leer
+   getComputedStyle(...).backdropFilter devuelve "none" aunque el desenfoque
+   SI este aplicado. Se comprueba mirando la pantalla, no leyendo la
+   propiedad. */
+@media (prefers-reduced-transparency: reduce) {
+  .mc-nav:not(.mc-nav-hero) {
+    background-color: var(--mc-negro);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+
+/* =====================================================================
+   MOVIMIENTO QUE SÍ SE VE
+   ---------------------------------------------------------------------
+   La primera pasada fue demasiado discreta. Esto es deliberadamente
+   perceptible, sin caer en lo chillón: movimiento continuo donde aporta,
+   luz que responde al cursor, y entradas que se sienten materiales.
+   ===================================================================== */
+
+/* ---------- 1. Logos de clientes en marcha continua ----------
+   Una rejilla de logos quieta es un muro. En marcha lenta se lee como
+   "estos son muchos y seguimos sumando". Se detiene al pasar el cursor
+   para poder mirarlos, que es lo que la gente intenta hacer. */
+.mc-clientes-cinta {
+  display: flex;
+  gap: 2.6rem;
+  width: max-content;
+  animation: mc-cinta 42s linear infinite;
+  will-change: transform;
+}
+.mc-clientes-cinta:hover { animation-play-state: paused; }
+@keyframes mc-cinta {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.mc-clientes-marco {
+  overflow: hidden;
+  /* Los extremos se desvanecen: sin esto los logos aparecen y desaparecen
+     de golpe contra el borde y se ve como un error. */
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* ---------- 2. Luz que sigue al cursor en las tarjetas ----------
+   La tarjeta deja de ser un rectángulo plano: se ilumina por donde pasa
+   el cursor, como una superficie real bajo una lámpara. Las coordenadas
+   las pone el JS en --mx/--my. */
+.mc-tarjeta,
+.mc-sector {
+  position: relative;
+  isolation: isolate;
+}
+.mc-tarjeta::after,
+.mc-sector::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 320ms ease;
+  background: radial-gradient(
+    380px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(78, 179, 74, 0.16),
+    transparent 62%
+  );
+}
+.mc-tarjeta:hover::after,
+.mc-sector:hover::after { opacity: 1; }
+
+.mc-tarjeta:hover,
+.mc-sector:hover {
+  transform: translateY(-6px);
+  border-color: rgba(78, 179, 74, 0.35);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 3. Las imágenes entran con barrido, no desvaneciéndose ----------
+   Un fade es lo que hace todo el mundo. Un barrido se lee como que la
+   imagen se DESTAPA: tiene dirección y peso. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .mc-galeria-trabajos img,
+    .mc-galeria-mosaico img,
+    .mc-foto-diagonal img {
+      animation: mc-foto-acerca linear both, mc-destapa linear both;
+      animation-timeline: view(), view();
+      animation-range: entry 0% exit 100%, entry 0% entry 70%;
+    }
+    @keyframes mc-destapa {
+      from { clip-path: inset(0 0 100% 0); }
+      to   { clip-path: inset(0 0 0 0); }
+    }
+
+    /* El chevron de la marca se dibuja al entrar la sección. */
+    .mc-confianza .mc-chevron {
+      animation: mc-chevron-entra linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 40%;
+    }
+    @keyframes mc-chevron-entra {
+      from { transform: translate3d(14%, 0, 0) rotate(2deg); opacity: 0; }
+      to   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0.1; }
+    }
+  }
+}
+
+/* ---------- 4. El titular del hero se destapa al cargar ----------
+   Es lo primero que ve quien llega. Sube desde abajo detrás de una
+   máscara, así que se lee como que EMERGE, no como que aparece. */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-hero-titular { overflow: hidden; }
+  .mc-hero-titular h1 {
+    animation: mc-titular-emerge 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .mc-hero-lateral {
+    animation: mc-lateral-entra 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+  }
+  @keyframes mc-titular-emerge {
+    from { transform: translate3d(0, 108%, 0); }
+    to   { transform: translate3d(0, 0, 0); }
+  }
+  @keyframes mc-lateral-entra {
+    from { transform: translate3d(0, 26px, 0); opacity: 0; }
+    to   { transform: translate3d(0, 0, 0); opacity: 1; }
+  }
+}
+
+/* =====================================================================
+   REACCIÓN AL CURSOR
+   ---------------------------------------------------------------------
+   Se usa `translate` y no `transform` a propósito: la foto del hero ya
+   tiene una animación ligada al scroll ocupando `transform`, y los
+   botones usan `transform: scale()` al presionarse. `translate` es una
+   propiedad aparte que se compone con `transform`, así que las tres
+   cosas conviven sin pisarse.
+   ===================================================================== */
+
+/* Botones magnéticos: el jalón lo pone el JS en `translate`; aquí solo va
+   la suavidad del regreso. Sin transición el botón daría brincos. */
+.mc-btn {
+  transition: translate 260ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 220ms ease,
+              border-color 220ms ease,
+              box-shadow 220ms ease,
+              color 220ms ease;
+}
+.mc-btn:active { transition-duration: 100ms; }
+
+/* Profundidad del hero: la foto se recorre al contrario del cursor y el
+   texto un poco menos. Al ir a distinta velocidad, el ojo lee distancia. */
+.mc-hero-foto {
+  translate: var(--px, 0) var(--py, 0);
+  transition: translate 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mc-hero-contenido {
+  translate: calc(var(--px, 0px) * -0.35) calc(var(--py, 0px) * -0.35);
+  transition: translate 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Subrayado que se desliza en el menú ----------
+   Antes cada enlace tenía su propia línea que aparecía y desaparecía.
+   Ahora crece desde el centro al acercarte: una sola pieza que responde,
+   en vez de un parpadeo. */
+.mc-nav .nav-link {
+  position: relative;
+}
+.mc-nav .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.15rem;
+  height: 2px;
+  background: var(--mc-verde);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mc-nav .nav-link:hover::after,
+.mc-nav .nav-link.activo::after { transform: scaleX(1); }
+
+/* ---------- Barra de avance de lectura ----------
+   Una línea finísima arriba que crece con el scroll. Cuesta nada y da la
+   sensación de que la página sabe dónde vas. Ligada al scroll, sin JS. */
+@supports (animation-timeline: scroll()) {
+  .mc-avance {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: 0 50%;
+    background: linear-gradient(90deg, var(--mc-verde), var(--mc-verde-claro));
+    z-index: 1040;
+    animation: mc-avance linear both;
+    animation-timeline: scroll(root block);
+    pointer-events: none;
+  }
+  @keyframes mc-avance {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-hero-foto,
+  .mc-hero-contenido { translate: none; }
+  .mc-avance { display: none; }
+}
+
+/* =====================================================================
+   1. LA FOTO DEL HERO RESPIRA
+   ---------------------------------------------------------------------
+   Va sobre la etiqueta img, no sobre su contenedor: el contenedor ya tiene
+   ocupados transform (scroll) y translate (cursor). Usando otro elemento
+   no hay que pelear por ninguna propiedad.
+
+   26 segundos por ciclo a proposito. Los ciclos de unos 5 segundos caen
+   en la frecuencia que marea a gente sensible al movimiento; a este ritmo
+   ni se nota que es un ciclo, solo se siente que la imagen esta viva.
+   ===================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-hero-foto img {
+    animation: mc-hero-respira 26s ease-in-out infinite;
+    transform-origin: center 40%;
+  }
+  @keyframes mc-hero-respira {
+    0%, 100% { scale: 1; }
+    50%      { scale: 1.045; }
+  }
+}
+
+/* =====================================================================
+   2. LAS FOTOS DE LA GALERIA SE INCLINAN
+   ---------------------------------------------------------------------
+   Se usa la propiedad `rotate`, que es independiente de transform: esas
+   imagenes ya tienen encima el acercamiento y el barrido ligados al
+   scroll. El eje de giro lo calcula el JS y lo deja en --eje-x/--eje-y.
+   ===================================================================== */
+.mc-galeria-trabajos,
+.mc-galeria-mosaico {
+  perspective: 1100px;
+}
+.mc-galeria-trabajos img,
+.mc-galeria-mosaico img {
+  rotate: var(--eje-x, 0) var(--eje-y, 0) 0 var(--angulo, 0deg);
+  transition: rotate 380ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 380ms ease;
+}
+.mc-galeria-trabajos img:hover,
+.mc-galeria-mosaico img:hover {
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* =====================================================================
+   3. EL BOTON DE WHATSAPP PULSA
+   ---------------------------------------------------------------------
+   Esta siempre en pantalla, asi que es de lo poco que se ve todo el
+   tiempo. El pulso va en un anillo detras, no en el boton: si latiera el
+   boton mismo, el icono se deformaria y se veria barato.
+   ===================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-wa::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #25d366;
+    z-index: -1;
+    animation: mc-wa-pulso 2.8s ease-out infinite;
+  }
+  @keyframes mc-wa-pulso {
+    0%   { transform: scale(1);    opacity: 0.55; }
+    70%  { transform: scale(1.75); opacity: 0; }
+    100% { transform: scale(1.75); opacity: 0; }
+  }
+}
+.mc-wa { position: fixed; isolation: isolate; }
+
+/* =====================================================================
+   4. TRANSICION AL CAMBIAR DE PAGINA
+   ---------------------------------------------------------------------
+   Antes el contenido cambiaba de golpe. Ahora entra subiendo un poco.
+   Es corto a proposito (380 ms): una transicion larga entre paginas se
+   siente lenta, no elegante.
+   ===================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-pagina {
+    animation: mc-pagina-entra 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes mc-pagina-entra {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
+/* =====================================================================
+   5. CURSOR PROPIO
+   ---------------------------------------------------------------------
+   Un punto que sigue al raton y crece sobre lo que se puede tocar. No
+   reemplaza al cursor del sistema: lo acompana. Quitar el cursor real
+   deja a la gente sin la senal que ya conoce.
+   ===================================================================== */
+.mc-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(124, 197, 118, 0.85);
+  pointer-events: none;
+  z-index: 2000;
+  opacity: 0;
+  translate: var(--cx, 0) var(--cy, 0);
+  transition: opacity 220ms ease, scale 260ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 260ms ease, border-color 260ms ease;
+  will-change: translate;
+}
+.mc-cursor.visible { opacity: 1; }
+.mc-cursor.sobre-clicable {
+  scale: 1.7;
+  background: rgba(124, 197, 118, 0.14);
+  border-color: rgba(124, 197, 118, 1);
+}
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+  .mc-cursor { display: none; }
+}

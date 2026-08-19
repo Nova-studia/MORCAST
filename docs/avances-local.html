@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morcast — avances (local)</title>
+<style>
+  :root{
+    --fondo:#0d1514; --sup:#17211f; --linea:#233230; --tinta:#eef4f2;
+    --gris:#93a5a1; --verde:#4EB34A; --verde-claro:#7cc576; --teal:#2D8A8F;
+    --naranja:#DB652D;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--fondo); color:var(--tinta);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif; line-height:1.55;
+  }
+  .env{max-width:1080px; margin:0 auto; padding:2.5rem 1.2rem 4rem}
+  header{border-bottom:1px solid var(--linea); padding-bottom:1.6rem; margin-bottom:2rem}
+  h1{font-size:2rem; margin:0 0 .4rem}
+  .sub{color:var(--gris); margin:0}
+  .aviso{
+    margin-top:1.2rem; padding:.85rem 1rem; border-radius:10px;
+    background:rgba(219,101,45,.12); border:1px solid rgba(219,101,45,.35);
+    font-size:.92rem;
+  }
+  .aviso strong{color:#f0895c}
+  h2{font-size:1.15rem; margin:2.4rem 0 .9rem; display:flex; align-items:center; gap:.6rem}
+  h2 .n{
+    display:grid; place-items:center; width:26px; height:26px; border-radius:7px;
+    background:rgba(78,179,74,.16); color:var(--verde-claro);
+    font-size:.8rem; font-weight:700;
+  }
+  .rejilla{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem}
+  .tarjeta{
+    background:var(--sup); border:1px solid var(--linea); border-radius:12px;
+    padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.5rem;
+  }
+  .tarjeta a.titulo{
+    color:var(--verde-claro); font-weight:700; font-size:1rem; text-decoration:none;
+  }
+  .tarjeta a.titulo:hover{text-decoration:underline}
+  .tarjeta p{margin:0; font-size:.88rem; color:var(--gris)}
+  .ruta{font-family:Consolas,monospace; font-size:.78rem; color:var(--teal)}
+  .chip{
+    display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.03em;
+    padding:.15rem .5rem; border-radius:999px; align-self:flex-start;
+  }
+  .nuevo{background:rgba(78,179,74,.16); color:var(--verde-claro)}
+  .previo{background:rgba(45,138,143,.18); color:#4fc0c5}
+  .cred{
+    background:var(--sup); border:1px solid var(--linea); border-radius:12px;
+    padding:1rem 1.2rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem;
+  }
+  .cred div{font-size:.9rem}
+  .cred b{display:block; color:var(--gris); font-weight:600; font-size:.8rem; margin-bottom:.2rem}
+  code{
+    font-family:Consolas,monospace; background:#0a1211; border:1px solid var(--linea);
+    padding:.12rem .4rem; border-radius:5px; font-size:.85rem;
+  }
+  pre{
+    background:#0a1211; border:1px solid var(--linea); border-radius:10px;
+    padding:.9rem 1rem; overflow-x:auto; font-size:.83rem;
+  }
+  ul.lista{margin:.4rem 0 0; padding-left:1.1rem; font-size:.9rem; color:var(--gris)}
+  ul.lista li{margin-bottom:.35rem}
+  ul.lista b{color:var(--tinta); font-weight:600}
+  footer{margin-top:3rem; padding-top:1.4rem; border-top:1px solid var(--linea);
+    color:var(--gris); font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="env">
+
+<header>
+  <h1>Morcast del Norte — avances</h1>
+  <p class="sub">Todo corre en esta laptop. Nada está publicado ni subido a git.</p>
+  <div class="aviso">
+    <strong>Antes de dar clic:</strong> los enlaces apuntan a
+    <code>localhost:3456</code>. Si no abren, el servidor está apagado — mira
+    <em>Cómo prenderlo otra vez</em> hasta abajo.
+  </div>
+</header>
+
+<h2><span class="n">1</span> Lo nuevo de esta semana</h2>
+<div class="rejilla">
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/portafolio">Portafolio de servicios</a>
+    <span class="ruta">/portafolio</span>
+    <p>La página para mandar a clientes. Trae los datos reales de la empresa,
+       la flota, el equipo en renta, los permisos y las condiciones comerciales.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/portal/cobertura">Cobertura por zona</a>
+    <span class="ruta">/portal/cobertura · pide sesión</span>
+    <p>Mapa con las rutas dibujadas. El cliente pone su pin y le dice al momento
+       si ya pasamos por ahí y qué días. <b>Pruébalo:</b> toca dentro de una zona
+       verde y luego bien lejos.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/portal/agendar">Agendar recolección</a>
+    <span class="ruta">/portal/agendar · pide sesión</span>
+    <p>Pide el servicio en un día de su ruta, o una recolección extra con fecha
+       libre y nota para la cuadrilla. Genera folio.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/portal/alta">Date de alta</a>
+    <span class="ruta">/portal/alta · abierta, sin sesión</span>
+    <p>Un negocio nuevo se inscribe solo: pone su pin y el sistema le dice al
+       momento si le llegamos. Si no, su solicitud cae en Zonas pedidas.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/admin/rutas">Rutas de la empresa</a>
+    <span class="ruta">/admin/rutas · pide sesión</span>
+    <p><b>La pantalla clave.</b> Aquí se dibujan las zonas en el mapa y se dan de
+       alta rutas nuevas. Lo que marques aquí es lo que ve el cliente.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/admin/recolecciones">Recolecciones</a>
+    <span class="ruta">/admin/recolecciones · pide sesión</span>
+    <p>La bandeja: confirmar o rechazar lo que piden los clientes. Lo que
+       confirmes pasa solo a la agenda de Servicios.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip nuevo">NUEVO</span>
+    <a class="titulo" href="http://localhost:3456/admin/zonas-pedidas">Zonas pedidas</a>
+    <span class="ruta">/admin/zonas-pedidas · pide sesión</span>
+    <p>Dónde piden servicio y no llegamos, con sus datos de contacto. Donde se
+       junten varios puntos, ahí conviene abrir ruta.</p>
+  </div>
+
+</div>
+
+<h2><span class="n">2</span> Lo que ya existía, para comparar</h2>
+<div class="rejilla">
+
+  <div class="tarjeta">
+    <span class="chip previo">YA ESTABA</span>
+    <a class="titulo" href="http://localhost:3456/">Sitio público</a>
+    <span class="ruta">/</span>
+    <p>La portada y las 12 páginas del sitio. Aquí se actualizaron los horarios
+       y la dirección.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip previo">YA ESTABA</span>
+    <a class="titulo" href="http://localhost:3456/portal">Portal del cliente</a>
+    <span class="ruta">/portal · pide sesión</span>
+    <p>Saldo, historial, reportes, documentos y cotizador. El cotizador ya
+       trae el equipo real (contenedores 1.5/3/6, tolvas 21 y 30, compactadores).</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="chip previo">YA ESTABA</span>
+    <a class="titulo" href="http://localhost:3456/admin">Panel de la empresa</a>
+    <span class="ruta">/admin · pide sesión</span>
+    <p>Clientes, servicios, agenda, cotizaciones y saldos.</p>
+  </div>
+
+</div>
+
+<h2><span class="n">3</span> Con qué entrar</h2>
+<div class="cred">
+  <div>
+    <b>Portal del cliente</b>
+    <code>cliente@demo.com</code> / <code>morcast</code>
+  </div>
+  <div>
+    <b>Panel de la empresa</b>
+    <code>admin@morcast.mx</code> / <code>admin</code>
+  </div>
+</div>
+
+<h2><span class="n">4</span> Y en el celular</h2>
+<p style="color:var(--gris); font-size:.9rem; margin:0 0 .9rem">
+  Las apps de Android y iPhone ya traen <b style="color:var(--tinta)">Cobertura</b> y
+  <b style="color:var(--tinta)">Agendar recolección</b> en el menú <b style="color:var(--tinta)">Más</b>,
+  con el mismo mapa. El código JavaScript de las dos apps es idéntico
+  (mismo bundle, mismo hash), así que lo que veas en una es lo que hay en la otra.
+</p>
+<p style="color:var(--gris); font-size:.9rem; margin:0 0 .6rem">
+  Para verlas en tu teléfono, sin publicar nada:
+</p>
+<pre>cd "C:\Users\andre\Downloads\morcast\App Android"
+npx expo start</pre>
+<p style="color:var(--gris); font-size:.9rem">
+  Escanea el QR con <b style="color:var(--tinta)">Expo Go</b>. Para iPhone es igual, pero
+  desde la carpeta <code>App IOS</code> y con un iPhone de verdad:
+  <b style="color:var(--tinta)">en Windows no existe el simulador de iPhone</b>, eso solo lo da Apple en Mac.
+</p>
+
+<h2><span class="n">5</span> Lo que sigue</h2>
+<ul class="lista">
+  <li><b>Manual de usuario en PDF</b> — ya lleva escritas las pantallas nuevas; falta cerrar las viejas y convertirlo.</li>
+  <li><b>Que todo se guarde de verdad</b> — hoy es demostración: al recargar se reinicia.</li>
+</ul>
+
+<h2><span class="n">6</span> Lo que falta que mande el cliente</h2>
+<ul class="lista">
+  <li><b>Lista de precios.</b> Los del cotizador los puse yo de relleno.</li>
+  <li><b>RFC y constancia fiscal.</b> En la cotización sale "Pendiente de confirmar".</li>
+  <li><b>CLABE y número de cuenta.</b> Van en blanco a propósito.</li>
+  <li><b>Las zonas reales por donde pasan sus rutas.</b> Las 3 del mapa son de muestra,
+      dibujadas a ojo sobre Matamoros.</li>
+</ul>
+
+<h2><span class="n">7</span> Cómo prenderlo otra vez</h2>
+<p style="color:var(--gris); font-size:.9rem; margin:0 0 .6rem">
+  Abre PowerShell y pega esto. Déjalo abierto mientras lo revisas.
+</p>
+<pre>cd C:\Users\andre\Downloads\morcast\Web
+npx next start -p 3456</pre>
+<p style="color:var(--gris); font-size:.9rem">
+  Si cambiaste algo del código, antes corre <code>npm run build</code>.
+</p>
+
+<footer>
+  Nada de esto está en línea. <code>morcast.mx</code> sigue con la versión vieja y
+  el push a git está bloqueado a propósito hasta que la empresa pague.
+</footer>
+
+</div>
+</body>
+</html>

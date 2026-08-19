@@ -1,0 +1,5 @@
+RESPALDO — Sistema de iconos ANTERIOR de la web Morcast (18-jul-2026).
+Antes, los iconos eran de línea (react-icons / Font Awesome), monocromáticos,
+definidos en components/Iconos.js (guardado aquí como Iconos.js.anterior).
+Se reemplazaron por los iconos PNG a color del cliente (public/img/iconos/).
+Para revertir: restaurar Iconos.js.anterior como components/Iconos.js.

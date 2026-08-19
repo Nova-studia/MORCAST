@@ -1,0 +1,16 @@
+
+# Logs de la herramienta de navegacion (gstack)
+.gstack/
+
+# Enlace local con Vercel. Lleva el id del proyecto y es de esta maquina:
+# no le sirve a nadie mas y no tiene por que viajar en el repo.
+.vercel/
+
+# Credenciales y secretos — NUNCA se suben.
+# Va aqui, en la raiz, porque el .gitignore de Web/ solo cubre lo de adentro.
+ACCESO-*.txt
+*.env.local
+.env
+.env.*
+*password*
+*secreto*

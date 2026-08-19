@@ -1,0 +1,30 @@
+# Qué NO subir a EAS Build.
+#
+# Sin esto el paquete pesa ~1 GB y tarda más de cinco minutos en subir, en cada
+# intento. Lo que sobra son artefactos de compilaciones anteriores: EAS compila
+# desde cero en su máquina, así que no le sirven de nada.
+#
+# OJO: la carpeta `android/` SÍ tiene que subir. Como este proyecto la tiene,
+# EAS compila con ella y lee el applicationId de ahí (ignora el de app.json).
+# Lo que se excluye son sus artefactos, no sus fuentes.
+
+node_modules/
+.expo/
+dist/
+dist-check/
+
+android/build/
+android/.gradle/
+android/.cxx/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+
+ios/build/
+ios/Pods/
+
+*.log
+*.apk
+*.aab
+.DS_Store
+Thumbs.db
