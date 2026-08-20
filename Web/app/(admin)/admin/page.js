@@ -10,7 +10,7 @@ import {
 } from "@/lib/admin-datos";
 import { listarCotizaciones } from "@/lib/datos-cotizaciones";
 import { kpisAdmin, cobranza12Meses } from "@/lib/datos-panel";
-import { pesos, fechaLarga } from "@/lib/portal-datos";
+import { pesos, fechaLarga, folioCorto } from "@/lib/portal-datos";
 
 export default function PanelAdmin() {
   const [kpis, setKpis] = useState(ADMIN_KPIS);
@@ -138,7 +138,7 @@ export default function PanelAdmin() {
                 const est = infoEstado(s.estado);
                 return (
                   <tr key={s.id}>
-                    <td className="folio">{s.id}</td>
+                    <td className="folio" title={s.id}>{folioCorto(s.id)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(s.fecha)}</td>
                     <td>{s.empresa}</td>
                     <td>{s.servicio}</td>

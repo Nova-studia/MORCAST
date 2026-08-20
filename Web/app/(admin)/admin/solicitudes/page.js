@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiMail, FiPhone, FiX, FiMessageSquare, FiUserCheck, FiKey, FiRefreshCw, FiCheckCircle } from "react-icons/fi";
 import { ESTADOS_SOLICITUD, infoEstado } from "@/lib/admin-datos";
 import { listarCotizaciones, cambiarEstadoCotizacion } from "@/lib/datos-cotizaciones";
-import { fechaLarga } from "@/lib/portal-datos";
+import { fechaLarga, folioCorto } from "@/lib/portal-datos";
 
 export default function SolicitudesAdmin() {
   const [lista, setLista] = useState([]);
@@ -97,7 +97,7 @@ export default function SolicitudesAdmin() {
                       onClick={() => setSel(s)}
                       style={{ cursor: "pointer", background: sel?.id === s.id ? "rgba(78,179,74,0.07)" : undefined }}
                     >
-                      <td className="folio">{s.id}</td>
+                      <td className="folio" title={s.id}>{folioCorto(s.id)}</td>
                       <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(s.fecha)}</td>
                       <td>
                         <strong style={{ display: "block" }}>{s.empresa}</strong>

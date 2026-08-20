@@ -171,6 +171,19 @@ export function fechaLarga(iso) {
   return `${d} ${meses[m - 1]} ${a}`;
 }
 
+/**
+ * Folio corto y legible a partir del id de la base.
+ *
+ * Las solicitudes se guardan con un UUID de 36 caracteres. Enseñado tal cual no
+ * se puede leer de un vistazo ni dictar por teléfono, y estira la columna. Se
+ * pintan los primeros 8 en mayúsculas; el id completo se conserva aparte, en el
+ * `title` de la celda, para copiarlo cuando de verdad haga falta.
+ */
+export function folioCorto(id, prefijo = "SOL") {
+  if (!id) return "—";
+  return `${prefijo}-${String(id).replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 /** Etiqueta y color para el estatus de un servicio. */
 export function estatusInfo(estatus) {
   switch (estatus) {
