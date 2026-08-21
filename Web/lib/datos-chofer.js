@@ -104,7 +104,14 @@ export async function marcarEnRuta(solicitudId) {
  * justo lo que no puede pasar: la evidencia es el comprobante ambiental del
  * cliente.
  */
-export async function cerrarRecoleccion({ solicitudId, qr, pesoKg, fotoAntes, fotoDespues, horaAntes, horaDespues }) {
+export async function cerrarRecoleccion({
+  solicitudId, qr, pesoKg, horaAntes, horaDespues,
+  // Las fotos llegan YA SUBIDAS, como rutas. La pantalla las sube en cuanto
+  // se toman: si el chofer recarga o pierde señal a media parada, no pierde
+  // lo que ya hizo. Se aceptan también los archivos sueltos por si alguna
+  // pantalla vieja todavía los manda.
+  rutaAntes = null, rutaDespues = null, fotoAntes, fotoDespues,
+}) {
   if (!haySupabaseNavegador()) return { ok: true, demo: true };
 
   const supabase = supabaseNavegador();
@@ -113,18 +120,18 @@ export async function cerrarRecoleccion({ solicitudId, qr, pesoKg, fotoAntes, fo
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, motivo: "No hay sesión." };
 
-  let rutaAntes = null;
-  let rutaDespues = null;
+  let antes = rutaAntes;
+  let despues = rutaDespues;
 
-  if (fotoAntes) {
+  if (!antes && fotoAntes) {
     const r = await subirEvidencia(solicitudId, "antes", fotoAntes);
     if (!r.ok) return { ok: false, motivo: "No se pudo subir la foto de antes." };
-    rutaAntes = r.ruta;
+    antes = r.ruta;
   }
-  if (fotoDespues) {
+  if (!despues && fotoDespues) {
     const r = await subirEvidencia(solicitudId, "despues", fotoDespues);
     if (!r.ok) return { ok: false, motivo: "No se pudo subir la foto de después." };
-    rutaDespues = r.ruta;
+    despues = r.ruta;
   }
 
   const { error: errorEv } = await supabase.from("recolecciones").insert({
@@ -132,8 +139,8 @@ export async function cerrarRecoleccion({ solicitudId, qr, pesoKg, fotoAntes, fo
     operador_id: user.id,
     qr: qr || null,
     peso_kg: pesoKg ? Number(pesoKg) : null,
-    foto_antes: rutaAntes,
-    foto_despues: rutaDespues,
+    foto_antes: antes,
+    foto_despues: despues,
     hora_antes: horaAntes || null,
     hora_despues: horaDespues || null,
   });

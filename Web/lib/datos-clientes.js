@@ -288,6 +288,30 @@ export async function resolverDeposito(id, estado, notas) {
 /* ==================================================================== */
 
 /** Perfiles del personal de Morcast (no los clientes). */
+/**
+ * Los choferes, con su id REAL.
+ *
+ * `listarUsuarios()` no sirve para esto: devuelve un id de pantalla
+ * ("U-001") para la tabla de Usuarios, y para asignar una parada hace falta
+ * el uuid con el que la base amarra las cosas.
+ */
+export async function listarOperadores() {
+  if (!haySupabaseNavegador()) return [];
+
+  const { data, error } = await supabaseNavegador()
+    .from("perfiles")
+    .select("id, nombre")
+    .eq("rol", "operador")
+    .eq("activo", true)
+    .order("nombre");
+
+  if (error) {
+    console.error("[usuarios] No se pudieron leer los choferes:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
 export async function listarUsuarios() {
   if (!haySupabaseNavegador()) return USUARIOS_ADMIN;
 

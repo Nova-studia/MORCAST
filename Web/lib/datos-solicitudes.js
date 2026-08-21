@@ -18,11 +18,16 @@ import { enlaceEvidencia } from "@/lib/datos-archivos";
  * base para pintar una sola tabla.
  */
 const CAMPOS = `
-  id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, motivo_rechazo, creado,
+  id, folio, origen, fecha_pedida, fecha_confirmada, hora_confirmada, chofer_id,
+  estado, nota, motivo_rechazo, creado,
   clientes ( folio, empresa ),
   domicilios ( alias, colonia ),
-  rutas ( clave, nombre, tipo, unidad, chofer )
+  rutas ( clave, nombre, tipo, unidad, chofer ),
+  choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
 `;
+// El nombre de la llave va explícito a propósito: esta tabla apunta DOS veces
+// a perfiles (`creada_por` y `chofer_id`). Con solo "perfiles (...)" PostgREST
+// no sabe cuál de las dos quieres y responde con un error de relación ambigua.
 
 /** Fila de la base → el formato que ya usaban las pantallas. */
 function aFormatoPantalla(f) {
@@ -41,6 +46,12 @@ function aFormatoPantalla(f) {
     origen: f.origen,
     fechaPedida: f.fecha_pedida,
     fechaConfirmada: f.fecha_confirmada,
+    horaConfirmada: f.hora_confirmada || "",
+    // Chofer de ESTA parada. Si no hay asignación directa manda el de la
+    // ruta, que es como funcionó siempre.
+    choferId: f.chofer_id || null,
+    choferAsignado: f.choferParada?.nombre || "",
+    choferEfectivo: f.choferParada?.nombre || f.rutas?.chofer || "Sin asignar",
     estado: f.estado,
     nota: f.nota || "",
     motivoRechazo: f.motivo_rechazo || "",
@@ -171,7 +182,16 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
 
   if (error) {
     console.error("[solicitudes] No se pudo pedir:", error.message);
-    return { ok: false, motivo: error.message };
+    // La política de la base (db/013) rechaza fechas del pasado y las
+    // disparatadas. Ese rechazo llega como un error de permisos, que no le
+    // dice nada a quien solo se equivocó de día.
+    const esFecha = /row-level security|violates|policy/i.test(error.message || "");
+    return {
+      ok: false,
+      motivo: esFecha
+        ? "Esa fecha no se puede: elige un día de hoy en adelante."
+        : error.message,
+    };
   }
   return { ok: true, folio };
 }

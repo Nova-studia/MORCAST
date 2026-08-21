@@ -2,7 +2,14 @@
 
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
-import { haySupabase } from "@/lib/supabase";
+import { haySupabase, supabaseServidor } from "@/lib/supabase";
+import {
+  hayResend,
+  correoRecoleccionConfirmada,
+  correoRecoleccionRechazada,
+  correoParadaAsignada,
+  correoSaldoResuelto,
+} from "@/lib/correo";
 
 /**
  * Los movimientos donde se mueve dinero o cambia el compromiso con el cliente.
@@ -26,6 +33,38 @@ import { haySupabase } from "@/lib/supabase";
 
 const PERSONAL = ["dueno", "admin"];
 
+/**
+ * Los avisos NO pueden tumbar la operación.
+ *
+ * Si Resend falla o no está configurado, confirmar una recolección y aplicar
+ * un saldo tienen que seguir funcionando: la base es la fuente de la verdad y
+ * el correo es cortesía. Pero el fallo se ANOTA, porque el 19-ago se descubrió
+ * que el sitio llevaba un mes sin mandar un solo correo y nadie se enteró
+ * justo porque los errores se tragaban en silencio.
+ */
+async function avisar(que, fn) {
+  if (!hayResend()) {
+    console.warn(`[avisos] ${que}: no se mandó, falta RESEND_API_KEY`);
+    return;
+  }
+  try {
+    await fn();
+  } catch (e) {
+    console.error(`[avisos] ${que}: no se pudo mandar —`, e?.message || e);
+  }
+}
+
+/** Correo de un usuario del equipo. Vive en auth.users, no en `perfiles`. */
+async function correoDe(uid) {
+  if (!uid) return null;
+  try {
+    const { data } = await supabaseServidor().auth.admin.getUserById(uid);
+    return data?.user?.email || null;
+  } catch {
+    return null;
+  }
+}
+
 async function exigirPersonal() {
   const quien = await usuarioActual();
   if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
@@ -45,7 +84,7 @@ export async function resolverDepositoAuditado(id, estado, notas) {
     .from("movimientos_saldo")
     .update({ estado, notas: notas || null, verificado_por: quien.id })
     .eq("id", id)
-    .select("id, folio, monto, cliente_id");
+    .select("id, folio, monto, cliente_id, clientes ( empresa, correo )");
 
   if (error) return { ok: false, motivo: error.message };
   if (!data?.length) {
@@ -67,6 +106,16 @@ export async function resolverDepositoAuditado(id, estado, notas) {
     },
   });
 
+  await avisar("saldo resuelto", () =>
+    correoSaldoResuelto({
+      correo: data[0].clientes?.correo,
+      empresa: data[0].clientes?.empresa,
+      monto: Number(data[0].monto),
+      aplicado: estado === "aplicada",
+      notas,
+    })
+  );
+
   return { ok: true };
 }
 
@@ -82,7 +131,14 @@ export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
     .from("solicitudes_recoleccion")
     .update(cambios)
     .eq("id", id)
-    .select("id, folio, estado, cliente_id, fecha_confirmada");
+    .select(`
+      id, folio, estado, cliente_id, fecha_confirmada, hora_confirmada,
+      chofer_id, motivo_rechazo,
+      clientes ( empresa, correo ),
+      domicilios ( alias, calle, colonia ),
+      rutas ( chofer_id ),
+      choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
+    `);
 
   if (error) return { ok: false, motivo: error.message };
   if (!data?.length) {
@@ -103,6 +159,53 @@ export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
       cambios,
     },
   });
+
+  const s = data[0];
+  const domicilio = s.domicilios
+    ? [s.domicilios.alias, s.domicilios.calle, s.domicilios.colonia].filter(Boolean).join(" · ")
+    : "";
+
+  if (s.estado === "confirmada") {
+    await avisar("recolección confirmada", () =>
+      correoRecoleccionConfirmada({
+        correo: s.clientes?.correo,
+        empresa: s.clientes?.empresa,
+        folio: s.folio,
+        fecha: s.fecha_confirmada,
+        hora: s.hora_confirmada,
+        domicilio,
+      })
+    );
+
+    // Y al chofer que le toca: el asignado a la parada si lo hay, si no el
+    // de la ruta. Su correo vive en auth.users, no en `perfiles`.
+    const choferId = s.chofer_id || s.rutas?.chofer_id;
+    await avisar("parada asignada", async () => {
+      const correo = await correoDe(choferId);
+      if (!correo) return;
+      await correoParadaAsignada({
+        correo,
+        nombre: s.choferParada?.nombre,
+        folio: s.folio,
+        cliente: s.clientes?.empresa || "un cliente",
+        domicilio,
+        fecha: s.fecha_confirmada,
+        hora: s.hora_confirmada,
+      });
+    });
+  }
+
+  if (s.estado === "rechazada") {
+    await avisar("recolección rechazada", () =>
+      correoRecoleccionRechazada({
+        correo: s.clientes?.correo,
+        empresa: s.clientes?.empresa,
+        folio: s.folio,
+        fecha: s.fecha_confirmada || cambios?.fecha_confirmada,
+        motivo: s.motivo_rechazo,
+      })
+    );
+  }
 
   return { ok: true };
 }

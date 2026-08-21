@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { FiArrowLeft, FiCamera, FiCheckCircle, FiTruck, FiHash, FiSave } from "react-icons/fi";
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
+import { subirEvidencia } from "@/lib/datos-archivos";
 
 const PASOS = ["Contenedor", "Foto antes", "Recolectar", "Foto después", "Peso"];
 
@@ -12,6 +13,35 @@ const PASOS = ["Contenedor", "Foto antes", "Recolectar", "Foto después", "Peso"
 const horaAhora = () => {
   const f = new Date();
   return `${String(f.getHours()).padStart(2, "0")}:${String(f.getMinutes()).padStart(2, "0")}`;
+};
+
+/**
+ * Lo avanzado de una parada se guarda en el propio teléfono.
+ *
+ * Antes las fotos vivían en memoria hasta el último botón: si el chofer
+ * recargaba, se le iba la señal o le entraba una llamada, perdía las dos fotos
+ * ya tomadas y tenía que repetir la parada entera. En la calle eso pasa.
+ *
+ * Ahora cada foto se sube en cuanto se toma y aquí solo se anota su RUTA, que
+ * es un texto corto. Al recargar se recupera dónde iba.
+ */
+const memoria = {
+  llave: (id) => `morcast:parada:${id}`,
+  leer(id) {
+    try {
+      return JSON.parse(localStorage.getItem(this.llave(id)) || "null");
+    } catch {
+      return null;
+    }
+  },
+  guardar(id, datos) {
+    try {
+      localStorage.setItem(this.llave(id), JSON.stringify(datos));
+    } catch { /* sin espacio: se sigue, no vale tumbar la parada por esto */ }
+  },
+  borrar(id) {
+    try { localStorage.removeItem(this.llave(id)); } catch { /* ignore */ }
+  },
 };
 
 export default function RecoleccionChofer() {
@@ -27,6 +57,7 @@ export default function RecoleccionChofer() {
   const [despues, setDespues] = useState(null);
   const [peso, setPeso] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [subiendo, setSubiendo] = useState("");   // "antes" | "despues" | ""
   const [error, setError] = useState("");
 
   const refAntes = useRef(null);
@@ -39,6 +70,15 @@ export default function RecoleccionChofer() {
       setParada(lista.find((p) => p.id === id) || null);
       setCargando(false);
     });
+    // Se recupera lo que ya se había hecho en esta parada.
+    const previo = memoria.leer(id);
+    if (previo) {
+      setQr(previo.qr || "");
+      setPeso(previo.peso || "");
+      if (previo.antes) setAntes(previo.antes);
+      if (previo.despues) setDespues(previo.despues);
+      setPaso(previo.paso || 0);
+    }
     return () => {
       vivo = false;
     };
@@ -53,23 +93,41 @@ export default function RecoleccionChofer() {
     };
   }, [antes, despues]);
 
-  const tomarFoto = (cual) => (e) => {
+  const tomarFoto = (cual) => async (e) => {
     const archivo = e.target.files?.[0];
     if (!archivo) return;
-    const dato = { archivo, url: URL.createObjectURL(archivo), hora: horaAhora() };
-    if (cual === "antes") {
-      setAntes(dato);
-      setPaso(2);
-    } else {
-      setDespues(dato);
-      setPaso(4);
+    setError("");
+    setSubiendo(cual);
+
+    // Se sube YA, no al final. Si algo pasa después, la foto ya está a salvo.
+    const r = await subirEvidencia(id, cual, archivo);
+    setSubiendo("");
+    if (!r.ok) {
+      setError("No se pudo subir la foto. Revisa tu señal y tómala otra vez.");
+      return;
     }
+
+    const dato = { ruta: r.ruta, url: URL.createObjectURL(archivo), hora: horaAhora() };
+    const siguiente = cual === "antes" ? 2 : 4;
+    if (cual === "antes") setAntes(dato); else setDespues(dato);
+    setPaso(siguiente);
+
+    // El object URL no sobrevive a una recarga; se guarda sin él.
+    const sinUrl = { ruta: dato.ruta, hora: dato.hora };
+    memoria.guardar(id, {
+      qr,
+      peso,
+      paso: siguiente,
+      antes: cual === "antes" ? sinUrl : antes && { ruta: antes.ruta, hora: antes.hora },
+      despues: cual === "despues" ? sinUrl : despues && { ruta: despues.ruta, hora: despues.hora },
+    });
   };
 
   const confirmarContenedor = async () => {
     if (!qr.trim()) return;
     await marcarEnRuta(id);
     setPaso(1);
+    memoria.guardar(id, { qr: qr.trim(), peso, paso: 1, antes: null, despues: null });
   };
 
   const finalizar = async () => {
@@ -79,8 +137,9 @@ export default function RecoleccionChofer() {
       solicitudId: id,
       qr: qr.trim(),
       pesoKg: peso,
-      fotoAntes: antes?.archivo,
-      fotoDespues: despues?.archivo,
+      // Ya subidas: aquí solo viajan sus rutas.
+      rutaAntes: antes?.ruta || null,
+      rutaDespues: despues?.ruta || null,
       horaAntes: antes ? new Date().toISOString() : null,
       horaDespues: despues ? new Date().toISOString() : null,
     });
@@ -89,6 +148,7 @@ export default function RecoleccionChofer() {
       setGuardando(false);
       return;
     }
+    memoria.borrar(id);   // la parada quedó cerrada: ya no hay nada que retomar
     router.replace("/chofer");
   };
 
@@ -184,8 +244,9 @@ export default function RecoleccionChofer() {
               type="button"
               className="pt-btn pt-btn-verde ch-boton-grande"
               onClick={() => refAntes.current?.click()}
+              disabled={subiendo === "antes"}
             >
-              <FiCamera /> Tomar foto
+              <FiCamera /> {subiendo === "antes" ? "Subiendo la foto…" : "Tomar foto"}
             </button>
           </>
         )}
@@ -228,8 +289,9 @@ export default function RecoleccionChofer() {
               type="button"
               className="pt-btn pt-btn-verde ch-boton-grande"
               onClick={() => refDespues.current?.click()}
+              disabled={subiendo === "despues"}
             >
-              <FiCamera /> Tomar foto
+              <FiCamera /> {subiendo === "despues" ? "Subiendo la foto…" : "Tomar foto"}
             </button>
           </>
         )}

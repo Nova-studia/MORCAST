@@ -177,3 +177,124 @@ export async function correoAvisoInterno(datos) {
         directamente a este correo.</p>`),
   });
 }
+
+/* ==================================================================== */
+/* AVISOS DEL CIRCUITO (confirmar recolección, aplicar saldo)            */
+/*                                                                      */
+/* Hasta el 21-ago-2026 el sistema solo mandaba correo en los DOS       */
+/* formularios públicos. Dentro no avisaba de nada: a un cliente se le  */
+/* confirmaba su recolección y no se enteraba, se le aplicaba su saldo  */
+/* y no se enteraba, y al chofer nadie le decía que le habían puesto    */
+/* una parada. Todos tenían que entrar a mirar por si acaso.            */
+/* ==================================================================== */
+
+/** Fecha ISO → "22 de agosto de 2026", para que se lea en un correo. */
+function fechaEnLetra(iso) {
+  if (!iso) return "";
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const [a, m, d] = String(iso).split("-").map(Number);
+  return `${d} de ${meses[m - 1]} de ${a}`;
+}
+
+/** Al CLIENTE: su recolección quedó confirmada. */
+export async function correoRecoleccionConfirmada({ correo, empresa, folio, fecha, hora, domicilio }) {
+  if (!correo) return null;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Confirmamos tu recolección del ${fechaEnLetra(fecha)} — ${folio}`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:22px;color:#144C4F">Tu recolección está confirmada</h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        ${esc(empresa || "Hola")}, pasamos por tus residuos el
+        <strong>${fechaEnLetra(fecha)}</strong>${hora ? ` <strong>alrededor de las ${esc(String(hora).slice(0, 5))}</strong>` : ""}.
+      </p>
+      ${hora ? "" : `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Todavía no podemos darte una hora exacta; te avisamos si se define.</p>`}
+      ${domicilio ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Domicilio: <strong>${esc(domicilio)}</strong>.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Folio <strong>${esc(folio)}</strong>. Puedes seguirla en
+        <a href="https://morcast.mx/portal">tu portal</a>.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
+
+/** Al CLIENTE: no se pudo, y por qué. */
+export async function correoRecoleccionRechazada({ correo, empresa, folio, fecha, motivo }) {
+  if (!correo) return null;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `No pudimos programar tu recolección del ${fechaEnLetra(fecha)} — ${folio}`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:22px;color:#144C4F">No pudimos programarla</h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        ${esc(empresa || "Hola")}, tu solicitud <strong>${esc(folio)}</strong> para el
+        <strong>${fechaEnLetra(fecha)}</strong> no se pudo programar.
+      </p>
+      ${motivo ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Motivo: <strong>${esc(motivo)}</strong>.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Pide otra fecha en <a href="https://morcast.mx/portal/agendar">tu portal</a>, o
+        llámanos al <strong>868 384 9478</strong> y lo vemos.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
+
+/** Al CHOFER: le tocó una parada nueva. */
+export async function correoParadaAsignada({ correo, nombre, folio, cliente, domicilio, fecha, hora }) {
+  if (!correo) return null;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Parada nueva el ${fechaEnLetra(fecha)}: ${cliente}`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tienes una parada nueva</h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        ${esc(nombre || "Hola")}, te toca <strong>${esc(cliente)}</strong> el
+        <strong>${fechaEnLetra(fecha)}</strong>${hora ? ` a las <strong>${esc(String(hora).slice(0, 5))}</strong>` : ""}.
+      </p>
+      ${domicilio ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Domicilio: <strong>${esc(domicilio)}</strong>.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Folio <strong>${esc(folio)}</strong>. La tienes en
+        <a href="https://morcast.mx/chofer">tu pantalla de ruta</a> el día que toca.
+      </p>`),
+  });
+}
+
+/** Al CLIENTE: su depósito se aplicó, o no. */
+export async function correoSaldoResuelto({ correo, empresa, monto, aplicado, notas }) {
+  if (!correo) return null;
+  const dinero = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(monto || 0);
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: aplicado
+      ? `Aplicamos tu pago de ${dinero} — Morcast del Norte`
+      : `No pudimos aplicar tu pago de ${dinero} — Morcast del Norte`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:22px;color:#144C4F">
+        ${aplicado ? "Tu pago ya está aplicado" : "No pudimos aplicar tu pago"}
+      </h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        ${esc(empresa || "Hola")}, ${aplicado
+          ? `verificamos tu comprobante y abonamos <strong>${dinero}</strong> a tu saldo.`
+          : `revisamos tu comprobante por <strong>${dinero}</strong> y no pudimos aplicarlo.`}
+      </p>
+      ${notas ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Nota de nuestro equipo: <strong>${esc(notas)}</strong>.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Consulta tu saldo en <a href="https://morcast.mx/portal">tu portal</a>.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}

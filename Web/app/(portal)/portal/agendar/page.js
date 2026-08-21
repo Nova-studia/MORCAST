@@ -34,6 +34,20 @@ function proximasFechas(dias, cuantas = 6) {
   return fechas;
 }
 
+/** Hoy en formato AAAA-MM-DD, armado con la fecha LOCAL. */
+function hoyISO() {
+  const d = new Date();
+  // Nada de toISOString(): pasa a UTC y de noche devuelve el día siguiente.
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Un año adelante: tope contra el dedazo en el año. */
+function enUnAño() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function AgendarPortal() {
   const [suscripcion, setSuscripcion] = useState(null);
   const [mias, setMias] = useState([]);
@@ -77,7 +91,9 @@ export default function AgendarPortal() {
     });
 
     if (!r.ok) {
-      setError("No se pudo enviar tu solicitud. Vuelve a intentarlo.");
+      // Se dice el motivo. Con un "vuelve a intentarlo" a secas, quien puso
+      // una fecha imposible la vuelve a poner igual.
+      setError(r.motivo || "No se pudo enviar tu solicitud. Vuelve a intentarlo.");
       setEnviando(false);
       return;
     }
@@ -141,6 +157,12 @@ export default function AgendarPortal() {
             <input
               type="date"
               className="pt-input"
+              // Sin `min` se podía agendar en el pasado: en la prueba entró
+              // una recolección para 2020. El calendario ya no lo ofrece; la
+              // regla de verdad está en la base (db/013), porque esto se
+              // quita desde las herramientas del navegador.
+              min={hoyISO()}
+              max={enUnAño()}
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
               style={{ width: "100%", marginBottom: "1rem" }}
