@@ -91,7 +91,7 @@ export default function DocumentosPortal() {
                 <th>Manifiesto</th>
                 <th>Fecha</th>
                 <th>Servicio</th>
-                <th>Volumen</th>
+                <th>Peso</th>
                 <th></th>
               </tr>
             </thead>
@@ -101,7 +101,7 @@ export default function DocumentosPortal() {
                   <td className="folio"><FiFile style={{ verticalAlign: "-2px", marginRight: 6 }} />{s.manifiesto}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(s.fecha)}</td>
                   <td>{s.tipo}</td>
-                  <td>{s.volumen}</td>
+                  <td>{s.peso}</td>
                   <td>
                     <button className="pt-btn" onClick={() => bajarManifiesto(s)} disabled={bajando === s.folio}>
                       <FiDownload /> {bajando === s.folio ? "Generando…" : "PDF"}

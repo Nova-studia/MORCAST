@@ -251,6 +251,9 @@ export async function misServicios({ conFotos = true } = {}) {
         tipo: nombreTipoRuta(s.rutas?.tipo) || "Recolección",
         residuo: s.origen === "extra" ? "Recolección extra" : "Residuos de ruta",
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "Sin contenedor registrado",
+        // Nadie mide metros cúbicos: lo que el chofer anota es PESO. El
+        // campo se queda porque los PDF viejos lo nombran, pero las
+        // pantallas enseñan `peso`, que es el que trae dato.
         volumen: "—",
         peso: ev?.peso_kg ? `${ev.peso_kg} kg` : "—",
         unidad: s.rutas?.unidad || "—",

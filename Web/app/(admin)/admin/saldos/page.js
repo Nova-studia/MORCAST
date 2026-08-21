@@ -11,7 +11,7 @@ import { RECARGAS_SEED, estadoRecarga } from "@/lib/recargas-datos";
 import { obtenerSesionAdmin } from "@/lib/admin-sesion";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { enlaceTemporal } from "@/lib/datos-archivos";
-import { pesos, fechaLarga } from "@/lib/portal-datos";
+import { pesos, fechaLarga, folioCorto } from "@/lib/portal-datos";
 
 /** Los PDF no se pueden pintar con <img>: se abren en pestaña aparte. */
 const esPdf = (nombre) => String(nombre || "").toLowerCase().endsWith(".pdf");
@@ -186,7 +186,7 @@ export default function SaldosAdmin() {
               <tbody>
                 {porVerificar.map((r) => (
                   <tr key={r.id}>
-                    <td className="folio">{r.id}</td>
+                    <td className="folio" title={r.id}>{r.folio || folioCorto(r.id, "DEP")}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(r.fecha)}</td>
                     <td>
                       {r.cliente}
@@ -255,7 +255,7 @@ export default function SaldosAdmin() {
             <div className="pt-modal-head">
               <div>
                 <strong>{ver.cliente}</strong>
-                <span>{ver.id} · {fechaLarga(ver.fecha)}</span>
+                <span>{ver.folio || folioCorto(ver.id, "DEP")} · {fechaLarga(ver.fecha)}</span>
               </div>
               <button className="pt-btn" onClick={() => { setVer(null); setRechazando(null); }} aria-label="Cerrar"><FiX /></button>
             </div>

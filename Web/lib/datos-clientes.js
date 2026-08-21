@@ -77,22 +77,13 @@ export async function crearCliente(datos) {
   if (!haySupabaseNavegador()) return { ok: true, demo: true };
 
   const supabase = supabaseNavegador();
-  const año = new Date().getFullYear();
 
-  const { data: previos } = await supabase
-    .from("clientes")
-    .select("folio")
-    .like("folio", `MOR-${año}-%`)
-    .order("folio", { ascending: false })
-    .limit(1);
-
-  const n = previos?.[0]?.folio ? Number(String(previos[0].folio).split("-").pop()) : 0;
-  const folio = `MOR-${año}-${String((Number.isFinite(n) ? n : 0) + 1).padStart(4, "0")}`;
-
+  // El folio lo pone la BASE (db/014). Calcularlo aquí era una carrera: entre
+  // leer el más alto e insertar cabe otra alta, las dos sacan el mismo número
+  // y la segunda choca contra la restricción de folio único.
   const { data, error } = await supabase
     .from("clientes")
     .insert({
-      folio,
       empresa: datos.empresa,
       contacto: datos.contacto || null,
       correo: datos.correo || null,

@@ -104,7 +104,7 @@ export default function HistorialPortal() {
                 <th>Tipo</th>
                 <th>Residuo</th>
                 <th>Contenedor</th>
-                <th className="num">Volumen</th>
+                <th className="num">Peso</th>
                 <th>Estatus</th>
                 <th>Manifiesto</th>
               </tr>
@@ -135,7 +135,7 @@ export default function HistorialPortal() {
                       <td>{s.tipo}</td>
                       <td>{s.residuo}</td>
                       <td>{s.contenedor}</td>
-                      <td className="num">{s.volumen}</td>
+                      <td className="num">{s.peso}</td>
                       <td><span className={`pt-badge ${est.clase}`}>{est.texto}</span></td>
                       <td>
                         <div style={{ display: "flex", gap: "0.4rem" }}>

@@ -5,7 +5,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { FiMapPin, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 import { nombreTipoRuta } from "@/lib/rutas-datos";
-import { listarRutas } from "@/lib/datos-rutas";
+// Las zonas se piden al SERVIDOR, no con la sesión del cliente. La acción
+// devuelve solo clave, nombre, tipo, días y polígono: un cliente no tiene por
+// qué saber quién maneja cada ruta ni con qué unidad. Es la misma vía que ya
+// usaba la página pública de alta.
+import { zonasDeCobertura } from "@/app/acciones-alta";
 import { rutasQueCubren } from "@/lib/punto-en-zona.mjs";
 
 // Leaflet solo corre en el navegador.
@@ -22,7 +26,7 @@ export default function CoberturaPortal() {
   // cliente ve la nueva sin que nadie toque el código.
   useEffect(() => {
     let vivo = true;
-    listarRutas().then((lista) => {
+    zonasDeCobertura().then((lista) => {
       if (vivo) setRutas(lista);
     });
     return () => {

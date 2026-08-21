@@ -41,26 +41,6 @@ async function exigirPersonal() {
 }
 
 /**
- * Genera el siguiente folio de cliente.
- *
- * Se hace en el servidor y con la llave de servicio para que lea TODOS los
- * folios: desde el navegador, el RLS le enseña a cada quien solo lo suyo y el
- * "último folio" saldría mal.
- */
-async function siguienteFolio(sb) {
-  const año = new Date().getFullYear();
-  const { data } = await sb
-    .from("clientes")
-    .select("folio")
-    .like("folio", `MOR-${año}-%`)
-    .order("folio", { ascending: false })
-    .limit(1);
-
-  const n = data?.[0]?.folio ? Number(String(data[0].folio).split("-").pop()) : 0;
-  return `MOR-${año}-${String((Number.isFinite(n) ? n : 0) + 1).padStart(4, "0")}`;
-}
-
-/**
  * Da de alta la empresa y su primer acceso al portal.
  *
  * Deja las cosas en este orden, y el orden importa:
@@ -131,12 +111,11 @@ export async function activarCuentaCliente({
     try { await sb.auth.admin.deleteUser(uid); } catch { /* se reporta el error de origen */ }
   };
 
-  // 2) La empresa.
-  const folio = await siguienteFolio(sb);
+  // 2) La empresa. El folio lo asigna la base (db/014), con un candado que
+  //    serializa la asignación: calcularlo aquí era una carrera.
   const { data: cliente, error: errCliente } = await sb
     .from("clientes")
     .insert({
-      folio,
       empresa: limpio.empresa,
       contacto: limpio.contacto || null,
       correo: limpio.correo,
