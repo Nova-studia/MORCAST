@@ -10,7 +10,11 @@ import { resolverDepositoAuditado } from "@/app/acciones-auditadas";
 import { RECARGAS_SEED, estadoRecarga } from "@/lib/recargas-datos";
 import { obtenerSesionAdmin } from "@/lib/admin-sesion";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { enlaceTemporal } from "@/lib/datos-archivos";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
+
+/** Los PDF no se pueden pintar con <img>: se abren en pestaña aparte. */
+const esPdf = (nombre) => String(nombre || "").toLowerCase().endsWith(".pdf");
 
 export default function SaldosAdmin() {
   const [recargas, setRecargas] = useState([]);
@@ -30,9 +34,22 @@ export default function SaldosAdmin() {
     return () => { vivo = false; };
   }, []);
   const [ver, setVer] = useState(null);      // recarga cuyo comprobante se previsualiza
+  // Enlace firmado del comprobante: "cargando" mientras se pide, null si no
+  // hay archivo o no se pudo abrir.
+  const [urlComprobante, setUrlComprobante] = useState(null);
   const [rechazando, setRechazando] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
   const [yo, setYo] = useState(null);        // quién entró de verdad
+
+  useEffect(() => {
+    let vivo = true;
+    if (!ver?.comprobante) { setUrlComprobante(null); return () => { vivo = false; }; }
+    setUrlComprobante("cargando");
+    enlaceTemporal("comprobantes", ver.comprobante).then((u) => {
+      if (vivo) setUrlComprobante(u || null);
+    });
+    return () => { vivo = false; };
+  }, [ver]);
 
   useEffect(() => {
     let vivo = true;
@@ -53,6 +70,21 @@ export default function SaldosAdmin() {
     : true;
 
   const porVerificar = recargas.filter((r) => r.estado === "por-verificar");
+
+  // Depósitos que se repiten: mismo cliente, mismo monto y misma referencia
+  // esperando verificación. Aplicarlos todos le regala saldo al cliente por
+  // una sola transferencia. El sistema ya no deja crearlos, pero los que
+  // existan de antes —o los que entren por otra vía— tienen que verse.
+  const duplicados = useMemo(() => {
+    const cuenta = new Map();
+    for (const r of porVerificar) {
+      const llave = [r.cliente, r.monto, r.referencia].join("|");
+      cuenta.set(llave, (cuenta.get(llave) || 0) + 1);
+    }
+    return new Set([...cuenta].filter(([, n]) => n > 1).map(([k]) => k));
+  }, [porVerificar]);
+
+  const esDuplicado = (r) => duplicados.has([r.cliente, r.monto, r.referencia].join("|"));
   const totalAFavor = useMemo(() => clientes.reduce((s, c) => s + (c.saldo || 0), 0), [clientes]);
   const totalPorCobrar = useMemo(() => clientes.reduce((s, c) => s + (c.porPagar || 0), 0), [clientes]);
 
@@ -156,7 +188,14 @@ export default function SaldosAdmin() {
                   <tr key={r.id}>
                     <td className="folio">{r.id}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(r.fecha)}</td>
-                    <td>{r.cliente}</td>
+                    <td>
+                      {r.cliente}
+                      {esDuplicado(r) && (
+                        <div style={{ color: "#e0a33e", fontSize: "0.76rem", marginTop: 2 }}>
+                          <FiAlertCircle style={{ verticalAlign: "-2px" }} /> Repetido: mismo monto y referencia
+                        </div>
+                      )}
+                    </td>
                     <td>{r.banco}</td>
                     <td>{r.referencia}</td>
                     <td className="num"><strong>{pesos(r.monto)}</strong></td>
@@ -222,10 +261,34 @@ export default function SaldosAdmin() {
             </div>
             <div className="pt-modal-cuerpo">
               <div className="pt-modal-comprobante">
-                {ver.comprobante ? (
-                  <img src={ver.comprobante} alt="Comprobante de pago" />
+                {/*
+                  El comprobante vive en una cubeta PRIVADA: lo que guarda la
+                  base es la ruta, no una URL. Hay que pedir un enlace firmado
+                  y con vigencia. Antes se ponía la ruta directo en el `src`,
+                  así que la imagen nunca cargaba y quien aprobaba el dinero
+                  solo veía el nombre del archivo.
+                */}
+                {urlComprobante === "cargando" ? (
+                  <div className="pt-modal-sinimg"><FiFileText /><span>Abriendo el comprobante…</span></div>
+                ) : urlComprobante ? (
+                  esPdf(ver.comprobanteNombre) ? (
+                    <a href={urlComprobante} target="_blank" rel="noopener noreferrer" className="pt-btn">
+                      <FiFileText /> Abrir el PDF del comprobante
+                    </a>
+                  ) : (
+                    <a href={urlComprobante} target="_blank" rel="noopener noreferrer">
+                      <img src={urlComprobante} alt="Comprobante de pago" />
+                    </a>
+                  )
                 ) : (
-                  <div className="pt-modal-sinimg"><FiFileText /><span>{ver.comprobanteNombre || "Comprobante adjunto"}</span></div>
+                  <div className="pt-modal-sinimg">
+                    <FiAlertCircle />
+                    <span>
+                      {ver.comprobante
+                        ? "No se pudo abrir el archivo."
+                        : "Este depósito se registró SIN comprobante."}
+                    </span>
+                  </div>
                 )}
               </div>
               <div className="pt-modal-datos">

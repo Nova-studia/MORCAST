@@ -14,7 +14,8 @@ export default function AgregarSaldo() {
   // otra empresa y Morcast no podía saber de quién era el dinero.
   const [refPropia, setRefPropia] = useState("");
   const [form, setForm] = useState({ monto: "", banco: BANCOS[0], referencia: "" });
-  const [archivo, setArchivo] = useState(null); // {nombre, url, esImagen}
+  const [archivo, setArchivo] = useState(null); // {archivo, nombre, url, esImagen}
+  const [enviando, setEnviando] = useState(false);
   const [enviada, setEnviada] = useState(false);
   const [copiado, setCopiado] = useState("");
 
@@ -48,14 +49,19 @@ export default function AgregarSaldo() {
   }, []);
 
   const montoNum = useMemo(() => Number(String(form.monto).replace(/[^\d.]/g, "")) || 0, [form.monto]);
-  const puedeEnviar = montoNum > 0 && archivo;
+  // `enviando` bloquea el segundo clic: subir el comprobante tarda, y sin
+  // esto un doble clic manda el mismo depósito dos veces.
+  const puedeEnviar = montoNum > 0 && archivo && !enviando;
 
   const elegirArchivo = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (archivo?.url) URL.revokeObjectURL(archivo.url); // libera el anterior
     const esImagen = f.type.startsWith("image/");
-    setArchivo({ nombre: f.name, url: esImagen ? URL.createObjectURL(f) : null, esImagen });
+    // Se guarda el archivo, no solo su nombre: es lo que hay que subir. Antes
+    // solo se conservaba `nombre` y la vista previa, así que el comprobante
+    // nunca llegaba a ningún lado.
+    setArchivo({ archivo: f, nombre: f.name, url: esImagen ? URL.createObjectURL(f) : null, esImagen });
   };
 
   const copiar = async (texto, cual) => {
@@ -71,15 +77,20 @@ export default function AgregarSaldo() {
     if (!puedeEnviar) return;
     setErrorEnvio("");
 
+    setEnviando(true);
     const r = await reportarDeposito({
       monto: montoNum,
       banco: form.banco,
       referencia: form.referencia,
-      comprobanteNombre: archivo.nombre,
+      archivo: archivo.archivo,
     });
+    setEnviando(false);
 
     if (!r.ok) {
-      setErrorEnvio("No se pudo enviar tu comprobante. Vuelve a intentarlo.");
+      // El motivo real importa: no es lo mismo "se cayó la red" que "ya
+      // mandaste este mismo depósito". Con un mensaje genérico el cliente
+      // vuelve a intentarlo y duplica el movimiento.
+      setErrorEnvio(r.motivo || "No se pudo enviar tu comprobante. Vuelve a intentarlo.");
       return;
     }
 
@@ -114,13 +125,24 @@ export default function AgregarSaldo() {
         <div className="pt-card" style={{ margin: 0 }}>
           <div className="pt-card-head"><h2>Datos para depósito o transferencia</h2></div>
           <div className="pt-deposito">
-            {[
-              ["Banco", DATOS_DEPOSITO.banco],
-              ["Titular", DATOS_DEPOSITO.titular],
-              ["CLABE", DATOS_DEPOSITO.clabe],
-              ["No. de cuenta", DATOS_DEPOSITO.cuenta],
-              ["Referencia", DATOS_DEPOSITO.referencia],
-            ].map(([k, v]) => (
+            {/*
+              Mientras los datos sean de demostración NO se enseña la CLABE ni
+              la cuenta: son ceros. Un cliente que los copie no puede pagar, y
+              la nota de abajo se lee después del error, no antes.
+            */}
+            {(DATOS_DEPOSITO.demo
+              ? [
+                  ["Titular", DATOS_DEPOSITO.titular],
+                  ["Referencia", DATOS_DEPOSITO.referencia],
+                ]
+              : [
+                  ["Banco", DATOS_DEPOSITO.banco],
+                  ["Titular", DATOS_DEPOSITO.titular],
+                  ["CLABE", DATOS_DEPOSITO.clabe],
+                  ["No. de cuenta", DATOS_DEPOSITO.cuenta],
+                  ["Referencia", DATOS_DEPOSITO.referencia],
+                ]
+            ).map(([k, v]) => (
               <div className="pt-deposito-fila" key={k}>
                 <span>{k}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -135,7 +157,12 @@ export default function AgregarSaldo() {
             ))}
           </div>
           {DATOS_DEPOSITO.demo && (
-            <p className="pt-nota-demo"><FiInfo /> Datos bancarios de demostración. Se reemplazan por los reales de Morcast antes de lanzar.</p>
+            <p className="pt-nota-demo">
+              <FiInfo /> Todavía no publicamos la cuenta aquí. Pídenos los datos
+              para transferir por WhatsApp al <strong>868 384 9478</strong> o al
+              correo <strong>contacto@morcast.mx</strong> y sube tu comprobante
+              en esta misma pantalla.
+            </p>
           )}
         </div>
       </div>
@@ -203,7 +230,7 @@ export default function AgregarSaldo() {
             </label>
 
             <button type="submit" className="pt-btn pt-btn-verde" disabled={!puedeEnviar} style={{ marginTop: "1rem", padding: "0.7rem 1.4rem", opacity: puedeEnviar ? 1 : 0.55 }}>
-              Enviar para verificación
+              {enviando ? "Subiendo comprobante…" : "Enviar para verificación"}
             </button>
           </form>
         </div>

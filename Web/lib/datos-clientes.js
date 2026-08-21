@@ -9,6 +9,7 @@
  */
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { subirComprobante } from "@/lib/datos-archivos";
 import { CLIENTES_ADMIN, USUARIOS_ADMIN } from "@/lib/admin-datos";
 
 const ROLES_LEGIBLES = {
@@ -184,7 +185,7 @@ export async function miSaldo() {
  * aumentarse el saldo solo. La política de RLS lo obliga aunque se manipule
  * la llamada.
  */
-export async function reportarDeposito({ monto, banco, referencia, comprobanteNombre, notas }) {
+export async function reportarDeposito({ monto, banco, referencia, archivo, notas }) {
   if (!haySupabaseNavegador()) return { ok: true, demo: true };
 
   const supabase = supabaseNavegador();
@@ -195,7 +196,41 @@ export async function reportarDeposito({ monto, banco, referencia, comprobanteNo
     .from("perfiles").select("cliente_id").eq("id", user.id).single();
   if (!perfil?.cliente_id) return { ok: false, motivo: "Tu cuenta no tiene empresa asignada." };
 
-  const { error } = await supabase.from("movimientos_saldo").insert({
+  // Un depósito repetido es dinero repetido. Antes se podía mandar el mismo
+  // comprobante N veces —pasó en las pruebas: tres reportes idénticos dejaron
+  // $15,000 por verificar de una transferencia de $5,000— y el panel los
+  // listaba uno debajo del otro sin avisar que eran el mismo.
+  const { data: iguales } = await supabase
+    .from("movimientos_saldo")
+    .select("id")
+    .eq("cliente_id", perfil.cliente_id)
+    .eq("estado", "por-verificar")
+    .eq("monto", Number(monto))
+    .eq("referencia", referencia || null)
+    .limit(1);
+
+  if (iguales?.length) {
+    return {
+      ok: false,
+      duplicado: true,
+      motivo:
+        "Ya tienes un depósito por el mismo monto y la misma referencia esperando verificación. " +
+        "Si es otro pago distinto, cámbiale la referencia.",
+    };
+  }
+
+  // El comprobante se SUBE. Antes solo viajaba el nombre del archivo, así que
+  // la cubeta quedaba vacía y quien tenía que aprobar el dinero no veía nada.
+  let comprobante = null;
+  if (archivo) {
+    const subida = await subirComprobante(perfil.cliente_id, archivo);
+    if (!subida.ok) {
+      return { ok: false, motivo: "No se pudo subir el comprobante. Vuelve a intentarlo." };
+    }
+    comprobante = subida.ruta;
+  }
+
+  const { data, error } = await supabase.from("movimientos_saldo").insert({
     cliente_id: perfil.cliente_id,
     tipo: "abono",
     concepto: `Depósito reportado${banco ? ` — ${banco}` : ""}`,
@@ -203,13 +238,19 @@ export async function reportarDeposito({ monto, banco, referencia, comprobanteNo
     estado: "por-verificar",
     banco: banco || null,
     referencia: referencia || null,
-    comprobante_nombre: comprobanteNombre || null,
+    comprobante,
+    comprobante_nombre: archivo?.name || null,
     notas: notas || null,
-  });
+  }).select("id");
 
   if (error) {
     console.error("[saldos] No se pudo reportar:", error.message);
     return { ok: false, motivo: error.message };
+  }
+  // Un INSERT bloqueado por RLS tampoco da error: no inserta nada y responde
+  // 200. Se cuentan las filas devueltas.
+  if (!data?.length) {
+    return { ok: false, motivo: "No se guardó nada: el permiso de la base no dejó registrar el depósito." };
   }
   return { ok: true };
 }
