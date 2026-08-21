@@ -18,9 +18,23 @@ mismo dentro de seis meses— pueda operar esto sin adivinar.
 | App de iPhone | Expo / React Native, se prueba con Expo Go | `App IOS/` |
 | Base de datos, cuentas y archivos | Supabase (PostgreSQL) | nube, región `ca-central-1` |
 | Correos | Resend, dominio `morcast.mx` verificado | nube |
-| Servidor | Droplet de DigitalOcean, 458 MB de RAM | `161.35.0.140` |
+| Alojamiento del sitio | **Vercel**, proyecto `morcast` (equipo del socio) | nube |
+| Dominio y DNS | GoDaddy (`ns29`/`ns30.domaincontrol.com`) | `morcast.mx` |
+| Servidor viejo | Droplet de DigitalOcean, **apagado desde el 20-ago-2026** | `161.35.0.140` |
 
-**Repositorio:** `github.com/jsamuelglz00/morcast`, rama `main`.
+**Repositorio:** `github.com/Nova-studia/MORCAST`, rama `main`. Es del socio y es
+**PÚBLICO** desde el 20-ago-2026.
+
+> ⚠️ **Público quiere decir público.** Cualquiera lee este repositorio, y este manual
+> está dentro. Antes de escribir aquí una llave, una contraseña o una IP nueva,
+> piénsalo dos veces. Las contraseñas de las cuentas de demostración (`cliente@demo.com`
+> y `chofer@demo.com`) están publicadas en el README por decisión de Luis y su socio,
+> avisados de que funcionan contra el sistema real.
+
+> 📌 **Cambió el 19-ago-2026.** El repo anterior, `jsamuelglz00/morcast`, queda
+> **congelado** con la historia completa hasta el commit `fae6cbd`: el nuevo empieza
+> con todo aplastado en un solo commit, así que el registro de quién hizo qué solo
+> vive en el viejo. No se borra por eso.
 
 > ⚠️ Luis tiene **dos cuentas de GitHub**: `Flixnetapp` (para FlixNet) y
 > `jsamuelglz00` (dueño de este repo). Si al hacer `push` sale *"Repository not
@@ -28,59 +42,76 @@ mismo dentro de seis meses— pueda operar esto sin adivinar.
 > El repo local ya trae un `credential.helper` propio que siempre pide el token de
 > `jsamuelglz00`, así que no debería volver a pasar.
 
-### En el servidor
+### En Vercel
 
-```
-/var/www/morcast/          ← el repositorio clonado
-/var/www/morcast/Web/      ← la aplicación, corre aquí
-/var/www/morcast/Web/.env.local   ← las llaves (chmod 600, NUNCA en git)
-```
+El proyecto apunta a la carpeta **`Web`** del repositorio (*Root Directory*), no a la
+raíz: el repo trae también las dos apps, `docs/` y `respaldo/`. Vercel compila con
+`next build` y el certificado HTTPS lo emite y renueva él solo.
 
-Corre con **PM2** (proceso `morcast`, puerto 3000) detrás de **nginx**, con SSL de
-certbot que se renueva solo. Arranca solo si el servidor se reinicia.
+Las llaves viven en **Project → Settings → Environment Variables**. Son las mismas
+seis que en `Web/.env.local`, marcadas para `Production` y `Preview`.
 
-**Entrar:** `ssh -i ~/.ssh/morcast_deploy root@161.35.0.140`
+> 🚨 **Las vistas previas escriben en la base de VERDAD.** Solo hay un proyecto de
+> Supabase, así que el despliegue de cualquier rama toca los datos reales de los
+> clientes. Se mira, no se ensucia; y lo que se cree probando, se borra.
+
+### El DNS
+
+`morcast.mx` está en GoDaddy y su registro `A` apunta a Vercel.
+
+> 🚨 **Nunca pasar los nameservers a Vercel.** Esa zona de DNS trae mucho más que el
+> sitio: el `MX` del correo de la empresa (`contacto@morcast.mx`), su SPF, el DMARC y
+> **los registros de Resend** (`resend._domainkey` y el subdominio `send.morcast.mx`).
+> Si se mueven los nameservers, se cae el correo de Morcast **y** el del sistema. Para
+> cambiar de alojamiento se toca el registro `A` y nada más.
+
+### El servidor viejo
+
+Sigue existiendo, apagado, como red de seguridad por si hubiera que volver atrás. Ya
+**no sirve el sitio** y su `deploy.sh` apunta al repositorio VIEJO: si alguien lo
+enciende y lo corre, publica código de agosto. Para revivirlo habría que apuntar el
+registro `A` de vuelta a `161.35.0.140`.
+
+**Entrar (si hiciera falta):** `ssh -i ~/.ssh/morcast_deploy root@161.35.0.140`
 
 ---
 
 ## 2. Publicar cambios
 
-### Lo normal: `bash desplegar-rapido.sh`
+### Lo normal: `git push`
 
-Desde la raíz del repositorio, en la laptop. Tarda **menos de un minuto**.
-
-```bash
-bash desplegar-rapido.sh
-```
-
-Compila aquí, empaqueta solo lo necesario para arrancar (~9 MB), lo sube, hace
-`git pull` en el servidor, reinicia PM2 y comprueba que las cuatro puertas
-respondan.
-
-> ⚠️ **Por qué existe este script y no se usa el `deploy.sh` del servidor.**
-> El droplet tiene 458 MB de RAM y compilaba en la misma máquina que sirve el sitio.
-> Un despliegue así tarda **28 minutos**, se va a 769 MB de swap, y durante todo ese
-> rato morcast.mx responde en 2-3 segundos en vez de medio segundo. Ya pasó: alguien
-> entró a probar a media compilación y creyó que la página estaba caída. Compilar en
-> la laptop tarda 35 segundos.
-
-El script **se niega a correr si tienes algo sin subir a GitHub**. No es capricho: el
-servidor hace `git pull`, y si compilas aquí un código distinto al que queda allá, el
-sitio sirve una mezcla que no corresponde a ningún commit y es imposible de
-diagnosticar.
-
-**Volver atrás** (queda la versión anterior guardada):
+Desde el 19-ago-2026 **empujar a `main` ES publicar**. Vercel compila y publica solo,
+en menos de un minuto. No hay un segundo paso que sirva de freno.
 
 ```bash
-ssh -i ~/.ssh/morcast_deploy root@161.35.0.140 \
-  "cd /var/www/morcast/Web && rm -rf .next && mv .next.anterior .next && pm2 restart morcast"
+git push origin main
 ```
 
-### Cuando cambian las dependencias
+> 🚨 **Por eso se compila y se prueba ANTES de empujar.** Antes, con el droplet, subir
+> a GitHub y desplegar eran dos actos separados y quedaba un hueco para revisar. Ese
+> hueco ya no existe: lo que se empuja lo ven los clientes en un minuto.
 
-El script corre `npm ci` en el servidor **solo si cambió `package-lock.json`**. Esa
-parte sí tarda varios minutos, porque instala de verdad. Es la única vez que conviene
-avisar antes de desplegar.
+**Saber si se publicó, sin entrar a Vercel:**
+
+```bash
+gh api repos/Nova-studia/MORCAST/commits/<sha>/status
+```
+
+Devuelve el contexto `Vercel` con su estado y su descripción. Distingue dos cosas que
+se arreglan muy distinto:
+
+| Lo que dice | Qué pasó |
+|---|---|
+| `success · Deployment has completed` | Publicado |
+| `pending · Vercel is deploying your app` | Compilando, espera |
+| `failure · Deployment was blocked` | **No es el código.** Vercel rechazó el despliegue por permisos: la cuenta que empujó no está autorizada en el proyecto |
+| `failure` con error de compilación | Ahí sí, es el código |
+
+**Volver atrás:** en Vercel, *Deployments* → el último que sirvió → *Promote to
+Production*. Es instantáneo y no requiere tocar el repositorio.
+
+> Un despliegue que falla **no tumba el sitio**: Vercel sigue sirviendo la versión
+> buena anterior. Ya pasó el 20-ago y morcast.mx no se movió.
 
 ### Cambios en la base de datos
 
@@ -100,7 +131,18 @@ PGPASSWORD=$(cat .env.db-password) \
 ```
 
 `ON_ERROR_STOP=1` importa: sin eso, psql sigue ejecutando después de un error y
-deja la base a medias.
+deja la base a medias. Conviene añadir `--single-transaction`: o entra la migración
+completa, o no entra nada.
+
+**Las que hay hoy, y de qué va cada una:**
+
+| Migración | Qué hace |
+|---|---|
+| `001`–`010` | Esquema, RLS, storage, altas, saldos |
+| `011` | El chofer ve a quién visita y dónde |
+| `012` | La evidencia no se borra: `for all` incluía DELETE |
+| `013` | Fecha válida, hora de la visita y chofer por parada |
+| `014` | Detalles: saldos fuera del chofer, rutas acotadas, folio sin carrera |
 
 **Saca un respaldo antes de cualquier migración que borre o cambie datos**
 (`node respaldo/respaldar.mjs`). Las que solo agregan columnas o tablas son
@@ -169,6 +211,30 @@ igual.
 - Las cabeceras de seguridad están en `next.config.mjs`. La **CSP está en modo
   solo-reporte** a propósito: para encenderla de verdad, cambiar la llave
   `Content-Security-Policy-Report-Only` por `Content-Security-Policy`.
+
+### 🚨 Lo que la prueba de punta a punta enseñó (21-ago-2026)
+
+Se recorrió el circuito entero con las sesiones reales de los tres roles. Salieron
+nueve fallos con severidad, y **ninguno lo caza el compilador**. El patrón se repite:
+
+> **Una pantalla que dice "listo" sin haber hecho nada.** El botón "Activar cuenta de
+> cliente" pintaba una palomita verde y no creaba usuario; el comprobante de pago
+> mandaba solo el nombre del archivo y la cubeta quedaba vacía; y el sitio pasó un mes
+> sin mandar un solo correo porque el error se tragaba en silencio.
+
+De ahí salen dos reglas que conviene no olvidar:
+
+1. **Ninguna pantalla dice "listo" sin comprobar el efecto real.** Si dice "cuenta
+   activada", que haya usuario en la base. Si dice "comprobante enviado", que haya
+   archivo en la cubeta.
+2. **Al abrir un camino de permisos nuevo, revisar también `storage.objects`.** Al
+   permitir paradas asignadas a un chofer fuera de su ruta, se actualizaron las
+   políticas de las tablas y se olvidaron las de archivos: el chofer veía la parada y
+   podía cerrarla, pero la foto no subía. Media función es peor que ninguna.
+
+Y una de método: **`/browse` se muere seguido**. Dos veces se dio un paso por fallido
+y en realidad se había ejecutado (de ahí salieron tres depósitos duplicados que, de
+rebote, destaparon un bug real). **Antes de dar algo por fallido, mira la base.**
 
 ### 🚨 El error que más caro salió, y que se va a repetir
 
@@ -322,10 +388,12 @@ una Mac con Xcode para compilar.
 
 | Síntoma | Dónde mirar |
 |---|---|
-| El sitio no carga | `pm2 describe morcast` en el servidor; `pm2 logs morcast` |
-| Va lentísimo | ¿hay un despliegue corriendo? `free -m` y `uptime` |
+| El sitio no carga | Vercel → *Deployments* → el ultimo → *Runtime Logs* |
+| Va lentísimo | Vercel → *Observability*. Ya no hay servidor propio que se quede sin memoria |
 | Guardó y no guardó | Casi siempre es RLS bloqueando en silencio (ver arriba) |
-| No deja entrar | `Web/.env.local` en el servidor, y que la cuenta esté activa en `perfiles` |
+| No deja entrar | Las variables en Vercel, y que la cuenta esté activa en `perfiles` |
+| Empujé y no se ve el cambio | `gh api repos/Nova-studia/MORCAST/commits/<sha>/status`: distingue "no compiló" de "no lo dejaron correr" |
+| No llega ningún correo | Resend → *Emails*. Si está vacío, falta `RESEND_API_KEY` en Vercel: el código no manda nada sin ella y **no truena** |
 | Errores raros al hacer clic tras un deploy | Pestañas abiertas con la versión anterior. Se curan recargando |
 
 > ⚠️ **`Failed to find Server Action …` en los logs es normal después de cada

@@ -57,6 +57,25 @@ Si nunca has usado el sistema, este es el orden en que las cosas pasan:
 6. El chofer las ve en su teléfono y las levanta con foto y peso.
 7. El cliente carga saldo → verificas su comprobante en **Saldos de clientes**.
 
+### Qué avisa el sistema solo (y qué no)
+
+Desde el 21-ago-2026 hay cosas que ya no tienes que avisar tú:
+
+| Cuando pasa esto | Le llega correo a |
+|---|---|
+| Alguien manda el formulario de cotización | Al interesado (acuse) y a Morcast |
+| Alguien se da de alta desde el sitio | Al interesado y a Morcast |
+| **Confirmas una recolección** | Al cliente (con día, hora y domicilio) y **al chofer** |
+| **Rechazas una recolección** | Al cliente, con tu motivo |
+| **Aplicas o rechazas un saldo** | Al cliente, con el monto |
+
+**Lo que sigue siendo tuyo:** mandarle al cliente sus credenciales de acceso cuando le
+creas la cuenta, y cotizarle el precio. El sistema no manda precios — eso se sigue
+tratando por teléfono o WhatsApp.
+
+> Si un cliente dice que no le llega nada, revisa que su correo esté bien escrito en su
+> ficha de **Clientes**: es a esa dirección a la que se manda todo.
+
 ---
 
 ## Rutas
@@ -194,10 +213,21 @@ deja solo lo que falta atender.
    normal o es un servicio extra.
 2. Si el cliente dejó una nota, aparece en cursivas abajo. Léela: muchas veces ahí dice
    por qué necesita el servicio extra.
-3. Da clic en **Confirmar**.
+3. **Decide el día, la hora y el chofer** en los tres controles que salen debajo:
+   - **Día:** viene puesto el que pidió el cliente. Cámbialo si no te cuadra.
+   - **Hora:** es opcional. Si la pones, al cliente le llega en el correo y deja de
+     esperar el camión todo el día. Si no, se le dice que todavía no hay hora.
+   - **Chofer:** déjalo en *"El de la ruta"* casi siempre. Solo lo cambias cuando
+     alguien tiene que cubrir una ruta que no es la suya.
+4. Da clic en **Confirmar**.
 
-Listo. La solicitud cambia a *Confirmada* y ya le aparece al chofer en su recorrido del
-día.
+Listo. La solicitud cambia a *Confirmada* y le aparece al chofer en su recorrido del
+día. Debajo de la solicitud queda escrito lo acordado, para que cualquiera lo vea sin
+volver a abrirla.
+
+**Y se avisa solo.** Al confirmar salen dos correos: uno al cliente con el día, la hora
+y su domicilio, y otro al chofer diciéndole que tiene una parada nueva. No tienes que
+avisar tú.
 
 ### Cómo rechazar una recolección
 
@@ -205,9 +235,10 @@ día.
    hay cupo el sábado, se pasa al lunes".
 2. Da clic en **Rechazar**.
 
-El motivo le queda visible al cliente. Si lo dejas en blanco, el sistema pone "Sin cupo
-en la ruta", que dice poco: **siempre conviene escribirlo tú**, así el cliente sabe qué
-sigue y no vuelve a llamar preguntando.
+El motivo le queda visible al cliente **y le llega por correo**, con una invitación a
+pedir otra fecha. Si lo dejas en blanco, el sistema pone "Sin cupo en la ruta", que dice
+poco: **siempre conviene escribirlo tú**, así el cliente sabe qué sigue y no vuelve a
+llamar preguntando.
 
 ### De ruta contra Extra
 
@@ -283,13 +314,22 @@ Esto es lo que convierte a un prospecto en cliente con cuenta:
 
 1. Abre la solicitud que ya ganaste.
 2. Abajo aparece la sección para generar el acceso.
-3. El sistema propone un correo de acceso y una contraseña. Puedes usar el botón de
-   generar contraseña, o darle a **Editar credenciales** y ponerlas tú.
-4. Guarda.
+3. El sistema propone el correo del cliente. La contraseña la sacas con el botón
+   **Generar**, o la escribes tú.
+4. Da clic en **Activar cuenta de cliente**.
 
-**El sistema no le manda nada al cliente.** Esas credenciales las tienes que enviar tú,
-por WhatsApp o por correo. Está hecho así a propósito, para que quede en tu control a
-quién y cuándo se le abre el acceso.
+Con eso se crea de verdad: la empresa queda dada de alta con su folio, la persona queda
+con su acceso, y las dos cosas quedan amarradas. Aparece una palomita verde con las
+credenciales y dos botones para mandárselas por WhatsApp o por correo.
+
+> ⚠️ **Apunta la contraseña antes de cerrar esa pantalla.** No se puede volver a ver.
+> Si se pierde, no se da de alta otra vez: se le restablece la contraseña.
+
+**El sistema no se las manda solo.** Las envías tú, con esos botones. Está hecho así a
+propósito, para que quede en tu control a quién y cuándo se le abre el acceso.
+
+Si el correo ya tiene cuenta, el sistema **no crea otra** y te lo dice. Eso evita
+terminar con la misma empresa duplicada.
 
 ---
 
@@ -326,15 +366,26 @@ la hizo y cuándo**, así que siempre se puede saber quién dio por bueno un pag
 
 ### Cómo verificar una recarga
 
-1. En **Recargas por verificar**, abre la que quieras revisar.
-2. Revisa el comprobante: banco, referencia, monto, fecha y la imagen que subió.
+1. En **Recargas por verificar**, dale a **Ver** para mirar el comprobante, o a
+   **Revisar** para abrirlo y decidir.
+2. Revisa banco, referencia, monto, fecha **y la imagen que subió el cliente**. Si es
+   un PDF, se abre en otra pestaña.
 3. **Compara contra el estado de cuenta del banco.** El sistema no puede saber si el
    dinero entró: eso lo confirmas tú.
-4. Si todo cuadra, dale a **Aplicar**. El saldo se le abona al cliente al momento.
-5. Si no cuadra, dale a **Rechazar**.
+4. Si todo cuadra, dale a **Verificado — aplicar**. El saldo se le abona al momento y
+   **al cliente le llega un correo** diciéndole que ya está aplicado.
+5. Si no cuadra, dale a **Rechazar**. También se le avisa, con la nota que escribas.
 
 > **Nunca apliques un saldo sin haber visto el movimiento en el banco.** Un comprobante
 > se puede editar; el estado de cuenta no.
+
+> ⚠️ **Si un depósito sale marcado en amarillo como "Repetido: mismo monto y
+> referencia", no lo apliques sin mirar.** Quiere decir que hay otro igual esperando.
+> Aplicar los dos le regala saldo al cliente por una sola transferencia.
+
+> Si el comprobante dice **"Este depósito se registró SIN comprobante"**, es de los
+> viejos: hubo un tiempo en que el archivo no se guardaba. Pídeselo al cliente antes de
+> aplicar nada.
 
 ---
 
@@ -513,6 +564,26 @@ sucursal nueva, para ver si esa dirección también le queda cubierta.
 
 Desde ahí pide sus recolecciones, y es lo que te cae en **Recolecciones**.
 
+El sistema **no le deja pedir para un día que ya pasó**, ni para dentro de más de un
+año. Si lo intenta, le dice que elija un día de hoy en adelante. Antes se colaban
+fechas imposibles y ensuciaban la agenda.
+
+Cuando tú la confirmas o la rechazas, **le llega un correo**. Ya no tiene que estar
+entrando al portal a ver si le contestaron.
+
+### Agregar saldo
+
+Sube su comprobante de pago y te cae en **Saldos**. El archivo se guarda de verdad y tú
+lo ves al revisarlo.
+
+> Mientras no publiquemos la cuenta bancaria de Morcast, esa pantalla **no muestra
+> CLABE**: le dice que te pida los datos por WhatsApp o correo. En cuanto nos pasen la
+> CLABE y el número de cuenta reales, se ponen y el aviso desaparece solo.
+
+Si intenta mandar dos veces el mismo depósito —mismo monto y misma referencia— el
+sistema lo detiene y le explica por qué. Eso evita que te lleguen tres comprobantes de
+una sola transferencia.
+
 ### Lo demás de su portal
 
 Su saldo y estado de cuenta, su historial de servicios con los comprobantes
@@ -555,6 +626,17 @@ cumple el anterior:
 > escribir el código del contenedor a mano: las calcomanías se despegan, se ensucian
 > y con el sol de frente el lector no engancha, y sin esa salida el chofer se queda
 > atorado sin poder registrar un servicio que sí hizo.
+
+**Cada foto se guarda en cuanto la toma**, no al final. Si se le va la señal, le entra
+una llamada o se le apaga la pantalla, al volver a abrir la parada sigue donde iba, con
+lo que ya había hecho. Antes perdía las dos fotos y repetía la parada completa.
+
+> Si le aparece **"Subiendo la foto…"**, que espere ese momento antes de guardar el
+> celular. Es cuando la foto está viajando.
+
+**El chofer no puede borrar su evidencia.** Una vez cerrada la parada, ni él ni nadie de
+la calle puede deshacerla; si hay que corregir algo, se hace desde el panel. Es lo que
+hace que la evidencia sirva el día que un cliente reclame.
 
 Eso arma el comprobante que tú ves en **Servicios** y que el cliente ve en su historial.
 Por eso importa que el chofer no se salte las fotos: es la prueba del servicio.
