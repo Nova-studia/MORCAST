@@ -3,8 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
-import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, CLIENTE, pesos } from "../datos";
+import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, pesos } from "../datos";
 import { reportes } from "../datos-remoto";
+import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarReporte } from "../pdf";
 
 const PERIODOS = [
@@ -17,6 +18,7 @@ export default function Reportes() {
   const [sel, setSel] = useState("mensual");
   const [bajando, setBajando] = useState(false);
   const [rep, setRep] = useState(null);
+  const { empresa, puedeImprimir, cargando } = useMiEmpresa();
 
   useEffect(() => {
     let vivo = true;
@@ -32,8 +34,13 @@ export default function Reportes() {
   const totalVol = data.reduce((a, d) => a + d.volumen, 0);
 
   const exportar = async () => {
+    if (!puedeImprimir) {
+      const [t, m] = avisoSinEmpresa(cargando);
+      Alert.alert(t, m);
+      return;
+    }
     setBajando(true);
-    try { await descargarReporte(cfg.titulo, data, CLIENTE); }
+    try { await descargarReporte(cfg.titulo, data, empresa); }
     catch (e) { Alert.alert("No se pudo generar el PDF", String(e?.message || e)); }
     finally { setBajando(false); }
   };

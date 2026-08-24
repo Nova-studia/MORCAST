@@ -5,18 +5,22 @@ import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, EncabezadoPantalla } from "../ui";
 import MapaWeb from "../MapaWeb";
 import { nombreTipoRuta } from "../rutas-datos";
-import { listarRutas } from "../datos-remoto";
+import { zonasDeCobertura } from "../datos-remoto";
 import { rutasQueCubren } from "../punto-en-zona";
 
 export default function Cobertura() {
   const [pin, setPin] = useState(null);
   const [rutas, setRutas] = useState([]);
 
-  // Las rutas salen de la base: si Morcast redibuja una zona en su panel, el
+  // Las zonas salen de la base: si Morcast redibuja una en su panel, el
   // cliente ve la nueva sin que nadie toque la app.
+  //
+  // Va por `zonasDeCobertura()` y no por `listarRutas()`: la segunda solo le
+  // entrega al cliente SU ruta, y el mapa quedaba enseñando un pedazo de la
+  // ciudad en vez de toda la cobertura.
   useEffect(() => {
     let vivo = true;
-    listarRutas().then((l) => { if (vivo) setRutas(l); });
+    zonasDeCobertura().then((l) => { if (vivo) setRutas(l); });
     return () => { vivo = false; };
   }, []);
 

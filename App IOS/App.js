@@ -113,6 +113,8 @@ function AppChofer({ onLogout }) {
       pesoKg: datos.pesoKg,
       uriAntes: datos.antes,
       uriDespues: datos.despues,
+      rutaAntes: datos.rutaAntes,
+      rutaDespues: datos.rutaDespues,
     });
     if (r.ok) await recargarRuta();
     return r;

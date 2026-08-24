@@ -3,7 +3,8 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "rea
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
-import { CATALOGO_COTIZADOR, IVA, CLIENTE, pesos } from "../datos";
+import { CATALOGO_COTIZADOR, IVA, pesos } from "../datos";
+import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
 import { descargarCotizacion, descargarConstancia } from "../pdf";
 import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS } from "../cotizacion-datos";
@@ -11,6 +12,7 @@ import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS } from "../cotizacion-dato
 export default function Cotizador() {
   const [cant, setCant] = useState({}); // { id: n }
   const [bajando, setBajando] = useState("");
+  const { empresa, puedeImprimir, cargando } = useMiEmpresa();
 
   const set = (id, delta) => setCant((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) + delta) }));
 
@@ -21,8 +23,13 @@ export default function Cotizador() {
 
   const bajarCotizacion = async () => {
     if (items.length === 0) return;
+    if (!puedeImprimir) {
+      const [t, m] = avisoSinEmpresa(cargando);
+      Alert.alert(t, m);
+      return;
+    }
     setBajando("cot");
-    try { await descargarCotizacion(items, CLIENTE); }
+    try { await descargarCotizacion(items, empresa); }
     catch (e) { Alert.alert("Error", String(e?.message || e)); }
     finally { setBajando(""); }
   };

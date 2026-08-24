@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, TextInput, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Linking } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { listarCotizaciones } from "../../datos-remoto";
+import { listarCotizaciones, cambiarEstadoCotizacion } from "../../datos-remoto";
 import { T } from "../../tema";
 import { Tarjeta, Badge, Boton } from "../../ui";
 import { SOLICITUDES, ESTADOS_SOLICITUD, infoEstado, fechaLarga } from "../../datos-admin";
@@ -21,23 +21,37 @@ export default function Solicitudes() {
   }, []);
   const [filtro, setFiltro] = useState("todas");
   const [sel, setSel] = useState(null);
-  const [act, setAct] = useState({}); // { [id]: {correo, password, activada} }
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   const filas = lista.filter((x) => filtro === "todas" || x.estado === filtro).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
   const conteo = (id) => (id === "todas" ? lista.length : lista.filter((x) => x.estado === id).length);
 
-  const cambiar = (id, estado) => {
+  /**
+   * Mover la solicitud por el embudo ESCRIBE en la base.
+   *
+   * Antes solo se repintaba el renglón: al salir de la pantalla y volver, la
+   * solicitud seguía en el estado viejo porque nunca se guardó nada.
+   */
+  const cambiar = async (id, estado) => {
+    if (guardando) return;
+    setGuardando(true);
+    setError("");
+
+    const anterior = lista.find((x) => x.id === id)?.estado;
     setLista((l) => l.map((x) => (x.id === id ? { ...x, estado } : x)));
     setSel((x) => (x && x.id === id ? { ...x, estado } : x));
+
+    const r = await cambiarEstadoCotizacion(id, estado);
+    if (!r.ok) {
+      // Se deshace lo que se pintó: mejor que quede como está de verdad.
+      setLista((l) => l.map((x) => (x.id === id ? { ...x, estado: anterior } : x)));
+      setSel((x) => (x && x.id === id ? { ...x, estado: anterior } : x));
+      setError(r.motivo || "No se pudo guardar el cambio. Revisa tu señal.");
+    }
+    setGuardando(false);
   };
 
-  const a = sel ? (act[sel.id] || { correo: sel.correo, password: "", activada: false }) : null;
-  const setA = (patch) => setAct((o) => ({ ...o, [sel.id]: { ...(o[sel.id] || { correo: sel.correo, password: "" }), ...patch } }));
-  const genPass = () => {
-    const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    let p = ""; for (let i = 0; i < 10; i++) p += c[Math.floor(Math.random() * c.length)];
-    setA({ password: p });
-  };
   const abrir = (url) => Linking.openURL(url).catch(() => {});
 
   return (
@@ -114,37 +128,42 @@ export default function Solicitudes() {
                   ))}
                 </View>
 
-                {/* Activar cuenta (solo si ganada) */}
+                {!!error && (
+                  <View style={s.errorCaja}>
+                    <Feather name="alert-circle" size={14} color="#e07d7d" />
+                    <Text style={s.errorTxt}>{error}</Text>
+                  </View>
+                )}
+
+                {/*
+                  El acceso del cliente NO se crea desde aquí.
+
+                  Crear una cuenta necesita la llave de servicio de la base, y
+                  esa llave no puede vivir dentro de una app: quien descargue
+                  el archivo la tendría. Antes este bloque pintaba "cuenta
+                  activada" sin crear nada, y a la empresa se le mandaban al
+                  cliente un correo y una contraseña que no servían para
+                  entrar. Se hace desde el panel de administración de la web,
+                  donde sí hay servidor.
+                */}
                 {sel.estado === "ganada" && (
                   <View style={s.activar}>
-                    {a.activada ? (
-                      <>
-                        <View style={s.actOk}><Feather name="check-circle" size={16} color={T.verdeClaro} /><Text style={s.actOkTxt}>Cuenta de cliente activada</Text></View>
-                        <Text style={s.actP}>Envíale estas credenciales:</Text>
-                        <View style={s.cred}><Text style={s.credK}>Correo</Text><Text style={s.credV}>{a.correo}</Text></View>
-                        <View style={s.cred}><Text style={s.credK}>Contraseña</Text><Text style={s.credV}>{a.password}</Text></View>
-                        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                          <Boton onPress={() => abrir(`https://wa.me/52${sel.telefono.replace(/\s/g, "")}?text=${encodeURIComponent(`Hola ${sel.nombre}, su cuenta del Portal de Clientes de Morcast ya está activa.\nCorreo: ${a.correo}\nContraseña: ${a.password}`)}`)} style={{ flex: 1 }}>WhatsApp</Boton>
-                          <Boton variante="linea" onPress={() => abrir(`mailto:${a.correo}?subject=Acceso%20a%20su%20Portal&body=${encodeURIComponent(`Correo: ${a.correo}\nContraseña: ${a.password}`)}`)} style={{ flex: 1 }}>Correo</Boton>
-                        </View>
-                      </>
-                    ) : (
-                      <>
-                        <View style={s.actTit}><Feather name="user-check" size={16} color={T.verdeClaro} /><Text style={s.actTitTxt}>Activar cuenta de cliente</Text></View>
-                        <Text style={s.actP}>Genera el acceso al portal para {sel.empresa}.</Text>
-                        <Text style={s.label}>Correo de acceso</Text>
-                        <TextInput style={s.input} autoCapitalize="none" value={a.correo} onChangeText={(v) => setA({ correo: v })} />
-                        <Text style={s.label}>Contraseña</Text>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TextInput style={[s.input, { flex: 1 }]} value={a.password} placeholder="Genera o escribe" placeholderTextColor={T.grisClaro} onChangeText={(v) => setA({ password: v })} />
-                          <Pressable style={s.gen} onPress={genPass}><Feather name="refresh-cw" size={15} color={T.tinta} /><Text style={s.genTxt}>Generar</Text></Pressable>
-                        </View>
-                        <Boton onPress={() => setA({ activada: true })} disabled={!a.correo || !a.password} style={{ marginTop: 12 }}>
-                          <Feather name="key" size={15} color="#0d1211" /><Text style={{ color: "#0d1211", fontWeight: "700" }}>  Activar cuenta</Text>
-                        </Boton>
-                        <Text style={s.actNota}>La empresa envía estas credenciales al cliente por WhatsApp o correo.</Text>
-                      </>
-                    )}
+                    <View style={s.actTit}>
+                      <Feather name="user-check" size={16} color={T.verdeClaro} />
+                      <Text style={s.actTitTxt}>Falta darle su acceso al portal</Text>
+                    </View>
+                    <Text style={s.actP}>
+                      El acceso de {sel.empresa} se crea desde el panel de administración de la
+                      página, en Solicitudes → Activar cuenta de cliente. Desde ahí sale la
+                      contraseña, que solo se puede ver una vez.
+                    </Text>
+                    <Boton
+                      variante="linea"
+                      onPress={() => abrir("https://morcast.mx/admin/solicitudes")}
+                      style={{ marginTop: 12 }}
+                    >
+                      Abrir el panel de la página
+                    </Boton>
                   </View>
                 )}
               </ScrollView>
@@ -192,18 +211,10 @@ const s = StyleSheet.create({
   estChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel },
   estChipOn: { backgroundColor: T.verde, borderColor: T.verde },
   estChipTxt: { color: T.gris, fontSize: 12.5, fontWeight: "600" },
+  errorCaja: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: "rgba(224,125,125,0.10)", borderWidth: 1, borderColor: "rgba(224,125,125,0.35)", borderRadius: 10, padding: 10, marginTop: 12 },
+  errorTxt: { color: "#e07d7d", fontSize: 12.5, flex: 1, lineHeight: 17 },
   activar: { marginTop: 16, backgroundColor: "rgba(78,179,74,0.08)", borderWidth: 1, borderColor: "rgba(78,179,74,0.3)", borderRadius: 12, padding: 13 },
   actTit: { flexDirection: "row", alignItems: "center", gap: 7 },
   actTitTxt: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
-  actOk: { flexDirection: "row", alignItems: "center", gap: 7 },
-  actOkTxt: { color: T.verdeClaro, fontSize: 14.5, fontWeight: "700" },
   actP: { color: T.gris, fontSize: 12.5, marginTop: 5, marginBottom: 6 },
-  label: { color: T.tinta, fontSize: 12.5, fontWeight: "700", marginTop: 10, marginBottom: 6 },
-  input: { backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, color: T.tinta, fontSize: 14 },
-  gen: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12 },
-  genTxt: { color: T.tinta, fontSize: 12.5, fontWeight: "600" },
-  actNota: { color: T.grisClaro, fontSize: 11, marginTop: 8 },
-  cred: { flexDirection: "row", justifyContent: "space-between", backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 9, paddingVertical: 9, paddingHorizontal: 11, marginBottom: 5 },
-  credK: { color: T.gris, fontSize: 12.5 },
-  credV: { color: T.tinta, fontSize: 13.5, fontWeight: "700" },
 });

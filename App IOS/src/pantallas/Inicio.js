@@ -3,13 +3,15 @@ import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../ui";
-import { CLIENTE, CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
+import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, misServicios } from "../datos-remoto";
+import { useMiEmpresa } from "../mi-empresa";
 
 export default function Inicio({ navigation }) {
   const [saldo, setSaldo] = useState(null);
   const [movs, setMovs] = useState(null);
   const [servicios, setServicios] = useState(null);
+  const { empresa } = useMiEmpresa();
 
   useEffect(() => {
     let vivo = true;
@@ -32,12 +34,12 @@ export default function Inicio({ navigation }) {
 
   const completados = listaServicios.filter((x) => x.estatus === "completado");
   const proximos = listaServicios.filter((x) => x.estatus !== "completado");
-  const nombre = CLIENTE.contacto.split(" ").slice(-1)[0];
+  const nombre = (empresa.contacto || empresa.empresa || "").split(" ").slice(-1)[0];
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-      <Text style={s.hola}>Hola, {nombre} 👋</Text>
-      <Text style={s.sub}>Resumen de {CLIENTE.empresa}.</Text>
+      <Text style={s.hola}>Hola{nombre ? `, ${nombre}` : ""} 👋</Text>
+      <Text style={s.sub}>Resumen de {empresa.empresa}.</Text>
 
       {/* Saldo */}
       <View style={s.saldo}>

@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, Boton } from "../ui";
-import { CLIENTE } from "../datos";
+import { useMiEmpresa } from "../mi-empresa";
 
 const MENU = [
   { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: "#7cc576" },
@@ -13,6 +13,10 @@ const MENU = [
 ];
 
 export default function Mas({ navigation, onLogout }) {
+  // Los datos son los de SU empresa. Antes esta tarjeta enseñaba una de
+  // ejemplo, la misma para todos los que entraran.
+  const { empresa: cliente } = useMiEmpresa();
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.h1}>Más</Text>
@@ -21,16 +25,16 @@ export default function Mas({ navigation, onLogout }) {
       {/* Perfil */}
       <Tarjeta>
         <View style={s.perfil}>
-          <View style={s.avatar}><Text style={s.avatarTxt}>{iniciales(CLIENTE.empresa)}</Text></View>
+          <View style={s.avatar}><Text style={s.avatarTxt}>{iniciales(cliente.empresa)}</Text></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.empresa}>{CLIENTE.empresa}</Text>
-            <Text style={s.dato}>{CLIENTE.id}</Text>
+            <Text style={s.empresa}>{cliente.empresa}</Text>
+            <Text style={s.dato}>{cliente.id}</Text>
           </View>
         </View>
-        <Info icono="user" v={CLIENTE.contacto} />
-        <Info icono="mail" v={CLIENTE.correo} />
-        <Info icono="phone" v={CLIENTE.telefono} />
-        <Info icono="briefcase" v={CLIENTE.cuenta} ultimo />
+        <Info icono="user" v={cliente.contacto} />
+        <Info icono="mail" v={cliente.correo} />
+        <Info icono="phone" v={cliente.telefono} />
+        <Info icono="briefcase" v={cliente.cuenta} ultimo />
       </Tarjeta>
 
       {/* Menú */}

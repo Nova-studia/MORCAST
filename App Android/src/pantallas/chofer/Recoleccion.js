@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { subirEvidencia } from "../../datos-remoto";
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -18,6 +19,9 @@ export default function Recoleccion({ route, navigation, completar }) {
   const [fotoDespues, setFotoDespues] = useState(null);
   const [horaAntes, setHoraAntes] = useState(null);
   const [horaDespues, setHoraDespues] = useState(null);
+  // Dónde quedó guardada cada foto. Se llena al tomarla, no al final.
+  const [rutaAntes, setRutaAntes] = useState(null);
+  const [rutaDespues, setRutaDespues] = useState(null);
   const [peso, setPeso] = useState("");
 
   const horaAhora = () => {
@@ -60,9 +64,22 @@ export default function Recoleccion({ route, navigation, completar }) {
     if (r.canceled) return;
 
     setProcesando(true);
+    const foto = r.assets[0];
     try {
-      if (cual === "antes") { setFotoAntes(r.assets[0]); setHoraAntes(horaAhora()); setPaso(2); }
-      else { setFotoDespues(r.assets[0]); setHoraDespues(horaAhora()); setPaso(4); }
+      if (cual === "antes") { setFotoAntes(foto); setHoraAntes(horaAhora()); setPaso(2); }
+      else { setFotoDespues(foto); setHoraDespues(horaAhora()); setPaso(4); }
+
+      // La foto se SUBE aquí, no al cerrar el servicio. Guardarlas las dos
+      // para el final es jugarse toda la evidencia a la señal que haya en ese
+      // momento: si falla, el chofer tiene que rehacer la parada entera.
+      const subida = await subirEvidencia(servicio.id, cual, foto.uri, foto.mimeType || "image/jpeg");
+      if (subida?.ok && subida.ruta) {
+        if (cual === "antes") setRutaAntes(subida.ruta);
+        else setRutaDespues(subida.ruta);
+      }
+      // Si no subió, no se interrumpe al chofer: se reintenta al finalizar,
+      // que es como funcionaba antes. Lo que no puede pasar es que se dé por
+      // guardado sin estarlo, y de eso se encarga `finalizar`.
     } finally {
       // El aviso se quita cuando la imagen ya está en pantalla, no antes: si
       // se apagara de inmediato volvería el hueco que estamos tapando.
@@ -94,6 +111,8 @@ export default function Recoleccion({ route, navigation, completar }) {
       pesoKg: peso,
       antes: fotoAntes?.uri,
       despues: fotoDespues?.uri,
+      rutaAntes,
+      rutaDespues,
       horaAntes,
       horaDespues,
     });

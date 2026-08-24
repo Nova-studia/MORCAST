@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal } from "react-native";
+import { useEffect, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, Badge } from "../../ui";
-import { AGENDA_SERVICIOS, fechaLarga } from "../../datos-admin";
+import { fechaLarga } from "../../datos-admin";
+import { agendaServicios } from "../../datos-remoto";
 import { estatusInfo } from "../../datos";
 
 const FILTROS = [
@@ -14,9 +15,24 @@ const FILTROS = [
 ];
 
 export default function Servicios() {
+  // La agenda sale de las paradas reales. Antes era una lista de ejemplo con
+  // clientes y unidades que no existen.
+  const [agenda, setAgenda] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    let vivo = true;
+    agendaServicios().then((a) => {
+      if (!vivo) return;
+      setAgenda(a);
+      setCargando(false);
+    });
+    return () => { vivo = false; };
+  }, []);
+
   const [filtro, setFiltro] = useState("todos");
   const [ver, setVer] = useState(null);
-  const filas = AGENDA_SERVICIOS.filter((x) => filtro === "todos" || x.estatus === filtro).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  const filas = agenda.filter((x) => filtro === "todos" || x.estatus === filtro).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -30,6 +46,14 @@ export default function Servicios() {
           </Pressable>
         ))}
       </ScrollView>
+
+      {!cargando && filas.length === 0 && (
+        <Text style={s.vacio}>
+          {agenda.length === 0
+            ? "Todavía no hay recolecciones agendadas. Aparecen aquí en cuanto se confirma la primera."
+            : "No hay servicios en este filtro."}
+        </Text>
+      )}
 
       {filas.map((x) => {
         const est = estatusInfo(x.estatus);
@@ -86,16 +110,36 @@ export default function Servicios() {
   );
 }
 
+/**
+ * La foto que subio el chofer.
+ *
+ * Este recuadro nunca enseñaba la imagen: pintaba un fondo de color con un
+ * icono de camara, y ahí se quedaba. El enlace firmado ya venía en `dato.url`
+ * —lo arma `agendaServicios()`— pero nadie lo usaba, así que el admin no tenía
+ * forma de comprobar desde el teléfono lo que hizo su gente. En la web sí se
+ * ve desde la auditoría; esta pantalla se quedó atras.
+ *
+ * Sin enlace se mantiene el recuadro de antes: un servicio puede estar
+ * agendado y todavía sin fotos.
+ */
 function Foto({ tipo, dato }) {
   const antes = tipo === "antes";
+  const url = dato?.url;
+
   return (
     <View style={[s.foto, { backgroundColor: antes ? "#3a2f1c" : "#143024" }]}>
+      {url ? (
+        <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : (
+        <View style={s.fotoHueco}>
+          <Feather name="camera" size={26} color="rgba(255,255,255,0.7)" />
+          <Text style={s.fotoEtq}>{dato?.etiqueta || (antes ? "Contenedor lleno" : "Contenedor vacío")}</Text>
+        </View>
+      )}
       <View style={[s.fotoTag, { backgroundColor: antes ? "rgba(219,152,45,0.92)" : "rgba(78,179,74,0.92)" }]}>
         <Text style={s.fotoTagTxt}>{antes ? "Antes" : "Después"}</Text>
       </View>
-      <Feather name="camera" size={26} color="rgba(255,255,255,0.7)" />
-      <Text style={s.fotoEtq}>{dato.etiqueta}</Text>
-      <View style={s.fotoSello}><Feather name="clock" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>{dato.hora}</Text><Feather name="map-pin" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>GPS</Text></View>
+      <View style={s.fotoSello}><Feather name="clock" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>{dato?.hora || "—"}</Text><Feather name="map-pin" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>GPS</Text></View>
     </View>
   );
 }
@@ -105,6 +149,7 @@ function Dato({ k, v, ok }) {
 }
 
 const s = StyleSheet.create({
+  vacio: { color: T.gris, fontSize: 13.5, lineHeight: 19, marginTop: 6 },
   h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
   sub: { color: T.gris, fontSize: 13.5, marginTop: 3, marginBottom: 14, lineHeight: 19 },
   chip: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel },
@@ -124,6 +169,7 @@ const s = StyleSheet.create({
   foto: { flex: 1, aspectRatio: 0.85, borderRadius: 12, borderWidth: 1, borderColor: T.linea, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   fotoTag: { position: "absolute", top: 8, left: 8, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
   fotoTagTxt: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  fotoHueco: { alignItems: "center", justifyContent: "center", gap: 2 },
   fotoEtq: { color: "rgba(255,255,255,0.72)", fontSize: 11, marginTop: 6 },
   fotoSello: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.5)" },
   fotoSelloTxt: { color: "#fff", fontSize: 10, marginRight: 4 },

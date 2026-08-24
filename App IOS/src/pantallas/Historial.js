@@ -3,8 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, Badge } from "../ui";
-import { SERVICIOS_CLIENTE, CLIENTE, fechaLarga, estatusInfo } from "../datos";
+import { SERVICIOS_CLIENTE, fechaLarga, estatusInfo } from "../datos";
 import { misServicios } from "../datos-remoto";
+import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto } from "../pdf";
 
 const FILTROS = [
@@ -18,11 +19,17 @@ export default function Historial() {
   const [filtro, setFiltro] = useState("todos");
   const [abierto, setAbierto] = useState(null);
   const [bajando, setBajando] = useState(null);
+  const { empresa, puedeImprimir, cargando } = useMiEmpresa();
 
   const bajarManifiesto = async (x) => {
+    if (!puedeImprimir) {
+      const [t, m] = avisoSinEmpresa(cargando);
+      Alert.alert(t, m);
+      return;
+    }
     setBajando(x.folio);
     try {
-      await descargarManifiesto(x, CLIENTE);
+      await descargarManifiesto(x, empresa);
     } catch (e) {
       Alert.alert("No se pudo generar el PDF", String(e?.message || e));
     } finally {
@@ -84,7 +91,6 @@ export default function Historial() {
               <View style={s.detalle}>
                 <Dato k="Residuo" v={x.residuo} />
                 <Dato k="Contenedor" v={x.contenedor} />
-                <Dato k="Volumen" v={x.volumen} />
                 <Dato k="Peso" v={x.peso} />
                 <Dato k="Operador" v={x.operador} />
                 {x.manifiesto ? (

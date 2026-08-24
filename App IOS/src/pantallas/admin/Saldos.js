@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, Dimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { listarMovimientos, listarClientes } from "../../datos-remoto";
+import { listarMovimientos, listarClientes, resolverDeposito, enlaceComprobante, folioCorto } from "../../datos-remoto";
 import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../../ui";
 import { RECARGAS_SEED, RESPONSABLE_RECARGAS, CLIENTES_ADMIN, ADMIN_PERFIL, estadoRecarga, pesos, fechaLarga } from "../../datos-admin";
@@ -27,23 +27,64 @@ export default function Saldos() {
   const [ver, setVer] = useState(null);
   const [zoom, setZoom] = useState(false);
   const [simularAux, setSimularAux] = useState(false);
+  const [urlComprobante, setUrlComprobante] = useState(null);
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  // El comprobante vive en una cubeta PRIVADA: no hay dirección fija que
+  // pegar en un <Image>. Se pide un enlace firmado, que además caduca.
+  useEffect(() => {
+    let vivo = true;
+    setUrlComprobante(null);
+    if (ver?.comprobante) {
+      enlaceComprobante(ver.comprobante).then((u) => { if (vivo) setUrlComprobante(u); });
+    }
+    return () => { vivo = false; };
+  }, [ver?.id]);
 
   const puedeVerificar = !simularAux && ADMIN_PERFIL.rol === "Administrador";
   const porVerificar = recargas.filter((r) => r.estado === "por-verificar");
+
+  // Dos depósitos del mismo cliente por el mismo monto y la misma referencia
+  // son casi siempre el mismo dinero reportado dos veces. Se marcan para que
+  // nadie aplique dos veces la misma transferencia.
+  const vistos = new Map();
+  const repetidos = new Set();
+  porVerificar.forEach((r) => {
+    const llave = [r.clienteId, r.monto, (r.referencia || "").trim().toLowerCase()].join("|");
+    if (vistos.has(llave)) repetidos.add(r.id);
+    else vistos.set(llave, r.id);
+  });
+  const esRepetido = (r) => repetidos.has(r.id);
   const totalFavor = clientes.reduce((a, c) => a + (c.saldo || 0), 0);
   const totalCobrar = clientes.reduce((a, c) => a + (c.porPagar || 0), 0);
 
-  const aplicar = (r) => {
-    if (!puedeVerificar) return;
-    setRecargas((l) => l.map((x) => (x.id === r.id ? { ...x, estado: "aplicada", verificadaPor: ADMIN_PERFIL.nombre } : x)));
-    setClientes((l) => l.map((c) => (c.id === r.clienteId ? { ...c, saldo: (c.saldo || 0) + r.monto } : c)));
+  /**
+   * Aplicar o rechazar escribe en la BASE.
+   *
+   * Antes esto solo repintaba el renglón: el saldo del cliente nunca se movía
+   * y la pantalla decía que sí. Ahora se guarda, se vuelve a leer y, si el
+   * permiso de la base no lo deja pasar, se dice en vez de fingir.
+   */
+  const resolver = async (r, estado) => {
+    if (!puedeVerificar || guardando) return;
+    setGuardando(true);
+    setError("");
+
+    const resp = await resolverDeposito(r.id, estado, null);
+    if (!resp.ok) {
+      setError(resp.motivo || "No se pudo guardar. Revisa tu señal e intenta otra vez.");
+      setGuardando(false);
+      return;
+    }
+
+    await recargar();
+    setGuardando(false);
     setVer(null);
   };
-  const rechazar = (r) => {
-    if (!puedeVerificar) return;
-    setRecargas((l) => l.map((x) => (x.id === r.id ? { ...x, estado: "rechazada", verificadaPor: ADMIN_PERFIL.nombre } : x)));
-    setVer(null);
-  };
+
+  const aplicar = (r) => resolver(r, "aplicada");
+  const rechazar = (r) => resolver(r, "rechazada");
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -82,6 +123,12 @@ export default function Saldos() {
             <View style={{ flex: 1 }}>
               <Text style={s.recMonto}>{pesos(r.monto)}</Text>
               <Text style={s.recSub}>{r.cliente} · {r.banco}</Text>
+              {esRepetido(r) && (
+                <View style={s.repetido}>
+                  <Feather name="alert-triangle" size={12} color="#e0a94d" />
+                  <Text style={s.repetidoTxt}>Mismo monto y referencia que otro pendiente</Text>
+                </View>
+              )}
             </View>
             <Feather name="eye" size={18} color={T.gris} />
           </Pressable>
@@ -108,22 +155,27 @@ export default function Saldos() {
             {ver && (
               <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
                 <View style={s.modalCab}>
-                  <View><Text style={s.modalCli}>{ver.cliente}</Text><Text style={s.modalFolio}>{ver.id} · {fechaLarga(ver.fecha)}</Text></View>
+                  <View><Text style={s.modalCli}>{ver.cliente}</Text><Text style={s.modalFolio}>{ver.folio || folioCorto(ver.id, "DEP")} · {fechaLarga(ver.fecha)}</Text></View>
                   <Pressable onPress={() => { setZoom(false); setVer(null); }} hitSlop={10}><Feather name="x" size={22} color={T.gris} /></Pressable>
                 </View>
 
                 {/* comprobante — imagen real, toca para ver en grande */}
                 <Text style={s.compLbl}>COMPROBANTE DE PAGO</Text>
-                {ver.comprobante ? (
+                {urlComprobante ? (
                   <Pressable onPress={() => setZoom(true)} style={s.compBox}>
-                    <Image source={ver.comprobante} style={s.compImg} resizeMode="contain" />
+                    <Image source={{ uri: urlComprobante }} style={s.compImg} resizeMode="contain" />
                     <View style={s.compVer}><Feather name="maximize-2" size={13} color="#fff" /><Text style={s.compVerTxt}>Ver en grande</Text></View>
                   </Pressable>
+                ) : ver.comprobante ? (
+                  <View style={s.comprobante}>
+                    <Feather name="loader" size={30} color={T.naranjaClaro} />
+                    <Text style={s.compDemo}>Abriendo el comprobante…</Text>
+                  </View>
                 ) : (
                   <View style={s.comprobante}>
-                    <Feather name="file-text" size={30} color={T.naranjaClaro} />
-                    <Text style={s.compNom}>{ver.comprobanteNombre}</Text>
-                    <Text style={s.compDemo}>Comprobante adjunto</Text>
+                    <Feather name="alert-circle" size={30} color="#e0a94d" />
+                    <Text style={s.compNom}>Sin comprobante</Text>
+                    <Text style={s.compDemo}>Este depósito se reportó sin imagen. Pídesela al cliente antes de aplicarlo.</Text>
                   </View>
                 )}
                 <Text style={s.compArchivo}>{ver.comprobanteNombre}</Text>
@@ -133,12 +185,29 @@ export default function Saldos() {
                 <Dato k="Referencia" v={ver.referencia} />
                 <Dato k="Estado" v={estadoRecarga(ver.estado).texto} />
 
+                {esRepetido(ver) && (
+                  <View style={s.repetidoCaja}>
+                    <Feather name="alert-triangle" size={14} color="#e0a94d" />
+                    <Text style={s.repetidoCajaTxt}>
+                      Cuidado: hay otro depósito pendiente de {ver.cliente} por el mismo monto y la
+                      misma referencia. Revisa el banco antes de aplicar los dos.
+                    </Text>
+                  </View>
+                )}
+
                 <Text style={s.confirma}>Confirma que el depósito por {pesos(ver.monto)} se recibió antes de aplicar el saldo.</Text>
+
+                {!!error && (
+                  <View style={s.errorCaja}>
+                    <Feather name="alert-circle" size={14} color="#e07d7d" />
+                    <Text style={s.errorTxt}>{error}</Text>
+                  </View>
+                )}
 
                 {puedeVerificar ? (
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-                    <Boton onPress={() => aplicar(ver)} style={{ flex: 1 }}><Feather name="check-circle" size={15} color="#0d1211" /><Text style={{ color: "#0d1211", fontWeight: "700" }}>  Aplicar</Text></Boton>
-                    <Boton variante="linea" onPress={() => rechazar(ver)} style={{ flex: 1 }}>Rechazar</Boton>
+                    <Boton onPress={() => aplicar(ver)} disabled={guardando} style={{ flex: 1 }}><Feather name="check-circle" size={15} color="#0d1211" /><Text style={{ color: "#0d1211", fontWeight: "700" }}>  Aplicar</Text></Boton>
+                    <Boton variante="linea" onPress={() => rechazar(ver)} disabled={guardando} style={{ flex: 1 }}>{guardando ? "Guardando…" : "Rechazar"}</Boton>
                   </View>
                 ) : (
                   <View style={s.candado}><Feather name="lock" size={13} color="#e0a94d" /><Text style={s.candadoTxt}>Solo {RESPONSABLE_RECARGAS.nombre} puede aplicar esta recarga.</Text></View>
@@ -148,7 +217,7 @@ export default function Saldos() {
           </View>
 
           {/* Visor del comprobante: capa DENTRO del mismo modal (no un 2º Modal, que bloqueaba los toques) */}
-          {zoom && ver?.comprobante && (
+          {zoom && urlComprobante && (
             <View style={s.zoomOverlay}>
               <Pressable style={s.zoomCerrar} onPress={() => setZoom(false)} hitSlop={12}>
                 <Feather name="x" size={24} color="#fff" />
@@ -160,7 +229,7 @@ export default function Saldos() {
                 maximumZoomScale={1}
                 minimumZoomScale={1}
               >
-                <Image source={ver.comprobante} style={s.zoomImg} resizeMode="contain" />
+                <Image source={{ uri: urlComprobante }} style={s.zoomImg} resizeMode="contain" />
               </ScrollView>
               <Text style={s.zoomTip}>Desliza para ver el comprobante completo</Text>
             </View>
@@ -204,6 +273,12 @@ const s = StyleSheet.create({
   modalCab: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalCli: { color: T.tinta, fontSize: 16, fontWeight: "800" },
   modalFolio: { color: T.gris, fontSize: 12, marginTop: 2 },
+  repetido: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  repetidoTxt: { color: "#e0a94d", fontSize: 11.5, flex: 1 },
+  repetidoCaja: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: "rgba(224,169,77,0.10)", borderWidth: 1, borderColor: "rgba(224,169,77,0.35)", borderRadius: 10, padding: 10, marginTop: 12 },
+  repetidoCajaTxt: { color: "#e0a94d", fontSize: 12.5, flex: 1, lineHeight: 17 },
+  errorCaja: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: "rgba(224,125,125,0.10)", borderWidth: 1, borderColor: "rgba(224,125,125,0.35)", borderRadius: 10, padding: 10, marginTop: 10 },
+  errorTxt: { color: "#e07d7d", fontSize: 12.5, flex: 1, lineHeight: 17 },
   comprobante: { backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 12, alignItems: "center", paddingVertical: 26, marginTop: 8 },
   compNom: { color: T.tinta, fontSize: 13.5, fontWeight: "600", marginTop: 8 },
   compDemo: { color: T.grisClaro, fontSize: 11.5, marginTop: 3 },

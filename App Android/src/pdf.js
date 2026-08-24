@@ -63,7 +63,7 @@ export async function descargarManifiesto(s, cliente) {
         <div class="col">
           <h3>GENERADOR</h3>
           <div class="row"><div class="k">Empresa</div><div class="v">${cliente.empresa}</div></div>
-          <div class="row"><div class="k">RFC</div><div class="v">${cliente.rfc}</div></div>
+          <div class="row"><div class="k">RFC</div><div class="v">${cliente.rfc || "—"}</div></div>
           <div class="row"><div class="k">Contrato</div><div class="v">${cliente.id}</div></div>
         </div>
         <div class="col">
@@ -131,7 +131,7 @@ export async function descargarReporteNegocio(titulo, filas) {
       <div class="titulo">${titulo}</div>
       <div class="folio">Reporte interno · Morcast del Norte</div>
       <table>
-        <tr><th>Periodo</th><th>Ingresos</th></tr>
+        <tr><th>Periodo</th><th>Cobrado</th></tr>
         ${cuerpo}
         <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${pesos(total)}</td></tr>
       </table>

@@ -6,12 +6,21 @@ import * as Clipboard from "expo-clipboard";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../ui";
 import { CUENTA, DATOS_DEPOSITO, BANCOS, RECARGAS, CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
-import { miSaldo, misMovimientos, reportarDeposito } from "../datos-remoto";
+import { miSaldo, misMovimientos, reportarDeposito, miEmpresa } from "../datos-remoto";
 
 export default function AgregarSaldo() {
   const [monto, setMonto] = useState("");
   const [banco, setBanco] = useState(BANCOS[0]);
-  const [referencia, setReferencia] = useState(CLIENTE.rfc);
+  // Se sugiere el RFC REAL de su empresa. El de `CLIENTE` es de ejemplo y
+  // mandaba a todos a poner el mismo, que no es de nadie.
+  const [referencia, setReferencia] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    miEmpresa().then((c) => {
+      if (vivo && c) setReferencia((r) => r || c.rfc || c.id || "");
+    });
+    return () => { vivo = false; };
+  }, []);
   const [comprobante, setComprobante] = useState(null);
   const [enviada, setEnviada] = useState(false);
   const [copiado, setCopiado] = useState("");
@@ -69,15 +78,17 @@ export default function AgregarSaldo() {
     setEnviando(true);
     setError("");
 
+    // Se manda el ARCHIVO, no solo su nombre. Antes solo viajaba el nombre:
+    // la cubeta quedaba vacia y quien aprobaba el dinero no veia nada.
     const r = await reportarDeposito({
       monto: montoNum,
       banco,
       referencia,
-      comprobanteNombre: comprobante?.nombre || comprobante?.fileName || null,
+      comprobante,
     });
 
     if (!r.ok) {
-      setError("No se pudo enviar tu comprobante. Revisa tu señal e intenta otra vez.");
+      setError(r.motivo || "No se pudo enviar tu comprobante. Revisa tu señal e intenta otra vez.");
       setEnviando(false);
       return;
     }
@@ -103,16 +114,32 @@ export default function AgregarSaldo() {
       {/* Datos de depósito */}
       <Tarjeta>
         <TituloTarjeta>Datos para depósito</TituloTarjeta>
-        <Dep k="Banco" v={DATOS_DEPOSITO.banco} />
-        <Dep k="Titular" v={DATOS_DEPOSITO.titular} />
-        <Dep k="CLABE" v={DATOS_DEPOSITO.clabe} copiar={() => copiar(DATOS_DEPOSITO.clabe, "clabe")} copiado={copiado === "clabe"} />
-        <Dep k="Cuenta" v={DATOS_DEPOSITO.cuenta} copiar={() => copiar(DATOS_DEPOSITO.cuenta, "cuenta")} copiado={copiado === "cuenta"} />
-        <Dep k="Referencia" v={DATOS_DEPOSITO.referencia} ultimo />
-        {DATOS_DEPOSITO.demo && (
-          <View style={s.nota}>
-            <Feather name="info" size={14} color="#e0a94d" />
-            <Text style={s.notaTxt}>Datos de demostración. Se reemplazan por los reales de Morcast.</Text>
-          </View>
+        {/*
+          Mientras los datos sean de demostración NO se enseña la CLABE ni la
+          cuenta: son ceros. Un cliente que los copie no puede pagar, y se
+          daría cuenta después del error, no antes.
+        */}
+        {DATOS_DEPOSITO.demo ? (
+          <>
+            <Dep k="Titular" v={DATOS_DEPOSITO.titular} />
+            <Dep k="Referencia" v={DATOS_DEPOSITO.referencia} ultimo />
+            <View style={s.nota}>
+              <Feather name="info" size={14} color="#e0a94d" />
+              <Text style={s.notaTxt}>
+                Todavía no publicamos la cuenta aquí. Pídenos los datos para transferir
+                por WhatsApp al 868 384 9478 o al correo contacto@morcast.mx, y sube tu
+                comprobante en esta misma pantalla.
+              </Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Dep k="Banco" v={DATOS_DEPOSITO.banco} />
+            <Dep k="Titular" v={DATOS_DEPOSITO.titular} />
+            <Dep k="CLABE" v={DATOS_DEPOSITO.clabe} copiar={() => copiar(DATOS_DEPOSITO.clabe, "clabe")} copiado={copiado === "clabe"} />
+            <Dep k="Cuenta" v={DATOS_DEPOSITO.cuenta} copiar={() => copiar(DATOS_DEPOSITO.cuenta, "cuenta")} copiado={copiado === "cuenta"} />
+            <Dep k="Referencia" v={DATOS_DEPOSITO.referencia} ultimo />
+          </>
         )}
       </Tarjeta>
 

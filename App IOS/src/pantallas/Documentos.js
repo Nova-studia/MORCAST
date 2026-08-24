@@ -3,13 +3,15 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta } from "../ui";
-import { SERVICIOS_CLIENTE, CLIENTE, fechaLarga } from "../datos";
+import { SERVICIOS_CLIENTE, fechaLarga } from "../datos";
 import { misServicios } from "../datos-remoto";
+import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto, descargarConstancia } from "../pdf";
 
 export default function Documentos() {
   const [bajando, setBajando] = useState(null);
   const [servicios, setServicios] = useState(null);
+  const { empresa, puedeImprimir, cargando } = useMiEmpresa();
 
   useEffect(() => {
     let vivo = true;
@@ -28,8 +30,13 @@ export default function Documentos() {
     finally { setBajando(null); }
   };
   const conManifiesto = async (x) => {
+    if (!puedeImprimir) {
+      const [t, m] = avisoSinEmpresa(cargando);
+      Alert.alert(t, m);
+      return;
+    }
     setBajando(x.folio);
-    try { await descargarManifiesto(x, CLIENTE); }
+    try { await descargarManifiesto(x, empresa); }
     catch (e) { Alert.alert("Error", String(e?.message || e)); }
     finally { setBajando(null); }
   };
