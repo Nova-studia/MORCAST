@@ -172,6 +172,26 @@ export function fechaLarga(iso) {
 }
 
 /**
+ * Igual que `fechaLarga`, pero con el día de la semana adelante: "mar 1 sep".
+ *
+ * Se usa donde el cliente ESCOGE un día, no donde lo consulta. Al agendar, la
+ * pregunta real es "¿el martes o el viernes?", y con "2026-09-01" hay que
+ * sacar la cuenta mentalmente. En una tabla de historial el día de la semana
+ * sobra y por eso allí se sigue usando `fechaLarga`.
+ *
+ * Se construye a mediodía local: con la medianoche, el desfase de zona horaria
+ * puede correr la fecha un día y enseñar el día de la semana equivocado.
+ */
+export function fechaConDia(iso) {
+  if (!iso) return "—";
+  const dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) return iso;
+  return `${dias[new Date(a, m - 1, d, 12).getDay()]} ${d} ${meses[m - 1]}`;
+}
+
+/**
  * Folio corto y legible a partir del id de la base.
  *
  * Las solicitudes se guardan con un UUID de 36 caracteres. Enseñado tal cual no

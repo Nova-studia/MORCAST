@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { FiCheckCircle, FiArrowRight, FiShield } from "react-icons/fi";
+import { FiCheckCircle, FiArrowRight } from "react-icons/fi";
+import CampoContrasena from "@/components/CampoContrasena";
+import OtrosAccesos from "@/components/OtrosAccesos";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
 
 export default function LoginPortal() {
@@ -44,14 +46,25 @@ export default function LoginPortal() {
   return (
     <div className="pt-login">
       <div className="pt-login-lado">
-        <Image
-          src="/img/logo-h-blanco.png"
-          alt="Morcast del Norte"
-          width={688}
-          height={200}
-          style={{ height: 80, width: "auto", alignSelf: "flex-start" }}
-          priority
-        />
+        {/* El logotipo lleva al sitio público. Se usa `/` y no la URL
+            absoluta a morcast.mx a propósito: los tres logins VIVEN en
+            morcast.mx, así que `/` es la misma portada, y además sigue
+            funcionando en desarrollo y en las vistas previas de Vercel, donde
+            una URL escrita a mano te sacaría del entorno que estás probando. */}
+        <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
+          <Image
+            src="/img/logo-h-blanco.png"
+            alt="Morcast del Norte"
+            width={688}
+            height={200}
+            /* Sin `style` de alto: el tamaño lo manda portal.css, que lo baja
+               a 46 px en pantallas angostas. Puesto en línea le ganaba a la
+               media query y el logo se quedaba en 80 px en el teléfono. Es el
+               MISMO tropiezo que ya está anotado para `.pt-grid-detalle`. */
+            style={{ width: "auto" }}
+            priority
+          />
+        </Link>
         <div className="pt-login-lema">
           <h2>Portal de clientes</h2>
           <p>
@@ -90,18 +103,11 @@ export default function LoginPortal() {
                 required
               />
             </div>
-            <div className="pt-campo">
-              <label htmlFor="password">Contraseña</label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <CampoContrasena
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
             <button
               type="submit"
               className="pt-btn pt-btn-verde"
@@ -119,9 +125,7 @@ export default function LoginPortal() {
             </Link>
           </p>
 
-          <Link href="/admin/login" className="pt-login-admin">
-            <FiShield /> Administración
-          </Link>
+          <OtrosAccesos actual="cliente" />
         </div>
       </div>
     </div>

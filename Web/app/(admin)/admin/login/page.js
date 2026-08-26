@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { FiArrowRight, FiArrowLeft } from "react-icons/fi";
+import { FiArrowRight } from "react-icons/fi";
+import CampoContrasena from "@/components/CampoContrasena";
+import OtrosAccesos from "@/components/OtrosAccesos";
 import { iniciarSesionAdmin, obtenerSesionAdmin } from "@/lib/admin-sesion";
 
 export default function LoginAdmin() {
@@ -43,14 +45,25 @@ export default function LoginAdmin() {
   return (
     <div className="pt-login">
       <div className="pt-login-lado pt-login-lado-admin">
-        <Image
-          src="/img/logo-h-blanco.png"
-          alt="Morcast del Norte"
-          width={688}
-          height={200}
-          style={{ height: 80, width: "auto", alignSelf: "flex-start" }}
-          priority
-        />
+        {/* El logotipo lleva al sitio público. Se usa `/` y no la URL
+            absoluta a morcast.mx a propósito: los tres logins VIVEN en
+            morcast.mx, así que `/` es la misma portada, y además sigue
+            funcionando en desarrollo y en las vistas previas de Vercel, donde
+            una URL escrita a mano te sacaría del entorno que estás probando. */}
+        <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
+          <Image
+            src="/img/logo-h-blanco.png"
+            alt="Morcast del Norte"
+            width={688}
+            height={200}
+            /* Sin `style` de alto: el tamaño lo manda portal.css, que lo baja
+               a 46 px en pantallas angostas. Puesto en línea le ganaba a la
+               media query y el logo se quedaba en 80 px en el teléfono. Es el
+               MISMO tropiezo que ya está anotado para `.pt-grid-detalle`. */
+            style={{ width: "auto" }}
+            priority
+          />
+        </Link>
         <div className="pt-login-lema">
           <span className="pt-admin-chip">Administración</span>
           <h2>Panel de administración</h2>
@@ -76,18 +89,17 @@ export default function LoginAdmin() {
               <label htmlFor="correo">Correo electrónico</label>
               <input id="correo" type="email" autoComplete="username" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="Tu correo de administración" required />
             </div>
-            <div className="pt-campo">
-              <label htmlFor="password">Contraseña</label>
-              <input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
-            </div>
+            <CampoContrasena
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
             <button type="submit" className="pt-btn pt-btn-naranja" style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }} disabled={enviando}>
               {enviando ? "Entrando…" : <>Entrar al panel <FiArrowRight /></>}
             </button>
           </form>
 
-          <Link href="/portal/login" className="pt-login-admin">
-            <FiArrowLeft /> Volver al portal de clientes
-          </Link>
+          <OtrosAccesos actual="admin" />
         </div>
       </div>
     </div>

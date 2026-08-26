@@ -19,6 +19,7 @@ import {
 import { obtenerSesion, cerrarSesion } from "@/lib/portal-sesion";
 import { CLIENTE } from "@/lib/portal-datos";
 import TransicionPagina from "@/components/TransicionPagina";
+import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
   { href: "/portal", texto: "Panel", icono: FiGrid, exacto: true },
@@ -38,6 +39,11 @@ export default function PortalShell({ children }) {
   const [listo, setListo] = useState(false);
   const [sesion, setSesion] = useState(null);
   const [abierto, setAbierto] = useState(false);
+
+  // El cajon tambien se arrastra con el dedo: deslizar desde el borde
+  // izquierdo lo abre, deslizar sobre el o sobre el velo lo cierra. El
+  // boton de hamburguesa sigue funcionando igual.
+  const { refCajon, refVelo } = useCajonArrastrable({ abierto, setAbierto, listo });
 
   useEffect(() => {
     // `vivo` evita tocar el estado si la pantalla ya se desmontó mientras
@@ -98,7 +104,7 @@ export default function PortalShell({ children }) {
   return (
     <div className="pt-body">
       <div className="pt-shell">
-        <aside className={`pt-sidebar ${abierto ? "abierto" : ""}`}>
+        <aside ref={refCajon} className={`pt-sidebar ${abierto ? "abierto" : ""}`}>
           <div className="pt-side-logo">
             {/* El logo apunta al panel, que es donde ya estas parado:
                 precargarlo es trabajo puro para nada. */}
@@ -151,9 +157,17 @@ export default function PortalShell({ children }) {
           </div>
         </aside>
 
-        {abierto && (
-          <div className="pt-overlay" onClick={() => setAbierto(false)} />
-        )}
+        {/* Se monta SIEMPRE, aunque este cerrado. Antes iba con
+            `{abierto && ...}` y el nodo nacia y moria con el cajon, asi que
+            no habia nada que desvanecer: aparecia y desaparecia de un cuadro
+            al siguiente. Cerrado queda en `visibility: hidden` (portal.css),
+            o sea fuera del tabulador y sin recibir clicks. */}
+        <div
+          ref={refVelo}
+          className="pt-overlay"
+          onClick={() => setAbierto(false)}
+          aria-hidden="true"
+        />
 
         <div className="pt-main">
           <header className="pt-topbar">
@@ -166,6 +180,11 @@ export default function PortalShell({ children }) {
               >
                 <FiMenu />
               </button>
+              {/* En el teléfono este bloque decía exactamente lo mismo que
+                  el <h1> de tres centímetros más abajo ("Reportes" / "Reportes")
+                  y, para hacerle lugar, la barra escondía el nombre de la
+                  empresa. O sea: repetía lo que ya se veía y ocultaba lo que
+                  no. Abajo de 768 px se invierte — lo resuelve portal.css. */}
               <div className="pt-topbar-titulo">
                 {seccion.texto}
                 <small>{cuenta}</small>

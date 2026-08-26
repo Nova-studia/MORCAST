@@ -95,6 +95,24 @@ export default function HistorialPortal() {
           </div>
         </div>
 
+        {/* El aviso de "no hay nada" iba DENTRO de la tabla, en un
+            `<td colSpan={8}>`. La tabla mide 820 px de ancho mínimo, así que
+            el mensaje se centraba respecto a esos 820 px y en un teléfono de
+            390 quedaba cortado por el borde: el cliente veía "Todavía no
+            tienes recolecci…" y nada más. Fuera de la tabla se lee completo,
+            y de paso no se pinta un encabezado de 8 columnas para acompañar
+            a una lista vacía. */}
+        {cargando && <div className="pt-vacio">Cargando tus servicios…</div>}
+
+        {!cargando && filas.length === 0 && (
+          <div className="pt-vacio">
+            {servicios.length === 0
+              ? "Todavía no tienes recolecciones completadas. Aquí aparecerán con su comprobante fotográfico."
+              : "Sin servicios que coincidan."}
+          </div>
+        )}
+
+        {!cargando && filas.length > 0 && (
         <div className="pt-tabla-wrap">
           <table className="pt-tabla" style={{ minWidth: 820 }}>
             <thead>
@@ -110,20 +128,6 @@ export default function HistorialPortal() {
               </tr>
             </thead>
             <tbody>
-              {cargando && (
-                <tr>
-                  <td colSpan={8} className="pt-vacio">Cargando tus servicios…</td>
-                </tr>
-              )}
-              {!cargando && filas.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="pt-vacio">
-                    {servicios.length === 0
-                      ? "Todavía no tienes recolecciones completadas. Aquí aparecerán con su comprobante fotográfico."
-                      : "Sin servicios que coincidan."}
-                  </td>
-                </tr>
-              )}
               {filas.map((s) => {
                 const est = estatusInfo(s.estatus);
                 const expandido = abierto === s.folio;
@@ -178,6 +182,7 @@ export default function HistorialPortal() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </>
   );

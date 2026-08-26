@@ -24,7 +24,11 @@
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 40;
-  transition: transform 0.3s ease;
+  /* Sin rebote A PROPOSITO: el cajon se abre con un boton, no con un gesto.
+     Un resorte con sobrepaso es lo correcto cuando el dedo trae impulso;
+     aqui no hay impulso que heredar, y el sobrepaso se leeria como un error.
+     Esta curva sale rapido y se asienta sin pasarse. */
+  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .pt-side-logo {
@@ -53,7 +57,10 @@
   color: var(--mc-gris);
   font-weight: 600;
   font-size: 0.94rem;
-  transition: all var(--mc-transicion);
+  transition: background-color 200ms ease,
+              color 200ms ease,
+              box-shadow 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .pt-nav-item svg {
   flex-shrink: 0;
@@ -87,8 +94,11 @@
   top: 0;
   z-index: 30;
   background: rgba(9, 15, 14, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--mc-linea);
+  backdrop-filter: blur(12px) saturate(180%);
+  /* Sin divisoria de 1px. Donde el contenido pasa por debajo de una barra
+     flotante lo que corresponde es un borde suave (`::after` mas abajo), no
+     una linea dibujada: la linea dice "aqui termina una caja", el degradado
+     dice "esto flota encima de lo que sigue leyendose". */
   padding: 0.9rem 1.8rem;
   display: flex;
   align-items: center;
@@ -99,6 +109,7 @@
   font-family: var(--fuente-titulo), sans-serif;
   font-weight: 700;
   font-size: 1.15rem;
+  letter-spacing: -0.012em;
 }
 .pt-topbar-titulo small {
   display: block;
@@ -160,12 +171,20 @@
   place-items: center;
   font-size: 1.3rem;
 }
+/* El velo del cajon. Iba con `display: none/block`, que NO se puede animar:
+   aparecia y desaparecia de un cuadro a otro. Ahora vive siempre en el DOM
+   —los shells ya no lo montan y desmontan— y cruza con opacidad, que si corre
+   en el compositor. `visibility` se retrasa hasta el final del fundido de
+   salida para que no se corte a la mitad, y de paso lo deja fuera del foco y
+   del tabulador cuando esta cerrado. */
 .pt-overlay {
-  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
   z-index: 35;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 300ms;
 }
 
 /* ---------- Tarjetas ---------- */
@@ -173,6 +192,19 @@
   display: grid;
   gap: 1.1rem;
 }
+/* ⚠️ LA MISMA LECCIÓN QUE YA ESTABA ANOTADA PARA `.pt-grid-detalle`, QUE
+   RESULTÓ VALER PARA TODAS LAS REJILLAS.
+
+   Una columna de rejilla NO se encoge por debajo del ancho de su contenido a
+   menos que se le baje el mínimo. Las tablas del panel traen `min-width` de
+   620 a 820 px, así que en un teléfono la columna que las contiene se negaba
+   a achicarse y estiraba la tarjeta ENTERA fuera de la pantalla: en
+   `admin/altas` se veía "Toca una solicitu…" cortado por el borde, y la
+   tabla de al lado sin su orilla derecha.
+
+   `.pt-grid-detalle` ya tenía su `min-width: 0` puesto —de cuando pasó con
+   los mapas— pero la regla vivía pegada a ESA rejilla en vez de a todas. */
+.pt-grid > * { min-width: 0; }
 .pt-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .pt-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .pt-grid-2 { grid-template-columns: repeat(2, 1fr); }
@@ -193,6 +225,7 @@
 .pt-card-head h2 {
   font-size: 1.08rem;
   margin: 0;
+  letter-spacing: -0.016em;
 }
 
 /* Tarjeta de estadística (KPI) */
@@ -271,6 +304,14 @@
   font-size: 2.5rem;
   line-height: 1.05;
   margin: 0.35rem 0 0.2rem;
+  /* A este tamano el texto pide tracking NEGATIVO: las letras crecen y el
+     espacio entre ellas crece con ellas, asi que hay que quitarselo. Es el
+     mismo criterio que ya siguen `.pt-stat-valor` (-0.03em, 1.4rem) y los
+     encabezados de globals.css; este se habia quedado en cero. */
+  letter-spacing: -0.035em;
+  /* El saldo se actualiza en pantalla. Sin cifras de ancho fijo el monto
+     "baila" de ancho al cambiar un digito. */
+  font-variant-numeric: tabular-nums;
 }
 .pt-saldo-barra {
   height: 8px;
@@ -337,7 +378,11 @@
   background: rgba(255, 255, 255, 0.02);
 }
 .pt-tabla td.num,
-.pt-tabla th.num { text-align: right; white-space: nowrap; }
+.pt-tabla th.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .pt-tabla .folio {
   font-family: var(--fuente-cuerpo);
   font-weight: 600;
@@ -389,7 +434,11 @@
   background: transparent;
   color: var(--mc-tinta);
   cursor: pointer;
-  transition: all var(--mc-transicion);
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              color 200ms ease,
+              opacity 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
   white-space: nowrap;
 }
 .pt-btn:hover {
@@ -428,7 +477,9 @@
   padding: 0.45rem 1rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: all var(--mc-transicion);
+  transition: background-color 200ms ease,
+              color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .pt-segmento button.activo {
   background: var(--mc-verde);
@@ -562,10 +613,23 @@
   opacity: 0.16;
   clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%);
 }
+/* El logotipo va dentro de un enlace a la portada, asi que el hijo flex del
+   panel ahora es el enlace y la alineacion le toca a el. */
+.pt-login-marca {
+  align-self: flex-start;
+  display: inline-flex;
+  border-radius: 6px;
+  transition: opacity 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-login-marca:hover { opacity: 0.85; }
+.pt-login-marca:active {
+  transform: scale(0.98);
+  transition-duration: 100ms;
+}
 .pt-login-lado img {
-  height: 80px;          /* logo prominente en el login (2.5× el previo) */
+  height: 80px;          /* logo prominente en el login (2.5x el previo) */
   width: auto;
-  align-self: flex-start; /* el flex en columna estiraba el logo a lo ancho */
   object-fit: contain;
 }
 .pt-login-lema {
@@ -735,16 +799,32 @@
     justify-content: flex-start;
     flex-direction: row;
   }
-  .pt-login-lado > *:not(img) { display: none; }
+  /* OJO: decia `:not(img)`. Al meter el logo dentro de un enlace, el logo
+     dejo de ser un <img> hijo directo y esta regla LO HABRIA ESCONDIDO en el
+     telefono, dejando la franja de marca vacia. */
+  .pt-login-lado > *:not(.pt-login-marca) { display: none; }
   .pt-login-lado::after { display: none; }
-  .pt-login-lado img { height: 46px; align-self: center; }
+  .pt-login-marca { align-self: center; }
+  .pt-login-lado img { height: 46px; }
 }
 @media (max-width: 767.98px) {
-  .pt-sidebar { transform: translateX(-100%); }
+  .pt-sidebar {
+    transform: translateX(-100%);
+    /* `pan-y` deja que el menu siga desplazandose a lo largo con el dedo,
+       pero le entrega a nosotros el movimiento horizontal: es lo que permite
+       arrastrar el cajon sin pelearse con el scroll (lib/cajon-arrastrable.js). */
+    touch-action: pan-y;
+  }
+  /* El velo no desplaza nada: cualquier gesto encima es para cerrar. */
+  .pt-overlay { touch-action: none; }
   .pt-sidebar.abierto { transform: translateX(0); }
   .pt-main { margin-left: 0; }
   .pt-menu-btn { display: grid; }
-  .pt-sidebar.abierto ~ .pt-overlay { display: block; }
+  .pt-sidebar.abierto ~ .pt-overlay {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
+  }
   .pt-grid-4, .pt-grid-2 { grid-template-columns: 1fr; }
   .pt-content { padding: 1.1rem; }
   .pt-topbar { padding: 0.8rem 1.1rem; }
@@ -834,7 +914,9 @@
   gap: 0.35rem; text-align: center; cursor: pointer;
   border: 1.5px dashed var(--mc-linea); border-radius: 12px;
   padding: 1.4rem 1rem; margin-top: 0.4rem;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 200ms ease,
+              background-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .pt-dropzone:hover { border-color: var(--mc-verde); background: rgba(78, 179, 74, 0.04); }
 .pt-dropzone > svg { font-size: 1.7rem; color: var(--mc-verde-claro); }
@@ -899,14 +981,6 @@
 }
 
 /* Enlace pequeño bajo el botón de login (Administración / Volver) */
-.pt-login-admin {
-  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-  margin: 1rem auto 0; padding: 0.5rem 1rem;
-  font-size: 0.82rem; color: var(--mc-gris); text-decoration: none;
-  border: 1px solid var(--mc-linea); border-radius: 8px; width: fit-content;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.pt-login-admin:hover { color: var(--mc-tinta); border-color: var(--mc-gris); background: rgba(255,255,255,0.03); }
 
 /* Activar cuenta de cliente (solicitudes ganadas) */
 .pt-activar {
@@ -1073,3 +1147,850 @@
 /* La tabla de servicios tiene muchas columnas: que se desplace ella sola,
    en vez de empujar la página entera de lado. */
 .pt-tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* =====================================================================
+   RESPUESTA AL TACTO
+   ---------------------------------------------------------------------
+   El sitio publico ya tenia esto (globals.css). El panel no: en todo el
+   archivo no habia UN SOLO `:active`. Nada acusaba recibo de que lo
+   estabas apretando, y el panel es justo donde el cliente y el chofer
+   pasan el rato — no la portada.
+
+   La respuesta va al APRETAR, no al soltar. Son 100 ms y un 2-3% de
+   escala: no se ve, se siente. Solo `transform`, que corre en el
+   compositor y no obliga a recalcular la pagina.
+   ===================================================================== */
+.pt-btn:active:not(:disabled),
+.pt-segmento button:active,
+.pt-menu-btn:active,
+.pt-modal-head button:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+/* El renglon del menu y la zona de archivos son piezas anchas: a igual
+   escala una pieza grande se ve como si saltara, asi que se hunden menos. */
+.pt-nav-item:active,
+.pt-dropzone:active {
+  transform: scale(0.985);
+  transition-duration: 100ms;
+}
+
+.pt-menu-btn {
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* =====================================================================
+   BORDE DE SCROLL DE LA BARRA SUPERIOR
+   ---------------------------------------------------------------------
+   Reemplaza la divisoria de 1px que traia. La barra ya es material
+   translucido (blur + fondo semitransparente) y el contenido le pasa por
+   debajo; un degradado corto dice eso, una linea no.
+   ===================================================================== */
+.pt-topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 16px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(9, 15, 14, 0.5),
+    rgba(9, 15, 14, 0)
+  );
+}
+
+/* =====================================================================
+   EL MODAL SE MATERIALIZA, NO APARECE
+   ---------------------------------------------------------------------
+   Antes existia de un cuadro al siguiente, ya con su desenfoque puesto.
+   Una superficie de vidrio que llega de golpe no se lee como material:
+   se lee como un salto. El desenfoque y la escala se animan JUNTOS, que
+   es lo que hace que se lea como algo que llega y no como una opacidad
+   subiendo.
+
+   La escala arranca en 0.96 —no en 0.8— porque la pieza mide 720px: una
+   escala grande en algo grande recorre demasiada distancia y se siente
+   elastico donde no hay ningun gesto que lo justifique.
+
+   NOTA HONESTA: esto anima la ENTRADA. La salida sigue siendo instantanea
+   porque las pantallas desmontan el modal directo (`{abierto && <div/>}`)
+   y el nodo ya no existe para animarse. Cerrarlo por el mismo camino por
+   el que entro (que es lo correcto) pide un cambio en JS, no en CSS.
+   ===================================================================== */
+@keyframes pt-fondo-entra {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to   { opacity: 1; backdrop-filter: blur(3px); }
+}
+@keyframes pt-modal-entra {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.pt-modal-fondo {
+  animation: pt-fondo-entra 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.pt-modal {
+  animation: pt-modal-entra 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* =====================================================================
+   ACCESIBILIDAD — las tres senales, no solo una
+   ---------------------------------------------------------------------
+   globals.css atiende `prefers-reduced-motion`, pero esa hoja NO cubre
+   estas reglas: portal.css se carga despues y con la misma especificidad
+   gana la ultima. Aqui van las tres explicitas.
+   ===================================================================== */
+
+/* Movimiento reducido no es "sin respuesta": es la misma informacion sin
+   desplazamiento. El cajon y el modal cruzan con opacidad, y el apretado
+   se sigue acusando con color en vez de escala. */
+@media (prefers-reduced-motion: reduce) {
+  .pt-sidebar,
+  .pt-overlay,
+  .pt-nav-item,
+  .pt-btn,
+  .pt-segmento button,
+  .pt-menu-btn,
+  .pt-dropzone {
+    transition-duration: 0.01ms !important;
+  }
+  .pt-btn:active:not(:disabled),
+  .pt-segmento button:active,
+  .pt-menu-btn:active,
+  .pt-modal-head button:active,
+  .pt-nav-item:active,
+  .pt-dropzone:active {
+    transform: none;
+    filter: brightness(1.25);
+  }
+  /* Sin escala ni desplazamiento: el modal simplemente esta ahi. globals.css
+     ya aplasta toda duracion con `*{...!important}` cuando esta preferencia
+     esta puesta, asi que animarlo aqui seria escribir algo que no corre. */
+  .pt-modal-fondo,
+  .pt-modal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Transparencia reducida: el vidrio se vuelve solido. Con el desenfoque
+   apagado un fondo al 85% deja leer el texto de atras encima del de
+   adelante, que es peor que no tener material. */
+@media (prefers-reduced-transparency: reduce) {
+  .pt-topbar {
+    background: var(--mc-negro);
+    backdrop-filter: none;
+  }
+  .pt-topbar::after {
+    display: none;
+  }
+  .pt-modal-fondo {
+    background: rgba(0, 0, 0, 0.86);
+    backdrop-filter: none;
+    animation-name: pt-fondo-entra-solido;
+  }
+}
+@keyframes pt-fondo-entra-solido {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Contraste alto: fondos casi solidos y bordes definidos. Los tokens
+   `--mc-linea` (#27332f) y `--mc-gris-claro` estan pensados para ser
+   sutiles; con esta preferencia puesta, lo sutil es justo lo que estorba. */
+@media (prefers-contrast: more) {
+  .pt-card,
+  .pt-stat,
+  .pt-modal,
+  .pt-segmento,
+  .pt-btn,
+  .pt-evi,
+  .pt-dropzone {
+    border-color: #5d6f6b;
+  }
+  .pt-topbar {
+    background: var(--mc-negro);
+    backdrop-filter: none;
+    border-bottom: 2px solid #5d6f6b;
+  }
+  .pt-topbar::after {
+    display: none;
+  }
+  .pt-nav-item.activo {
+    outline: 2px solid var(--mc-verde);
+    outline-offset: -2px;
+  }
+  .pt-stat-etiqueta,
+  .pt-stat-sub,
+  .pt-tabla th,
+  .pt-page-head p {
+    color: #c6d4d1;
+  }
+}
+
+/* =====================================================================
+   MODO CHOFER — pase de pulido
+   ---------------------------------------------------------------------
+   Este no es un panel de escritorio encogido: se usa en un teléfono, en la
+   calle, a pleno sol, con una mano y a veces con guantes. Todo lo de aquí
+   sale de ese contexto, no del gusto.
+
+   Tres reglas que mandan sobre lo demás:
+     · Nada que se toque mide menos de 44 px de alto.
+     · El texto secundario sube de contraste: --mc-gris está calibrado para
+       leerse en interiores, y afuera se pierde.
+     · Menos texto. Un párrafo de cinco renglones nadie lo lee parado
+       junto a un camión.
+   ===================================================================== */
+
+/* ---------- Barra superior ---------- */
+/* Se partía a 390 px: el nombre del chofer caía en dos renglones y empujaba
+   el alto de la barra. Ahora el nombre se recorta con puntos suspensivos y
+   la barra tiene alto fijo. */
+.ch-barra {
+  min-height: 56px;
+  /* Mismo material que la barra del portal, no una caja opaca. */
+  background: rgba(9, 15, 14, 0.86);
+  backdrop-filter: blur(12px) saturate(180%);
+  border-bottom: none;
+}
+.ch-barra::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(9, 15, 14, 0.5), rgba(9, 15, 14, 0));
+}
+.ch-marca {
+  min-width: 0;
+  flex-shrink: 1;
+  /* Sin esto el chip, que no se parte, desbordaba su caja y se pegaba al
+     nombre del chofer: los dos bloques se veían encimados aunque la barra
+     tuviera su separación puesta. */
+  overflow: hidden;
+}
+/* El chip competía con el logotipo por la misma atención. Es una etiqueta de
+   contexto, no un titular: baja de peso y deja de gritar. */
+.ch-chip {
+  font-size: 0.7rem;
+  padding: 0.18rem 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(219, 101, 45, 0.14);
+  white-space: nowrap;
+}
+.ch-usuario {
+  min-width: 0;
+  flex-shrink: 1;
+  color: #c3d0cd;
+}
+.ch-usuario > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* El botón de salir era un .pt-btn de 32 px de alto: por debajo del mínimo
+   que se puede tocar con seguridad. */
+.ch-usuario .pt-btn {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.05rem;
+}
+
+/* ---------- Encabezado de pantalla ---------- */
+/* 1.7rem es un titular de escritorio. En 390 px se come un tercio del alto
+   útil sin decir nada que no diga a 1.35rem. */
+.ch-encabezado h1 {
+  font-size: 1.35rem;
+  letter-spacing: -0.022em;
+}
+.ch-encabezado p {
+  color: #c3d0cd;
+  font-size: 0.92rem;
+}
+
+/* ---------- Resumen del día ---------- */
+/* Antes: tres tarjetas del mismo peso, con "Por recolectar" partido en dos
+   renglones y las otras dos en uno, así que quedaban desalineadas. Y las tres
+   pesaban igual, cuando solo una importa. */
+.ch-resumen {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+.ch-resumen-principal {
+  background: linear-gradient(135deg, var(--mc-teal), #0c3538);
+  border: 1px solid var(--mc-teal-2);
+  border-radius: var(--mc-radio);
+  padding: 0.95rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.ch-resumen-principal strong {
+  display: block;
+  font-family: var(--fuente-titulo), sans-serif;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  /* Tracking negativo porque es texto grande, y cifras de ancho fijo para que
+     el número no cambie de ancho al bajar de 10 a 9. */
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.ch-resumen-principal span {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.86);
+  margin-top: 0.15rem;
+  font-weight: 600;
+}
+.ch-resumen-lado {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 0.6rem;
+}
+.ch-resumen-lado > div {
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  padding: 0.45rem 0.7rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+.ch-resumen-lado strong {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ch-resumen-lado > div:first-child strong { color: var(--mc-verde-claro); }
+.ch-resumen-lado span {
+  font-size: 0.78rem;
+  color: #c3d0cd;
+}
+
+/* ---------- Encabezados de sección ---------- */
+.ch-seccion {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #c3d0cd;
+  margin: 1.2rem 0 0.6rem;
+}
+.ch-seccion-2 { margin-top: 1.6rem; }
+
+/* ---------- Parada ---------- */
+/* Es el blanco de toque principal de toda la app: se toca con guantes, en
+   movimiento. Sube de alto y acusa recibo al apretarse. */
+.ch-parada {
+  min-height: 64px;
+  padding: 0.95rem 1rem;
+  transition: border-color 200ms ease,
+              background-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ch-parada:active {
+  transform: scale(0.985);
+  transition-duration: 100ms;
+}
+.ch-parada-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+.ch-parada-texto { min-width: 0; }
+.ch-parada-flecha {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  color: var(--mc-gris-claro);
+}
+.ch-parada-cliente {
+  font-size: 1.05rem;
+  letter-spacing: -0.012em;
+  /* El nombre de la empresa puede ser largo; que no rompa la tarjeta. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-parada-dato {
+  font-size: 0.85rem;
+  color: #c3d0cd;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 4px;
+}
+.ch-parada-dato svg { flex-shrink: 0; }
+.ch-parada-nota {
+  font-style: italic;
+  color: var(--mc-gris);
+}
+/* Lo hecho se apaga, pero no tanto que deje de leerse: 0.6 de opacidad sobre
+   un gris ya tenue daba un contraste por debajo de lo legible al sol. */
+.ch-parada.hecha { opacity: 0.78; }
+
+/* ---------- Estado vacío ---------- */
+.ch-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: 2rem 1.4rem;
+}
+.ch-vacio > svg {
+  font-size: 1.9rem;
+  color: var(--mc-verde-claro);
+  margin-bottom: 0.3rem;
+}
+.ch-vacio strong { font-size: 1.02rem; }
+.ch-vacio span {
+  font-size: 0.88rem;
+  color: #c3d0cd;
+  max-width: 30ch;
+}
+
+/* ---------- Pasos de la recolección ---------- */
+/* 0.68rem al sol, de pie, no se lee. Y la bolita de 26 px es el único
+   indicador de en qué paso vas. */
+.ch-paso-bola {
+  width: 30px;
+  height: 30px;
+  font-size: 0.85rem;
+}
+.ch-paso-txt {
+  font-size: 0.72rem;
+  color: #c3d0cd;
+  line-height: 1.2;
+}
+.ch-pasos { gap: 0.3rem; }
+
+/* ---------- Botón grande ---------- */
+.ch-boton-grande {
+  min-height: 52px;
+  border-radius: 12px;
+}
+
+
+@media (prefers-reduced-transparency: reduce) {
+  .ch-barra {
+    background: var(--mc-negro);
+    backdrop-filter: none;
+  }
+  .ch-barra::after { display: none; }
+}
+
+@media (prefers-contrast: more) {
+  .ch-barra {
+    background: var(--mc-negro);
+    backdrop-filter: none;
+    border-bottom: 2px solid #5d6f6b;
+  }
+  .ch-barra::after { display: none; }
+  .ch-parada,
+  .ch-resumen-lado > div { border-color: #5d6f6b; }
+  .ch-parada-dato,
+  .ch-seccion,
+  .ch-paso-txt,
+  .ch-vacio span,
+  .ch-encabezado p { color: #dce6e4; }
+  .ch-parada.hecha { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-parada { transition-duration: 0.01ms !important; }
+  .ch-parada:active {
+    transform: none;
+    filter: brightness(1.25);
+  }
+}
+
+/* En pantallas angostas los tres elementos de la barra no caben. Se cae el
+   que menos informa: el chip. La app entera ES el modo chofer, así que
+   decirlo otra vez arriba cuesta el espacio del nombre de quien entró —que
+   sí importa cuando dos choferes se turnan el mismo teléfono. */
+@media (max-width: 430px) {
+  .ch-barra .ch-chip { display: none; }
+}
+@media (min-width: 431px) {
+  .ch-usuario > span { max-width: 16ch; }
+}
+
+/* Volver a la ruta: mismo blanco de toque minimo que el resto del modo
+   chofer. Como .pt-btn es en linea, necesita alto propio para llegar a 44. */
+.ch-volver {
+  min-height: 44px;
+  padding-left: 0.9rem;
+  padding-right: 1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.9rem;
+}
+
+/* El nombre del cliente en la pantalla de detalle puede ser larguisimo
+   ("Comercializadora del Golfo, S.A. de C.V."). Aqui SI se deja partir en
+   dos renglones —el chofer necesita leerlo completo para saber que no se
+   equivoco de puerta— pero con interlinea cerrada para que no crezca tanto. */
+.ch-encabezado h1 {
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+/* =====================================================================
+   CAMPO DE CONTRASEÑA CON "VER"
+   ---------------------------------------------------------------------
+   El ojo va DENTRO del campo, no al lado: pertenece a ese campo y a ningún
+   otro, y ponerlo afuera obliga a leer dos veces para saber qué controla.
+   El relleno derecho del input le hace el hueco, así que el texto nunca
+   pasa por debajo del icono ni siquiera con una contraseña larga.
+   ===================================================================== */
+.pt-campo-clave {
+  position: relative;
+  display: flex;
+}
+.pt-campo-clave input {
+  width: 100%;
+  /* 46px: los 44 del botón más un respiro. */
+  padding-right: 46px;
+}
+.pt-ver-clave {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--mc-gris-claro);
+  font-size: 1.05rem;
+  border-radius: 0 var(--mc-radio-sm) var(--mc-radio-sm) 0;
+  transition: color 200ms ease,
+              background-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-ver-clave:hover { color: var(--mc-tinta); }
+.pt-ver-clave:active {
+  transform: scale(0.9);
+  transition-duration: 100ms;
+}
+/* Con la contraseña a la vista el ojo se enciende: es un estado encendido,
+   no un botón cualquiera, y tiene que notarse de reojo que está prendido. */
+.pt-ver-clave[aria-pressed="true"] { color: var(--mc-verde-claro); }
+
+/* Solo para lectores de pantalla. No se usa `display:none` ni
+   `visibility:hidden`: eso lo sacaría también del árbol de accesibilidad y no
+   se anunciaría nada, que es justo lo contrario de lo que se busca. */
+.pt-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =====================================================================
+   OTROS ACCESOS (pie de los tres logins)
+   ---------------------------------------------------------------------
+   Reemplaza al `.pt-login-admin` suelto, que solo apuntaba a un lado y dejó
+   al modo chofer sin ninguna puerta de entrada.
+   ===================================================================== */
+.pt-accesos {
+  margin-top: 1.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--mc-linea);
+  text-align: center;
+}
+.pt-accesos-tit {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--mc-gris);
+  margin-bottom: 0.7rem;
+}
+.pt-accesos-fila {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  /* En 390 px los dos botones no caben en una línea con texto completo;
+     se acomodan en dos renglones antes que recortarse. */
+  flex-wrap: wrap;
+}
+.pt-acceso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--mc-gris);
+  text-decoration: none;
+  border: 1px solid var(--mc-linea);
+  border-radius: 9px;
+  white-space: nowrap;
+  transition: color 200ms ease,
+              border-color 200ms ease,
+              background-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-acceso:hover {
+  color: var(--mc-tinta);
+  border-color: var(--mc-gris);
+  background: rgba(255, 255, 255, 0.03);
+}
+.pt-acceso:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+.pt-acceso svg {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-acceso:active,
+  .pt-ver-clave:active {
+    transform: none;
+    filter: brightness(1.25);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .pt-acceso { border-color: #5d6f6b; color: #dce6e4; }
+  .pt-accesos { border-top-color: #5d6f6b; }
+  .pt-accesos-tit { color: #c6d4d1; }
+  .pt-ver-clave { color: #c6d4d1; }
+}
+
+/* =====================================================================
+   FILTROS EN PASTILLA (.pt-chip)
+   ---------------------------------------------------------------------
+   Los encontró el cruce de clases usadas contra clases definidas: la fila de
+   filtros de `admin/altas` ("Sin atender (3)", "Ganada", "Todas") pedía
+   `.pt-chip`, que NO EXISTÍA. Se pintaban como botones pelones del
+   navegador —gris de sistema, esquinas cuadradas— y, peor, el filtro activo
+   no se distinguía del resto: no había forma de saber qué lista estabas
+   viendo. Es el mismo error que el login del chofer, en otra pantalla.
+   ===================================================================== */
+.pt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--mc-linea);
+  background: var(--mc-superficie);
+  color: var(--mc-gris);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-chip:hover {
+  color: var(--mc-tinta);
+  border-color: var(--mc-gris-claro);
+}
+.pt-chip:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+/* El filtro puesto va en el naranja del admin, que es su color de acento
+   (el verde es del portal del cliente). */
+.pt-chip.activo {
+  background: var(--mc-naranja);
+  border-color: var(--mc-naranja);
+  color: #0d1211;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-chip:active { transform: none; filter: brightness(1.25); }
+}
+@media (prefers-contrast: more) {
+  .pt-chip { border-color: #5d6f6b; color: #dce6e4; }
+}
+
+/* =====================================================================
+   PORTAL DEL CLIENTE — pase de pulido
+   ---------------------------------------------------------------------
+   Todo lo de aquí salió de recorrer las pantallas en un teléfono de 390 px,
+   que es donde se rompen. En escritorio ninguna de estas cosas se ve.
+   ===================================================================== */
+
+/* ---------- 1. Filas de acciones que se desbordaban ---------- */
+/* `.pt-card-head` es `space-between` sin permiso para envolver, y se usa en
+   todo el portal con un control a la izquierda y un botón a la derecha. En
+   Reportes eso dejaba "Exportar PDF" A MEDIAS FUERA DE LA PANTALLA, sin
+   ninguna forma de alcanzarlo. Envolver es lo correcto: es una fila de
+   acciones, no una tabla; que baje al siguiente renglón no rompe nada. */
+.pt-card-head {
+  flex-wrap: wrap;
+}
+
+/* ---------- 2. El selector de segmentos ---------- */
+/* Tres segmentos ("Diario / Mensual / Anual") no caben a lo ancho de un
+   teléfono, y el tercero quedaba cortado por el borde de la tarjeta SIN nada
+   que dijera que había más. Ahora la tira se desplaza sola, con los mismos
+   bordes redondeados del control. */
+/* Se probó primero con desplazamiento horizontal y quedó peor: la tira SÍ
+   se movía, pero "Programados" seguía viéndose cortado y nada avisaba que
+   había un gesto disponible. Esconder una opción detrás de un gesto que
+   nadie sabe que existe es peor que gastar un renglón. Ahora envuelve: todo
+   se ve, todo se alcanza, sin nada que descubrir. */
+@media (max-width: 767.98px) {
+  .pt-segmento {
+    display: flex;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .pt-segmento button {
+    /* Blanco de toque: eran 32 px de alto. */
+    min-height: 40px;
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- 3. El encabezado de pantalla ---------- */
+/* 1.7rem es un titular de escritorio: en 390 px "Historial de servicios"
+   ocupaba dos renglones completos antes de que empezara el contenido. */
+@media (max-width: 767.98px) {
+  .pt-page-head h1 {
+    font-size: 1.4rem;
+    line-height: 1.14;
+    letter-spacing: -0.024em;
+  }
+  .pt-page-head p {
+    font-size: 0.9rem;
+  }
+  .pt-page-head {
+    margin-bottom: 1.1rem;
+  }
+}
+
+/* ---------- 4. La barra superior repetía el título ---------- */
+/* En el teléfono la barra decía "Reportes" y el <h1> de abajo decía
+   "Reportes": el mismo dato dos veces, en el espacio más caro de la
+   pantalla. Y para hacerle sitio, la barra ESCONDÍA el nombre de la empresa
+   (`.pt-user-datos { display: none }`), que es justo lo que no se puede
+   deducir de ninguna otra parte —importa cuando alguien administra más de
+   una cuenta—. Se invierte: el <h1> dice dónde estás, la barra dice quién
+   eres. */
+@media (max-width: 767.98px) {
+  .pt-topbar-titulo {
+    /* Se queda el plan de la cuenta, que no está en ningún otro lado. */
+    font-size: 0;
+  }
+  .pt-topbar-titulo small {
+    font-size: 0.78rem;
+    display: block;
+    /* "Contrato mensual" caía en dos renglones y estiraba la barra entera.
+       Es un dato de una línea: si no cabe, se recorta. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 28vw;
+  }
+  .pt-user-datos {
+    display: block;
+    min-width: 0;
+  }
+  .pt-user-datos strong,
+  .pt-user-datos span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 42vw;
+  }
+  .pt-user-datos strong { font-size: 0.85rem; }
+  .pt-user-datos span { font-size: 0.72rem; }
+}
+
+/* ---------- 5. Estados vacíos ---------- */
+/* Sacado de la tabla (ver historial/page.js), el aviso necesita su propia
+   caja: antes heredaba la de la celda. */
+.pt-vacio {
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  background: var(--mc-superficie);
+  padding: 2rem 1.4rem;
+  text-align: center;
+  color: var(--mc-gris);
+  font-size: 0.9rem;
+  /* Un renglón de 80 caracteres se lee de corrido y se pierde el hilo. */
+  max-width: 46ch;
+  margin-inline: auto;
+}
+/* Dentro de una tarjeta ya hay borde y fondo: no se dibuja otro encima. */
+.pt-card .pt-vacio,
+.pt-tabla .pt-vacio {
+  border: none;
+  background: none;
+  padding: 1.6rem 1rem;
+}
+
+/* ---------- 6. Botones de acción a lo ancho ---------- */
+/* Las filas de botones sueltos (fechas de agendar, acciones de tabla) se
+   quedaban en 32 px de alto. En un teléfono todo lo que se toca sube. */
+@media (max-width: 767.98px) {
+  .pt-btn {
+    min-height: 40px;
+  }
+  .pt-content .pt-card-head .pt-btn {
+    min-height: 44px;
+  }
+}
+
+/* Fila del embudo del panel de administración: insignia a la izquierda,
+   total a la derecha. La insignia puede ser larga y no se parte, así que se
+   le permite encoger y recortarse; el número nunca se mueve, que es lo que
+   se viene a leer. */
+.pt-fila-embudo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+.pt-fila-embudo > span {
+  min-width: 0;
+  overflow: hidden;
+}
+.pt-fila-embudo .pt-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pt-fila-embudo > strong {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}

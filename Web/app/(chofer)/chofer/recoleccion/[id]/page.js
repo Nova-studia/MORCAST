@@ -7,7 +7,13 @@ import { FiArrowLeft, FiCamera, FiCheckCircle, FiTruck, FiHash, FiSave } from "r
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
 import { subirEvidencia } from "@/lib/datos-archivos";
 
-const PASOS = ["Contenedor", "Foto antes", "Recolectar", "Foto después", "Peso"];
+/**
+ * Etiquetas cortas A PROPÓSITO. Con "Foto antes" / "Foto después" el quinto
+ * rótulo se partía en dos renglones y descuadraba la fila entera; y la
+ * palabra "Foto" repetida dos veces no agrega nada, porque el paso ya lo dice
+ * con su propio encabezado y su icono de cámara.
+ */
+const PASOS = ["Contenedor", "Antes", "Recolectar", "Después", "Peso"];
 
 /** Hora local en HH:MM, para mostrarla junto a cada foto. */
 const horaAhora = () => {
@@ -165,7 +171,7 @@ export default function RecoleccionChofer() {
         <div className="pt-vacio">
           Esta recolección no está en tu ruta de hoy.
           <div style={{ marginTop: "0.8rem" }}>
-            <Link href="/chofer" className="pt-btn">
+            <Link href="/chofer" className="pt-btn ch-volver">
               <FiArrowLeft /> Volver a mi ruta
             </Link>
           </div>
@@ -176,12 +182,14 @@ export default function RecoleccionChofer() {
 
   return (
     <>
-      <Link href="/chofer" className="pt-btn" style={{ marginBottom: "0.9rem" }}>
+      {/* Volver es el escape de esta pantalla: con guantes tiene que
+          alcanzarse igual que los demás botones, no ser el más chico. */}
+      <Link href="/chofer" className="pt-btn ch-volver">
         <FiArrowLeft /> Mi ruta
       </Link>
 
-      <div className="pt-page-head">
-        <h1 style={{ fontSize: "1.25rem" }}>{parada.cliente}</h1>
+      <div className="pt-page-head ch-encabezado">
+        <h1>{parada.cliente}</h1>
         <p>{parada.direccion}</p>
       </div>
 

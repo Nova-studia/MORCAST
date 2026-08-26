@@ -5,6 +5,23 @@ import Link from "next/link";
 import { FiMapPin, FiCheckCircle, FiChevronRight } from "react-icons/fi";
 import { rutaDelDia, hoyISO } from "@/lib/datos-chofer";
 
+/**
+ * La fecha se le enseña al chofer como se dice, no como la guarda la base.
+ * "2026-08-26" es un formato de máquina; en un teléfono, en la calle, hay que
+ * traducirlo mentalmente para saber si es hoy. Se arma con la fecha local a
+ * mediodía para que el desfase horario no la corra un día.
+ */
+function fechaLegible(iso) {
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) return iso;
+  const texto = new Date(a, m - 1, d, 12).toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 export default function RutaChofer() {
   const [paradas, setParadas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -27,44 +44,52 @@ export default function RutaChofer() {
 
   return (
     <>
-      <div className="pt-page-head">
+      <div className="pt-page-head ch-encabezado">
         <h1>Mi ruta de hoy</h1>
-        <p>{hoy}</p>
+        <p>{fechaLegible(hoy)}</p>
       </div>
 
+      {/* Los tres números pesaban igual y ocupaban el mejor espacio de la
+          pantalla. Al chofer lo único que le urge saber es CUÁNTAS LE FALTAN;
+          lo hecho y el total son referencia. Ahora eso se lee en la jerarquía
+          y no hay que compararlos para entenderlo. */}
       <div className="ch-resumen">
-        <div>
+        <div className="ch-resumen-principal">
           <strong>{pendientes.length}</strong>
-          <span>Por recolectar</span>
+          <span>{pendientes.length === 1 ? "parada por hacer" : "paradas por hacer"}</span>
         </div>
-        <div>
-          <strong style={{ color: "var(--mc-verde-claro)" }}>{hechas.length}</strong>
-          <span>Completadas</span>
-        </div>
-        <div>
-          <strong>{paradas.length}</strong>
-          <span>Total</span>
+        <div className="ch-resumen-lado">
+          <div>
+            <strong>{hechas.length}</strong>
+            <span>Hechas</span>
+          </div>
+          <div>
+            <strong>{paradas.length}</strong>
+            <span>Total</span>
+          </div>
         </div>
       </div>
 
       {cargando && <div className="pt-vacio">Cargando tu ruta…</div>}
 
       {!cargando && paradas.length === 0 && (
-        <div className="pt-card">
-          <div className="pt-vacio">
-            No tienes paradas asignadas para hoy. Si esperabas alguna, avisa a la
-            oficina: puede que la recolección todavía no esté confirmada.
-          </div>
+        <div className="pt-card ch-vacio">
+          <FiCheckCircle aria-hidden="true" />
+          <strong>Sin paradas para hoy</strong>
+          <span>
+            Si esperabas alguna, avisa a la oficina: puede que todavía no esté
+            confirmada.
+          </span>
         </div>
       )}
 
       {pendientes.length > 0 && (
         <>
-          <h2 style={{ fontSize: "0.95rem", margin: "0.4rem 0 0.6rem" }}>Por recolectar</h2>
+          <h2 className="ch-seccion">Por recolectar</h2>
           {pendientes.map((p) => (
             <Link key={p.id} href={`/chofer/recoleccion/${p.id}`} className="ch-parada">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.6rem" }}>
-                <div style={{ minWidth: 0 }}>
+              <div className="ch-parada-fila">
+                <div className="ch-parada-texto">
                   <div className="ch-parada-cliente">{p.cliente}</div>
                   <div className="ch-parada-dato">
                     <FiMapPin aria-hidden="true" /> {p.direccion}
@@ -73,12 +98,10 @@ export default function RutaChofer() {
                     {p.folio} · {p.unidad}
                   </div>
                   {p.nota && (
-                    <div className="ch-parada-dato" style={{ fontStyle: "italic" }}>
-                      “{p.nota}”
-                    </div>
+                    <div className="ch-parada-dato ch-parada-nota">“{p.nota}”</div>
                   )}
                 </div>
-                <FiChevronRight aria-hidden="true" style={{ flexShrink: 0 }} />
+                <FiChevronRight aria-hidden="true" className="ch-parada-flecha" />
               </div>
             </Link>
           ))}
@@ -87,7 +110,7 @@ export default function RutaChofer() {
 
       {hechas.length > 0 && (
         <>
-          <h2 style={{ fontSize: "0.95rem", margin: "1.2rem 0 0.6rem" }}>Completadas</h2>
+          <h2 className="ch-seccion ch-seccion-2">Completadas</h2>
           {hechas.map((p) => (
             <div key={p.id} className="ch-parada hecha">
               <div className="ch-parada-cliente">

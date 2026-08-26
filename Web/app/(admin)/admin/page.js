@@ -104,7 +104,11 @@ export default function PanelAdmin() {
           <div className="pt-card-head"><h2>Embudo de solicitudes</h2></div>
           {embudo.map((e) => (
             <div key={e.id} style={{ marginBottom: "0.85rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "0.3rem" }}>
+              {/* La rejilla vive en el CSS y no aquí: era una fila flex sin
+                  permiso para encoger, así que con una insignia larga
+                  ("Cotización enviada") el total se salía 10 px de la
+                  pantalla en el teléfono. */}
+              <div className="pt-fila-embudo">
                 <span><span className={`pt-badge ${e.clase}`}>{e.texto}</span></span>
                 <strong>{e.total}</strong>
               </div>

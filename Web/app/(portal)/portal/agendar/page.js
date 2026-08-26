@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiCalendar, FiPlusCircle } from "react-icons/fi";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "@/lib/rutas-datos";
+import { fechaConDia } from "@/lib/portal-datos";
 import {
   miSuscripcion,
   listarSolicitudes,
@@ -149,7 +150,11 @@ export default function AgendarPortal() {
                   style={{ padding: "0.4rem 0.7rem", fontSize: "0.84rem" }}
                   onClick={() => setFecha(f)}
                 >
-                  {f}
+                  {/* Antes decía "2026-09-01". El cliente está eligiendo entre
+                      los días en que pasa su ruta, así que la pregunta que se
+                      hace es "¿el martes o el viernes?" — y con la fecha en
+                      formato de máquina hay que sacar la cuenta de cabeza. */}
+                  {fechaConDia(f)}
                 </button>
               ))}
             </div>
@@ -209,7 +214,7 @@ export default function AgendarPortal() {
                     <span className={`pt-badge ${b.clase}`}>{b.texto}</span>
                   </div>
                   <div style={{ fontSize: "0.83rem", color: "var(--mc-gris)", marginTop: 3 }}>
-                    {s.fechaPedida} · {s.origen === "extra" ? "Extra" : "De ruta"}
+                    {fechaConDia(s.fechaPedida)} · {s.origen === "extra" ? "Extra" : "De ruta"}
                   </div>
                 </div>
               );
