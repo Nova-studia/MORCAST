@@ -143,6 +143,8 @@ completa, o no entra nada.
 | `012` | La evidencia no se borra: `for all` incluía DELETE |
 | `013` | Fecha válida, hora de la visita y chofer por parada |
 | `014` | Detalles: saldos fuera del chofer, rutas acotadas, folio sin carrera |
+| `015` | La cobertura completa |
+| `016` | `recolecciones.ubicacion` (jsonb): la lectura de GPS por foto |
 
 **Saca un respaldo antes de cualquier migración que borre o cambie datos**
 (`node respaldo/respaldar.mjs`). Las que solo agregan columnas o tablas son
@@ -150,6 +152,24 @@ seguras, pero cuesta 30 segundos y quita el susto.
 
 > El SQL Editor del tablero de Supabase sigue funcionando y es igual de válido;
 > psql solo evita el copiar y pegar.
+
+**Si no hay psql instalado**, se puede correr desde Node con el cliente `pg`, que es
+como se aplicó la `016`:
+
+```bash
+cd Web
+npm install --no-save pg     # no se guarda en package.json: es sólo para migrar
+# conexión directa: postgresql://postgres:<.env.db-password>@db.mbdmulygpupahocpylze.supabase.co:5432/postgres
+# con ssl: { rejectUnauthorized: false }, y el SQL dentro de begin/commit
+```
+
+Envolverlo en `begin` / `commit` es lo mismo que `--single-transaction`: si algo
+falla, se hace `rollback` y la base no queda a medias.
+
+⚠️ **Y al agregar una columna, revisa las CONSULTAS que la van a leer.** Al meter
+`ubicacion` en la `016`, las dos consultas que leen `recolecciones` seguían pidiendo
+sólo las columnas viejas: el dato se habría guardado y **no se habría leído nunca**.
+Un `select` de Supabase con columnas enumeradas no se entera de las nuevas.
 
 ---
 
@@ -406,6 +426,14 @@ una Mac con Xcode para compilar.
 
 1. **Ambiente de pruebas.** Hoy los cambios se estrenan directo en el sitio del
    cliente. Hace falta **antes** de darle acceso a Morcast.
+
+1b. **El ciclo de cobranza mensual.** Está detenido, y no por código: **no existe un
+   precio por cliente en la base.** `suscripciones` guarda frecuencia y equipo pero
+   ningún campo de precio, y el catálogo de `lib/portal-datos.js` está escrito a mano
+   con su propia nota de "sustituir cuando la empresa entregue su lista". Sin eso no
+   se puede hacer que cada recolección completada sume al monto a pagar, que es la
+   base de todo lo demás (avisos antes del corte, estado de cobranza, ingresos del
+   mes). Falta también confirmar con Morcast la regla del corte.
 2. **Encender la CSP de verdad** (hoy está en modo solo-reporte).
 3. **Cambio de rol desde `/admin/usuarios`**: la pantalla sigue en modo demostración.
    Usa nombres como "Administrador" mientras la base usa `dueno/admin/operador`.

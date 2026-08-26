@@ -34,6 +34,14 @@ capturar nada dos veces.**
 2. Escribe tu correo y tu contraseña.
 3. Entras al **Panel**, que es la pantalla de resumen.
 
+**Si no te acuerdas de la contraseña que copiaste**, el ojito del lado derecho del
+campo te la deja ver mientras la escribes. Viene oculta siempre que abres la página.
+
+**Los tres accesos están enlazados entre sí.** Hasta abajo de cualquiera de los tres
+logins —cliente, chofer y administración— dice *"¿Entras de otra forma?"* con los otros
+dos. Ya no hay que acordarse de la dirección exacta de cada uno. Y el logotipo de
+arriba te regresa a la página pública.
+
 Del lado izquierdo está el menú con todo lo que puedes hacer. Si estás en un celular,
 el menú se esconde detrás del botón de las tres rayitas, arriba a la izquierda.
 
@@ -206,6 +214,55 @@ Arriba te dice de un vistazo cuántas están esperando respuesta.
 
 Los botones de arriba filtran la lista. **Solicitada** es el que más vas a usar: te
 deja solo lo que falta atender.
+
+### 🔴 Las que se pasaron de fecha
+
+Si a una recolección **ya le pasó el día y no se completó**, la pantalla te lo dice
+sin que tengas que buscarla:
+
+- Arriba de todo sale un **aviso en rojo**: *"N recolecciones se pasaron de fecha"*,
+  con un botón para ver sólo esas.
+- Cada una queda marcada **en rojo**, con una franja a la izquierda y cuántos días
+  lleva de atraso.
+- **Suben al principio de la lista.** Antes el orden iba de la más nueva a la más
+  vieja, así que una recolección atrasada se hundía un lugar cada vez que entraba una
+  nueva. Ahora manda la urgencia: primero las vencidas (la más atrasada arriba),
+  luego lo que viene, y hasta abajo lo ya cerrado.
+
+**No todas las vencidas son la misma falla**, y por eso la insignia no dice lo mismo:
+
+| Insignia | Qué pasó | Qué tan grave |
+|---|---|---|
+| **Sin atender** | Sigue en *Solicitada* y su día pasó | Nadie la vio. El cliente pidió y no obtuvo respuesta |
+| **No se cumplió** | Estaba *Confirmada* y el día pasó | **La más grave.** Ya se le prometió al cliente y el camión no llegó, o llegó y nadie lo registró |
+| **Sin cerrar** | Quedó *En ruta* | El chofer la tomó y no la cerró. Casi siempre es papeleo, no servicio |
+
+### Cómo reagendar una que se pasó
+
+Antes esto no se podía: los controles para elegir día sólo salían si la recolección
+seguía en *Solicitada*. Si ya estaba confirmada y se pasó el día, no había manera de
+moverla desde ningún lado — justo el caso en que ya te habías comprometido.
+
+Ahora **cualquier recolección vencida se puede reagendar**, esté en el estado que esté:
+
+1. Abajo de la solicitud aparece **Reagendar para** con tres atajos:
+   **Hoy**, **Mañana** y **Próximo día de su ruta**, cada uno con la fecha real
+   debajo para que veas exactamente qué día estás comprometiendo.
+2. **Viene puesto "Hoy"**, no la fecha que ya se pasó. (Si viniera la vieja,
+   confirmarla sin fijarte volvería a agendarla en el pasado y el correo al cliente
+   saldría con esa fecha.)
+3. Si ninguno te sirve, el selector de fecha de abajo sigue estando para poner
+   cualquier día.
+4. El botón dice **Reagendar y confirmar**.
+
+**Hoy y Mañana son recolección extra** —el camión sale fuera del calendario de esa
+ruta— y **Próximo día de su ruta** es cuando la unidad ya va a pasar por ahí de todos
+modos. El sistema **propone, no decide**: no sabe cuántas paradas caben en un camión,
+eso lo sabes tú.
+
+**El cliente también lo ve.** En su portal, la recolección aparece marcada como
+*"Se pasó la fecha"* con una explicación escrita para él. Antes decía *Confirmada* y
+ya, así que se enteraba sólo si llamaba.
 
 ### Cómo confirmar una recolección
 
@@ -404,9 +461,40 @@ Los filtros de arriba son: Todos, Programados, En ruta y Completados.
 
 Los servicios marcados como **Completado** traen un iconito de cámara. Da clic en la
 fila y se abre el comprobante que levantó el chofer desde su teléfono: el contenedor con
-su código QR, la ubicación GPS, la foto de antes, la de después, el peso y la firma.
+su código QR, la ubicación, la foto de antes, la de después, el peso y la firma.
 
 Eso es lo que respalda el servicio ante el cliente si algún día lo reclama.
+
+**Las fotos se ven en grande.** Da clic en cualquiera de las dos y se abre a pantalla
+completa, con flechas para pasar del antes al después sin cerrar — que es para lo que
+uno las abre: para compararlas. Se cierra con la tecla *Escape*, con la ✕ o tocando
+fuera de la foto. A tamaño de tarjeta no se alcanza a ver si el contenedor quedó
+vacío, que es justo lo único que esas fotos existen para demostrar.
+
+### La ubicación: qué dice y qué no
+
+⚠️ **Esto cambió el 26 de agosto de 2026, y conviene entenderlo.**
+
+Antes cada foto traía un sello que decía **GPS**. No había nada detrás: el sistema
+nunca guardó coordenadas y la app del chofer nunca las pidió. En las pantallas de
+demostración se veían coordenadas de verdad porque estaban escritas a mano.
+
+Ahora **se capturan de verdad**, y el comprobante dice una de tres cosas:
+
+| Lo que ves | Qué significa |
+|---|---|
+| Coordenadas en **verde** con el margen (ej. *±9 m*) | El camión estuvo ahí. Da clic y se abre el mapa |
+| Coordenadas en **ámbar** con un margen grande (ej. *±540 m*) | Hubo señal, pero floja. Sirve para saber que anduvo por la zona; **no alcanza para respaldar el domicilio exacto** |
+| **Sin ubicación** | No hubo señal, o el chofer no dio el permiso en su teléfono |
+
+**El margen siempre está a la vista, a propósito.** Una lectura con dos kilómetros de
+error no prueba que el camión estuvo en el domicilio: prueba que estuvo en la ciudad.
+Sin ese número, un dato malo se vería igual de firme que uno bueno.
+
+**"Sin ubicación" no quiere decir que el servicio no se hizo.** Las fotos, el peso y la
+firma siguen ahí. Quiere decir que ese comprobante en particular no trae ese respaldo
+extra. Si te pasa seguido con el mismo chofer, revisa que le haya dado permiso de
+ubicación al navegador de su teléfono.
 
 ---
 
@@ -571,6 +659,14 @@ fechas imposibles y ensuciaban la agenda.
 Cuando tú la confirmas o la rechazas, **le llega un correo**. Ya no tiene que estar
 entrando al portal a ver si le contestaron.
 
+Los días que le ofreces se leen **"vie 28 ago", "mar 1 sep"** y no `2026-08-28`. La
+pregunta que se hace el cliente es *"¿el martes o el viernes?"*, y con la fecha en
+formato de máquina tenía que sacar la cuenta de cabeza.
+
+**Si se le pasó una recolección**, ahí mismo la ve marcada en rojo con *"Se pasó la
+fecha"* y una explicación. Antes su portal decía *Confirmada* y ya, así que se
+enteraba sólo si llamaba.
+
 ### Agregar saldo
 
 Sube su comprobante de pago y te cae en **Saldos**. El archivo se guarda de verdad y tú
@@ -637,6 +733,28 @@ lo que ya había hecho. Antes perdía las dos fotos y repetía la parada complet
 **El chofer no puede borrar su evidencia.** Una vez cerrada la parada, ni él ni nadie de
 la calle puede deshacerla; si hay que corregir algo, se hace desde el panel. Es lo que
 hace que la evidencia sirva el día que un cliente reclame.
+
+**También puede ver sus fotos en grande** antes de irse de la parada, tocándolas. Es su
+última oportunidad de notar que una salió movida o que no se alcanza a ver el
+contenedor vacío.
+
+### La ubicación de cada foto
+
+Al abrir la parada, el teléfono le pide **permiso de ubicación**. Arriba de los pasos
+le sale un renglón que dice en qué está:
+
+- *"Ubicación lista · precisión ±12 m"* — su foto va a llevar el sello.
+- *"Señal débil · ±540 m"* — la foto se guarda, pero esa ubicación no alcanza para
+  respaldar el domicilio.
+- *"No diste permiso de ubicación"* — la foto se guarda igual, sin sello.
+
+> **La ubicación nunca detiene la foto ni el cierre de la parada.** El trabajo del
+> chofer es vaciar el contenedor, no pelearse con un permiso del navegador parado en
+> la calle. Si no hay señal, sigue adelante: lo que se pierde es el respaldo extra, no
+> el servicio.
+
+**Conviene que le den el permiso una vez**, en su teléfono, y ya queda. Si a un chofer
+le salen siempre comprobantes "sin ubicación", casi seguro es eso.
 
 Eso arma el comprobante que tú ves en **Servicios** y que el cliente ve en su historial.
 Por eso importa que el chofer no se salte las fotos: es la prueba del servicio.
