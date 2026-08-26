@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FiPlus } from "react-icons/fi";
+import {
+  Plus,
+} from "@phosphor-icons/react/dist/ssr";
 import { PREGUNTAS } from "@/lib/datos";
 
 /** Acordeón de preguntas frecuentes: abre una a la vez. */
@@ -21,7 +23,7 @@ export default function PreguntasFrecuentes() {
               onClick={() => setAbierta(activa ? -1 : i)}
             >
               <span>{p.q}</span>
-              <FiPlus className="mc-faq-icono" aria-hidden="true" />
+              <Plus className="mc-faq-icono" aria-hidden="true" />
             </button>
             <div className="mc-faq-respuesta" hidden={!activa}>
               <p>{p.a}</p>

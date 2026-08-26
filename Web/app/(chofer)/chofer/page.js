@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FiMapPin, FiCheckCircle, FiChevronRight } from "react-icons/fi";
+import {
+  MapPin,
+  CheckCircle,
+  CaretRight,
+} from "@phosphor-icons/react/dist/ssr";
 import { rutaDelDia, hoyISO } from "@/lib/datos-chofer";
 
 /**
@@ -74,7 +78,7 @@ export default function RutaChofer() {
 
       {!cargando && paradas.length === 0 && (
         <div className="pt-card ch-vacio">
-          <FiCheckCircle aria-hidden="true" />
+          <CheckCircle aria-hidden="true" />
           <strong>Sin paradas para hoy</strong>
           <span>
             Si esperabas alguna, avisa a la oficina: puede que todavía no esté
@@ -92,7 +96,7 @@ export default function RutaChofer() {
                 <div className="ch-parada-texto">
                   <div className="ch-parada-cliente">{p.cliente}</div>
                   <div className="ch-parada-dato">
-                    <FiMapPin aria-hidden="true" /> {p.direccion}
+                    <MapPin aria-hidden="true" /> {p.direccion}
                   </div>
                   <div className="ch-parada-dato">
                     {p.folio} · {p.unidad}
@@ -101,7 +105,7 @@ export default function RutaChofer() {
                     <div className="ch-parada-dato ch-parada-nota">“{p.nota}”</div>
                   )}
                 </div>
-                <FiChevronRight aria-hidden="true" className="ch-parada-flecha" />
+                <CaretRight aria-hidden="true" className="ch-parada-flecha" />
               </div>
             </Link>
           ))}
@@ -114,7 +118,7 @@ export default function RutaChofer() {
           {hechas.map((p) => (
             <div key={p.id} className="ch-parada hecha">
               <div className="ch-parada-cliente">
-                <FiCheckCircle aria-hidden="true" color="#7cc576" /> {p.cliente}
+                <CheckCircle aria-hidden="true" color="#7cc576" /> {p.cliente}
               </div>
               <div className="ch-parada-dato">
                 {p.folio}

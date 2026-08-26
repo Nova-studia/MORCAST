@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiCheck, FiX, FiMail, FiPhone, FiMapPin, FiAlertCircle } from "react-icons/fi";
+import {
+  Check,
+  X,
+  Envelope,
+  Phone,
+  MapPin,
+  WarningCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import { listarAltas, cambiarEstadoAlta } from "@/lib/datos-altas";
 
 const ESTADOS = [
@@ -47,7 +54,7 @@ export default function AltasAdmin() {
 
       {error && (
         <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
-          <FiAlertCircle style={{ marginRight: 6, verticalAlign: "-2px" }} /> {error}
+          <WarningCircle style={{ marginRight: 6, verticalAlign: "-2px" }} /> {error}
         </div>
       )}
 
@@ -125,8 +132,8 @@ export default function AltasAdmin() {
               </p>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
-                <a className="pt-btn" href={`tel:${sel.telefono}`}><FiPhone /> Llamar</a>
-                <a className="pt-btn" href={`mailto:${sel.correo}?subject=Tu alta en Morcast (${sel.folio})`}><FiMail /> Correo</a>
+                <a className="pt-btn" href={`tel:${sel.telefono}`}><Phone /> Llamar</a>
+                <a className="pt-btn" href={`mailto:${sel.correo}?subject=Tu alta en Morcast (${sel.folio})`}><Envelope /> Correo</a>
                 <a className="pt-btn" target="_blank" rel="noreferrer"
                    href={`https://wa.me/52${(sel.telefono || "").replace(/\D/g, "")}`}>WhatsApp</a>
               </div>
@@ -152,7 +159,7 @@ export default function AltasAdmin() {
               {sel.lat != null && (
                 <p style={{ margin: "0.6rem 0 0", fontSize: "0.86rem" }}>
                   <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${sel.lat},${sel.lng}`}>
-                    <FiMapPin style={{ verticalAlign: "-2px" }} /> Ver el punto en el mapa
+                    <MapPin style={{ verticalAlign: "-2px" }} /> Ver el punto en el mapa
                   </a>
                 </p>
               )}
@@ -165,12 +172,12 @@ export default function AltasAdmin() {
                 )}
                 {sel.estado !== "aprobada" && (
                   <button type="button" className="pt-btn pt-btn-verde" onClick={() => marcar(sel, "aprobada")}>
-                    <FiCheck /> Aprobar
+                    <Check /> Aprobar
                   </button>
                 )}
                 {sel.estado !== "rechazada" && (
                   <button type="button" className="pt-btn" onClick={() => marcar(sel, "rechazada")}>
-                    <FiX /> Rechazar
+                    <X /> Rechazar
                   </button>
                 )}
               </div>

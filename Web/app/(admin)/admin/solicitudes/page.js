@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiMail, FiPhone, FiX, FiMessageSquare, FiUserCheck, FiKey, FiRefreshCw, FiCheckCircle } from "react-icons/fi";
+import {
+  Envelope,
+  Phone,
+  X,
+  ChatCentered,
+  UserCheck,
+  Key,
+  ArrowsClockwise,
+  CheckCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD, infoEstado } from "@/lib/admin-datos";
 import { listarCotizaciones, cambiarEstadoCotizacion } from "@/lib/datos-cotizaciones";
 import { fechaLarga, folioCorto } from "@/lib/portal-datos";
@@ -172,7 +181,7 @@ export default function SolicitudesAdmin() {
           <div className="pt-card" style={{ position: "sticky", top: 90 }}>
             <div className="pt-card-head">
               <h2>{sel.id}</h2>
-              <button className="pt-btn" onClick={() => setSel(null)} aria-label="Cerrar"><FiX /></button>
+              <button className="pt-btn" onClick={() => setSel(null)} aria-label="Cerrar"><X /></button>
             </div>
 
             <strong style={{ fontSize: "1.05rem" }}>{sel.empresa}</strong>
@@ -180,10 +189,10 @@ export default function SolicitudesAdmin() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
               <a href={`mailto:${sel.correo}`} className="pt-btn" style={{ justifyContent: "flex-start" }}>
-                <FiMail /> {sel.correo}
+                <Envelope /> {sel.correo}
               </a>
               <a href={`tel:+52${sel.telefono.replace(/\s/g, "")}`} className="pt-btn" style={{ justifyContent: "flex-start" }}>
-                <FiPhone /> {sel.telefono}
+                <Phone /> {sel.telefono}
               </a>
               <a
                 href={`https://wa.me/52${sel.telefono.replace(/\s/g, "")}?text=${encodeURIComponent(`Hola ${sel.nombre}, le escribimos de Morcast del Norte sobre su solicitud ${sel.id}.`)}`}
@@ -192,7 +201,7 @@ export default function SolicitudesAdmin() {
                 className="pt-btn pt-btn-verde"
                 style={{ justifyContent: "flex-start" }}
               >
-                <FiMessageSquare /> Contactar por WhatsApp
+                <ChatCentered /> Contactar por WhatsApp
               </a>
 
               {sel.estado === "ganada" && (() => {
@@ -203,7 +212,7 @@ export default function SolicitudesAdmin() {
                   <div className="pt-activar">
                     {a.activada ? (
                       <>
-                        <div className="pt-activar-ok"><FiCheckCircle /> Cuenta de cliente activada</div>
+                        <div className="pt-activar-ok"><CheckCircle /> Cuenta de cliente activada</div>
                         {a.password ? (
                           <>
                             <p>Envíale estas credenciales para que entre al portal:</p>
@@ -232,18 +241,18 @@ export default function SolicitudesAdmin() {
                           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
                             <a className="pt-btn pt-btn-verde" style={{ flex: 1, justifyContent: "center" }}
                               href={`https://wa.me/52${tel}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noopener noreferrer">
-                              <FiMessageSquare /> WhatsApp
+                              <ChatCentered /> WhatsApp
                             </a>
                             <a className="pt-btn" style={{ flex: 1, justifyContent: "center" }}
                               href={`mailto:${a.correo}?subject=${encodeURIComponent("Acceso a su Portal de Clientes — Morcast del Norte")}&body=${encodeURIComponent(msg)}`}>
-                              <FiMail /> Correo
+                              <Envelope /> Correo
                             </a>
                           </div>
                         )}
                       </>
                     ) : (
                       <>
-                        <div className="pt-activar-tit"><FiUserCheck /> Activar cuenta de cliente</div>
+                        <div className="pt-activar-tit"><UserCheck /> Activar cuenta de cliente</div>
                         <p>Genera el acceso al portal para <strong>{sel.empresa}</strong>.</p>
                         <div className="pt-campo" style={{ margin: "0 0 0.5rem" }}>
                           <label>Correo de acceso</label>
@@ -258,7 +267,7 @@ export default function SolicitudesAdmin() {
                               onChange={(e) => setAct(sel.id, { password: e.target.value })} />
                             <button type="button" className="pt-btn" title="Generar contraseña"
                               onClick={() => setAct(sel.id, { password: generarPassword() })}>
-                              <FiRefreshCw /> Generar
+                              <ArrowsClockwise /> Generar
                             </button>
                           </div>
                         </div>
@@ -269,7 +278,7 @@ export default function SolicitudesAdmin() {
                           style={{ width: "100%", justifyContent: "center", opacity: a.correo && a.password && !a.creando ? 1 : 0.55 }}
                           disabled={!a.correo || !a.password || a.creando}
                           onClick={() => activar(sel)}>
-                          <FiKey /> {a.creando ? "Creando la cuenta…" : "Activar cuenta de cliente"}
+                          <Key /> {a.creando ? "Creando la cuenta…" : "Activar cuenta de cliente"}
                         </button>
                         <p className="pt-activar-nota">La empresa envía estas credenciales al cliente por WhatsApp o correo.</p>
                       </>

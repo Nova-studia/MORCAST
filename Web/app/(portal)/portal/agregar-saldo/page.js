@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiUploadCloud, FiCheckCircle, FiClock, FiCopy, FiFileText, FiInfo, FiX } from "react-icons/fi";
+import {
+  UploadSimple,
+  CheckCircle,
+  Clock,
+  Copy,
+  FileText,
+  Info,
+  X,
+} from "@phosphor-icons/react/dist/ssr";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
 import { DATOS_DEPOSITO, BANCOS, RESPONSABLE_RECARGAS, estadoRecarga } from "@/lib/recargas-datos";
 import { listarMovimientos, reportarDeposito, miSaldo } from "@/lib/datos-clientes";
@@ -149,7 +157,7 @@ export default function AgregarSaldo() {
                   <strong>{v}</strong>
                   {(k === "CLABE" || k === "No. de cuenta") && (
                     <button type="button" className="pt-btn" style={{ padding: "0.25rem 0.5rem" }} onClick={() => copiar(v.replace(/\s/g, ""), k)}>
-                      {copiado === k ? <FiCheckCircle color="#4eb34a" /> : <FiCopy />}
+                      {copiado === k ? <CheckCircle color="#4eb34a" /> : <Copy />}
                     </button>
                   )}
                 </div>
@@ -158,7 +166,7 @@ export default function AgregarSaldo() {
           </div>
           {DATOS_DEPOSITO.demo && (
             <p className="pt-nota-demo">
-              <FiInfo /> Todavía no publicamos la cuenta aquí. Pídenos los datos
+              <Info /> Todavía no publicamos la cuenta aquí. Pídenos los datos
               para transferir por WhatsApp al <strong>868 384 9478</strong> o al
               correo <strong>contacto@morcast.mx</strong> y sube tu comprobante
               en esta misma pantalla.
@@ -178,12 +186,12 @@ export default function AgregarSaldo() {
 
           {enviada && (
             <div className="pt-exito">
-              <FiCheckCircle />
+              <CheckCircle />
               <div>
                 <strong>Comprobante enviado</strong>
                 <span>Tu solicitud quedó <b>por verificar</b>. En cuanto {RESPONSABLE_RECARGAS.nombre.split(" ")[0]} confirme el depósito, verás el saldo reflejado. Te avisaremos por correo.</span>
               </div>
-              <button className="pt-btn" onClick={() => setEnviada(false)} aria-label="Cerrar"><FiX /></button>
+              <button className="pt-btn" onClick={() => setEnviada(false)} aria-label="Cerrar"><X /></button>
             </div>
           )}
 
@@ -213,7 +221,7 @@ export default function AgregarSaldo() {
                   {archivo.esImagen ? (
                     <img src={archivo.url} alt="Comprobante" />
                   ) : (
-                    <div className="pt-dropzone-pdf"><FiFileText /></div>
+                    <div className="pt-dropzone-pdf"><FileText /></div>
                   )}
                   <div>
                     <strong>{archivo.nombre}</strong>
@@ -222,7 +230,7 @@ export default function AgregarSaldo() {
                 </div>
               ) : (
                 <>
-                  <FiUploadCloud />
+                  <UploadSimple />
                   <strong>Sube tu comprobante</strong>
                   <span>Imagen o PDF de la transferencia / ficha de depósito</span>
                 </>
@@ -247,7 +255,7 @@ export default function AgregarSaldo() {
                 return (
                   <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "0.7rem", padding: "0.7rem 0", borderBottom: "1px solid var(--mc-linea)" }}>
                     <div className="pt-stat-icono" style={{ margin: 0, width: 36, height: 36 }}>
-                      {r.estado === "aplicada" ? <FiCheckCircle /> : <FiClock />}
+                      {r.estado === "aplicada" ? <CheckCircle /> : <Clock />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong style={{ fontSize: "0.95rem" }}>{pesos(r.monto)}</strong>

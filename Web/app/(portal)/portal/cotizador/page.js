@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FiPlus, FiMinus, FiDownload, FiFileText, FiTrash2 } from "react-icons/fi";
+import {
+  Plus,
+  Minus,
+  DownloadSimple,
+  FileText,
+  Trash,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   CATALOGO_COTIZADOR,
   IVA,
@@ -92,11 +98,11 @@ export default function CotizadorPortal() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <button className="pt-btn" style={{ padding: "0.4rem 0.55rem" }} onClick={() => cambia(s.id, -1)} disabled={n === 0} aria-label="Quitar uno">
-                    <FiMinus />
+                    <Minus />
                   </button>
                   <span style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>{n}</span>
                   <button className="pt-btn" style={{ padding: "0.4rem 0.55rem" }} onClick={() => cambia(s.id, 1)} aria-label="Agregar uno">
-                    <FiPlus />
+                    <Plus />
                   </button>
                 </div>
               </div>
@@ -110,7 +116,7 @@ export default function CotizadorPortal() {
             <h2>Resumen</h2>
             {items.length > 0 && (
               <button className="pt-btn" onClick={() => setCantidades({})}>
-                <FiTrash2 /> Limpiar
+                <Trash /> Limpiar
               </button>
             )}
           </div>
@@ -147,7 +153,7 @@ export default function CotizadorPortal() {
             onClick={bajarCotizacion}
             disabled={!items.length || bajando === "cot"}
           >
-            <FiDownload /> {bajando === "cot" ? "Generando…" : "Descargar cotización"}
+            <DownloadSimple /> {bajando === "cot" ? "Generando…" : "Descargar cotización"}
           </button>
           <button
             className="pt-btn"
@@ -155,7 +161,7 @@ export default function CotizadorPortal() {
             onClick={bajarConstancia}
             disabled={bajando === "csf"}
           >
-            <FiFileText /> {bajando === "csf" ? "Generando…" : "Constancia fiscal (PDF)"}
+            <FileText /> {bajando === "csf" ? "Generando…" : "Constancia fiscal (PDF)"}
           </button>
 
           <div style={{ borderTop: "1px solid var(--mc-linea)", marginTop: "1rem", paddingTop: "0.8rem" }}>

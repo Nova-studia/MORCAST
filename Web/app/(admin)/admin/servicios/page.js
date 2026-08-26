@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiX, FiCamera } from "react-icons/fi";
+import {
+  X,
+  Camera,
+} from "@phosphor-icons/react/dist/ssr";
 import { AGENDA_SERVICIOS, agendaDesdeBase } from "@/lib/admin-datos";
 import { listarSolicitudes, misServicios } from "@/lib/datos-solicitudes";
 import { estatusInfo, fechaLarga } from "@/lib/portal-datos";
@@ -115,7 +118,7 @@ export default function ServiciosAdmin() {
                       <td>
                         <span className={`pt-badge ${est.clase}`}>{est.texto}</span>
                         {conEvi && (
-                          <FiCamera title="Con comprobante fotográfico" style={{ marginLeft: 8, verticalAlign: "-2px", color: "var(--mc-verde-claro)" }} />
+                          <Camera title="Con comprobante fotográfico" style={{ marginLeft: 8, verticalAlign: "-2px", color: "var(--mc-verde-claro)" }} />
                         )}
                       </td>
                     </tr>
@@ -131,7 +134,7 @@ export default function ServiciosAdmin() {
           <div className="pt-card" style={{ position: "sticky", top: 90 }}>
             <div className="pt-card-head">
               <h2>{sel.folio}</h2>
-              <button className="pt-btn" onClick={() => setSel(null)} aria-label="Cerrar"><FiX /></button>
+              <button className="pt-btn" onClick={() => setSel(null)} aria-label="Cerrar"><X /></button>
             </div>
             <div style={{ fontSize: "0.86rem", marginBottom: "0.9rem" }}>
               <strong style={{ display: "block", fontSize: "1rem" }}>{sel.cliente}</strong>

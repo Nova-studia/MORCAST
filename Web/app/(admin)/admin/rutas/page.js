@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { FiPlus, FiSave, FiMapPin, FiTrash2 } from "react-icons/fi";
+import {
+  Plus,
+  FloppyDisk,
+  MapPin,
+  Trash,
+} from "@phosphor-icons/react/dist/ssr";
 import { TIPOS_RUTA, DIAS_SEMANA, nombreTipoRuta } from "@/lib/rutas-datos";
 import {
   listarRutas,
@@ -175,7 +180,7 @@ export default function RutasAdmin() {
             <h2>Mapa de zonas</h2>
             {!dibujando ? (
               <button type="button" className="pt-btn" onClick={() => { setDibujando(true); setTrazo([]); }}>
-                <FiPlus /> Dibujar zona
+                <Plus /> Dibujar zona
               </button>
             ) : (
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
@@ -183,7 +188,7 @@ export default function RutasAdmin() {
                   Deshacer
                 </button>
                 <button type="button" className="pt-btn pt-btn-naranja" onClick={guardarZona} disabled={trazo.length < 3}>
-                  <FiSave /> Guardar zona
+                  <FloppyDisk /> Guardar zona
                 </button>
                 <button type="button" className="pt-btn" onClick={() => { setDibujando(false); setTrazo([]); }}>
                   Cancelar
@@ -209,7 +214,7 @@ export default function RutasAdmin() {
           <div className="pt-card-head">
             <h2>Rutas</h2>
             <button type="button" className="pt-btn pt-btn-verde" onClick={nuevaRuta}>
-              <FiPlus /> Nueva ruta
+              <Plus /> Nueva ruta
             </button>
           </div>
 
@@ -315,7 +320,7 @@ export default function RutasAdmin() {
 
               {ruta.zona.length < 3 ? (
                 <p style={{ fontSize: "0.82rem", color: "#f0895c", display: "flex", gap: 7, alignItems: "flex-start" }}>
-                  <FiMapPin aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <MapPin aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
                   Esta ruta todavía no tiene zona dibujada, así que no le aparece a
                   ningún cliente. Usa <strong>Dibujar zona</strong> en el mapa.
                 </p>
@@ -384,7 +389,7 @@ export default function RutasAdmin() {
                     className="pt-btn"
                     onClick={() => { setAviso(""); setConfirmarBorrado(true); }}
                   >
-                    <FiTrash2 /> Eliminar
+                    <Trash /> Eliminar
                   </button>
                 ) : (
                   <>

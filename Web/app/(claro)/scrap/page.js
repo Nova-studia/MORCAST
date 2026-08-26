@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { FiArrowRight } from "react-icons/fi";
+import {
+  ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 import { Encabezado } from "@/components/Secciones";
 import { enlaceWhatsApp } from "@/lib/datos";
 
@@ -42,7 +44,7 @@ export default function PaginaScrap() {
 
               <div className="mc-hero-botones justify-content-center mt-4">
                 <Link href="/contacto" className="mc-btn mc-btn-verde">
-                  Déjanos tus datos <FiArrowRight aria-hidden="true" />
+                  Déjanos tus datos <ArrowRight aria-hidden="true" />
                 </Link>
                 <a
                   className="mc-btn mc-btn-linea"

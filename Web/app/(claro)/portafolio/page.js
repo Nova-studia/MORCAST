@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FiArrowRight, FiPhone } from "react-icons/fi";
+import {
+  ArrowRight,
+  Phone,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   Encabezado,
   RejillaServicios,
@@ -64,7 +67,7 @@ export default function PaginaPortafolio() {
                 empresa en cada servicio.
               </p>
               <Link href="/contacto" className="mc-btn mc-btn-teal">
-                Solicitar cotización <FiArrowRight aria-hidden="true" />
+                Solicitar cotización <ArrowRight aria-hidden="true" />
               </Link>
             </div>
 
@@ -226,7 +229,7 @@ export default function PaginaPortafolio() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <FiPhone aria-hidden="true" /> Hablar por WhatsApp
+                <Phone aria-hidden="true" /> Hablar por WhatsApp
               </a>
             </Revelar>
 

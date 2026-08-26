@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FiArrowRight } from "react-icons/fi";
+import {
+  ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   BarraConfianza,
   RejillaServicios,
@@ -68,7 +70,7 @@ export default function Inicio() {
               </p>
               <div className="mc-hero-botones">
                 <Link href="/contacto" className="mc-btn mc-btn-verde">
-                  Solicitar cotización <FiArrowRight aria-hidden="true" />
+                  Solicitar cotización <ArrowRight aria-hidden="true" />
                 </Link>
                 <a
                   href={enlaceWhatsApp()}
@@ -110,7 +112,7 @@ export default function Inicio() {
 
           <div className="text-center mt-5">
             <Link href="/servicios" className="mc-btn mc-btn-linea">
-              Ver todos los servicios <FiArrowRight aria-hidden="true" />
+              Ver todos los servicios <ArrowRight aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -135,7 +137,7 @@ export default function Inicio() {
                 <li>Instalación inmediata en su domicilio</li>
               </ul>
               <Link href="/contenedores" className="mc-btn mc-btn-teal">
-                Ver contenedores y tolvas <FiArrowRight aria-hidden="true" />
+                Ver contenedores y tolvas <ArrowRight aria-hidden="true" />
               </Link>
             </Revelar>
 

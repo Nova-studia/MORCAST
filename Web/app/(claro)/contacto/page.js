@@ -1,4 +1,9 @@
-import { FiPhone, FiMail, FiMapPin, FiClock } from "react-icons/fi";
+import {
+  Phone,
+  Envelope,
+  MapPin,
+  Clock,
+} from "@phosphor-icons/react/dist/ssr";
 import { FaWhatsapp } from "react-icons/fa";
 import { Encabezado } from "@/components/Secciones";
 import FormularioCotizacion from "@/components/FormularioCotizacion";
@@ -38,7 +43,7 @@ export default function Contacto() {
                 {EMPRESA.telefonos.map((tel, i) => (
                   <div className="mc-contacto-item" key={tel}>
                     <div className="mc-contacto-icono">
-                      <FiPhone />
+                      <Phone />
                     </div>
                     <div>
                       <h4>{i === 0 ? "Teléfono principal" : "Teléfono alterno"}</h4>
@@ -50,7 +55,7 @@ export default function Contacto() {
                 {EMPRESA.correos.map((correo, i) => (
                   <div className="mc-contacto-item" key={correo}>
                     <div className="mc-contacto-icono">
-                      <FiMail />
+                      <Envelope />
                     </div>
                     <div>
                       <h4>{i === 0 ? "Correo" : "Correo alterno"}</h4>
@@ -61,7 +66,7 @@ export default function Contacto() {
 
                 <div className="mc-contacto-item">
                   <div className="mc-contacto-icono">
-                    <FiMapPin />
+                    <MapPin />
                   </div>
                   <div>
                     <h4>Cobertura</h4>
@@ -73,7 +78,7 @@ export default function Contacto() {
 
                 <div className="mc-contacto-item">
                   <div className="mc-contacto-icono">
-                    <FiClock />
+                    <Clock />
                   </div>
                   <div>
                     <h4>Horario</h4>

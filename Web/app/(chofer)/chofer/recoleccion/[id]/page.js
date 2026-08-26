@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { FiArrowLeft, FiCamera, FiCheckCircle, FiTruck, FiHash, FiSave } from "react-icons/fi";
+import {
+  ArrowLeft,
+  Camera,
+  CheckCircle,
+  Hash,
+  FloppyDisk,
+  ArrowsOut,
+  Truck,
+} from "@phosphor-icons/react/dist/ssr";
+import VisorFoto from "@/components/VisorFoto";
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
 import { subirEvidencia } from "@/lib/datos-archivos";
 
@@ -65,6 +74,9 @@ export default function RecoleccionChofer() {
   const [guardando, setGuardando] = useState(false);
   const [subiendo, setSubiendo] = useState("");   // "antes" | "despues" | ""
   const [error, setError] = useState("");
+  // El chofer es el primero que necesita ver su foto en grande: es su última
+  // oportunidad de notar que salió movida ANTES de irse de la parada.
+  const [viendo, setViendo] = useState(null);
 
   const refAntes = useRef(null);
   const refDespues = useRef(null);
@@ -172,7 +184,7 @@ export default function RecoleccionChofer() {
           Esta recolección no está en tu ruta de hoy.
           <div style={{ marginTop: "0.8rem" }}>
             <Link href="/chofer" className="pt-btn ch-volver">
-              <FiArrowLeft /> Volver a mi ruta
+              <ArrowLeft /> Volver a mi ruta
             </Link>
           </div>
         </div>
@@ -185,7 +197,7 @@ export default function RecoleccionChofer() {
       {/* Volver es el escape de esta pantalla: con guantes tiene que
           alcanzarse igual que los demás botones, no ser el más chico. */}
       <Link href="/chofer" className="pt-btn ch-volver">
-        <FiArrowLeft /> Mi ruta
+        <ArrowLeft /> Mi ruta
       </Link>
 
       <div className="pt-page-head ch-encabezado">
@@ -206,7 +218,7 @@ export default function RecoleccionChofer() {
         {paso === 0 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FiHash aria-hidden="true" /> Código del contenedor
+              <Hash aria-hidden="true" /> Código del contenedor
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
               Escríbelo tal como viene en la calcomanía, por ejemplo MOR-C-0421.
@@ -233,7 +245,7 @@ export default function RecoleccionChofer() {
         {paso === 1 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FiCamera aria-hidden="true" /> Foto ANTES
+              <Camera aria-hidden="true" /> Foto ANTES
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
               Toma la foto del contenedor lleno. Es el comprobante del cliente.
@@ -254,7 +266,7 @@ export default function RecoleccionChofer() {
               onClick={() => refAntes.current?.click()}
               disabled={subiendo === "antes"}
             >
-              <FiCamera /> {subiendo === "antes" ? "Subiendo la foto…" : "Tomar foto"}
+              <Camera /> {subiendo === "antes" ? "Subiendo la foto…" : "Tomar foto"}
             </button>
           </>
         )}
@@ -262,7 +274,7 @@ export default function RecoleccionChofer() {
         {paso === 2 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FiTruck aria-hidden="true" /> Recolecta los residuos
+              <Truck size={16} /> Recolecta los residuos
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
               Vacía el contenedor y confirma cuando termines.
@@ -280,7 +292,7 @@ export default function RecoleccionChofer() {
         {paso === 3 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FiCamera aria-hidden="true" /> Foto DESPUÉS
+              <Camera aria-hidden="true" /> Foto DESPUÉS
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
               Toma la foto del contenedor ya vacío.
@@ -299,7 +311,7 @@ export default function RecoleccionChofer() {
               onClick={() => refDespues.current?.click()}
               disabled={subiendo === "despues"}
             >
-              <FiCamera /> {subiendo === "despues" ? "Subiendo la foto…" : "Tomar foto"}
+              <Camera /> {subiendo === "despues" ? "Subiendo la foto…" : "Tomar foto"}
             </button>
           </>
         )}
@@ -307,7 +319,7 @@ export default function RecoleccionChofer() {
         {paso === 4 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FiSave aria-hidden="true" /> Peso recolectado
+              <FloppyDisk aria-hidden="true" /> Peso recolectado
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
               En kilogramos. Si no lo pesaste, pon el estimado.
@@ -331,7 +343,7 @@ export default function RecoleccionChofer() {
               onClick={finalizar}
               disabled={!puedeFinalizar || guardando}
             >
-              {guardando ? "Guardando evidencia…" : "Finalizar recolección"} <FiCheckCircle />
+              {guardando ? "Guardando evidencia…" : "Finalizar recolección"} <CheckCircle />
             </button>
           </>
         )}
@@ -343,16 +355,43 @@ export default function RecoleccionChofer() {
           {antes && (
             <div style={{ marginBottom: "0.8rem" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>Antes · {antes.hora}</div>
-              <img src={antes.url} alt="Contenedor lleno" className="ch-foto" />
+              <button
+                type="button"
+                className="ch-foto-btn"
+                onClick={() => setViendo(0)}
+                aria-label="Ver en grande la foto de antes"
+              >
+                <img src={antes.url} alt="Contenedor lleno" className="ch-foto" />
+                <span className="ch-foto-lupa" aria-hidden="true"><ArrowsOut /></span>
+              </button>
             </div>
           )}
           {despues && (
             <div>
               <div style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>Después · {despues.hora}</div>
-              <img src={despues.url} alt="Contenedor vacío" className="ch-foto" />
+              <button
+                type="button"
+                className="ch-foto-btn"
+                onClick={() => setViendo(antes ? 1 : 0)}
+                aria-label="Ver en grande la foto de después"
+              >
+                <img src={despues.url} alt="Contenedor vacío" className="ch-foto" />
+                <span className="ch-foto-lupa" aria-hidden="true"><ArrowsOut /></span>
+              </button>
             </div>
           )}
         </div>
+      )}
+
+      {viendo !== null && (
+        <VisorFoto
+          fotos={[
+            antes && { url: antes.url, etiqueta: "Antes · contenedor lleno", hora: antes.hora },
+            despues && { url: despues.url, etiqueta: "Después · contenedor vacío", hora: despues.hora },
+          ].filter(Boolean)}
+          indice={viendo}
+          alCerrar={() => setViendo(null)}
+        />
       )}
     </>
   );

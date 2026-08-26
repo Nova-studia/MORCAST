@@ -2162,3 +2162,205 @@
   .pt-recoleccion-motivo,
   .pt-solicitud-aviso { color: #ffb4b4; }
 }
+
+/* =====================================================================
+   VISOR DE FOTOS DEL COMPROBANTE
+   ---------------------------------------------------------------------
+   Las fotos del antes y el después se enseñaban a 120 px de alto. A ese
+   tamaño no se distingue si el contenedor quedó vacío, que es exactamente
+   lo único que esas fotos existen para demostrar.
+   ===================================================================== */
+.pt-visor {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 4.5rem 1rem 3.5rem;
+  background: rgba(4, 8, 8, 0.94);
+  /* El desenfoque y la escala entran juntos: así se lee como una superficie
+     que llega, no como una opacidad subiendo. */
+  backdrop-filter: blur(6px);
+  animation: pt-visor-entra 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes pt-visor-entra {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to   { opacity: 1; backdrop-filter: blur(6px); }
+}
+
+.pt-visor-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  /* Cuadros para que se note dónde termina la foto cuando el fondo del
+     contenedor también es oscuro. */
+  background: #0b1211;
+  animation: pt-visor-img-entra 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes pt-visor-img-entra {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pt-visor-barra {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+.pt-visor-titulo {
+  color: #eef4f2;
+  font-size: 0.92rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pt-visor-titulo small {
+  display: block;
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: #a6b6b3;
+  margin-top: 1px;
+}
+
+.pt-visor-btn {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef4f2;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background-color 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-visor-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.pt-visor-btn:active { transform: scale(0.92); transition-duration: 100ms; }
+
+.pt-visor-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.pt-visor-nav.izq { left: 0.8rem; }
+.pt-visor-nav.der { right: 0.8rem; }
+.pt-visor-nav:active { transform: translateY(-50%) scale(0.92); }
+
+.pt-visor-pie {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+/* El punto se ve de 8 px pero se toca en 24: el blanco de toque va en el
+   relleno, no en lo que se dibuja. */
+.pt-visor-punto {
+  width: 24px;
+  height: 24px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  box-sizing: content-box;
+  position: relative;
+}
+.pt-visor-punto::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.34);
+  transition: background-color 200ms ease;
+}
+.pt-visor-punto.activo::after { background: #fff; }
+
+/* ---------- La foto en la tarjeta, ahora que se puede apretar ---------- */
+/* `.pt-evi-foto` pasó de <div> a <button> cuando hay foto real: hay que
+   apagarle los estilos que trae un botón por omisión. */
+.pt-evi-foto.abrible {
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+              filter 200ms ease;
+}
+.pt-evi-foto.abrible:hover { filter: brightness(1.08); }
+.pt-evi-foto.abrible:active { transform: scale(0.985); transition-duration: 100ms; }
+
+/* La lupa dice que se puede abrir. Sin ella nada indica que la foto responde
+   al toque, y una foto que no se puede apretar es lo normal en una pantalla. */
+.pt-evi-lupa,
+.ch-foto-lupa {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(4, 8, 8, 0.62);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.ch-foto-btn {
+  display: block;
+  position: relative;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ch-foto-btn:active { transform: scale(0.99); transition-duration: 100ms; }
+.ch-foto-btn .ch-foto { margin-top: 0.6rem; display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-visor,
+  .pt-visor-img { animation: none; }
+  .pt-evi-foto.abrible:active,
+  .ch-foto-btn:active,
+  .pt-visor-btn:active { transform: none; filter: brightness(1.25); }
+  .pt-visor-nav:active { transform: translateY(-50%); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pt-visor { background: #040808; backdrop-filter: none; animation: none; }
+  .pt-evi-lupa,
+  .ch-foto-lupa { background: #0b1211; backdrop-filter: none; }
+}
+
+@media (prefers-contrast: more) {
+  .pt-visor-btn { border-color: #dce6e4; background: rgba(0, 0, 0, 0.7); }
+  .pt-visor-punto::after { background: rgba(255, 255, 255, 0.6); }
+}
+
+@media (max-width: 767.98px) {
+  .pt-visor { padding: 4rem 0.6rem 3.5rem; }
+  .pt-visor-nav.izq { left: 0.35rem; }
+  .pt-visor-nav.der { right: 0.35rem; }
+}

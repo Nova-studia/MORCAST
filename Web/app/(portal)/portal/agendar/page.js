@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiCalendar, FiPlusCircle } from "react-icons/fi";
+import {
+  CalendarBlank,
+  PlusCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "@/lib/rutas-datos";
 import { fechaConDia } from "@/lib/portal-datos";
 import { estadoVencimiento, ordenarPorUrgencia, textoAtraso, hoyISO } from "@/lib/vencimiento";
@@ -131,10 +134,10 @@ export default function AgendarPortal() {
 
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
             <button type="button" className={`pt-btn ${modo === "ruta" ? "pt-btn-verde" : ""}`} onClick={() => { setModo("ruta"); setFecha(""); }}>
-              <FiCalendar /> Día de mi ruta
+              <CalendarBlank /> Día de mi ruta
             </button>
             <button type="button" className={`pt-btn ${modo === "extra" ? "pt-btn-verde" : ""}`} onClick={() => { setModo("extra"); setFecha(""); }}>
-              <FiPlusCircle /> Recolección extra
+              <PlusCircle /> Recolección extra
             </button>
           </div>
 

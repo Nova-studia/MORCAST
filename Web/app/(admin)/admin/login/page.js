@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { FiArrowRight } from "react-icons/fi";
+import {
+  ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
 import { iniciarSesionAdmin, obtenerSesionAdmin } from "@/lib/admin-sesion";
@@ -95,7 +97,7 @@ export default function LoginAdmin() {
               onChange={(e) => setPassword(e.target.value)}
             />
             <button type="submit" className="pt-btn pt-btn-naranja" style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }} disabled={enviando}>
-              {enviando ? "Entrando…" : <>Entrar al panel <FiArrowRight /></>}
+              {enviando ? "Entrando…" : <>Entrar al panel <ArrowRight /></>}
             </button>
           </form>
 

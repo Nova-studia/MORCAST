@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiDownload, FiFileText, FiFile } from "react-icons/fi";
+import {
+  DownloadSimple,
+  FileText,
+  File,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   fechaLarga,
 } from "@/lib/portal-datos";
@@ -63,7 +67,7 @@ export default function DocumentosPortal() {
             padding: "0.6rem 0",
           }}
         >
-          <div className="pt-stat-icono teal" style={{ margin: 0 }}><FiFileText /></div>
+          <div className="pt-stat-icono teal" style={{ margin: 0 }}><FileText /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <strong>Constancia de Situación Fiscal</strong>
             <div style={{ color: "var(--mc-gris)", fontSize: "0.84rem" }}>
@@ -71,7 +75,7 @@ export default function DocumentosPortal() {
             </div>
           </div>
           <button className="pt-btn pt-btn-verde" onClick={bajarConstancia} disabled={bajando === "csf"}>
-            <FiDownload /> {bajando === "csf" ? "Generando…" : "Descargar PDF"}
+            <DownloadSimple /> {bajando === "csf" ? "Generando…" : "Descargar PDF"}
           </button>
         </div>
       </div>
@@ -98,13 +102,13 @@ export default function DocumentosPortal() {
             <tbody>
               {manifiestos.map((s) => (
                 <tr key={s.manifiesto}>
-                  <td className="folio"><FiFile style={{ verticalAlign: "-2px", marginRight: 6 }} />{s.manifiesto}</td>
+                  <td className="folio"><File style={{ verticalAlign: "-2px", marginRight: 6 }} />{s.manifiesto}</td>
                   <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(s.fecha)}</td>
                   <td>{s.tipo}</td>
                   <td>{s.peso}</td>
                   <td>
                     <button className="pt-btn" onClick={() => bajarManifiesto(s)} disabled={bajando === s.folio}>
-                      <FiDownload /> {bajando === s.folio ? "Generando…" : "PDF"}
+                      <DownloadSimple /> {bajando === s.folio ? "Generando…" : "PDF"}
                     </button>
                   </td>
                 </tr>

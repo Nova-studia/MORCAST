@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { FiMapPin, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import {
+  MapPin,
+  CheckCircle,
+  WarningCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import { nombreTipoRuta } from "@/lib/rutas-datos";
 // Las zonas se piden al SERVIDOR, no con la sesión del cliente. La acción
 // devuelve solo clave, nombre, tipo, días y polígono: un cliente no tiene por
@@ -60,7 +64,7 @@ export default function CoberturaPortal() {
           <div className="pt-card-head"><h2>Mapa de rutas</h2></div>
           <MapaZonas zonas={zonas} pin={pin} onPin={setPin} alto="460px" />
           <p className="mc-mapa-nota">
-            <FiMapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio.
+            <MapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio.
           </p>
         </div>
 
@@ -74,7 +78,7 @@ export default function CoberturaPortal() {
           {pin && cubren.length > 0 && (
             <>
               <p style={{ color: "var(--mc-verde-claro)", fontWeight: 700, display: "flex", gap: 8, alignItems: "center" }}>
-                <FiCheckCircle aria-hidden="true" /> Sí llegamos a tu zona
+                <CheckCircle aria-hidden="true" /> Sí llegamos a tu zona
               </p>
               {cubren.map((r) => (
                 <div key={r.id} style={{ borderTop: "1px solid var(--mc-linea)", paddingTop: "0.7rem", marginTop: "0.7rem" }}>
@@ -96,7 +100,7 @@ export default function CoberturaPortal() {
           {pin && cubren.length === 0 && (
             <>
               <p style={{ color: "#f0895c", fontWeight: 700, display: "flex", gap: 8, alignItems: "center" }}>
-                <FiAlertCircle aria-hidden="true" /> Todavía no llegamos ahí
+                <WarningCircle aria-hidden="true" /> Todavía no llegamos ahí
               </p>
               <p style={{ fontSize: "0.87rem", color: "var(--mc-gris)" }}>
                 Tu domicilio queda fuera de las rutas actuales. Puedes pedir que se

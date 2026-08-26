@@ -1,6 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FiPhone, FiMail, FiMapPin, FiClock } from "react-icons/fi";
+import {
+  Phone,
+  Envelope,
+  MapPin,
+  Clock,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   EMPRESA,
   NAVEGACION,
@@ -31,11 +36,11 @@ export default function Footer() {
             </p>
             <div className="d-flex flex-column gap-2">
               <span className="d-inline-flex align-items-center gap-2">
-                <FiMapPin size={15} style={{ color: "var(--mc-verde)" }} />
+                <MapPin size={15} style={{ color: "var(--mc-verde)" }} />
                 {EMPRESA.ciudad}, {EMPRESA.estado}, {EMPRESA.pais}
               </span>
               <span className="d-inline-flex align-items-center gap-2">
-                <FiClock size={15} style={{ color: "var(--mc-verde)" }} />
+                <Clock size={15} style={{ color: "var(--mc-verde)" }} />
                 {EMPRESA.horario}
               </span>
             </div>
@@ -67,7 +72,7 @@ export default function Footer() {
             {EMPRESA.telefonos.map((tel) => (
               <a key={tel} href={`tel:+52${tel.replace(/\s/g, "")}`}>
                 <span className="d-inline-flex align-items-center gap-2">
-                  <FiPhone size={14} style={{ color: "var(--mc-verde)" }} />
+                  <Phone size={14} style={{ color: "var(--mc-verde)" }} />
                   {tel}
                 </span>
               </a>
@@ -79,7 +84,7 @@ export default function Footer() {
                 style={{ wordBreak: "break-all", fontSize: "0.84rem" }}
               >
                 <span className="d-inline-flex align-items-start gap-2">
-                  <FiMail
+                  <Envelope
                     size={14}
                     style={{ color: "var(--mc-verde)", marginTop: 4, flexShrink: 0 }}
                   />

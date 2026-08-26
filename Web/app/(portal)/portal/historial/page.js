@@ -1,7 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { FiDownload, FiSearch, FiCamera } from "react-icons/fi";
+import {
+  DownloadSimple,
+  MagnifyingGlass,
+  Camera,
+} from "@phosphor-icons/react/dist/ssr";
 import { fechaLarga, estatusInfo } from "@/lib/portal-datos";
 import { misServicios } from "@/lib/datos-solicitudes";
 import { descargarManifiesto } from "@/lib/portal-pdf";
@@ -84,7 +88,7 @@ export default function HistorialPortal() {
             ))}
           </div>
           <div style={{ position: "relative", flex: "0 1 260px" }}>
-            <FiSearch style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--mc-gris)" }} />
+            <MagnifyingGlass style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--mc-gris)" }} />
             <input
               className="pt-input"
               style={{ paddingLeft: 34 }}
@@ -149,7 +153,7 @@ export default function HistorialPortal() {
                               onClick={() => setAbierto(expandido ? null : s.folio)}
                               title="Ver comprobante fotográfico"
                             >
-                              <FiCamera />
+                              <Camera />
                             </button>
                           )}
                           {s.manifiesto ? (
@@ -158,7 +162,7 @@ export default function HistorialPortal() {
                               onClick={() => bajarManifiesto(s)}
                               disabled={bajando === s.folio}
                             >
-                              <FiDownload />
+                              <DownloadSimple />
                               {bajando === s.folio ? "Generando…" : "PDF"}
                             </button>
                           ) : (

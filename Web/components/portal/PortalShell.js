@@ -5,31 +5,34 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  FiGrid,
-  FiMap,
-  FiCalendar,
-  FiClock,
-  FiBarChart2,
-  FiFileText,
-  FiFilePlus,
-  FiPlusCircle,
-  FiLogOut,
-  FiMenu,
-} from "react-icons/fi";
+  SquaresFour,
+  Clock,
+  ChartBar,
+  FilePlus,
+  PlusCircle,
+  SignOut,
+  List,
+  Path,
+  Trash,
+  Certificate,
+  MapTrifold,
+  CalendarPlus,
+  ClockCounterClockwise,
+} from "@phosphor-icons/react/dist/ssr";
 import { obtenerSesion, cerrarSesion } from "@/lib/portal-sesion";
 import { CLIENTE } from "@/lib/portal-datos";
 import TransicionPagina from "@/components/TransicionPagina";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
-  { href: "/portal", texto: "Panel", icono: FiGrid, exacto: true },
-  { href: "/portal/cobertura", texto: "Cobertura", icono: FiMap },
-  { href: "/portal/agendar", texto: "Agendar", icono: FiCalendar },
-  { href: "/portal/agregar-saldo", texto: "Agregar saldo", icono: FiPlusCircle },
-  { href: "/portal/historial", texto: "Historial de servicios", icono: FiClock },
-  { href: "/portal/reportes", texto: "Reportes", icono: FiBarChart2 },
-  { href: "/portal/documentos", texto: "Documentos", icono: FiFileText },
-  { href: "/portal/cotizador", texto: "Cotizador", icono: FiFilePlus },
+  { href: "/portal", texto: "Panel", icono: SquaresFour, exacto: true },
+  { href: "/portal/cobertura", texto: "Cobertura", icono: MapTrifold },
+  { href: "/portal/agendar", texto: "Agendar", icono: CalendarPlus },
+  { href: "/portal/agregar-saldo", texto: "Agregar saldo", icono: PlusCircle },
+  { href: "/portal/historial", texto: "Historial de servicios", icono: ClockCounterClockwise },
+  { href: "/portal/reportes", texto: "Reportes", icono: ChartBar },
+  { href: "/portal/documentos", texto: "Documentos", icono: Certificate },
+  { href: "/portal/cotizador", texto: "Cotizador", icono: FilePlus },
 ];
 
 /** Envoltura protegida del portal: sidebar + topbar. Redirige a login sin sesión. */
@@ -136,7 +139,14 @@ export default function PortalShell({ children }) {
                   prefetch={false}
                   className={`pt-nav-item ${activo(item) ? "activo" : ""}`}
                 >
-                  <Ico aria-hidden="true" />
+                  {/* EL PESO SIGUE AL ESTADO, no sólo el color.
+                      Phosphor trae seis pesos del mismo dibujo, así que el
+                      renglón donde estás parado va RELLENO y el resto en
+                      trazo normal. Antes lo único que separaba al activo era
+                      el color, y el color por sí solo es la señal más débil
+                      que hay: se pierde con poca luz, a contraluz, y no
+                      existe para quien no lo distingue. */}
+                  <Ico aria-hidden="true" weight={activo(item) ? "fill" : "regular"} />
                   {item.texto}
                 </Link>
               );
@@ -147,7 +157,7 @@ export default function PortalShell({ children }) {
               onClick={salir}
               style={{ marginTop: "auto", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
-              <FiLogOut aria-hidden="true" />
+              <SignOut aria-hidden="true" />
               Cerrar sesión
             </button>
           </nav>
@@ -178,7 +188,7 @@ export default function PortalShell({ children }) {
                 onClick={() => setAbierto(true)}
                 aria-label="Abrir menú"
               >
-                <FiMenu />
+                <List />
               </button>
               {/* En el teléfono este bloque decía exactamente lo mismo que
                   el <h1> de tres centímetros más abajo ("Reportes" / "Reportes")

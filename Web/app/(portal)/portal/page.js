@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 
 import Link from "next/link";
-import { FiTruck, FiDollarSign, FiCalendar, FiArrowRight, FiClock, FiPlusCircle } from "react-icons/fi";
+import {
+  Truck,
+  CurrencyDollar,
+  CalendarBlank,
+  ArrowRight,
+  Clock,
+  PlusCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   CLIENTE,
   CUENTA,
@@ -147,13 +154,13 @@ export default function PanelPortal() {
             <span>{cuenta.diasCredito} días</span>
           </div>
           <Link href="/portal/agregar-saldo" prefetch={false} className="mc-btn mc-btn-verde" style={{ marginTop: "1rem", width: "100%", justifyContent: "center", padding: "0.6rem" }}>
-            <FiPlusCircle /> Agregar saldo
+            <PlusCircle /> Agregar saldo
           </Link>
         </div>
 
         <div className="pt-grid pt-grid-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
           <div className="pt-stat">
-            <div className="pt-stat-icono naranja"><FiDollarSign /></div>
+            <div className="pt-stat-icono naranja"><CurrencyDollar /></div>
             <div className="pt-stat-etiqueta">Por pagar</div>
             <div className="pt-stat-valor">{pesos(cuenta.porPagar)}</div>
             <div className="pt-stat-sub">
@@ -163,13 +170,13 @@ export default function PanelPortal() {
             </div>
           </div>
           <div className="pt-stat">
-            <div className="pt-stat-icono"><FiTruck /></div>
+            <div className="pt-stat-icono"><Truck /></div>
             <div className="pt-stat-etiqueta">Servicios</div>
             <div className="pt-stat-valor">{completados.length}</div>
             <div className="pt-stat-sub">Completados (12 meses)</div>
           </div>
           <div className="pt-stat">
-            <div className="pt-stat-icono teal"><FiCalendar /></div>
+            <div className="pt-stat-icono teal"><CalendarBlank /></div>
             <div className="pt-stat-etiqueta">Programados</div>
             <div className="pt-stat-valor">{proximos.length}</div>
             <div className="pt-stat-sub">Próximos servicios</div>
@@ -183,7 +190,7 @@ export default function PanelPortal() {
           <div className="pt-card-head">
             <h2>Próximos servicios</h2>
             <Link href="/portal/historial" prefetch={false} className="pt-btn">
-              Ver historial <FiArrowRight />
+              Ver historial <ArrowRight />
             </Link>
           </div>
           {proximos.length === 0 ? (
@@ -255,14 +262,14 @@ export default function PanelPortal() {
         <div className="pt-card">
           <div className="pt-card-head">
             <h2>Últimos servicios</h2>
-            <Link href="/portal/historial" prefetch={false} className="pt-btn">Todos <FiArrowRight /></Link>
+            <Link href="/portal/historial" prefetch={false} className="pt-btn">Todos <ArrowRight /></Link>
           </div>
           {recientes.length === 0 ? (
             <div className="pt-vacio">Todavía no tienes servicios completados.</div>
           ) : (
             recientes.map((s) => (
               <div key={s.folio} style={{ display: "flex", alignItems: "center", gap: "0.8rem", padding: "0.6rem 0", borderBottom: "1px solid var(--mc-linea)" }}>
-                <div className="pt-stat-icono" style={{ margin: 0, width: 36, height: 36 }}><FiClock /></div>
+                <div className="pt-stat-icono" style={{ margin: 0, width: 36, height: 36 }}><Clock /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ fontSize: "0.92rem" }}>{s.tipo}</strong>
                   <div style={{ color: "var(--mc-gris)", fontSize: "0.8rem" }}>

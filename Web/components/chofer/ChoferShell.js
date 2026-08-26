@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { FiLogOut, FiTruck } from "react-icons/fi";
+import {
+  SignOut,
+  Truck,
+} from "@phosphor-icons/react/dist/ssr";
 import { obtenerSesionChofer, cerrarSesionChofer } from "@/lib/chofer-sesion";
 import TransicionPagina from "@/components/TransicionPagina";
 
@@ -64,13 +67,13 @@ export default function ChoferShell({ children }) {
             style={{ height: 30, width: "auto" }}
           />
           <span className="ch-chip">
-            <FiTruck aria-hidden="true" /> Chofer
+            <Truck size={14} /> Chofer
           </span>
         </Link>
         <div className="ch-usuario">
           <span>{sesion?.nombre}</span>
           <button type="button" className="pt-btn" onClick={salir} aria-label="Salir">
-            <FiLogOut />
+            <SignOut />
           </button>
         </div>
       </header>

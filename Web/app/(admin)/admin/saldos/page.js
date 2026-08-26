@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  FiDollarSign, FiClock, FiCheckCircle, FiEye, FiX, FiLock, FiShield, FiFileText, FiAlertCircle,
-} from "react-icons/fi";
+  CurrencyDollar,
+  Clock,
+  CheckCircle,
+  Eye,
+  X,
+  Lock,
+  ShieldCheck,
+  FileText,
+  WarningCircle,
+} from "@phosphor-icons/react/dist/ssr";
 import { ADMIN_PERFIL } from "@/lib/admin-datos";
 import { listarClientes, listarMovimientos } from "@/lib/datos-clientes";
 import { resolverDepositoAuditado } from "@/app/acciones-auditadas";
@@ -120,7 +128,7 @@ export default function SaldosAdmin() {
 
       {errorAccion && (
         <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
-          <FiAlertCircle style={{ marginRight: 6, verticalAlign: "-2px" }} />
+          <WarningCircle style={{ marginRight: 6, verticalAlign: "-2px" }} />
           {errorAccion}
         </div>
       )}
@@ -128,17 +136,17 @@ export default function SaldosAdmin() {
       {/* KPIs */}
       <div className="pt-grid pt-grid-3" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><FiDollarSign /></div>
+          <div className="pt-stat-icono"><CurrencyDollar /></div>
           <div className="pt-stat-etiqueta">Saldo a favor (total)</div>
           <div className="pt-stat-valor">{pesos(totalAFavor)}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono naranja"><FiAlertCircle /></div>
+          <div className="pt-stat-icono naranja"><WarningCircle /></div>
           <div className="pt-stat-etiqueta">Por cobrar (total)</div>
           <div className="pt-stat-valor">{pesos(totalPorCobrar)}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono teal"><FiClock /></div>
+          <div className="pt-stat-icono teal"><Clock /></div>
           <div className="pt-stat-etiqueta">Recargas por verificar</div>
           <div className="pt-stat-valor">{porVerificar.length}</div>
         </div>
@@ -148,7 +156,7 @@ export default function SaldosAdmin() {
       <div className="pt-card" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-card-head"><h2>Quién puede aplicar saldo</h2></div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <div className="pt-stat-icono teal" style={{ margin: 0, width: 40, height: 40 }}><FiShield /></div>
+          <div className="pt-stat-icono teal" style={{ margin: 0, width: 40, height: 40 }}><ShieldCheck /></div>
           <div style={{ flex: "1 1 260px" }}>
             <p style={{ margin: 0, color: "var(--mc-gris)", fontSize: "0.85rem" }}>
               Confirmar que un pago llegó y aplicarlo al saldo lo puede hacer el dueño
@@ -164,7 +172,7 @@ export default function SaldosAdmin() {
         </div>
         {!puedeVerificar && (
           <p className="pt-nota-demo" style={{ marginTop: "0.9rem" }}>
-            <FiLock /> Tu cuenta puede consultar las recargas y los comprobantes, pero no aplicar saldo.
+            <Lock /> Tu cuenta puede consultar las recargas y los comprobantes, pero no aplicar saldo.
           </p>
         )}
       </div>
@@ -192,7 +200,7 @@ export default function SaldosAdmin() {
                       {r.cliente}
                       {esDuplicado(r) && (
                         <div style={{ color: "#e0a33e", fontSize: "0.76rem", marginTop: 2 }}>
-                          <FiAlertCircle style={{ verticalAlign: "-2px" }} /> Repetido: mismo monto y referencia
+                          <WarningCircle style={{ verticalAlign: "-2px" }} /> Repetido: mismo monto y referencia
                         </div>
                       )}
                     </td>
@@ -200,7 +208,7 @@ export default function SaldosAdmin() {
                     <td>{r.referencia}</td>
                     <td className="num"><strong>{pesos(r.monto)}</strong></td>
                     <td>
-                      <button className="pt-btn" onClick={() => setVer(r)}><FiEye /> Ver</button>
+                      <button className="pt-btn" onClick={() => setVer(r)}><Eye /> Ver</button>
                     </td>
                     <td>
                       <button
@@ -210,7 +218,7 @@ export default function SaldosAdmin() {
                         onClick={() => setVer(r)}
                         title={puedeVerificar ? "Revisar y aplicar" : "Solo el responsable puede aplicar"}
                       >
-                        {puedeVerificar ? "Revisar" : <FiLock />}
+                        {puedeVerificar ? "Revisar" : <Lock />}
                       </button>
                     </td>
                   </tr>
@@ -257,7 +265,7 @@ export default function SaldosAdmin() {
                 <strong>{ver.cliente}</strong>
                 <span>{ver.folio || folioCorto(ver.id, "DEP")} · {fechaLarga(ver.fecha)}</span>
               </div>
-              <button className="pt-btn" onClick={() => { setVer(null); setRechazando(null); }} aria-label="Cerrar"><FiX /></button>
+              <button className="pt-btn" onClick={() => { setVer(null); setRechazando(null); }} aria-label="Cerrar"><X /></button>
             </div>
             <div className="pt-modal-cuerpo">
               <div className="pt-modal-comprobante">
@@ -269,11 +277,11 @@ export default function SaldosAdmin() {
                   solo veía el nombre del archivo.
                 */}
                 {urlComprobante === "cargando" ? (
-                  <div className="pt-modal-sinimg"><FiFileText /><span>Abriendo el comprobante…</span></div>
+                  <div className="pt-modal-sinimg"><FileText /><span>Abriendo el comprobante…</span></div>
                 ) : urlComprobante ? (
                   esPdf(ver.comprobanteNombre) ? (
                     <a href={urlComprobante} target="_blank" rel="noopener noreferrer" className="pt-btn">
-                      <FiFileText /> Abrir el PDF del comprobante
+                      <FileText /> Abrir el PDF del comprobante
                     </a>
                   ) : (
                     <a href={urlComprobante} target="_blank" rel="noopener noreferrer">
@@ -282,7 +290,7 @@ export default function SaldosAdmin() {
                   )
                 ) : (
                   <div className="pt-modal-sinimg">
-                    <FiAlertCircle />
+                    <WarningCircle />
                     <span>
                       {ver.comprobante
                         ? "No se pudo abrir el archivo."
@@ -315,13 +323,13 @@ export default function SaldosAdmin() {
                   ) : (
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button className="pt-btn pt-btn-verde" style={{ flex: 1, justifyContent: "center" }} onClick={() => aplicar(ver)}>
-                        <FiCheckCircle /> Verificado — aplicar {pesos(ver.monto)}
+                        <CheckCircle /> Verificado — aplicar {pesos(ver.monto)}
                       </button>
                       <button className="pt-btn" onClick={() => setRechazando(ver.id)}>Rechazar</button>
                     </div>
                   )
                 ) : (
-                  <p className="pt-nota-demo"><FiLock /> Tu cuenta no puede aplicar saldo. Pídeselo al dueño o a un administrador.</p>
+                  <p className="pt-nota-demo"><Lock /> Tu cuenta no puede aplicar saldo. Pídeselo al dueño o a un administrador.</p>
                 )}
               </div>
             </div>

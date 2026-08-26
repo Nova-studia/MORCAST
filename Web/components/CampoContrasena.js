@@ -1,7 +1,10 @@
 "use client";
 
 import { useId, useState } from "react";
-import { FiEye, FiEyeOff } from "react-icons/fi";
+import {
+  Eye,
+  EyeSlash,
+} from "@phosphor-icons/react/dist/ssr";
 
 /**
  * Campo de contraseña con la opción de verla. Oculta por defecto.
@@ -83,7 +86,7 @@ export default function CampoContrasena({
           // estorbaría el camino al botón de envío.
           tabIndex={-1}
         >
-          {visible ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
+          {visible ? <EyeSlash aria-hidden="true" /> : <Eye aria-hidden="true" />}
         </button>
       </div>
       {/* Región viva: al alternar, un lector de pantalla anuncia el cambio.

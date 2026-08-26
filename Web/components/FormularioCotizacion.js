@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { FiCheckCircle, FiAlertCircle, FiSend } from "react-icons/fi";
+import {
+  CheckCircle,
+  WarningCircle,
+  PaperPlaneTilt,
+} from "@phosphor-icons/react/dist/ssr";
 import { enviarCotizacion } from "@/app/actions";
 import { TIPOS_SERVICIO, FRECUENCIAS } from "@/lib/datos";
 
@@ -30,7 +34,7 @@ export default function FormularioCotizacion() {
             color: "var(--mc-verde)",
           }}
         >
-          <FiCheckCircle />
+          <CheckCircle />
         </div>
         <h3 style={{ fontSize: "1.4rem", marginBottom: "0.75rem" }}>
           Solicitud enviada
@@ -51,7 +55,7 @@ export default function FormularioCotizacion() {
 
       {estado?.mensaje && !estado?.ok && (
         <div className="mc-alerta mc-alerta-error mb-4">
-          <FiAlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+          <WarningCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
           <span>{estado.mensaje}</span>
         </div>
       )}
@@ -215,7 +219,7 @@ export default function FormularioCotizacion() {
               "Enviando…"
             ) : (
               <>
-                Enviar solicitud <FiSend aria-hidden="true" />
+                Enviar solicitud <PaperPlaneTilt aria-hidden="true" />
               </>
             )}
           </button>

@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { FiCheckCircle, FiArrowRight } from "react-icons/fi";
+import {
+  CheckCircle,
+  ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
@@ -72,10 +75,10 @@ export default function LoginPortal() {
             manifiestos y constancia fiscal en un solo lugar.
           </p>
           <ul className="pt-login-checks">
-            <li><FiCheckCircle /> Saldo y estado de cuenta en tiempo real</li>
-            <li><FiCheckCircle /> Historial completo de servicios</li>
-            <li><FiCheckCircle /> Reportes diarios, mensuales y anuales</li>
-            <li><FiCheckCircle /> Manifiestos y constancia fiscal en PDF</li>
+            <li><CheckCircle /> Saldo y estado de cuenta en tiempo real</li>
+            <li><CheckCircle /> Historial completo de servicios</li>
+            <li><CheckCircle /> Reportes diarios, mensuales y anuales</li>
+            <li><CheckCircle /> Manifiestos y constancia fiscal en PDF</li>
           </ul>
         </div>
         <div style={{ position: "relative", zIndex: 1, fontSize: "0.82rem", color: "rgba(255,255,255,0.6)" }}>
@@ -114,7 +117,7 @@ export default function LoginPortal() {
               style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }}
               disabled={enviando}
             >
-              {enviando ? "Entrando…" : <>Entrar al portal <FiArrowRight /></>}
+              {enviando ? "Entrando…" : <>Entrar al portal <ArrowRight /></>}
             </button>
           </form>
 

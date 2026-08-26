@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiDownload, FiDollarSign, FiTrendingUp, FiAward } from "react-icons/fi";
+import {
+  DownloadSimple,
+  CurrencyDollar,
+  TrendUp,
+  Medal,
+} from "@phosphor-icons/react/dist/ssr";
 import { ADMIN_INGRESOS, embudoSolicitudes } from "@/lib/admin-datos";
 import { reportes } from "@/lib/datos-reportes";
 import { listarCotizaciones } from "@/lib/datos-cotizaciones";
@@ -63,25 +68,25 @@ export default function ReportesAdmin() {
           <p>Peso recolectado y desempeño comercial de los últimos 12 meses.</p>
         </div>
         <button className="pt-btn pt-btn-naranja" onClick={exportar} disabled={bajando}>
-          <FiDownload /> {bajando ? "Generando…" : "Exportar PDF"}
+          <DownloadSimple /> {bajando ? "Generando…" : "Exportar PDF"}
         </button>
       </div>
 
       <div className="pt-grid pt-grid-3" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><FiDollarSign /></div>
+          <div className="pt-stat-icono"><CurrencyDollar /></div>
           <div className="pt-stat-etiqueta">Recolectado 12 meses</div>
           <div className="pt-stat-valor">{ton(total)}</div>
           <div className="pt-stat-sub">Promedio {ton(promedio)} / mes</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono teal"><FiAward /></div>
+          <div className="pt-stat-icono teal"><Medal /></div>
           <div className="pt-stat-etiqueta">Mejor mes</div>
           <div className="pt-stat-valor">{mejor.periodo}</div>
           <div className="pt-stat-sub">{ton(mejor.monto)}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono naranja"><FiTrendingUp /></div>
+          <div className="pt-stat-icono naranja"><TrendUp /></div>
           <div className="pt-stat-etiqueta">Conversión</div>
           <div className="pt-stat-valor">{conversion}%</div>
           <div className="pt-stat-sub">{ganadas} de {totalSol} solicitudes ganadas</div>

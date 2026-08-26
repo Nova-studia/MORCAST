@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiDownload, FiTrendingUp, FiBox, FiDollarSign } from "react-icons/fi";
+import {
+  DownloadSimple,
+  TrendUp,
+  Package,
+  CurrencyDollar,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   REPORTE_DIARIO,
   REPORTE_MENSUAL,
@@ -72,26 +77,26 @@ export default function ReportesPortal() {
           <button className={vista === "anual" ? "activo" : ""} onClick={() => setVista("anual")}>Anual</button>
         </div>
         <button className="pt-btn pt-btn-verde" onClick={exportar} disabled={bajando}>
-          <FiDownload /> {bajando ? "Generando…" : "Exportar PDF"}
+          <DownloadSimple /> {bajando ? "Generando…" : "Exportar PDF"}
         </button>
       </div>
 
       {/* KPIs del periodo */}
       <div className="pt-grid pt-grid-3" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><FiDollarSign /></div>
+          <div className="pt-stat-icono"><CurrencyDollar /></div>
           <div className="pt-stat-etiqueta">Facturación</div>
           <div className="pt-stat-valor">{pesos(totales.monto)}</div>
           <div className="pt-stat-sub">{cfg.sub}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono teal"><FiBox /></div>
+          <div className="pt-stat-icono teal"><Package /></div>
           <div className="pt-stat-etiqueta">Peso total recolectado</div>
           <div className="pt-stat-valor">{totales.volumen.toLocaleString("es-MX")} ton</div>
           <div className="pt-stat-sub">{cfg.sub}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono naranja"><FiTrendingUp /></div>
+          <div className="pt-stat-icono naranja"><TrendUp /></div>
           <div className="pt-stat-etiqueta">Promedio por periodo</div>
           <div className="pt-stat-valor">
             {metrica === "monto" ? pesos(promedio) : `${promedio.toFixed(2)} ton`}

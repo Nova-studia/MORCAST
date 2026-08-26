@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiPlus, FiX } from "react-icons/fi";
+import {
+  Plus,
+  X,
+} from "@phosphor-icons/react/dist/ssr";
 import { listarClientes, crearCliente } from "@/lib/datos-clientes";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
 
@@ -48,7 +51,7 @@ export default function ClientesAdmin() {
           <p>{lista.length} clientes · {activos} activos · Por cobrar {pesos(totalPorPagar)}</p>
         </div>
         <button className="pt-btn pt-btn-naranja" onClick={() => setAlta((v) => !v)}>
-          {alta ? <><FiX /> Cancelar</> : <><FiPlus /> Nuevo cliente</>}
+          {alta ? <><X /> Cancelar</> : <><Plus /> Nuevo cliente</>}
         </button>
       </div>
 

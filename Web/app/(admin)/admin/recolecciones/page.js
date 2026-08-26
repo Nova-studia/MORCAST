@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiCheck, FiX, FiAlertTriangle, FiCalendar } from "react-icons/fi";
+import {
+  Check,
+  X,
+  Warning,
+  CalendarBlank,
+} from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC } from "@/lib/rutas-datos";
 import { listarSolicitudes } from "@/lib/datos-solicitudes";
 import { listarOperadores } from "@/lib/datos-clientes";
@@ -179,7 +184,7 @@ export default function RecoleccionesAdmin() {
           hoy: no puede estar al mismo nivel que el resto. */}
       {vencidas.length > 0 && (
         <div className="pt-aviso-vencidas">
-          <FiAlertTriangle aria-hidden="true" />
+          <Warning aria-hidden="true" />
           <div>
             <strong>
               {vencidas.length === 1
@@ -213,7 +218,7 @@ export default function RecoleccionesAdmin() {
             className={`pt-btn pt-btn-vencida ${filtro === "vencidas" ? "activo" : ""}`}
             onClick={() => setFiltro("vencidas")}
           >
-            <FiAlertTriangle aria-hidden="true" /> Vencidas ({vencidas.length})
+            <Warning aria-hidden="true" /> Vencidas ({vencidas.length})
           </button>
         )}
         {ESTADOS_SOLICITUD_REC.map((e) => (
@@ -311,7 +316,7 @@ export default function RecoleccionesAdmin() {
                       y para eso queda el selector de fecha libre. */}
                   <div className="pt-reagenda">
                     <span className="pt-reagenda-tit">
-                      <FiCalendar aria-hidden="true" />
+                      <CalendarBlank aria-hidden="true" />
                       {venc.vencida ? "Reagendar para" : "Agendar para"}
                     </span>
                     {opcionesReagenda(diasPorRuta[s.rutaId] || [], hoy).map((o) => (
@@ -370,7 +375,7 @@ export default function RecoleccionesAdmin() {
                       onClick={() => confirmar(s)}
                       disabled={ocupado === s.folio}
                     >
-                      <FiCheck />{" "}
+                      <Check />{" "}
                       {ocupado === s.folio
                         ? "Guardando…"
                         : venc.vencida
@@ -390,7 +395,7 @@ export default function RecoleccionesAdmin() {
                       onClick={() => rechazar(s)}
                       disabled={ocupado === s.folio}
                     >
-                      <FiX /> Rechazar
+                      <X /> Rechazar
                     </button>
                   </div>
                   </>

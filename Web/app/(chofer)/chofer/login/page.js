@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { FiArrowRight, FiTruck } from "react-icons/fi";
+import {
+  ArrowRight,
+  Truck,
+} from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
 import { iniciarSesionChofer, obtenerSesionChofer } from "@/lib/chofer-sesion";
@@ -66,7 +69,7 @@ export default function LoginChofer() {
         </Link>
         <div className="pt-login-lema">
           <span className="ch-chip">
-            <FiTruck aria-hidden="true" /> Chofer
+            <Truck aria-hidden="true" /> Chofer
           </span>
           <h2>Modo chofer</h2>
           <p>
@@ -114,7 +117,7 @@ export default function LoginChofer() {
             />
 
             <button type="submit" className="pt-btn pt-btn-verde ch-boton-grande" disabled={enviando}>
-              {enviando ? "Entrando…" : <>Entrar <FiArrowRight /></>}
+              {enviando ? "Entrando…" : <>Entrar <ArrowRight /></>}
             </button>
           </form>
 

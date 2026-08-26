@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FiDollarSign, FiInbox, FiUsers, FiTruck, FiArrowRight, FiTrendingUp } from "react-icons/fi";
+import {
+  CurrencyDollar,
+  Tray,
+  Users,
+  Truck,
+  ArrowRight,
+  TrendUp,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   ADMIN_KPIS,
   embudoSolicitudes,
@@ -48,7 +55,7 @@ export default function PanelAdmin() {
       {/* KPIs */}
       <div className="pt-grid pt-grid-4" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><FiDollarSign /></div>
+          <div className="pt-stat-icono"><CurrencyDollar /></div>
           <div className="pt-stat-etiqueta">Ingresos del mes</div>
           <div className="pt-stat-valor">{pesos(kpis.ingresosMes)}</div>
           <div className="pt-stat-sub" style={{ color: delta >= 0 ? "#6fce69" : "#f0895c" }}>
@@ -56,19 +63,19 @@ export default function PanelAdmin() {
           </div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono naranja"><FiInbox /></div>
+          <div className="pt-stat-icono naranja"><Tray /></div>
           <div className="pt-stat-etiqueta">Solicitudes nuevas</div>
           <div className="pt-stat-valor">{kpis.solicitudesNuevas}</div>
           <div className="pt-stat-sub">Sin atender</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono teal"><FiUsers /></div>
+          <div className="pt-stat-icono teal"><Users /></div>
           <div className="pt-stat-etiqueta">Clientes activos</div>
           <div className="pt-stat-valor">{kpis.clientesActivos}</div>
           <div className="pt-stat-sub">Con contrato vigente</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><FiTruck /></div>
+          <div className="pt-stat-icono"><Truck /></div>
           <div className="pt-stat-etiqueta">Servicios del mes</div>
           <div className="pt-stat-valor">{kpis.serviciosMes}</div>
           <div className="pt-stat-sub">Por cobrar {pesos(kpis.porCobrar)}</div>
@@ -80,7 +87,7 @@ export default function PanelAdmin() {
         <div className="pt-card">
           <div className="pt-card-head">
             <h2>Cobranza (12 meses)</h2>
-            <span className="pt-badge ok"><FiTrendingUp style={{ marginRight: 2 }} /> {pesos(totalCobrado)}</span>
+            <span className="pt-badge ok"><TrendUp style={{ marginRight: 2 }} /> {pesos(totalCobrado)}</span>
           </div>
           {!cobranza.hayDatos && (
             <p style={{ fontSize: "0.82rem", color: "var(--mc-gris)", marginTop: "-0.2rem" }}>
@@ -124,7 +131,7 @@ export default function PanelAdmin() {
       <div className="pt-card">
         <div className="pt-card-head">
           <h2>Solicitudes recientes</h2>
-          <Link href="/admin/solicitudes" className="pt-btn">Ver todas <FiArrowRight /></Link>
+          <Link href="/admin/solicitudes" className="pt-btn">Ver todas <ArrowRight /></Link>
         </div>
         <div className="pt-tabla-wrap">
           <table className="pt-tabla" style={{ minWidth: 720 }}>

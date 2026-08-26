@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
-import { FiCheckCircle, FiAlertCircle, FiMapPin, FiArrowRight } from "react-icons/fi";
+import {
+  CheckCircle,
+  WarningCircle,
+  MapPin,
+  ArrowRight,
+} from "@phosphor-icons/react/dist/ssr";
 import {
   RUTAS_SEED,
   ZONAS_PEDIDAS_SEED,
@@ -188,7 +193,7 @@ export default function AltaCliente() {
           {resultado.tipo === "suscripcion" ? (
             <>
               <div className="pt-exito">
-                <FiCheckCircle aria-hidden="true" />
+                <CheckCircle aria-hidden="true" />
                 <div>
                   <strong>Solicitud de alta recibida</strong>
                   <span>
@@ -216,7 +221,7 @@ export default function AltaCliente() {
             </>
           ) : (
             <div className="pt-exito" style={{ background: "rgba(219,101,45,0.12)", borderColor: "rgba(219,101,45,0.35)" }}>
-              <FiAlertCircle aria-hidden="true" />
+              <WarningCircle aria-hidden="true" />
               <div>
                 <strong>Registramos tu zona ({resultado.id})</strong>
                 <span>
@@ -256,7 +261,7 @@ export default function AltaCliente() {
               </div>
               <MapaZonas zonas={zonas} pin={pin} onPin={setPin} alto="440px" />
               <p className="mc-mapa-nota">
-                <FiMapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio.
+                <MapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio.
               </p>
 
               {pin && cubren.length > 0 && (
@@ -270,7 +275,7 @@ export default function AltaCliente() {
                     marginTop: "0.6rem",
                   }}
                 >
-                  <FiCheckCircle aria-hidden="true" /> Sí llegamos:{" "}
+                  <CheckCircle aria-hidden="true" /> Sí llegamos:{" "}
                   {cubren.map((r) => r.nombre).join(", ")}
                 </p>
               )}
@@ -285,7 +290,7 @@ export default function AltaCliente() {
                     marginTop: "0.6rem",
                   }}
                 >
-                  <FiAlertCircle aria-hidden="true" /> Aún no hay ruta ahí. Puedes seguir:
+                  <WarningCircle aria-hidden="true" /> Aún no hay ruta ahí. Puedes seguir:
                   tu alta entra como solicitud de zona nueva.
                 </p>
               )}
@@ -457,7 +462,7 @@ export default function AltaCliente() {
                 disabled={enviando}
                 style={{ width: "100%", justifyContent: "center", padding: "0.85rem", marginTop: "1.1rem", opacity: enviando ? 0.7 : 1 }}
               >
-                {enviando ? "Enviando…" : <>Enviar solicitud de alta <FiArrowRight aria-hidden="true" /></>}
+                {enviando ? "Enviando…" : <>Enviar solicitud de alta <ArrowRight aria-hidden="true" /></>}
               </button>
             </div>
           </div>

@@ -12,7 +12,11 @@ import {
   NavItem,
   Container,
 } from "reactstrap";
-import { FiPhone, FiMail, FiMapPin } from "react-icons/fi";
+import {
+  Phone,
+  Envelope,
+  MapPin,
+} from "@phosphor-icons/react/dist/ssr";
 import { EMPRESA, NAVEGACION, enlaceWhatsApp } from "@/lib/datos";
 
 export default function NavBar() {
@@ -64,18 +68,18 @@ export default function NavBar() {
             <div className="d-flex justify-content-between align-items-center">
               <div className="d-flex gap-4">
                 <span className="d-inline-flex align-items-center gap-2">
-                  <FiMapPin size={14} aria-hidden="true" />
+                  <MapPin size={14} aria-hidden="true" />
                   {EMPRESA.ciudad}, {EMPRESA.estado}
                 </span>
                 <a href={`mailto:${EMPRESA.correos[0]}`}>
-                  <FiMail size={14} aria-hidden="true" />
+                  <Envelope size={14} aria-hidden="true" />
                   {EMPRESA.correos[0]}
                 </a>
               </div>
               <div className="d-flex gap-4">
                 {EMPRESA.telefonos.map((tel) => (
                   <a key={tel} href={`tel:+52${tel.replace(/\s/g, "")}`}>
-                    <FiPhone size={14} aria-hidden="true" />
+                    <Phone size={14} aria-hidden="true" />
                     {tel}
                   </a>
                 ))}

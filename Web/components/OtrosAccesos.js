@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FiUser, FiShield, FiTruck } from "react-icons/fi";
+import {
+  User,
+  ShieldCheck,
+  Truck,
+} from "@phosphor-icons/react/dist/ssr";
 
 /**
  * Los otros dos accesos, al pie de cada login.
@@ -18,9 +22,9 @@ import { FiUser, FiShield, FiTruck } from "react-icons/fi";
  * es imposible que vuelva a faltar uno: cada login muestra los que NO son él.
  */
 const ACCESOS = [
-  { id: "cliente", href: "/portal/login", texto: "Soy cliente", icono: FiUser },
-  { id: "chofer", href: "/chofer/login", texto: "Soy chofer", icono: FiTruck },
-  { id: "admin", href: "/admin/login", texto: "Administración", icono: FiShield },
+  { id: "cliente", href: "/portal/login", texto: "Soy cliente", icono: User },
+  { id: "chofer", href: "/chofer/login", texto: "Soy chofer", icono: Truck },
+  { id: "admin", href: "/admin/login", texto: "Administración", icono: ShieldCheck },
 ];
 
 /** @param {{actual: "cliente" | "chofer" | "admin"}} props */
