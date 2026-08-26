@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiCheck, FiX } from "react-icons/fi";
+import { FiCheck, FiX, FiAlertTriangle, FiCalendar } from "react-icons/fi";
 import { ESTADOS_SOLICITUD_REC } from "@/lib/rutas-datos";
 import { listarSolicitudes } from "@/lib/datos-solicitudes";
 import { listarOperadores } from "@/lib/datos-clientes";
+import { listarRutas } from "@/lib/datos-rutas";
+import { fechaConDia } from "@/lib/portal-datos";
+import {
+  estadoVencimiento,
+  ordenarPorUrgencia,
+  opcionesReagenda,
+  textoAtraso,
+  hoyISO,
+} from "@/lib/vencimiento";
 import { cambiarEstadoSolicitudAuditado } from "@/app/acciones-auditadas";
 
 export default function RecoleccionesAdmin() {
@@ -15,18 +24,47 @@ export default function RecoleccionesAdmin() {
   const [ocupado, setOcupado] = useState(null); // folio en proceso
   const [error, setError] = useState("");
   const [choferes, setChoferes] = useState([]);
+  // Los días en que pasa cada ruta, para poder proponer "el próximo día de su
+  // ruta" al reagendar. Van por clave, que es lo que trae la solicitud.
+  const [diasPorRuta, setDiasPorRuta] = useState({});
+  const hoy = hoyISO();
   // Lo que el admin decide al confirmar, por folio: { fecha, hora, choferId }.
   // Antes no se decidía nada: se confirmaba con la fecha que hubiera pedido el
   // cliente, sin hora y con el chofer que trajera la ruta.
   const [plan, setPlan] = useState({});
 
-  const planDe = (s) => plan[s.folio] || { fecha: s.fechaConfirmada || s.fechaPedida, hora: "", choferId: "" };
+  /**
+   * Lo que el admin lleva elegido para esta solicitud.
+   *
+   * ⚠️ Si la solicitud YA SE VENCIÓ, la fecha por omisión es HOY y no la que
+   * se pasó. Antes heredaba `fechaConfirmada || fechaPedida`, así que apretar
+   * "Reagendar y confirmar" sin tocar nada la habría vuelto a confirmar para
+   * un día que ya pasó — y el correo al cliente habría salido con esa fecha.
+   */
+  const planDe = (s) => {
+    if (plan[s.folio]) return plan[s.folio];
+    const vencida = estadoVencimiento(s, hoy).vencida;
+    return {
+      fecha: vencida ? hoy : s.fechaConfirmada || s.fechaPedida,
+      hora: "",
+      choferId: "",
+    };
+  };
   const setPlanDe = (folio, patch) =>
     setPlan((p) => ({ ...p, [folio]: { ...(p[folio] || {}), ...patch } }));
 
   useEffect(() => {
     let vivo = true;
     listarOperadores().then((o) => { if (vivo) setChoferes(o); });
+    listarRutas().then((rs) => {
+      if (!vivo) return;
+      // ⚠️ OJO CON EL NOMBRE: `listarRutas()` devuelve la CLAVE en el campo
+      // `id` y el UUID en `uuid` (ver aFormatoPantalla en lib/datos-rutas.js).
+      // La solicitud trae `rutaId`, que también es la clave. Leyendo `r.clave`
+      // —que no existe— todas las llaves salían `undefined` y el atajo
+      // "próximo día de su ruta" no aparecía nunca.
+      setDiasPorRuta(Object.fromEntries((rs || []).map((r) => [r.id, r.dias || []])));
+    });
     listarSolicitudes().then((lista) => {
       if (!vivo) return;
       setSolicitudes(lista);
@@ -81,7 +119,11 @@ export default function RecoleccionesAdmin() {
             hora_confirmada: p.hora || null,
             chofer_id: p.choferId || null,
           },
-          "confirmar_recoleccion"
+          // La bitácora tiene que poder responder "¿cuántas se reagendaron
+          // porque se nos pasaron?". Con un solo nombre no se puede.
+          estadoVencimiento(s, hoy).vencida
+            ? "reagendar_recoleccion_vencida"
+            : "confirmar_recoleccion"
         ),
       {
         estado: "confirmada",
@@ -108,7 +150,17 @@ export default function RecoleccionesAdmin() {
     );
   };
 
-  const lista = filtro === "todas" ? solicitudes : solicitudes.filter((s) => s.estado === filtro);
+  // El orden es lo primero que fallaba: estaba de la más nueva a la más
+  // vieja, así que una recolección atrasada se hundía un lugar cada vez que
+  // entraba una nueva. Ahora manda la urgencia.
+  const vencidas = solicitudes.filter((s) => estadoVencimiento(s, hoy).vencida);
+  const base =
+    filtro === "todas"
+      ? solicitudes
+      : filtro === "vencidas"
+        ? vencidas
+        : solicitudes.filter((s) => s.estado === filtro);
+  const lista = ordenarPorUrgencia(base, hoy);
   const porConfirmar = solicitudes.filter((s) => s.estado === "solicitada").length;
 
   return (
@@ -121,6 +173,26 @@ export default function RecoleccionesAdmin() {
             : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
         </p>
       </div>
+
+      {/* Lo vencido va ARRIBA de los filtros y del listado. Si hay una
+          recolección que se pasó de fecha, eso es lo que hay que resolver
+          hoy: no puede estar al mismo nivel que el resto. */}
+      {vencidas.length > 0 && (
+        <div className="pt-aviso-vencidas">
+          <FiAlertTriangle aria-hidden="true" />
+          <div>
+            <strong>
+              {vencidas.length === 1
+                ? "1 recolección se pasó de fecha"
+                : `${vencidas.length} recolecciones se pasaron de fecha`}
+            </strong>
+            <span>Reagéndalas abajo: puedes ponerlas para hoy mismo.</span>
+          </div>
+          <button type="button" className="pt-btn" onClick={() => setFiltro("vencidas")}>
+            Ver sólo esas
+          </button>
+        </div>
+      )}
 
       {error && (
         <div
@@ -135,6 +207,15 @@ export default function RecoleccionesAdmin() {
         <button type="button" className={`pt-btn ${filtro === "todas" ? "pt-btn-naranja" : ""}`} onClick={() => setFiltro("todas")}>
           Todas
         </button>
+        {vencidas.length > 0 && (
+          <button
+            type="button"
+            className={`pt-btn pt-btn-vencida ${filtro === "vencidas" ? "activo" : ""}`}
+            onClick={() => setFiltro("vencidas")}
+          >
+            <FiAlertTriangle aria-hidden="true" /> Vencidas ({vencidas.length})
+          </button>
+        )}
         {ESTADOS_SOLICITUD_REC.map((e) => (
           <button
             key={e.id}
@@ -155,8 +236,12 @@ export default function RecoleccionesAdmin() {
         ) : (
           lista.map((s) => {
             const b = badge(s.estado);
+            const venc = estadoVencimiento(s, hoy);
             return (
-              <div key={s.folio} style={{ borderTop: "1px solid var(--mc-linea)", padding: "0.9rem 0" }}>
+              <div
+                key={s.folio}
+                className={`pt-recoleccion ${venc.vencida ? "vencida" : ""}`}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem", flexWrap: "wrap" }}>
                   <div>
                     <strong>{s.folio}</strong>
@@ -164,17 +249,31 @@ export default function RecoleccionesAdmin() {
                       {s.cliente}
                     </span>
                   </div>
-                  <span className={`pt-badge ${b.clase}`}>{b.texto}</span>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    {/* La insignia de vencida va ANTES que la de estado: es lo
+                        que hay que ver primero. "Sin atender" y "No se
+                        cumplió" no son lo mismo y por eso no dicen lo mismo. */}
+                    {venc.vencida && (
+                      <span className="pt-badge mal">
+                        {venc.texto} · {textoAtraso(venc.dias)}
+                      </span>
+                    )}
+                    <span className={`pt-badge ${b.clase}`}>{b.texto}</span>
+                  </div>
                 </div>
 
                 <div style={{ fontSize: "0.84rem", color: "var(--mc-gris)", marginTop: 5 }}>
-                  {s.domicilio} · {s.rutaNombre} · pedida para {s.fechaPedida} ·{" "}
+                  {s.domicilio} · {s.rutaNombre} · pedida para {fechaConDia(s.fechaPedida)} ·{" "}
                   {s.origen === "extra" ? "Extra" : "De ruta"}
                 </div>
 
+                {venc.vencida && (
+                  <div className="pt-recoleccion-motivo">{venc.detalle}</div>
+                )}
+
                 {s.fechaConfirmada && (
                   <div style={{ fontSize: "0.84rem", color: "#8fd18c", marginTop: 5 }}>
-                    Acordado: {s.fechaConfirmada}
+                    Acordado: {fechaConDia(s.fechaConfirmada)}
                     {s.horaConfirmada ? ` a las ${String(s.horaConfirmada).slice(0, 5)}` : " (sin hora)"}
                     {" · "}
                     {s.choferAsignado ? `${s.choferAsignado} (asignado)` : `${s.chofer} (de la ruta)`}
@@ -193,11 +292,40 @@ export default function RecoleccionesAdmin() {
                   </div>
                 )}
 
-                {s.estado === "solicitada" && (
+                {(s.estado === "solicitada" || venc.vencida) && (
                   <>
                   {/* Qué día, a qué hora y con quién. Antes esto no se
                       preguntaba: se confirmaba con la fecha que hubiera
-                      puesto el cliente y el chofer que trajera la ruta. */}
+                      puesto el cliente y el chofer que trajera la ruta.
+
+                      Y antes SOLO salía si el estado era "solicitada". Ese era
+                      el hueco grave: una recolección ya confirmada que se
+                      pasaba del día no se podía reagendar desde ningún lado,
+                      justo el caso en que Morcast ya se había comprometido. */}
+
+                  {/* Atajos de fecha. El sistema NO sabe cuántas paradas caben
+                      en un camión —eso no está en la base—, así que propone y
+                      no decide: "hoy" y "mañana" son recolección extra, y el
+                      otro es el día en que la unidad ya va a pasar por ahí.
+                      La disponibilidad real la pone quien conoce la operación,
+                      y para eso queda el selector de fecha libre. */}
+                  <div className="pt-reagenda">
+                    <span className="pt-reagenda-tit">
+                      <FiCalendar aria-hidden="true" />
+                      {venc.vencida ? "Reagendar para" : "Agendar para"}
+                    </span>
+                    {opcionesReagenda(diasPorRuta[s.rutaId] || [], hoy).map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        className={`pt-btn ${planDe(s).fecha === o.fecha ? "pt-btn-naranja" : ""}`}
+                        onClick={() => setPlanDe(s.folio, { fecha: o.fecha })}
+                      >
+                        {o.texto}
+                        <span className="pt-reagenda-fecha">{fechaConDia(o.fecha)}</span>
+                      </button>
+                    ))}
+                  </div>
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
                       Día
@@ -242,7 +370,12 @@ export default function RecoleccionesAdmin() {
                       onClick={() => confirmar(s)}
                       disabled={ocupado === s.folio}
                     >
-                      <FiCheck /> {ocupado === s.folio ? "Guardando…" : "Confirmar"}
+                      <FiCheck />{" "}
+                      {ocupado === s.folio
+                        ? "Guardando…"
+                        : venc.vencida
+                          ? "Reagendar y confirmar"
+                          : "Confirmar"}
                     </button>
                     <input
                       className="pt-input"

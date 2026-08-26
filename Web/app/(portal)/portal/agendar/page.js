@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiCalendar, FiPlusCircle } from "react-icons/fi";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "@/lib/rutas-datos";
 import { fechaConDia } from "@/lib/portal-datos";
+import { estadoVencimiento, ordenarPorUrgencia, textoAtraso, hoyISO } from "@/lib/vencimiento";
 import {
   miSuscripcion,
   listarSolicitudes,
@@ -35,12 +36,9 @@ function proximasFechas(dias, cuantas = 6) {
   return fechas;
 }
 
-/** Hoy en formato AAAA-MM-DD, armado con la fecha LOCAL. */
-function hoyISO() {
-  const d = new Date();
-  // Nada de toISOString(): pasa a UTC y de noche devuelve el día siguiente.
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+// `hoyISO` ahora viene de lib/vencimiento.js. Era idéntica a la que estaba
+// aquí —incluida la razón de no usar toISOString()— y tenerla dos veces es
+// pedir que un día se arreglen distinto.
 
 /** Un año adelante: tope contra el dedazo en el año. */
 function enUnAño() {
@@ -205,17 +203,34 @@ export default function AgendarPortal() {
           ) : mias.length === 0 ? (
             <div className="pt-vacio">Todavía no has pedido ninguna recolección.</div>
           ) : (
-            mias.map((s) => {
+            ordenarPorUrgencia(mias, hoyISO()).map((s) => {
               const b = badge(s.estado);
+              const venc = estadoVencimiento(s, hoyISO());
               return (
-                <div key={s.folio} style={{ borderTop: "1px solid var(--mc-linea)", padding: "0.7rem 0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem" }}>
+                <div
+                  key={s.folio}
+                  className={`pt-solicitud-mia ${venc.vencida ? "vencida" : ""}`}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "0.6rem", flexWrap: "wrap" }}>
                     <strong style={{ fontSize: "0.9rem" }}>{s.folio}</strong>
-                    <span className={`pt-badge ${b.clase}`}>{b.texto}</span>
+                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                      {/* El cliente pidió una recolección para el 25, nadie la
+                          atendió, y su portal siguió diciendo "Solicitada"
+                          como si todo fuera bien. Se enteró de casualidad. */}
+                      {venc.vencida && (
+                        <span className="pt-badge mal">
+                          Se pasó la fecha · {textoAtraso(venc.dias)}
+                        </span>
+                      )}
+                      <span className={`pt-badge ${b.clase}`}>{b.texto}</span>
+                    </div>
                   </div>
                   <div style={{ fontSize: "0.83rem", color: "var(--mc-gris)", marginTop: 3 }}>
                     {fechaConDia(s.fechaPedida)} · {s.origen === "extra" ? "Extra" : "De ruta"}
                   </div>
+                  {venc.vencida && (
+                    <div className="pt-solicitud-aviso">{venc.detalleCliente}</div>
+                  )}
                 </div>
               );
             })

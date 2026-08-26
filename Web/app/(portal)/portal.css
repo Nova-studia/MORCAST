@@ -1994,3 +1994,171 @@
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* =====================================================================
+   RECOLECCIONES VENCIDAS
+   ---------------------------------------------------------------------
+   Un cliente pidió una recolección para el 25 de agosto. Nadie la atendió, y
+   al día siguiente seguía en el panel viéndose IGUAL que una pedida para
+   dentro de tres semanas. Nada estaba roto: simplemente no había señal.
+
+   El rojo aquí no es decoración, es la única diferencia entre "todavía no
+   toca" y "ya falló". Por eso se usa con cuentagotas en el resto del panel:
+   si todo grita, nada grita.
+   ===================================================================== */
+
+/* Rojo de la casa, el mismo de `.pt-badge.mal`. */
+:root {
+  --mc-rojo: #ef8080;
+  --mc-rojo-fondo: rgba(198, 63, 63, 0.13);
+  --mc-rojo-linea: rgba(198, 63, 63, 0.55);
+}
+
+/* ---------- Aviso de cabecera ---------- */
+/* Va ARRIBA de los filtros: si hay algo vencido, es lo que se resuelve hoy,
+   no una opción más del menú. */
+.pt-aviso-vencidas {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  background: var(--mc-rojo-fondo);
+  border: 1px solid var(--mc-rojo-linea);
+  border-radius: var(--mc-radio);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.pt-aviso-vencidas > svg {
+  font-size: 1.4rem;
+  color: var(--mc-rojo);
+  flex-shrink: 0;
+}
+.pt-aviso-vencidas > div {
+  min-width: 0;
+  flex: 1;
+}
+.pt-aviso-vencidas strong {
+  display: block;
+  font-size: 0.98rem;
+  color: var(--mc-rojo);
+}
+.pt-aviso-vencidas span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--mc-gris);
+  margin-top: 2px;
+}
+.pt-aviso-vencidas .pt-btn {
+  flex-shrink: 0;
+  border-color: var(--mc-rojo-linea);
+  color: var(--mc-rojo);
+  min-height: 40px;
+}
+.pt-aviso-vencidas .pt-btn:hover {
+  border-color: var(--mc-rojo);
+  background: rgba(198, 63, 63, 0.1);
+  color: var(--mc-rojo);
+}
+
+/* ---------- Filtro de vencidas ---------- */
+.pt-btn-vencida {
+  border-color: var(--mc-rojo-linea);
+  color: var(--mc-rojo);
+}
+.pt-btn-vencida:hover {
+  border-color: var(--mc-rojo);
+  color: var(--mc-rojo);
+  background: rgba(198, 63, 63, 0.08);
+}
+.pt-btn-vencida.activo {
+  background: var(--mc-rojo-fondo);
+  border-color: var(--mc-rojo);
+}
+
+/* ---------- La tarjeta de cada recolección ---------- */
+.pt-recoleccion,
+.pt-solicitud-mia {
+  border-top: 1px solid var(--mc-linea);
+  padding: 0.9rem 0;
+}
+.pt-solicitud-mia { padding: 0.7rem 0; }
+
+/* Vencida: franja roja a la izquierda y fondo apenas teñido. Se marca el
+   BORDE y no todo el fondo porque estas tarjetas van una tras otra: un
+   bloque rojo entero se vuelve ilegible en cuanto hay tres seguidas. */
+.pt-recoleccion.vencida,
+.pt-solicitud-mia.vencida {
+  border-left: 3px solid var(--mc-rojo);
+  background: var(--mc-rojo-fondo);
+  border-radius: 0 var(--mc-radio-sm) var(--mc-radio-sm) 0;
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
+  margin: 0.35rem 0;
+  border-top-color: transparent;
+}
+
+.pt-recoleccion-motivo,
+.pt-solicitud-aviso {
+  font-size: 0.84rem;
+  color: var(--mc-rojo);
+  margin-top: 6px;
+  line-height: 1.35;
+}
+/* Al cliente se le habla distinto: no se le informa de la falla operativa,
+   se le dice qué está pasando con SU servicio. */
+.pt-solicitud-aviso {
+  color: #f3a0a0;
+  max-width: 52ch;
+}
+
+/* ---------- Atajos para reagendar ---------- */
+.pt-reagenda {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+.pt-reagenda-tit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mc-gris);
+  margin-right: 0.15rem;
+}
+.pt-reagenda .pt-btn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-height: 44px;
+  padding: 0.35rem 0.8rem;
+  line-height: 1.2;
+}
+/* La fecha real debajo del atajo: "Hoy" y "Mañana" son cómodos, pero al
+   comprometer un camión hay que ver el día exacto que se está eligiendo. */
+.pt-reagenda-fecha {
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767.98px) {
+  .pt-reagenda-tit {
+    width: 100%;
+    margin-bottom: 0.15rem;
+  }
+  .pt-reagenda .pt-btn { flex: 1 1 auto; }
+  .pt-aviso-vencidas .pt-btn { width: 100%; justify-content: center; }
+}
+
+@media (prefers-contrast: more) {
+  .pt-aviso-vencidas,
+  .pt-recoleccion.vencida,
+  .pt-solicitud-mia.vencida { border-color: #ff9c9c; }
+  .pt-aviso-vencidas strong,
+  .pt-recoleccion-motivo,
+  .pt-solicitud-aviso { color: #ffb4b4; }
+}
