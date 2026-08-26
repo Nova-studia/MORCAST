@@ -222,7 +222,7 @@ export async function misServicios({ conFotos = true } = {}) {
       id, folio, estado, fecha_pedida, fecha_confirmada, origen,
       clientes ( empresa ),
       rutas ( nombre, tipo, unidad, chofer ),
-      recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues )
+      recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
     `)
     .eq("estado", "completada")
     .order("fecha_confirmada", { ascending: false });
@@ -265,14 +265,24 @@ export async function misServicios({ conFotos = true } = {}) {
         evidencia: ev
           ? {
               contenedor: ev.qr ? `Contenedor ${ev.qr}` : "—",
-              gps: "Registrado en la recolección",
-              antes: { hora: soloHora(ev.hora_antes), etiqueta: "Contenedor lleno", url: urlAntes },
+              // La ubicación viaja PEGADA a su foto, no suelta en el objeto.
+              // Antes había un campo `gps` con el texto fijo "Registrado en la
+              // recolección" que no salía de ningún lado — el sello de la
+              // pantalla decía "GPS" sin nada atrás. Ahora, si la llave falta,
+              // la pantalla enseña "sin ubicación" en vez de disimularlo.
+              antes: {
+                hora: soloHora(ev.hora_antes),
+                etiqueta: "Contenedor lleno",
+                url: urlAntes,
+                ubicacion: ev.ubicacion?.antes || null,
+              },
               despues: {
                 hora: soloHora(ev.hora_despues),
                 etiqueta: "Contenedor vacío",
                 peso: ev.peso_kg ? `${ev.peso_kg} kg` : "—",
                 firma: s.rutas?.chofer || "—",
                 url: urlDespues,
+                ubicacion: ev.ubicacion?.despues || null,
               },
             }
           : null,

@@ -36,7 +36,7 @@ export async function rutaDelDia(fecha = hoyISO()) {
       clientes ( empresa ),
       domicilios ( alias, calle, colonia ),
       rutas ( nombre, unidad ),
-      recolecciones ( id, qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues )
+      recolecciones ( id, qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
     `)
     .in("estado", ["confirmada", "en-ruta", "completada"])
     .or(`fecha_confirmada.eq.${fecha},and(fecha_confirmada.is.null,fecha_pedida.eq.${fecha})`)
@@ -106,6 +106,15 @@ export async function marcarEnRuta(solicitudId) {
  */
 export async function cerrarRecoleccion({
   solicitudId, qr, pesoKg, horaAntes, horaDespues,
+  // Una lectura de GPS POR FOTO, o null. El antes y el después ocurren con
+  // media hora de diferencia y el sello se enseña en cada una, así que no
+  // sirve una sola lectura para las dos.
+  //
+  // ⚠️ Que falte NO es un error: significa que no hubo señal o que el chofer
+  // no dio el permiso, y eso se enseña como "sin ubicación". La ubicación
+  // NUNCA detiene el cierre de la parada; el trabajo del chofer es vaciar el
+  // contenedor, no pelearse con un permiso del navegador en la calle.
+  ubicacionAntes = null, ubicacionDespues = null,
   // Las fotos llegan YA SUBIDAS, como rutas. La pantalla las sube en cuanto
   // se toman: si el chofer recarga o pierde señal a media parada, no pierde
   // lo que ya hizo. Se aceptan también los archivos sueltos por si alguna
@@ -143,6 +152,12 @@ export async function cerrarRecoleccion({
     foto_despues: despues,
     hora_antes: horaAntes || null,
     hora_despues: horaDespues || null,
+    // Si no hay ninguna de las dos se guarda null en vez de `{}`: un objeto
+    // vacío se lee como "aquí hay algo" cuando no lo hay.
+    ubicacion:
+      ubicacionAntes || ubicacionDespues
+        ? { antes: ubicacionAntes || null, despues: ubicacionDespues || null }
+        : null,
   });
 
   if (errorEv) {

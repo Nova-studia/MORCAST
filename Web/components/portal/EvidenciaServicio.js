@@ -7,8 +7,11 @@ import {
   CheckCircle,
   PencilSimple,
   ArrowsOut,
+  MapPin,
+  Prohibit,
 } from "@phosphor-icons/react/dist/ssr";
 import VisorFoto from "@/components/VisorFoto";
+import { comoTexto, comoEnlaceMapa, esConfiable } from "@/lib/ubicacion";
 
 /**
  * Comprobante fotográfico ANTES / DESPUÉS de una recolección.
@@ -18,17 +21,24 @@ import VisorFoto from "@/components/VisorFoto";
  * cliente. En el demo las fotos son marcadores; en la app real son las tomas
  * de la cámara del chofer.
  *
- * ⚠️ SE QUITÓ EL SELLO DE "GPS" Y EL RENGLÓN DE "UBICACIÓN".
- * Decían que la foto estaba geolocalizada y NO LO ESTÁ: la tabla
- * `recolecciones` no tiene columnas de coordenadas, la app del chofer nunca
- * las pide, y con datos reales el renglón mostraba el texto fijo "Registrado
- * en la recolección". Sólo se veían coordenadas de verdad en los datos de
- * demostración, que las traen escritas a mano.
+ * EL SELLO DE UBICACIÓN, AHORA CON ALGO ATRÁS
+ * Durante un tiempo cada foto llevaba un sello "GPS" y había un renglón
+ * "Ubicación" que con datos reales decía el texto fijo "Registrado en la
+ * recolección": no existían columnas de coordenadas ni la app las pedía.
+ * Se quitó, y la migración 016 más `lib/ubicacion.js` lo devolvieron con
+ * lecturas de verdad.
+ *
+ * AHORA HAY TRES ESTADOS Y LOS TRES SE DICEN:
+ *   · Con lectura buena  → coordenadas, margen de error y enlace al mapa.
+ *   · Con lectura floja  → las coordenadas Y el margen, marcado como que no
+ *                          alcanza para respaldar el domicilio. No se
+ *                          esconde: se enseña de qué tamaño es la afirmación.
+ *   · Sin lectura        → "Sin ubicación". Sin señal o sin permiso, y eso
+ *                          es un hecho del servicio, no algo que disimular.
  *
  * Este comprobante es lo que el cliente puede usar como respaldo de que el
- * camión estuvo en su domicilio. Afirmar una verificación que no existe es
- * peor que no ofrecerla. Cuando el chofer capture coordenadas de verdad
- * (permiso del navegador + dos columnas en la tabla), el sello vuelve.
+ * camión estuvo en su domicilio. Un sello que a veces miente vale menos que
+ * no tener sello.
  */
 export default function EvidenciaServicio({ evidencia, compacto = false }) {
   // Los ganchos van antes de cualquier salida temprana: React exige que se
@@ -79,6 +89,17 @@ export default function EvidenciaServicio({ evidencia, compacto = false }) {
         </div>
         <div className="pt-evi-sello">
           <span><Clock aria-hidden="true" /> {dato.hora}</span>
+          {dato.ubicacion ? (
+            <span
+              className={esConfiable(dato.ubicacion) ? "ok" : "flojo"}
+              title={`${comoTexto(dato.ubicacion)} · precisión ±${dato.ubicacion.precision_m} m`}
+            >
+              <MapPin aria-hidden="true" weight={esConfiable(dato.ubicacion) ? "fill" : "regular"} />
+              ±{dato.ubicacion.precision_m} m
+            </span>
+          ) : (
+            <span className="sin"><Prohibit aria-hidden="true" /> sin ubicación</span>
+          )}
         </div>
       </Contenedor>
     );
@@ -103,6 +124,22 @@ export default function EvidenciaServicio({ evidencia, compacto = false }) {
         <div className="pt-evi-datos">
           <div><span>Peso recolectado</span><strong>{despues.peso || "—"}</strong></div>
           <div><span>Firma del operador</span><strong><PencilSimple aria-hidden="true" /> {despues.firma || "—"}</strong></div>
+          <div>
+            <span>Ubicación del servicio</span>
+            <strong>{(() => {
+              // Manda la del DESPUÉS: es la que prueba que el contenedor se
+              // vació ahí. La del antes sólo prueba que llegó.
+              const u = despues.ubicacion || antes.ubicacion;
+              if (!u) return <><Prohibit aria-hidden="true" /> Sin ubicación</>;
+              return (
+                <a href={comoEnlaceMapa(u)} target="_blank" rel="noopener noreferrer" className="pt-evi-mapa">
+                  <MapPin aria-hidden="true" weight={esConfiable(u) ? "fill" : "regular"} />
+                  {comoTexto(u)}
+                  <em>±{u.precision_m} m</em>
+                </a>
+              );
+            })()}</strong>
+          </div>
           <div><span>Estatus</span><strong className="ok"><CheckCircle aria-hidden="true" /> Servicio concretado</strong></div>
         </div>
       )}

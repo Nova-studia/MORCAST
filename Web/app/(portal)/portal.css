@@ -2364,3 +2364,70 @@
   .pt-visor-nav.izq { left: 0.35rem; }
   .pt-visor-nav.der { right: 0.35rem; }
 }
+
+/* =====================================================================
+   SELLO DE UBICACIÓN
+   ---------------------------------------------------------------------
+   Tres estados y los tres se dicen: lectura buena, lectura floja (se
+   enseña el margen y se marca que no alcanza) y sin lectura. Un sello que
+   a veces miente vale menos que no tener sello.
+   ===================================================================== */
+.pt-evi-sello .ok { color: #7cc576; }
+/* Ámbar, no rojo: no es un error del servicio, es una lectura imprecisa. */
+.pt-evi-sello .flojo { color: #e0a94a; }
+.pt-evi-sello .sin { color: var(--mc-gris-claro); }
+
+.pt-evi-mapa {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--mc-verde-claro);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  /* Un par de coordenadas partido en dos renglones deja de leerse como una
+     coordenada. Si no cabe, que se desplace la caja, no que se rompa. */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  font-size: 0.88rem;
+}
+.pt-evi-mapa > svg { align-self: center; flex-shrink: 0; }
+/* La celda es angosta; el dato es largo y no se parte. */
+.pt-evi-datos > div:has(.pt-evi-mapa) { overflow-x: auto; }
+.pt-evi-mapa:hover { text-decoration: underline; }
+/* El margen de error, más chico que las coordenadas pero SIEMPRE visible:
+   es lo que dice de qué tamaño es la afirmación. */
+.pt-evi-mapa em {
+  font-style: normal;
+  font-size: 0.76rem;
+  color: var(--mc-gris);
+  font-weight: 500;
+}
+
+/* ---------- Aviso de GPS en la pantalla del chofer ---------- */
+/* Va antes de la tarjeta de pasos: el chofer tiene que saber si su foto va
+   a llevar sello ANTES de tomarla, no enterarse después en la oficina. */
+.ch-gps {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.9rem;
+  border-radius: var(--mc-radio-sm);
+  border: 1px solid var(--mc-linea);
+  background: var(--mc-superficie);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: #c3d0cd;
+}
+.ch-gps > svg { flex-shrink: 0; font-size: 1.1rem; }
+.ch-gps.ok { border-color: rgba(78, 179, 74, 0.4); color: #8fd18c; }
+.ch-gps.ok > svg { color: var(--mc-verde-claro); }
+.ch-gps.buscando > svg { color: var(--mc-gris-claro); }
+.ch-gps.sin { border-color: rgba(224, 169, 74, 0.4); }
+.ch-gps.sin > svg { color: #e0a94a; }
+
+@media (prefers-contrast: more) {
+  .ch-gps { border-color: #5d6f6b; color: #dce6e4; }
+  .pt-evi-sello .flojo { color: #f5c46b; }
+  .pt-evi-mapa em { color: #c6d4d1; }
+}

@@ -11,10 +11,12 @@ import {
   FloppyDisk,
   ArrowsOut,
   Truck,
+  MapPin,
 } from "@phosphor-icons/react/dist/ssr";
 import VisorFoto from "@/components/VisorFoto";
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
 import { subirEvidencia } from "@/lib/datos-archivos";
+import useUbicacion, { esConfiable } from "@/lib/ubicacion";
 
 /**
  * Etiquetas cortas A PROPÓSITO. Con "Foto antes" / "Foto después" el quinto
@@ -78,6 +80,14 @@ export default function RecoleccionChofer() {
   // oportunidad de notar que salió movida ANTES de irse de la parada.
   const [viendo, setViendo] = useState(null);
 
+  // Se pide al ABRIR la parada, mientras el chofer teclea el código del
+  // contenedor. Si se pidiera al tomar la foto, el diálogo del navegador
+  // competiría con la cámara abriéndose — dos cosas peleando por la pantalla
+  // en el peor momento. Y como vigila, para cuando llega a la foto el GPS ya
+  // afinó: la primera lectura suele venir de la red (cientos de metros) y la
+  // buena llega unos segundos después.
+  const { lectura, estado: estadoGps, motivo: motivoGps } = useUbicacion();
+
   const refAntes = useRef(null);
   const refDespues = useRef(null);
 
@@ -125,19 +135,27 @@ export default function RecoleccionChofer() {
       return;
     }
 
-    const dato = { ruta: r.ruta, url: URL.createObjectURL(archivo), hora: horaAhora() };
+    // La lectura se congela AQUÍ, al momento de la foto, y no se vuelve a
+    // tocar: si el chofer se mueve entre el antes y el después, cada sello
+    // conserva dónde se tomó su propia foto.
+    const dato = {
+      ruta: r.ruta,
+      url: URL.createObjectURL(archivo),
+      hora: horaAhora(),
+      ubicacion: lectura || null,
+    };
     const siguiente = cual === "antes" ? 2 : 4;
     if (cual === "antes") setAntes(dato); else setDespues(dato);
     setPaso(siguiente);
 
     // El object URL no sobrevive a una recarga; se guarda sin él.
-    const sinUrl = { ruta: dato.ruta, hora: dato.hora };
+    const sinUrl = { ruta: dato.ruta, hora: dato.hora, ubicacion: dato.ubicacion };
     memoria.guardar(id, {
       qr,
       peso,
       paso: siguiente,
-      antes: cual === "antes" ? sinUrl : antes && { ruta: antes.ruta, hora: antes.hora },
-      despues: cual === "despues" ? sinUrl : despues && { ruta: despues.ruta, hora: despues.hora },
+      antes: cual === "antes" ? sinUrl : antes && { ruta: antes.ruta, hora: antes.hora, ubicacion: antes.ubicacion },
+      despues: cual === "despues" ? sinUrl : despues && { ruta: despues.ruta, hora: despues.hora, ubicacion: despues.ubicacion },
     });
   };
 
@@ -158,6 +176,8 @@ export default function RecoleccionChofer() {
       // Ya subidas: aquí solo viajan sus rutas.
       rutaAntes: antes?.ruta || null,
       rutaDespues: despues?.ruta || null,
+      ubicacionAntes: antes?.ubicacion || null,
+      ubicacionDespues: despues?.ubicacion || null,
       horaAntes: antes ? new Date().toISOString() : null,
       horaDespues: despues ? new Date().toISOString() : null,
     });
@@ -212,6 +232,27 @@ export default function RecoleccionChofer() {
             <div className="ch-paso-txt">{p}</div>
           </div>
         ))}
+      </div>
+
+      {/* El chofer tiene que saber ANTES de tomar la foto si va a llevar
+          sello, no enterarse después en la oficina. Se dice en un renglón y
+          sin alarma: la parada se puede cerrar igual, sólo que sin respaldo
+          de ubicación. */}
+      <div className={`ch-gps ${estadoGps === "lista" && esConfiable(lectura) ? "ok" : estadoGps === "pidiendo" ? "buscando" : "sin"}`}>
+        <MapPin aria-hidden="true" weight={estadoGps === "lista" ? "fill" : "regular"} />
+        {estadoGps === "pidiendo" && <span>Buscando tu ubicación…</span>}
+        {estadoGps === "lista" && esConfiable(lectura) && (
+          <span>Ubicación lista · precisión ±{lectura.precision_m} m</span>
+        )}
+        {estadoGps === "lista" && !esConfiable(lectura) && (
+          <span>
+            Señal débil · ±{lectura.precision_m} m. La foto se guarda, pero la
+            ubicación no alcanza para respaldar el domicilio.
+          </span>
+        )}
+        {["negada", "sin-senal", "no-disponible"].includes(estadoGps) && (
+          <span>{motivoGps}</span>
+        )}
       </div>
 
       <div className="pt-card">
