@@ -35,10 +35,20 @@ export function Encabezado({ titulo, descripcion, miga }) {
 /* ---------- Barra de confianza ---------- */
 export function BarraConfianza() {
   const items = [
-    { icono: "categorias", num: "3", txt: "Categorías de residuos autorizadas" },
-    { icono: "flota", num: "11+", txt: "Tipos de unidades en flota propia" },
-    { icono: "medidas", num: "5", txt: "Medidas de contenedores y tolvas" },
-    { icono: "emergencias", num: "24/7", txt: "Atención a emergencias" },
+    // El orden y el TAMAÑO dicen cuál importa más. Antes los cuatro pesaban
+    // igual y en una fila de cuatro cosas iguales el ojo no sabe por dónde
+    // empezar, así que no lee ninguna.
+    //
+    // Manda la flota: es lo que un cliente industrial pregunta primero
+    // —"¿tienen con qué?"— y es lo que separa a Morcast de un contratista que
+    // subarrienda. Le sigue 24/7, que es lo que se quiere oír cuando se
+    // derramó algo un domingo.
+    // Cada uno lleva SU celda con nombre. Con tres nombres para cuatro
+    // números, el cuarto se caía a una fila suelta debajo de la rejilla.
+    { icono: "flota", num: "11+", txt: "Tipos de unidades en flota propia", celda: "grande" },
+    { icono: "emergencias", num: "24/7", txt: "Atención a emergencias", celda: "medio" },
+    { icono: "categorias", num: "3", txt: "Categorías de residuos autorizadas", celda: "tres" },
+    { icono: "medidas", num: "5", txt: "Medidas de contenedores y tolvas", celda: "cuatro" },
   ];
 
   return (
@@ -54,20 +64,29 @@ export function BarraConfianza() {
         }}
         aria-hidden="true"
       />
+      {/* Se deja la rejilla de Bootstrap por una de tamaños propios: cuatro
+          columnas iguales no pueden expresar que una vale más que las otras. */}
       <div className="container">
-        <div className="row g-4">
-          {items.map((it) => (
-            <div key={it.txt} className="col-6 col-lg-3">
-              <div className="mc-confianza-item">
-                <div className="mc-confianza-icono">
-                  <Icono nombre={it.icono} />
-                </div>
-                <div>
-                  <div className="mc-confianza-num"><Contador valor={it.num} /></div>
-                  <div className="mc-confianza-txt">{it.txt}</div>
-                </div>
+        <div className="mc-confianza-rejilla">
+          {/* Entran en cascada con `Revelar`, que es el mecanismo que esta
+              página ya usa treinta veces. Se intentó primero con
+              `animation-timeline: view()` —ligado al scroll, que se mueve
+              contigo y es mejor— pero no llegó a funcionar aquí y no vale
+              dejar puesto algo que no corre. */}
+          {items.map((it, i) => (
+            <Revelar
+              key={it.txt}
+              retraso={i * 90}
+              className={`mc-confianza-item ${it.celda}`}
+            >
+              <div className="mc-confianza-icono">
+                <Icono nombre={it.icono} />
               </div>
-            </div>
+              <div>
+                <div className="mc-confianza-num"><Contador valor={it.num} /></div>
+                <div className="mc-confianza-txt">{it.txt}</div>
+              </div>
+            </Revelar>
           ))}
         </div>
       </div>

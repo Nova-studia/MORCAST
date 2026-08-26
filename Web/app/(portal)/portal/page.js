@@ -1,5 +1,7 @@
 "use client";
 
+import IconoAnimado from "@/components/IconoAnimado";
+
 import { useEffect, useState } from "react";
 
 import Link from "next/link";
@@ -160,7 +162,7 @@ export default function PanelPortal() {
 
         <div className="pt-grid pt-grid-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
           <div className="pt-stat">
-            <div className="pt-stat-icono naranja"><CurrencyDollar /></div>
+            <div className="pt-stat-icono desnudo"><IconoAnimado nombre="por-pagar" tam={44} /></div>
             <div className="pt-stat-etiqueta">Por pagar</div>
             <div className="pt-stat-valor">{pesos(cuenta.porPagar)}</div>
             <div className="pt-stat-sub">
@@ -170,13 +172,13 @@ export default function PanelPortal() {
             </div>
           </div>
           <div className="pt-stat">
-            <div className="pt-stat-icono"><Truck /></div>
+            <div className="pt-stat-icono desnudo"><IconoAnimado nombre="servicios" tam={44} /></div>
             <div className="pt-stat-etiqueta">Servicios</div>
             <div className="pt-stat-valor">{completados.length}</div>
             <div className="pt-stat-sub">Completados (12 meses)</div>
           </div>
           <div className="pt-stat">
-            <div className="pt-stat-icono teal"><CalendarBlank /></div>
+            <div className="pt-stat-icono desnudo"><IconoAnimado nombre="programados" tam={44} /></div>
             <div className="pt-stat-etiqueta">Programados</div>
             <div className="pt-stat-valor">{proximos.length}</div>
             <div className="pt-stat-sub">Próximos servicios</div>

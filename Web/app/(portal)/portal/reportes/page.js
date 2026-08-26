@@ -1,5 +1,7 @@
 "use client";
 
+import IconoAnimado from "@/components/IconoAnimado";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   DownloadSimple,
@@ -84,19 +86,22 @@ export default function ReportesPortal() {
       {/* KPIs del periodo */}
       <div className="pt-grid pt-grid-3" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-stat">
-          <div className="pt-stat-icono"><CurrencyDollar /></div>
+          {/* "Facturación" es el único KPI sin GIF propio: se usa el de
+              "Por pagar", que es el mismo asunto —dinero de la cuenta— y
+              así la fila no queda con dos dibujos y un icono de línea. */}
+          <div className="pt-stat-icono desnudo"><IconoAnimado nombre="por-pagar" tam={44} /></div>
           <div className="pt-stat-etiqueta">Facturación</div>
           <div className="pt-stat-valor">{pesos(totales.monto)}</div>
           <div className="pt-stat-sub">{cfg.sub}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono teal"><Package /></div>
+          <div className="pt-stat-icono desnudo"><IconoAnimado nombre="peso-total-recolectado" tam={44} /></div>
           <div className="pt-stat-etiqueta">Peso total recolectado</div>
           <div className="pt-stat-valor">{totales.volumen.toLocaleString("es-MX")} ton</div>
           <div className="pt-stat-sub">{cfg.sub}</div>
         </div>
         <div className="pt-stat">
-          <div className="pt-stat-icono naranja"><TrendUp /></div>
+          <div className="pt-stat-icono desnudo"><IconoAnimado nombre="promedio-por-periodo" tam={44} /></div>
           <div className="pt-stat-etiqueta">Promedio por periodo</div>
           <div className="pt-stat-valor">
             {metrica === "monto" ? pesos(promedio) : `${promedio.toFixed(2)} ton`}

@@ -5,45 +5,31 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  SquaresFour,
-  Tray,
-  Users,
-  UserPlus,
-  ChartBar,
-  ShieldCheck,
-  CurrencyDollar,
-  FileText,
-  SignOut,
   List,
-  Path,
-  Trash,
-  MapTrifold,
-  Truck,
-  Wallet,
-  ClipboardText,
 } from "@phosphor-icons/react/dist/ssr";
 import { obtenerSesionAdmin, cerrarSesionAdmin } from "@/lib/admin-sesion";
 import { ADMIN_PERFIL } from "@/lib/admin-datos";
+import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
-  { href: "/admin", texto: "Panel", icono: SquaresFour, exacto: true },
+  { href: "/admin", texto: "Panel", gif: "panel", exacto: true },
   // Sólo cambian los renglones que nombran algo de ESTE negocio. Panel,
   // Clientes, Reportes, Usuarios y Bitácora se quedan con Feather: una
   // rejilla o un escudo significan lo mismo en cualquier empresa, y
   // dibujarlos a mano sería trabajo sin significado nuevo.
-  { href: "/admin/rutas", texto: "Rutas", icono: Path },
-  { href: "/admin/recolecciones", texto: "Recolecciones", icono: Trash },
-  { href: "/admin/zonas-pedidas", texto: "Zonas pedidas", icono: MapTrifold },
-  { href: "/admin/solicitudes", texto: "Solicitudes", icono: Tray },
-  { href: "/admin/altas", texto: "Altas de clientes", icono: UserPlus },
-  { href: "/admin/clientes", texto: "Clientes", icono: Users },
-  { href: "/admin/saldos", texto: "Saldos de clientes", icono: Wallet },
-  { href: "/admin/servicios", texto: "Servicios", icono: Truck },
-  { href: "/admin/reportes", texto: "Reportes", icono: ChartBar },
-  { href: "/admin/usuarios", texto: "Usuarios y roles", icono: ShieldCheck },
-  { href: "/admin/bitacora", texto: "Bitácora", icono: ClipboardText },
+  { href: "/admin/rutas", texto: "Rutas", gif: "cobertura" },
+  { href: "/admin/recolecciones", texto: "Recolecciones", gif: "programados" },
+  { href: "/admin/zonas-pedidas", texto: "Zonas pedidas", gif: "zonas-pedidas" },
+  { href: "/admin/solicitudes", texto: "Solicitudes", gif: "solicitudes" },
+  { href: "/admin/altas", texto: "Altas de clientes", gif: "altas-de-clientes" },
+  { href: "/admin/clientes", texto: "Clientes", gif: "clientes" },
+  { href: "/admin/saldos", texto: "Saldos de clientes", gif: "por-pagar" },
+  { href: "/admin/servicios", texto: "Servicios", gif: "servicios" },
+  { href: "/admin/reportes", texto: "Reportes", gif: "reportes" },
+  { href: "/admin/usuarios", texto: "Usuarios y roles", gif: "usuarios-y-roles" },
+  { href: "/admin/bitacora", texto: "Bitácora", gif: "documentos" },
 ];
 
 export default function AdminShell({ children }) {
@@ -127,7 +113,6 @@ export default function AdminShell({ children }) {
           </div>
           <nav className="pt-nav">
             {NAV.map((item) => {
-              const Ico = item.icono;
               return (
                 <Link
                   key={item.href}
@@ -138,14 +123,10 @@ export default function AdminShell({ children }) {
                   prefetch={false}
                   className={`pt-nav-item ${activo(item) ? "activo" : ""}`}
                 >
-                  {/* EL PESO SIGUE AL ESTADO, no sólo el color.
-                      Phosphor trae seis pesos del mismo dibujo, así que el
-                      renglón donde estás parado va RELLENO y el resto en
-                      trazo normal. Antes lo único que separaba al activo era
-                      el color, y el color por sí solo es la señal más débil
-                      que hay: se pierde con poca luz, a contraluz, y no
-                      existe para quien no lo distingue. */}
-                  <Ico aria-hidden="true" weight={activo(item) ? "fill" : "regular"} />
+                  {/* Quieto por omisión; se mueve sólo en el renglón donde
+                      estás y en el que traes el cursor encima. Diecinueve
+                      dibujos agitándose a la vez dejan de ser un menú. */}
+                  <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
                   {item.texto}
                 </Link>
               );
@@ -156,7 +137,7 @@ export default function AdminShell({ children }) {
               onClick={salir}
               style={{ marginTop: "auto", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
-              <SignOut aria-hidden="true" />
+              <IconoAnimado nombre="cerra-sesion" tam={30} />
               Cerrar sesión
             </button>
           </nav>

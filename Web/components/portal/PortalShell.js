@@ -5,34 +5,23 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  SquaresFour,
-  Clock,
-  ChartBar,
-  FilePlus,
-  PlusCircle,
-  SignOut,
   List,
-  Path,
-  Trash,
-  Certificate,
-  MapTrifold,
-  CalendarPlus,
-  ClockCounterClockwise,
 } from "@phosphor-icons/react/dist/ssr";
 import { obtenerSesion, cerrarSesion } from "@/lib/portal-sesion";
 import { CLIENTE } from "@/lib/portal-datos";
+import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
-  { href: "/portal", texto: "Panel", icono: SquaresFour, exacto: true },
-  { href: "/portal/cobertura", texto: "Cobertura", icono: MapTrifold },
-  { href: "/portal/agendar", texto: "Agendar", icono: CalendarPlus },
-  { href: "/portal/agregar-saldo", texto: "Agregar saldo", icono: PlusCircle },
-  { href: "/portal/historial", texto: "Historial de servicios", icono: ClockCounterClockwise },
-  { href: "/portal/reportes", texto: "Reportes", icono: ChartBar },
-  { href: "/portal/documentos", texto: "Documentos", icono: Certificate },
-  { href: "/portal/cotizador", texto: "Cotizador", icono: FilePlus },
+  { href: "/portal", texto: "Panel", gif: "panel", exacto: true },
+  { href: "/portal/cobertura", texto: "Cobertura", gif: "cobertura" },
+  { href: "/portal/agendar", texto: "Agendar", gif: "agendar" },
+  { href: "/portal/agregar-saldo", texto: "Agregar saldo", gif: "agregar-saldo" },
+  { href: "/portal/historial", texto: "Historial de servicios", gif: "historial-de-servicios" },
+  { href: "/portal/reportes", texto: "Reportes", gif: "reportes" },
+  { href: "/portal/documentos", texto: "Documentos", gif: "documentos" },
+  { href: "/portal/cotizador", texto: "Cotizador", gif: "cotizar" },
 ];
 
 /** Envoltura protegida del portal: sidebar + topbar. Redirige a login sin sesión. */
@@ -124,7 +113,6 @@ export default function PortalShell({ children }) {
           </div>
           <nav className="pt-nav">
             {NAV.map((item) => {
-              const Ico = item.icono;
               return (
                 <Link
                   key={item.href}
@@ -139,14 +127,10 @@ export default function PortalShell({ children }) {
                   prefetch={false}
                   className={`pt-nav-item ${activo(item) ? "activo" : ""}`}
                 >
-                  {/* EL PESO SIGUE AL ESTADO, no sólo el color.
-                      Phosphor trae seis pesos del mismo dibujo, así que el
-                      renglón donde estás parado va RELLENO y el resto en
-                      trazo normal. Antes lo único que separaba al activo era
-                      el color, y el color por sí solo es la señal más débil
-                      que hay: se pierde con poca luz, a contraluz, y no
-                      existe para quien no lo distingue. */}
-                  <Ico aria-hidden="true" weight={activo(item) ? "fill" : "regular"} />
+                  {/* Quieto por omisión; se mueve sólo en el renglón donde
+                      estás y en el que traes el cursor encima. Diecinueve
+                      dibujos agitándose a la vez dejan de ser un menú. */}
+                  <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
                   {item.texto}
                 </Link>
               );
@@ -157,7 +141,7 @@ export default function PortalShell({ children }) {
               onClick={salir}
               style={{ marginTop: "auto", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
-              <SignOut aria-hidden="true" />
+              <IconoAnimado nombre="cerra-sesion" tam={30} />
               Cerrar sesión
             </button>
           </nav>

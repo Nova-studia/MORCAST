@@ -1634,6 +1634,20 @@ section {
   will-change: transform;
 }
 .mc-clientes-cinta:hover { animation-play-state: paused; }
+/* ⚠️ La cinta es una animación que NO TERMINA NUNCA, y eso es exactamente lo
+   que `prefers-reduced-motion` existe para apagar. El bloque global de más
+   abajo aplasta toda duración a 0.01 ms, pero con `infinite` eso no la
+   detiene: la deja dando vueltas cien mil veces por segundo, congelada a
+   medio recorrido y gastando compositor para nada. Aquí se apaga de verdad y
+   los logos se quedan quietos, que es lo que se pidió. */
+@media (prefers-reduced-motion: reduce) {
+  .mc-clientes-cinta {
+    animation: none !important;
+    /* Sin la animación, la cinta arranca en 0 y sólo se verían los primeros
+       logos. Se centra para que se vean los de en medio. */
+    transform: translate3d(-12%, 0, 0);
+  }
+}
 @keyframes mc-cinta {
   from { transform: translate3d(0, 0, 0); }
   to   { transform: translate3d(-50%, 0, 0); }
@@ -1935,4 +1949,98 @@ section {
 }
 @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
   .mc-cursor { display: none; }
+}
+
+/* =====================================================================
+   LOS NÚMEROS, CON JERARQUÍA
+   ---------------------------------------------------------------------
+   Eran cuatro columnas iguales de Bootstrap. En una fila de cuatro cosas
+   del mismo peso el ojo no sabe por dónde empezar, y acaba sin leer
+   ninguna. Ahora el tamaño dice cuál importa: manda la flota, que es lo
+   que un cliente industrial pregunta primero.
+
+   Se hace con `grid-template-areas` y no con columnas contadas: así el
+   acomodo se lee en el CSS como se ve en la pantalla, y cambiar cuál
+   manda es mover una letra.
+   ===================================================================== */
+.mc-confianza-rejilla {
+  display: grid;
+  gap: 1.1rem;
+  /* La columna del grande manda: 1.5fr contra 1fr y 1fr. Y el nombre de cada
+     celda está aquí, así que el acomodo se lee igual que se ve. */
+  grid-template-columns: 1.5fr 1fr 1fr;
+  grid-template-areas:
+    "grande medio  tres"
+    "grande cuatro cuatro";
+  position: relative;
+  z-index: 2;
+}
+.mc-confianza-item {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: var(--mc-radio);
+  padding: 1.1rem 1.2rem;
+  /* El realce entra por el borde, no por el fondo: sobre el verde de la
+     sección un fondo más claro se ensucia, un borde no. */
+  transition: border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+              background-color 220ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mc-confianza-item:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+.mc-confianza-item.grande {
+  grid-area: grande;
+  /* En columna, no en fila: con este ancho el número puede crecer de verdad. */
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+  justify-content: center;
+}
+.mc-confianza-item.grande .mc-confianza-num {
+  font-size: 3.6rem;
+  /* Tracking negativo porque el texto creció; es la misma regla de siempre. */
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.mc-confianza-item.grande .mc-confianza-txt {
+  font-size: 1rem;
+  max-width: 22ch;
+}
+.mc-confianza-item.grande .mc-confianza-icono {
+  width: 62px;
+  height: 62px;
+  font-size: 1.6rem;
+}
+.mc-confianza-item.medio { grid-area: medio; }
+.mc-confianza-item.tres { grid-area: tres; }
+.mc-confianza-item.cuatro { grid-area: cuatro; }
+.mc-confianza-item.medio .mc-confianza-num { font-size: 2rem; }
+
+@media (max-width: 991.98px) {
+  /* En el teléfono la jerarquía de áreas no cabe: se apila, pero el grande
+     sigue arriba y sigue siendo el grande. */
+  .mc-confianza-rejilla {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "grande grande"
+      "medio  tres"
+      "cuatro cuatro";
+  }
+  .mc-confianza-item.grande .mc-confianza-num { font-size: 2.8rem; }
+}
+@media (max-width: 575.98px) {
+  .mc-confianza-rejilla {
+    grid-template-columns: 1fr;
+    grid-template-areas: "grande" "medio" "tres" "cuatro";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-confianza-item { transition-duration: 0.01ms !important; }
+}
+@media (prefers-contrast: more) {
+  .mc-confianza-item { border-color: rgba(255, 255, 255, 0.5); }
+  .mc-confianza-txt { color: rgba(255, 255, 255, 0.92); }
 }
