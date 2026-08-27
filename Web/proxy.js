@@ -117,8 +117,13 @@ export async function proxy(request) {
   // entraría cualquiera sin sesión, y estas dos pantallas no tienen nada que
   // enseñarle a quien no ha entrado. Quien ya tiene su área se va a la suya:
   // un cliente activo no tiene por qué ver la sala de espera.
+  //
+  // Va con `esArea` y no con `startsWith` a propósito: `startsWith` no
+  // respeta el límite de segmento y dejaría pasar de colado a algo como
+  // `/portal/pendiente-falso` o `/portal/registroX`, saltándose los tres
+  // rebotes de abajo.
   const salaDeEspera =
-    ruta.startsWith(DESTINOS.pendiente) || ruta.startsWith(DESTINOS.registro);
+    esArea(ruta, DESTINOS.pendiente) || esArea(ruta, DESTINOS.registro);
   if (salaDeEspera) {
     return suCasa === DESTINOS.pendiente ? respuesta : aSuCasa();
   }
