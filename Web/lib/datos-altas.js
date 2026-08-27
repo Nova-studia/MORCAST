@@ -13,7 +13,8 @@ const CAMPOS = `
   alias, calle, colonia, cp, referencias, lat, lng,
   residuos, equipo, servicios_por_mes,
   razon_social, rfc, domicilio_fiscal, uso_cfdi, forma_pago,
-  en_cobertura, rutas_que_cubren, estado, notas, creado
+  en_cobertura, rutas_que_cubren, estado, notas, creado,
+  origen, usuario_id
 `;
 
 function aPantalla(f) {
@@ -43,6 +44,8 @@ function aPantalla(f) {
     rutasQueCubren: f.rutas_que_cubren || [],
     estado: f.estado,
     notas: f.notas || "",
+    origen: f.origen || "formulario",
+    usuarioId: f.usuario_id || null,
     creado: f.creado,
   };
 }

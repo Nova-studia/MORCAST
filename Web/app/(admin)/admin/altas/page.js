@@ -8,8 +8,11 @@ import {
   Phone,
   MapPin,
   WarningCircle,
+  GoogleLogo,
+  UserCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { listarAltas, cambiarEstadoAlta } from "@/lib/datos-altas";
+import { activarCuentaRegistrada } from "@/app/acciones-alta-cliente";
 
 const ESTADOS = [
   { id: "nueva", texto: "Nueva", clase: "" },
@@ -39,7 +42,32 @@ export default function AltasAdmin() {
     setSel((s) => (s && s.id === a.id ? { ...s, estado } : s));
   };
 
-  const lista = filtro === "todas" ? altas : altas.filter((a) => a.estado === filtro);
+  const [activando, setActivando] = useState(false);
+  const [credencial, setCredencial] = useState(null); // { correo, password, folio }
+
+  /** Contraseña legible por teléfono: sin l/1/O/0, que se confunden al dictarla. */
+  const contrasenaNueva = () => {
+    const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    return Array.from({ length: 12 }, () => abc[Math.floor(Math.random() * abc.length)]).join("");
+  };
+
+  const activar = async (a) => {
+    setError("");
+    setActivando(true);
+    const password = contrasenaNueva();
+    const r = await activarCuentaRegistrada({ solicitudId: a.id, password });
+    setActivando(false);
+    if (!r.ok) { setError(r.motivo || "No se pudo activar."); return; }
+    // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
+    setCredencial({ correo: r.correo, password, folio: r.cliente.folio });
+    await recargar();
+    setSel((s) => (s && s.id === a.id ? { ...s, estado: "aprobada" } : s));
+  };
+
+  const lista =
+    filtro === "todas" ? altas
+    : filtro === "google" ? altas.filter((a) => a.origen === "google")
+    : altas.filter((a) => a.estado === filtro);
   const nuevas = altas.filter((a) => a.estado === "nueva").length;
 
   return (
@@ -47,8 +75,10 @@ export default function AltasAdmin() {
       <div className="pt-page-head">
         <h1>Altas de clientes</h1>
         <p>
-          Quien llena <strong>Cotización/Alta</strong> en la página cae aquí. También te
-          llega un correo a contacto@morcast.mx en cuanto lo manda.
+          Quien llena <strong>Cotización/Alta</strong> en la página cae aquí, y también
+          quien <strong>se registra con Google</strong>. A esos últimos les aparece el
+          botón <strong>Activar cuenta</strong>: su acceso ya existe, sólo falta ligarlo
+          con su empresa.
         </p>
       </div>
 
@@ -59,7 +89,9 @@ export default function AltasAdmin() {
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
-        {[{ id: "nueva", texto: `Sin atender (${nuevas})` }, ...ESTADOS.slice(1), { id: "todas", texto: "Todas" }].map((f) => (
+        {[{ id: "nueva", texto: `Sin atender (${nuevas})` }, ...ESTADOS.slice(1),
+          { id: "google", texto: `Se registraron (${altas.filter((a) => a.origen === "google").length})` },
+          { id: "todas", texto: "Todas" }].map((f) => (
           <button
             key={f.id}
             type="button"
@@ -94,10 +126,19 @@ export default function AltasAdmin() {
                       onClick={() => setSel(a)}
                       style={{ cursor: "pointer", background: sel?.id === a.id ? "rgba(255,255,255,0.04)" : undefined }}
                     >
-                      <td className="folio">{a.folio}</td>
+                      <td className="folio">
+                        {a.origen === "google" && (
+                          <GoogleLogo
+                            weight="bold"
+                            title="Se registró con Google"
+                            style={{ marginRight: 5, verticalAlign: "-2px" }}
+                          />
+                        )}
+                        {a.folio}
+                      </td>
                       <td style={{ whiteSpace: "nowrap" }}>{fecha(a.creado)}</td>
                       <td>{a.empresa}</td>
-                      <td className="num">{a.serviciosPorMes}</td>
+                      <td className="num">{a.serviciosPorMes ?? "—"}</td>
                       <td>
                         <span className={`pt-badge ${a.enCobertura ? "verde" : "rojo"}`}>
                           {/* Decía "En ruta", que es además el nombre de un
@@ -147,7 +188,10 @@ export default function AltasAdmin() {
                 etiqueta="Equipo pedido"
                 valor={(sel.equipo || []).map((e) => `${e.cantidad} × ${e.tipo} ${e.medida}`).join(", ")}
               />
-              <Dato etiqueta="Recolecciones al mes" valor={sel.serviciosPorMes} />
+              <Dato
+                etiqueta="Recolecciones al mes"
+                valor={sel.serviciosPorMes ?? (sel.origen === "google" ? "No lo preguntamos en el registro" : null)}
+              />
               <Dato etiqueta="Razón social" valor={sel.razonSocial} />
               <Dato etiqueta="RFC" valor={sel.rfc} />
               <Dato etiqueta="Uso de CFDI" valor={sel.usoCFDI} />
@@ -170,6 +214,16 @@ export default function AltasAdmin() {
                     Marcar contactada
                   </button>
                 )}
+                {sel.origen === "google" && sel.estado !== "aprobada" && (
+                  <button
+                    type="button"
+                    className="pt-btn pt-btn-verde"
+                    onClick={() => activar(sel)}
+                    disabled={activando}
+                  >
+                    <UserCircle /> {activando ? "Activando…" : "Activar cuenta"}
+                  </button>
+                )}
                 {sel.estado !== "aprobada" && (
                   <button type="button" className="pt-btn pt-btn-verde" onClick={() => marcar(sel, "aprobada")}>
                     <Check /> Aprobar
@@ -181,6 +235,38 @@ export default function AltasAdmin() {
                   </button>
                 )}
               </div>
+
+              {credencial && (
+                <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
+                  <strong>Cuenta activada — cliente {credencial.folio}</strong>
+                  <p style={{ margin: "0.5rem 0", fontSize: "0.9rem" }}>
+                    Esta contraseña se enseña <strong>una sola vez</strong> y no se guarda
+                    en ningún lado. Mándasela ahora; le sirve para entrar desde la app del
+                    teléfono (en la página puede entrar con su Google).
+                  </p>
+                  <p style={{ margin: "0 0 0.6rem", fontFamily: "monospace", fontSize: "1.05rem" }}>
+                    {credencial.correo}<br />{credencial.password}
+                  </p>
+                  <a
+                    className="pt-btn"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://wa.me/52${(sel.telefono || "").replace(/\D/g, "")}?text=${encodeURIComponent(
+                      `Tu cuenta de Morcast del Norte ya está activa. Entra en morcast.mx/portal/login con tu cuenta de Google, o con este correo y contraseña desde la app: ${credencial.correo} / ${credencial.password}`
+                    )}`}
+                  >
+                    Mandar por WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    className="pt-btn"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => setCredencial(null)}
+                  >
+                    Ya la mandé
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

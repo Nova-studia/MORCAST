@@ -3,6 +3,7 @@
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { usuarioActual } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
+import { correoCuentaActivada } from "@/lib/correo";
 
 /**
  * ALTA DE UN CLIENTE CON SU ACCESO AL PORTAL.
@@ -205,4 +206,155 @@ export async function existeCuenta(correo) {
   const sb = supabaseServidor();
   const { data } = await sb.auth.admin.listUsers({ page: 1, perPage: 200 });
   return { ok: true, existe: Boolean(data?.users?.some((u) => (u.email || "").toLowerCase() === buscado)) };
+}
+
+/**
+ * ACTIVAR A ALGUIEN QUE YA EXISTE (se registró solo con Google).
+ *
+ * Es un camino aparte de `activarCuentaCliente`, y la diferencia importa:
+ * aquella CREA el usuario; aquí el usuario ya existe y es de esa persona.
+ *
+ * 🔴 POR ESO EL DESHACER ES DISTINTO. Si algo truena a media faena,
+ * `activarCuentaCliente` borra el usuario. Hacer eso aquí sería destruir la
+ * cuenta de Google de alguien real. Aquí se deshace lo que NOSOTROS creamos
+ * —la empresa y el sello— y el usuario no se toca nunca.
+ */
+export async function activarCuentaRegistrada({ solicitudId, password }) {
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { quien, error: sinPermiso } = await exigirPersonal();
+  if (sinPermiso) return { ok: false, motivo: sinPermiso };
+
+  if (!password || String(password).length < 8) {
+    return { ok: false, motivo: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
+  const sb = supabaseServidor();
+
+  const { data: solicitud, error: errSolicitud } = await sb
+    .from("solicitudes_alta")
+    .select("id, folio, empresa, contacto, telefono, correo, usuario_id, origen")
+    .eq("id", solicitudId)
+    .single();
+
+  if (errSolicitud || !solicitud) {
+    return { ok: false, motivo: "No se encontró esa solicitud." };
+  }
+  if (!solicitud.usuario_id) {
+    return {
+      ok: false,
+      motivo: "Esta solicitud no tiene cuenta ligada. Se activa con el alta normal, no por aquí.",
+    };
+  }
+
+  const uid = solicitud.usuario_id;
+
+  // ¿Ya estaba activada? Volver a hacerlo crearía una empresa duplicada.
+  const { data: perfilPrevio } = await sb
+    .from("perfiles").select("rol, cliente_id").eq("id", uid).maybeSingle();
+  if (perfilPrevio?.cliente_id) {
+    return { ok: false, motivo: "Esa cuenta ya está activada y ligada a una empresa." };
+  }
+
+  // 1) La empresa. El folio lo asigna la base (db/014), con su candado
+  //    contra carreras: calcularlo aquí sería leer el máximo y luego escribir.
+  const { data: cliente, error: errCliente } = await sb
+    .from("clientes")
+    .insert({
+      empresa: solicitud.empresa,
+      contacto: solicitud.contacto || null,
+      correo: solicitud.correo,
+      telefono: solicitud.telefono || null,
+      estado: "activo",
+    })
+    .select("id, folio, empresa")
+    .single();
+
+  if (errCliente || !cliente) {
+    return { ok: false, motivo: `No se pudo crear la empresa: ${errCliente?.message || "error desconocido"}` };
+  }
+
+  // Deshacer: SOLO lo que creamos nosotros. El usuario NO se toca.
+  const deshacer = async () => {
+    try {
+      await sb.auth.admin.updateUserById(uid, { app_metadata: { rol: null, cliente_id: null } });
+    } catch { /* se reporta el error de origen */ }
+    try {
+      await sb.from("perfiles").update({ rol: "pendiente", cliente_id: null }).eq("id", uid);
+    } catch { /* idem */ }
+    try {
+      await sb.from("clientes").delete().eq("id", cliente.id);
+    } catch { /* idem */ }
+  };
+
+  // 2) El sello y la contraseña, en una sola llamada. El disparador
+  //    `sincronizar_perfil()` (db/003) ve cambiar el app_metadata y acomoda
+  //    `perfiles` solo. Va DESPUÉS de crear la empresa porque ese disparador
+  //    ignora un rol 'cliente' sin `cliente_id`: sería incoherente.
+  const { error: errSello } = await sb.auth.admin.updateUserById(uid, {
+    password: String(password),
+    app_metadata: { rol: "cliente", cliente_id: cliente.id },
+  });
+
+  if (errSello) {
+    await deshacer();
+    return { ok: false, motivo: `No se pudo activar el acceso: ${errSello.message}` };
+  }
+
+  // 3) Completar lo que el disparador no toca (nombre y teléfono), y
+  //    asegurar el amarre por si el disparador no hubiera corrido.
+  const { data: perfil, error: errPerfil } = await sb
+    .from("perfiles")
+    .update({
+      nombre: solicitud.contacto || solicitud.empresa,
+      rol: "cliente",
+      cliente_id: cliente.id,
+      telefono: solicitud.telefono || null,
+      activo: true,
+    })
+    .eq("id", uid)
+    .select("id");
+
+  // Un UPDATE que no encuentra fila NO da error: responde 200 y cambia cero.
+  if (errPerfil || !perfil?.length) {
+    await deshacer();
+    return {
+      ok: false,
+      motivo: `No se pudo ligar la cuenta con la empresa: ${errPerfil?.message || "no se guardó ninguna fila"}`,
+    };
+  }
+
+  // 4) La solicitud queda trabajada. Que esto falle no invalida la activación.
+  await sb.from("solicitudes_alta").update({ estado: "aprobada" }).eq("id", solicitud.id);
+
+  try {
+    await correoCuentaActivada({
+      correo: solicitud.correo,
+      contacto: solicitud.contacto || solicitud.empresa,
+      empresa: cliente.empresa,
+      folio: cliente.folio,
+    });
+  } catch (e) {
+    console.error("[activar] aviso al cliente falló:", e?.message);
+  }
+
+  await registrar({
+    accion: "activar_cuenta_registrada",
+    tabla: "clientes",
+    registroId: cliente.id,
+    detalle: {
+      folio: cliente.folio,
+      empresa: cliente.empresa,
+      correo: solicitud.correo,
+      solicitud: solicitud.folio,
+      // La contraseña NO se registra. La bitácora la leen varias personas.
+    },
+  });
+
+  return {
+    ok: true,
+    cliente: { id: cliente.id, folio: cliente.folio, empresa: cliente.empresa },
+    correo: solicitud.correo,
+    creadaPor: quien.correo,
+  };
 }
