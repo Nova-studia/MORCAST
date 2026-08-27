@@ -34,6 +34,9 @@ hace que este trabajo sea barato:
   en Storage.
 - El disparador `perfil_sin_escalar()` (002-rls) ya impide que nadie se cambie su
   propio rol, su empresa ni su estado.
+- El candado `perfil_coherente` (001, reescrito en 003) **hace imposible que exista
+  un perfil `cliente` sin empresa**. Un registrado nuevo no puede colarse a ese rol
+  ni por accidente: la base rechazaría la fila.
 
 No estamos abriendo un hueco. Le estamos dando una pantalla decente a un estado que
 ya existía y que hoy sólo produce un rebote sin explicación.
@@ -59,7 +62,7 @@ llegue alguien sin rol — que es justo lo que este trabajo empieza a producir.
 | Decisión | Elegido | Por qué |
 |---|---|---|
 | Qué se le pide al registrarse | **Empresa y teléfono, en una pantalla corta** | Google sólo entrega nombre y correo. Sin teléfono, Morcast no puede contactarlo por WhatsApp, que es como trabaja. Es el menor roce que sigue sirviendo para activar. |
-| Dónde se representa el estado | **Rol `pendiente` explícito en la base** | El estado tiene nombre, así que **falla cerrado**: una política futura escrita para "cliente" no lo alcanza. La alternativa (deducirlo de `cliente_id` nulo) deja la regla escrita en la cabeza, y este proyecto ya se quemó cuatro veces con reglas que vivían en un solo lado. |
+| Dónde se representa el estado | **Rol `pendiente` explícito — que ya existe desde la 003** | El estado tiene nombre, así que **falla cerrado**: una política futura escrita para "cliente" no lo alcanza. Y no cuesta nada: la base ya lo trae. La alternativa (deducirlo de `cliente_id` nulo) dejaría la regla escrita en la cabeza. |
 | Dónde lo trabaja Morcast | **La bandeja `/admin/altas` que ya existe** | Una sola bandeja que revisar. El flujo de aprobar/rechazar/contactar ya está hecho y probado. Se distingue con una columna `origen`. |
 | Dónde se guardan los datos capturados | **`solicitudes_alta`, con tres columnas nuevas** | Es la misma bandeja de "alguien quiere ser cliente". Una tabla aparte la duplicaría campo por campo. |
 | Alcance de plataformas | **Sólo web** | Agregar OAuth a Expo (AuthSession, esquema de URL, dos registros más en Google Cloud) triplica el trabajo y no se puede probar en aparato desde esta laptop. |
@@ -90,42 +93,55 @@ llegue alguien sin rol — que es justo lo que este trabajo empieza a producir.
 
 ## 5. Base de datos — migración `017`
 
-Tres cambios, ninguno destructivo:
+> **CORRECCIÓN (27-ago).** La primera versión de este spec proponía crear el estado
+> `pendiente` y arreglar el disparador. **Las dos cosas ya estaban hechas**: las hizo
+> la migración `003` el 11-ago-2026, por exactamente el mismo motivo. Yo había leído
+> `001-esquema.sql` como si fuera el estado actual, y `003` lo supersede.
+>
+> Verificado contra la base de producción:
+>
+> ```
+> perfiles_rol_check  => CHECK (rol = ANY (ARRAY['dueno','admin','operador','cliente','pendiente']))
+> perfil_coherente    => (rol='cliente' AND cliente_id IS NOT NULL) OR (rol<>'cliente' AND cliente_id IS NULL)
+> nuevo_usuario()     => coalesce(raw_app_meta_data->>'rol', 'pendiente')
+> default de rol      => 'cliente'
+> ```
+>
+> **Consecuencia buena:** un registro de Google **ya nace `pendiente`** hoy, y
+> `perfil_coherente` impide que exista un cliente sin empresa. La base ya falla
+> cerrado. **El único fallo abierto real es el `?? "cliente"` de `proxy.js`.**
 
-1. **`perfiles.rol` acepta `'pendiente'`.** Se reescribe el candado a
-   `check (rol in ('dueno','admin','operador','cliente','pendiente'))` y se **quita el
-   default `'cliente'`** de la columna.
-2. **`nuevo_usuario()` deja de suponer.** Hoy hace
-   `coalesce(new.raw_app_meta_data ->> 'rol', 'cliente')`; pasa a `'pendiente'`. Quien
-   nace sin sello, nace pendiente.
-3. **`solicitudes_alta` gana tres columnas:**
+Lo que queda para la `017`, todo sobre `solicitudes_alta` y nada destructivo:
+
+1. **Tres columnas nuevas:**
    - `origen text not null default 'formulario' check (origen in ('formulario','google'))`
    - `usuario_id uuid references auth.users(id) on delete set null`
    - `correo_verificado boolean not null default false`
+2. **Índice único parcial sobre `usuario_id`** (donde no es nulo): una persona deja
+   sus datos una vez. Sin esto, recargar la pantalla de registro crea filas gemelas.
+3. **`servicios_por_mes` deja de ser obligatorio.** Hoy es `not null check (between 1
+   and 200)`, porque el formulario largo siempre lo pregunta. El registro con Google
+   **no lo pregunta**, y rellenarlo con un número inventado es justo el error del RFC
+   de la empresa de ejemplo: el panel enseñaría un dato que nadie dijo. Pasa a
+   `check (servicios_por_mes is null or servicios_por_mes between 1 and 200)` y en el
+   panel se ve como raya.
+4. **Se quita el default `'cliente'` de `perfiles.rol`** — cosmético y a prueba de
+   futuro. Hoy es inalcanzable: los tres `insert` sobre `perfiles` escriben el rol a
+   mano, y **el único sitio del código que crea usuarios** es `activarCuentaCliente`,
+   que siempre manda `app_metadata: { rol: "cliente" }`. Verificado con `grep`.
 
 **Lo que NO cambia:** `mi_rol()`, `mi_cliente()`, `es_personal()`, `es_dueno()` y
-todas las políticas siguen igual. `pendiente` simplemente no cae en ninguna, y como
-`mi_cliente()` es nulo, no ve una sola fila. Ese es el punto de elegir un estado
-explícito.
-
-**Quitar el default es seguro, y está verificado:** los tres `insert` que existen
-sobre `perfiles` (001, 003 y `acciones-alta-cliente.js`) escriben `rol` a mano, y en
-todo el código **el único sitio que crea usuarios** es `activarCuentaCliente`, que
-siempre manda `app_metadata: { rol: "cliente" }`.
+todas las políticas siguen igual. `pendiente` no cae en ninguna, y como
+`mi_cliente()` es nulo, no ve una sola fila.
 
 > **Nota de operación.** Los choferes y administradores se crean a mano desde el
-> tablero de Supabase. A partir de la 017, uno creado ahí **sin `app_metadata.rol`
-> queda como `pendiente`** y no entra a ningún lado. Antes quedaba como `cliente`,
-> que estaba igual de mal pero fallaba abierto. Al crear personal hay que escribir
-> el rol en `app_metadata` — nunca en `user_metadata`, que lo edita el propio
-> usuario.
+> tablero de Supabase. Uno creado ahí **sin `app_metadata.rol` queda `pendiente`** y
+> no entra a ningún lado — y esto ya es así desde la `003`, no lo estrena este
+> trabajo. Al crear personal hay que escribir el rol en `app_metadata`, nunca en
+> `user_metadata`, que lo edita el propio usuario.
 
-> **La migración se aplica ANTES de desplegar el código.** Si sale el código
-> primero, el disparador viejo sigue sellando como `'cliente'` a todo el que se
-> registre, y habría que repararlos a mano.
-
-> Las cuentas que ya existen no se tocan: todas tienen su rol escrito. El cambio
-> del default sólo afecta a los que nazcan de aquí en adelante.
+> **La migración se aplica ANTES de desplegar el código.** Sin las columnas nuevas,
+> la pantalla de registro no puede guardar nada.
 
 ## 6. Pantallas y flujo
 
@@ -286,9 +302,16 @@ es el despliegue; el trabajo va en la rama `registro-google`.
 
 **Nuevos:** `Web/db/017-registro-abierto.sql` · `Web/app/auth/callback/route.js` ·
 `Web/app/(portal)/portal/registro/page.js` · `Web/app/(portal)/portal/pendiente/page.js` ·
-`Web/lib/destino-sesion.js` (la función pura) · `Web/tests/destino-sesion.test.mjs`
+`Web/lib/destino-sesion.mjs` (la función pura) · `Web/tests/destino-sesion.test.mjs` ·
+`Web/app/acciones-registro.js`
 
 **Modificados:** `Web/proxy.js` · `Web/app/(portal)/layout.js` ·
 `Web/app/(portal)/portal/login/page.js` · `Web/app/acciones-alta-cliente.js` ·
-`Web/app/acciones-alta.js` · `Web/lib/datos-altas.js` · `Web/lib/correo.js` ·
+`Web/lib/datos-altas.js` · `Web/lib/correo.js` ·
 `Web/app/(admin)/admin/altas/page.js`
+
+> Ajustado al escribir el plan: `acciones-alta.js` **no se toca**. El registro con
+> Google es otro flujo (usuario con sesión, no formulario público), así que sus
+> acciones viven en `acciones-registro.js`. Y la función pura va en `.mjs`, no
+> `.js`, para que `node --test` la pueda importar — es como ya vive
+> `lib/punto-en-zona.mjs`.
