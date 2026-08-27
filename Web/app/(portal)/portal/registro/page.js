@@ -74,7 +74,16 @@ export default function RegistroPortal() {
 
   return (
     <div className="pt-login">
-      <div className="pt-login-form-lado" style={{ margin: "0 auto" }}>
+      <div
+        className="pt-login-form-lado"
+        /* `.pt-login` es una rejilla de DOS columnas (portal.css:592).
+           Esta pantalla monta un solo hijo, asi que sin esto la tarjeta
+           se queda en la mitad izquierda con la derecha en blanco. No
+           lleva `margin: 0 auto`: `.pt-login-form-lado` ya centra con
+           flex, y en el telefono la rejilla colapsa a una columna, donde
+           `1 / -1` sigue siendo correcto. */
+        style={{ gridColumn: "1 / -1" }}
+      >
         <div className="pt-login-card">
           <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
             <Image
