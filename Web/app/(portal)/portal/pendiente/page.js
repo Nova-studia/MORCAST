@@ -73,12 +73,32 @@ export default function PendientePortal() {
     if (!haySupabaseNavegador()) return;
     setRevisando(true);
     setSinNovedad(false);
-    const { data } = await supabaseNavegador().auth.refreshSession();
+    const { data, error } = await supabaseNavegador().auth.refreshSession();
+
+    // Ya trae el sello: adentro.
     if (data?.user?.app_metadata?.rol) {
       router.refresh();
       router.replace("/portal");
       return;
     }
+
+    // ⚠️ Sesión muerta, que NO es lo mismo que "todavía no lo han activado".
+    // Al activar, el panel le pone una contraseña para que pueda entrar también
+    // desde la app del teléfono, y cambiar la contraseña REVOCA todas las
+    // sesiones abiertas del usuario — incluida ésta, la de quien está esperando
+    // en esta misma pantalla. Sin separar este caso, la pantalla decía "Todavía
+    // no" justo en el momento en que sí lo habían activado.
+    if (error || !data?.session) {
+      router.refresh();
+      router.replace(
+        "/portal/login?error=" +
+          encodeURIComponent(
+            "Tu sesión se cerró. Vuelve a entrar: si la empresa ya activó tu cuenta, entrarás directo al portal."
+          )
+      );
+      return;
+    }
+
     setRevisando(false);
     setSinNovedad(true);
   };
