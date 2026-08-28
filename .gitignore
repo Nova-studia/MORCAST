@@ -17,3 +17,8 @@ ACCESO-*.txt
 
 # Basura que deja macOS al abrir una carpeta. No es del proyecto.
 .DS_Store
+
+# Andamio de trabajo de los agentes (bitacora, informes, paquetes de revision).
+# Es borrador: el registro de verdad es el historial de git. Y este repo es
+# publico desde el 20-ago-2026, asi que aqui no entra nada de andamio.
+.superpowers/

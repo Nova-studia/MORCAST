@@ -298,3 +298,96 @@ export async function correoSaldoResuelto({ correo, empresa, monto, aplicado, no
       <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Registro abierto con Google                                         */
+/*                                                                     */
+/* Son funciones aparte y no un parámetro de correoAvisoAlta /         */
+/* correoAcuseAlta a propósito: esas dos hablan de cobertura y de      */
+/* "pediste N recolecciones al mes", y el registro con Google no       */
+/* pregunta ninguna de las dos cosas. Meterles un `if` las volvería    */
+/* dos correos disfrazados de uno. Lo que sí se reusa —`plantilla()` y */
+/* `enviar()`— es la parte que de verdad se comparte.                  */
+/* ------------------------------------------------------------------ */
+
+/** Aviso a Morcast: alguien se registró solo. */
+export async function correoAvisoRegistro(datos) {
+  const fila = (etiqueta, valor) =>
+    valor
+      ? `<tr><td style="padding:6px 12px 6px 0;font-weight:bold;white-space:nowrap;vertical-align:top">${etiqueta}</td><td style="padding:6px 0">${esc(String(valor))}</td></tr>`
+      : "";
+
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: datos.correo,
+    subject: `Registro nuevo — ${datos.empresa} (${datos.folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Alguien se registró con Google</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Creó su cuenta en morcast.mx. <strong>Todavía no tiene acceso a nada</strong>:
+        entra al portal hasta que ustedes activen la cuenta.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5">
+        ${fila("Folio", datos.folio)}
+        ${fila("Empresa", datos.empresa)}
+        ${fila("Contacto", datos.contacto)}
+        ${fila("Teléfono", datos.telefono)}
+        ${fila("Correo", datos.correo)}
+      </table>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Está en el panel, en <strong>Altas de clientes</strong>
+        (morcast.mx/admin/altas), con el filtro <strong>Se registraron</strong>.
+        Ahí mismo está el botón para activarle la cuenta.</p>`),
+  });
+}
+
+/** Acuse para quien se registró. */
+export async function correoAcuseRegistro(datos) {
+  return enviar({
+    from: REMITENTE,
+    to: [datos.correo],
+    subject: `Recibimos tu registro — Morcast del Norte (${datos.folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Recibimos tu registro</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(datos.contacto)}, ya quedó registrada
+        <strong>${esc(datos.empresa)}</strong>. Tu folio es
+        <strong>${esc(datos.folio)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        El siguiente paso lo damos nosotros: revisamos tus datos y te
+        contactamos para activarte la cuenta. Mientras tanto, tu acceso al
+        portal todavía no está abierto.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Te buscamos al ${esc(datos.telefono)}. Si algo cambió, responde a este correo.</p>`),
+  });
+}
+
+/**
+ * Aviso de que la cuenta ya quedó activa.
+ *
+ * ⚠️ NO lleva la contraseña adentro, a propósito. La contraseña se la enseña
+ * el panel a quien activa, una sola vez, para que se la mande por WhatsApp.
+ * Una contraseña dentro de un correo se queda ahí para siempre, en el buzón
+ * del cliente y en el de quien reenvíe el hilo.
+ */
+export async function correoCuentaActivada({ correo, contacto, empresa, folio }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    subject: `Tu cuenta ya está activa — Morcast del Norte`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu cuenta ya está activa</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, ya puedes entrar al portal de
+        <strong>${esc(empresa)}</strong>. Tu número de cliente es
+        <strong>${esc(folio)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Entra en <a href="https://morcast.mx/portal/login" style="color:#144C4F">morcast.mx/portal/login</a>
+        con el mismo botón de Google que usaste para registrarte.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Ahí puedes agendar recolecciones, ver tu historial, descargar tus
+        manifiestos y consultar tu saldo.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿Dudas? Responde a este correo o llámanos al 868 384 9478.</p>`),
+  });
+}

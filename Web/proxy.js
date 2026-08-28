@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
 
 /**
  * GUARDIA DE RUTAS — se ejecuta en el servidor ANTES de entregar la página.
@@ -93,17 +94,39 @@ export async function proxy(request) {
   // El rol viaja dentro del token, en app_metadata, que solo se puede escribir
   // con la llave de servicio. Leerlo de aquí evita ir a la base de datos en
   // cada petición. (user_metadata NO sirve: eso lo edita el propio usuario.)
-  const rol = user.app_metadata?.rol ?? "cliente";
+  //
+  // ⚠️ Aquí había `?? "cliente"`. Eso bautizaba cliente a cualquiera que
+  // llegara SIN sello —que es justo lo que produce el registro abierto con
+  // Google— y el guardia lo dejaba pasar a /portal. Fallaba abierto. Ahora la
+  // decisión la toma `casaDe()`, que no supone nada y está probada en
+  // `tests/destino-sesion.test.mjs`.
+  const rol = user.app_metadata?.rol ?? null;
   const esPersonal = rol === "dueno" || rol === "admin";
 
   /** A dónde pertenece cada rol. Ahí se manda a quien se equivoque de puerta. */
-  const suCasa = esPersonal ? "/admin" : rol === "operador" ? "/chofer" : "/portal";
+  const suCasa = casaDe(rol);
 
   const aSuCasa = () => {
     const url = request.nextUrl.clone();
     url.pathname = suCasa;
     return NextResponse.redirect(url);
   };
+
+  // Las dos pantallas del registro son la casa de quien todavía no tiene
+  // sello. Se dejan pasar AQUÍ y no en `ABIERTAS` a propósito: en ABIERTAS
+  // entraría cualquiera sin sesión, y estas dos pantallas no tienen nada que
+  // enseñarle a quien no ha entrado. Quien ya tiene su área se va a la suya:
+  // un cliente activo no tiene por qué ver la sala de espera.
+  //
+  // Va con `esArea` y no con `startsWith` a propósito: `startsWith` no
+  // respeta el límite de segmento y dejaría pasar de colado a algo como
+  // `/portal/pendiente-falso` o `/portal/registroX`, saltándose los tres
+  // rebotes de abajo.
+  const salaDeEspera =
+    esArea(ruta, DESTINOS.pendiente) || esArea(ruta, DESTINOS.registro);
+  if (salaDeEspera) {
+    return suCasa === DESTINOS.pendiente ? respuesta : aSuCasa();
+  }
 
   // Cada quien en su área. Un cliente no entra al panel, un chofer no entra al
   // portal, y el personal no anda en el modo chofer.

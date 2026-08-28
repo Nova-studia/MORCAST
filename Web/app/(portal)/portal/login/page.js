@@ -10,7 +10,9 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
+import { mensajeDeError } from "@/lib/errores-login.mjs";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
+import { supabaseNavegador } from "@/lib/supabase-navegador";
 
 export default function LoginPortal() {
   const router = useRouter();
@@ -44,6 +46,56 @@ export default function LoginPortal() {
     // creada. Sin esto, proxy.js todavía ve "sin sesión" y rebota al login.
     router.refresh();
     router.replace("/portal");
+  };
+
+  /**
+   * Aviso de vuelta de /auth/callback (o de la sala de espera) cuando algo
+   * salió mal.
+   *
+   * La URL trae un CÓDIGO CORTO y el texto lo pone `lib/errores-login.mjs`.
+   * Antes se pintaba literal lo que viniera en `?error=`: React escapa, así
+   * que no había XSS, pero `morcast.mx/portal/login?error=Tu cuenta fue
+   * bloqueada, llama al 555…` era una trampa de phishing creíble SOBRE EL
+   * DOMINIO REAL de la empresa. Un código que no esté en el diccionario cae
+   * en el mensaje genérico.
+   *
+   * Y el parámetro se BORRA de la barra en cuanto se lee: si se queda, el
+   * aviso sobrevive a las recargas y al botón de atrás, y el enlace se puede
+   * seguir copiando y reenviando. `replaceState` no navega ni recarga: sólo
+   * reescribe lo que se ve en la barra.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codigo = params.get("error");
+    if (!codigo) return;
+    setError(mensajeDeError(codigo));
+    params.delete("error");
+    const cola = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (cola ? `?${cola}` : ""));
+  }, []);
+
+  /**
+   * Entrar con Google.
+   *
+   * `redirectTo` apunta a nuestro `/auth/callback`, que es quien escribe la
+   * sesión en cookies. Se arma con `window.location.origin` y no con una URL
+   * escrita a mano: así funciona igual en morcast.mx, en localhost y en las
+   * vistas previas de Vercel. Esas tres direcciones tienen que estar dadas de
+   * alta en Supabase (Authentication → URL Configuration).
+   */
+  const entrarConGoogle = async () => {
+    setError("");
+    setEnviando(true);
+    const { error: err } = await supabaseNavegador().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (err) {
+      setError("No se pudo abrir la entrada con Google. Inténtalo de nuevo.");
+      setEnviando(false);
+    }
+    // Si no hubo error el navegador ya se está yendo a Google: no se apaga
+    // `enviando`, para que no parpadee el botón mientras navega.
   };
 
   return (
@@ -92,6 +144,31 @@ export default function LoginPortal() {
           <p>Accede con las credenciales de tu empresa.</p>
 
           {error && <div className="pt-login-error">{error}</div>}
+
+          <button
+            type="button"
+            className="pt-btn"
+            style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }}
+            onClick={entrarConGoogle}
+            disabled={enviando}
+          >
+            {/* El logotipo de Google va como SVG en línea: la CSP del sitio no
+                deja traer imágenes de otros dominios, y Phosphor no trae la G
+                de cuatro colores. */}
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+              <path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+            </svg>
+            Continuar con Google
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", margin: "1.1rem 0" }}>
+            <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.15 }} />
+            <span style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>o con tu correo</span>
+            <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.15 }} />
+          </div>
 
           <form onSubmit={entrar}>
             <div className="pt-campo">

@@ -8,8 +8,11 @@ import {
   Phone,
   MapPin,
   WarningCircle,
+  GoogleLogo,
+  UserCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { listarAltas, cambiarEstadoAlta } from "@/lib/datos-altas";
+import { activarCuentaRegistrada } from "@/app/acciones-alta-cliente";
 
 const ESTADOS = [
   { id: "nueva", texto: "Nueva", clase: "" },
@@ -20,6 +23,31 @@ const ESTADOS = [
 
 const fecha = (iso) =>
   new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+
+/**
+ * EL TELÉFONO, EN EL FORMATO QUE ENTIENDE WHATSAPP.
+ *
+ * Los enlaces de aquí armaban `wa.me/52` + los dígitos que hubiera escrito el
+ * cliente, pero el registro acepta A PROPÓSITO de 10 a 15 dígitos "por si
+ * traen lada" (`app/acciones-registro.js`). Quien escribió `+52 868 384 9478`
+ * terminaba en `wa.me/52528683849478`, que no lleva a ningún lado — y en el
+ * botón de abajo eso significa PERDER LA CONTRASEÑA: se enseña una sola vez,
+ * no se guarda en ninguna parte, no va en el correo, y el botón de activar ya
+ * no deja repetirla.
+ *
+ * Así que: se quitan los signos, se quita el `52`/`521` de país si ya venía, y
+ * se antepone `521` — el mismo formato que ya usa `EMPRESA.whatsapp` en
+ * `lib/datos.js` para los teléfonos de la empresa.
+ */
+function whatsappMx(telefono) {
+  let n = String(telefono || "").replace(/\D/g, "");
+  // El prefijo de país se quita SÓLO si lo que queda sigue siendo un teléfono
+  // completo de 10 dígitos. Sin esa comprobación, un número local que por
+  // casualidad empezara con 52 se quedaría mocho.
+  if (n.startsWith("521") && n.length >= 13) n = n.slice(3);
+  else if (n.startsWith("52") && n.length >= 12) n = n.slice(2);
+  return `521${n}`;
+}
 
 export default function AltasAdmin() {
   const [altas, setAltas] = useState([]);
@@ -39,7 +67,38 @@ export default function AltasAdmin() {
     setSel((s) => (s && s.id === a.id ? { ...s, estado } : s));
   };
 
-  const lista = filtro === "todas" ? altas : altas.filter((a) => a.estado === filtro);
+  const [activando, setActivando] = useState(false);
+  const [credencial, setCredencial] = useState(null); // { solicitudId, correo, password, folio }
+
+  /** Contraseña legible por teléfono: sin l/1/O/0, que se confunden al dictarla. */
+  const contrasenaNueva = () => {
+    // Sin `Math.random()`: no es criptográfico y de sus salidas se puede
+    // recuperar el estado del generador, así que dos contraseñas seguidas
+    // dejan de ser independientes. Esto SÍ es aleatoriedad de verdad.
+    const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    return Array.from(bytes, (b) => abc[b % abc.length]).join("");
+  };
+
+  const activar = async (a) => {
+    setError("");
+    setActivando(true);
+    const password = contrasenaNueva();
+    const r = await activarCuentaRegistrada({ solicitudId: a.id, password });
+    setActivando(false);
+    if (!r.ok) { setError(r.motivo || "No se pudo activar."); return; }
+    // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
+    // Va con el `solicitudId` a cuestas: la tarjeta de abajo se pinta sólo
+    // sobre el detalle de ESTA persona.
+    setCredencial({ solicitudId: a.id, correo: r.correo, password, folio: r.cliente.folio });
+    await recargar();
+    setSel((s) => (s && s.id === a.id ? { ...s, estado: "aprobada" } : s));
+  };
+
+  const lista =
+    filtro === "todas" ? altas
+    : filtro === "google" ? altas.filter((a) => a.origen === "google")
+    : altas.filter((a) => a.estado === filtro);
   const nuevas = altas.filter((a) => a.estado === "nueva").length;
 
   return (
@@ -47,8 +106,10 @@ export default function AltasAdmin() {
       <div className="pt-page-head">
         <h1>Altas de clientes</h1>
         <p>
-          Quien llena <strong>Cotización/Alta</strong> en la página cae aquí. También te
-          llega un correo a contacto@morcast.mx en cuanto lo manda.
+          Quien llena <strong>Cotización/Alta</strong> en la página cae aquí, y también
+          quien <strong>se registra con Google</strong>. A esos últimos les aparece el
+          botón <strong>Activar cuenta</strong>: su acceso ya existe, sólo falta ligarlo
+          con su empresa.
         </p>
       </div>
 
@@ -59,7 +120,9 @@ export default function AltasAdmin() {
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
-        {[{ id: "nueva", texto: `Sin atender (${nuevas})` }, ...ESTADOS.slice(1), { id: "todas", texto: "Todas" }].map((f) => (
+        {[{ id: "nueva", texto: `Sin atender (${nuevas})` }, ...ESTADOS.slice(1),
+          { id: "google", texto: `Se registraron (${altas.filter((a) => a.origen === "google").length})` },
+          { id: "todas", texto: "Todas" }].map((f) => (
           <button
             key={f.id}
             type="button"
@@ -94,10 +157,19 @@ export default function AltasAdmin() {
                       onClick={() => setSel(a)}
                       style={{ cursor: "pointer", background: sel?.id === a.id ? "rgba(255,255,255,0.04)" : undefined }}
                     >
-                      <td className="folio">{a.folio}</td>
+                      <td className="folio">
+                        {a.origen === "google" && (
+                          <GoogleLogo
+                            weight="bold"
+                            title="Se registró con Google"
+                            style={{ marginRight: 5, verticalAlign: "-2px" }}
+                          />
+                        )}
+                        {a.folio}
+                      </td>
                       <td style={{ whiteSpace: "nowrap" }}>{fecha(a.creado)}</td>
                       <td>{a.empresa}</td>
-                      <td className="num">{a.serviciosPorMes}</td>
+                      <td className="num">{a.serviciosPorMes ?? "—"}</td>
                       <td>
                         <span className={`pt-badge ${a.enCobertura ? "verde" : "rojo"}`}>
                           {/* Decía "En ruta", que es además el nombre de un
@@ -135,7 +207,7 @@ export default function AltasAdmin() {
                 <a className="pt-btn" href={`tel:${sel.telefono}`}><Phone /> Llamar</a>
                 <a className="pt-btn" href={`mailto:${sel.correo}?subject=Tu alta en Morcast (${sel.folio})`}><Envelope /> Correo</a>
                 <a className="pt-btn" target="_blank" rel="noreferrer"
-                   href={`https://wa.me/52${(sel.telefono || "").replace(/\D/g, "")}`}>WhatsApp</a>
+                   href={`https://wa.me/${whatsappMx(sel.telefono)}`}>WhatsApp</a>
               </div>
 
               <Dato etiqueta="Contacto" valor={`${sel.contacto} · ${sel.telefono}`} />
@@ -147,7 +219,10 @@ export default function AltasAdmin() {
                 etiqueta="Equipo pedido"
                 valor={(sel.equipo || []).map((e) => `${e.cantidad} × ${e.tipo} ${e.medida}`).join(", ")}
               />
-              <Dato etiqueta="Recolecciones al mes" valor={sel.serviciosPorMes} />
+              <Dato
+                etiqueta="Recolecciones al mes"
+                valor={sel.serviciosPorMes ?? (sel.origen === "google" ? "No lo preguntamos en el registro" : null)}
+              />
               <Dato etiqueta="Razón social" valor={sel.razonSocial} />
               <Dato etiqueta="RFC" valor={sel.rfc} />
               <Dato etiqueta="Uso de CFDI" valor={sel.usoCFDI} />
@@ -170,7 +245,28 @@ export default function AltasAdmin() {
                     Marcar contactada
                   </button>
                 )}
-                {sel.estado !== "aprobada" && (
+                {/* Para quien se registró con Google, "Activar cuenta" ES el
+                    gesto de aprobar: le crea la empresa y le liga el acceso.
+                    Se pinta sin mirar el estado —la acción del servidor ya
+                    rechaza la segunda activación con "Esa cuenta ya está
+                    activada"—, porque si se escondiera al quedar "aprobada"
+                    no habría forma de activarla desde la pantalla. */}
+                {sel.origen === "google" && (
+                  <button
+                    type="button"
+                    className="pt-btn pt-btn-verde"
+                    onClick={() => activar(sel)}
+                    disabled={activando}
+                  >
+                    <UserCircle /> {activando ? "Activando…" : "Activar cuenta"}
+                  </button>
+                )}
+                {/* Y por eso "Aprobar" se esconde ahí: es verde, idéntico y
+                    está pegado al otro, pero sólo cambia el estado y no crea
+                    nada. Quien lo pulsara primero dejaba a esa persona en
+                    `pendiente` y sin salida, porque el botón bueno ya no se
+                    pintaba. Tener los dos juntos era la trampa. */}
+                {sel.origen !== "google" && sel.estado !== "aprobada" && (
                   <button type="button" className="pt-btn pt-btn-verde" onClick={() => marcar(sel, "aprobada")}>
                     <Check /> Aprobar
                   </button>
@@ -181,6 +277,46 @@ export default function AltasAdmin() {
                   </button>
                 )}
               </div>
+
+              {/* La tarjeta se pinta SÓLO si la credencial es de la solicitud
+                  que está abierta. Sin esta comprobación bastaba con clicar
+                  otra fila —o cambiar de filtro— para que el enlace de
+                  WhatsApp armara el teléfono del segundo cliente con la
+                  contraseña del primero, y la cabecera dijera un folio que no
+                  era. Se comprueba al pintar y no al cambiar de selección
+                  porque así quedan cubiertos TODOS los caminos que mueven
+                  `sel`, no sólo el clic en la tabla. */}
+              {credencial && credencial.solicitudId === sel.id && (
+                <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
+                  <strong>Cuenta activada — cliente {credencial.folio}</strong>
+                  <p style={{ margin: "0.5rem 0", fontSize: "0.9rem" }}>
+                    Esta contraseña se enseña <strong>una sola vez</strong> y no se guarda
+                    en ningún lado. Mándasela ahora; le sirve para entrar desde la app del
+                    teléfono (en la página puede entrar con su Google).
+                  </p>
+                  <p style={{ margin: "0 0 0.6rem", fontFamily: "monospace", fontSize: "1.05rem" }}>
+                    {credencial.correo}<br />{credencial.password}
+                  </p>
+                  <a
+                    className="pt-btn"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://wa.me/${whatsappMx(sel.telefono)}?text=${encodeURIComponent(
+                      `Tu cuenta de Morcast del Norte ya está activa. Entra en morcast.mx/portal/login con tu cuenta de Google, o con este correo y contraseña desde la app: ${credencial.correo} / ${credencial.password}`
+                    )}`}
+                  >
+                    Mandar por WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    className="pt-btn"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => setCredencial(null)}
+                  >
+                    Ya la mandé
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
