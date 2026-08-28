@@ -6,6 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock, Phone, Envelope, WhatsappLogo, ArrowClockwise } from "@phosphor-icons/react/dist/ssr";
 import { EMPRESA } from "@/lib/datos";
+import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
+import { ERRORES_LOGIN } from "@/lib/errores-login.mjs";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { cerrarSesion } from "@/lib/portal-sesion";
 import { miSolicitud } from "@/app/acciones-registro";
@@ -35,7 +37,15 @@ export default function PendientePortal() {
         return;
       }
       // Si ya trae sello, aquí no pinta nada.
-      if (user.app_metadata?.rol) {
+      //
+      // ⚠️ Qué es "tener sello" lo decide `casaDe` y no un `if (rol)`. Los
+      // choferes y administradores se crean a mano desde el tablero de
+      // Supabase: si alguien teclea `"Operador"` o `"Cliente"` con mayúscula,
+      // ese rol es truthy pero `proxy.js` no lo reconoce y devuelve a esta
+      // pantalla. Con la pregunta suelta, esta línea lo mandaba a /portal, el
+      // guardia lo regresaba aquí, y así para siempre — con una consulta a
+      // Supabase por vuelta.
+      if (casaDe(user.app_metadata?.rol) !== DESTINOS.pendiente) {
         router.replace("/portal");
         return;
       }
@@ -75,8 +85,9 @@ export default function PendientePortal() {
     setSinNovedad(false);
     const { data, error } = await supabaseNavegador().auth.refreshSession();
 
-    // Ya trae el sello: adentro.
-    if (data?.user?.app_metadata?.rol) {
+    // Ya trae el sello: adentro. Misma regla que arriba, y por lo mismo: un
+    // rol que `casaDe` no reconoce NO es un sello, aunque sea truthy.
+    if (casaDe(data?.user?.app_metadata?.rol) !== DESTINOS.pendiente) {
       router.refresh();
       router.replace("/portal");
       return;
@@ -88,14 +99,13 @@ export default function PendientePortal() {
     // sesiones abiertas del usuario — incluida ésta, la de quien está esperando
     // en esta misma pantalla. Sin separar este caso, la pantalla decía "Todavía
     // no" justo en el momento en que sí lo habían activado.
+    //
+    // A la URL va un CÓDIGO, no la frase: el texto lo escribe
+    // `lib/errores-login.mjs`. Ver el comentario de ese archivo — la frase en
+    // la barra la podía escribir cualquiera que armara el enlace.
     if (error || !data?.session) {
       router.refresh();
-      router.replace(
-        "/portal/login?error=" +
-          encodeURIComponent(
-            "Tu sesión se cerró. Vuelve a entrar: si la empresa ya activó tu cuenta, entrarás directo al portal."
-          )
-      );
+      router.replace(`/portal/login?error=${ERRORES_LOGIN.sesionCerrada}`);
       return;
     }
 

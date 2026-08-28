@@ -309,7 +309,14 @@ export async function listarUsuarios() {
   const { data, error } = await supabaseNavegador()
     .from("perfiles")
     .select("id, nombre, rol, activo, creado, telefono")
-    .in("rol", ["dueno", "admin", "operador", "pendiente"])
+    // ⚠️ `pendiente` NO va aquí. Esta pantalla es el PERSONAL de Morcast —el
+    // dueño, los administradores y los choferes—, y `pendiente` era un estado
+    // teórico hasta que se abrió el registro con Google: hoy es todo el que
+    // pulse "Continuar con Google". Se colarían entre el personal como
+    // "Sin nombre / — / Sin asignar", incluidos los que se registran y cierran
+    // la pestaña sin llenar el formulario. Los registrados se trabajan en
+    // /admin/altas, que es la pantalla hecha para eso.
+    .in("rol", ["dueno", "admin", "operador"])
     .order("creado");
 
   if (error) {

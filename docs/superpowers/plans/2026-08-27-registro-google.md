@@ -1899,7 +1899,35 @@ Esperado: los dos primeros **307 hacia `/portal/login`** (sin sesión no se lleg
 
 - [ ] **Step 5: El circuito completo, en el navegador**
 
-Sin el proveedor de Google encendido no se puede hacer clic en el botón, así que se entra como el usuario de prueba poniéndole una contraseña por la Admin API, que deja la sesión en el mismo estado en que la deja Google (**usuario sin `rol`**):
+> 🔴 **CORRECCIÓN (27-ago, salió intentándolo).** Este paso decía que se entrara
+> poniéndole una contraseña al usuario de prueba y usando el formulario de
+> login. **Eso NO puede funcionar**, y es culpa de este plan, no del código:
+> `iniciarSesion()` en `lib/portal-sesion.js` comprueba el rol y, si no es
+> `cliente`, hace `signOut()` y devuelve "Esta cuenta todavía no está activada
+> como cliente". O sea que el propio login expulsa al pendiente antes de que
+> pueda llegar a ninguna de las pantallas nuevas.
+>
+> Eso está **bien** para el producto —esa puerta es sólo para clientes ya
+> activados— pero invalida la simulación.
+>
+> **La vía buena es un enlace mágico**, que crea la sesión por el mismo camino
+> que Google (código → `/auth/callback` → cookies) y de paso ejercita nuestro
+> callback de verdad, en vez de rodearlo:
+>
+> ```js
+> const { data } = await sb.auth.admin.generateLink({
+>   type: "magiclink",
+>   email: "prueba-google@morcast-qa.mx",
+>   options: { redirectTo: "http://localhost:3000/auth/callback" },
+> });
+> console.log(data.properties.action_link);
+> ```
+>
+> Se abre ese `action_link` en el navegador y a partir de ahí el recorrido es el
+> real. **No inventar cookies a mano**: es frágil y fue justo donde se atascó el
+> primer intento.
+
+Sin el proveedor de Google encendido no se puede hacer clic en el botón, así que se entra con el enlace mágico de arriba, que deja la sesión en el mismo estado en que la deja Google (**usuario sin `rol`**). El bloque de abajo queda como referencia de lo que NO sirve:
 
 ```bash
 cd Web

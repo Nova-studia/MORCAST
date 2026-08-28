@@ -2,6 +2,7 @@
 
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { supabaseSesion } from "@/lib/supabase-sesion";
+import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
 import { solicitudDeUsuario } from "@/lib/solicitudes-registro";
 import { correoAvisoRegistro, correoAcuseRegistro } from "@/lib/correo";
 import { registrar } from "@/lib/bitacora";
@@ -66,7 +67,13 @@ export async function registrarConGoogle({ empresa, telefono }) {
   if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar con Google." };
 
   // Quien ya tiene sello no pasa por aquí: es un cliente activo.
-  if (user.app_metadata?.rol) {
+  //
+  // ⚠️ "Tener sello" lo decide `casaDe`, igual que en `proxy.js` y en la sala
+  // de espera. Con un `if (rol)` suelto, un rol que nadie reconoce —un
+  // `"Cliente"` con mayúscula tecleado en el tablero de Supabase— bloqueaba el
+  // registro de alguien que en realidad NO tiene acceso a nada, dejándolo sin
+  // ninguna puerta: ni entra al portal ni puede dejar sus datos.
+  if (casaDe(user.app_metadata?.rol) !== DESTINOS.pendiente) {
     return { ok: false, motivo: "Tu cuenta ya está dada de alta." };
   }
 

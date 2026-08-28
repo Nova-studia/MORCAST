@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
+import { mensajeDeError } from "@/lib/errores-login.mjs";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 
@@ -47,11 +48,30 @@ export default function LoginPortal() {
     router.replace("/portal");
   };
 
-  // Mensaje de vuelta de /auth/callback cuando algo salió mal con Google.
+  /**
+   * Aviso de vuelta de /auth/callback (o de la sala de espera) cuando algo
+   * salió mal.
+   *
+   * La URL trae un CÓDIGO CORTO y el texto lo pone `lib/errores-login.mjs`.
+   * Antes se pintaba literal lo que viniera en `?error=`: React escapa, así
+   * que no había XSS, pero `morcast.mx/portal/login?error=Tu cuenta fue
+   * bloqueada, llama al 555…` era una trampa de phishing creíble SOBRE EL
+   * DOMINIO REAL de la empresa. Un código que no esté en el diccionario cae
+   * en el mensaje genérico.
+   *
+   * Y el parámetro se BORRA de la barra en cuanto se lee: si se queda, el
+   * aviso sobrevive a las recargas y al botón de atrás, y el enlace se puede
+   * seguir copiando y reenviando. `replaceState` no navega ni recarga: sólo
+   * reescribe lo que se ve en la barra.
+   */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const e = params.get("error");
-    if (e) setError(e);
+    const codigo = params.get("error");
+    if (!codigo) return;
+    setError(mensajeDeError(codigo));
+    params.delete("error");
+    const cola = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (cola ? `?${cola}` : ""));
   }, []);
 
   /**

@@ -26,6 +26,25 @@ test("el rol pendiente y cualquier rol desconocido tampoco entran", () => {
   assert.equal(casaDe("Cliente"), DESTINOS.pendiente); // ojo: distingue mayusculas
 });
 
+// EL BUCLE INFINITO. Los choferes y administradores se crean a mano desde el
+// tablero de Supabase, asi que un `"Operador"` o un `"Cliente"` con mayuscula
+// es un accidente real, no un caso de laboratorio. Ese rol es TRUTHY: tres
+// pantallas preguntaban `if (rol)` y lo daban por sellado, mientras proxy.js
+// —que si usa `casaDe`— lo devolvia a la sala de espera. La pantalla mandaba a
+// /portal, el guardia mandaba a /portal/pendiente, y asi para siempre, con una
+// consulta a Supabase por vuelta. La regla vive aqui: quien pregunte por el
+// sello tiene que preguntarle a `casaDe`, no a la verdad del rol.
+test("un rol con otra mayuscula NO es un sello, aunque sea truthy", () => {
+  for (const rol of ["Cliente", "CLIENTE", "Operador", "Dueno", "Admin", " cliente"]) {
+    assert.ok(rol, `el caso ${rol} debe ser truthy para que la prueba valga`);
+    assert.equal(casaDe(rol), DESTINOS.pendiente);
+  }
+  // Y por lo tanto tampoco entra por `decidirDestino`: sin datos capturados,
+  // a llenar el formulario; con datos, a esperar.
+  assert.equal(decidirDestino({ rol: "Cliente", tieneSolicitud: false }), DESTINOS.registro);
+  assert.equal(decidirDestino({ rol: "Operador", tieneSolicitud: true }), DESTINOS.pendiente);
+});
+
 test("decidirDestino parte al pendiente segun si ya capturo sus datos", () => {
   assert.equal(decidirDestino({ rol: null, tieneSolicitud: false }), DESTINOS.registro);
   assert.equal(decidirDestino({ rol: null, tieneSolicitud: true }), DESTINOS.pendiente);

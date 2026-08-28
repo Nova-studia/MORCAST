@@ -24,6 +24,31 @@ const ESTADOS = [
 const fecha = (iso) =>
   new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 
+/**
+ * EL TELÉFONO, EN EL FORMATO QUE ENTIENDE WHATSAPP.
+ *
+ * Los enlaces de aquí armaban `wa.me/52` + los dígitos que hubiera escrito el
+ * cliente, pero el registro acepta A PROPÓSITO de 10 a 15 dígitos "por si
+ * traen lada" (`app/acciones-registro.js`). Quien escribió `+52 868 384 9478`
+ * terminaba en `wa.me/52528683849478`, que no lleva a ningún lado — y en el
+ * botón de abajo eso significa PERDER LA CONTRASEÑA: se enseña una sola vez,
+ * no se guarda en ninguna parte, no va en el correo, y el botón de activar ya
+ * no deja repetirla.
+ *
+ * Así que: se quitan los signos, se quita el `52`/`521` de país si ya venía, y
+ * se antepone `521` — el mismo formato que ya usa `EMPRESA.whatsapp` en
+ * `lib/datos.js` para los teléfonos de la empresa.
+ */
+function whatsappMx(telefono) {
+  let n = String(telefono || "").replace(/\D/g, "");
+  // El prefijo de país se quita SÓLO si lo que queda sigue siendo un teléfono
+  // completo de 10 dígitos. Sin esa comprobación, un número local que por
+  // casualidad empezara con 52 se quedaría mocho.
+  if (n.startsWith("521") && n.length >= 13) n = n.slice(3);
+  else if (n.startsWith("52") && n.length >= 12) n = n.slice(2);
+  return `521${n}`;
+}
+
 export default function AltasAdmin() {
   const [altas, setAltas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -182,7 +207,7 @@ export default function AltasAdmin() {
                 <a className="pt-btn" href={`tel:${sel.telefono}`}><Phone /> Llamar</a>
                 <a className="pt-btn" href={`mailto:${sel.correo}?subject=Tu alta en Morcast (${sel.folio})`}><Envelope /> Correo</a>
                 <a className="pt-btn" target="_blank" rel="noreferrer"
-                   href={`https://wa.me/52${(sel.telefono || "").replace(/\D/g, "")}`}>WhatsApp</a>
+                   href={`https://wa.me/${whatsappMx(sel.telefono)}`}>WhatsApp</a>
               </div>
 
               <Dato etiqueta="Contacto" valor={`${sel.contacto} · ${sel.telefono}`} />
@@ -276,7 +301,7 @@ export default function AltasAdmin() {
                     className="pt-btn"
                     target="_blank"
                     rel="noreferrer"
-                    href={`https://wa.me/52${(sel.telefono || "").replace(/\D/g, "")}?text=${encodeURIComponent(
+                    href={`https://wa.me/${whatsappMx(sel.telefono)}?text=${encodeURIComponent(
                       `Tu cuenta de Morcast del Norte ya está activa. Entra en morcast.mx/portal/login con tu cuenta de Google, o con este correo y contraseña desde la app: ${credencial.correo} / ${credencial.password}`
                     )}`}
                   >
