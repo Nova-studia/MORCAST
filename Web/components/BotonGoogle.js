@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { decidirDestino, casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
 import { nonceParaGoogle } from "@/lib/nonce-google.mjs";
@@ -33,39 +34,40 @@ import { miSolicitud } from "@/app/acciones-registro";
  *
  * El respaldo
  * -----------
- * Si algo de esto falla —el guion no carga, una extensión lo bloquea, el
- * navegador no lo soporta— se avisa y **el botón de siempre sigue ahí abajo**.
- * No se apuesta la puerta de entrada a una sola tecnología.
+ * Si el guion no carga —una extensión que lo bloquea, un navegador viejo, la
+ * red— este botón no aparece y **el de siempre sigue ahí abajo**. No se
+ * apuesta la puerta de entrada a una sola tecnología.
+ *
+ * Por qué `next/script` y no un <script> a mano
+ * ---------------------------------------------
+ * Lo pide la documentación de esta versión de Next, y resuelve dos cosas por
+ * su cuenta: garantiza que el guion se descargue UNA sola vez aunque se
+ * navegue de una pantalla a otra, y `onReady` dispara tanto la primera vez
+ * como en cada montaje posterior — que es justo lo que hace falta para volver
+ * a dibujar el botón al regresar al login.
  */
 export default function BotonGoogle({ onError }) {
   const router = useRouter();
   const caja = useRef(null);
   const [entrando, setEntrando] = useState(false);
-  const [listo, setListo] = useState(false);
 
-  // El nonce se calcula UNA vez por carga y se guarda aquí: Google lo mete en
-  // el token y Supabase tiene que ver exactamente el mismo par.
+  // El nonce se calcula una vez por montaje: Google lo mete dentro del token y
+  // Supabase tiene que ver exactamente el mismo par.
   const nonce = useRef(null);
 
-  // `onError` va por referencia y NO en las dependencias del efecto. Si el
-  // padre pasara una función anónima, estar en las dependencias haría que el
-  // efecto se rehiciera en cada render: se recargaría el guion y el botón
-  // parpadearía o se duplicaría. Hoy se le pasa `setError`, que React mantiene
-  // estable, pero esto deja de depender de que quien lo use lo sepa.
+  // `onError` va por referencia. Si el padre pasara una función anónima y ésta
+  // estuviera en las dependencias, el efecto se reharía en cada render.
   const avisar = useRef(onError);
-  useEffect(() => { avisar.current = onError; }, [onError]);
-
   useEffect(() => {
-    if (!haySupabaseNavegador()) return;
-    let vivo = true;
+    avisar.current = onError;
+  }, [onError]);
 
-    /** Lo que Google llama cuando la persona ya eligió su cuenta. */
-    const recibirCredencial = async (respuesta) => {
-      if (!vivo) return;
+  /** Lo que Google llama cuando la persona ya eligió su cuenta. */
+  const recibirCredencial = useCallback(
+    async (respuesta) => {
       setEntrando(true);
       try {
-        const supabase = supabaseNavegador();
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        const { data, error } = await supabaseNavegador().auth.signInWithIdToken({
           provider: "google",
           token: respuesta.credential,
           nonce: nonce.current?.paraSupabase,
@@ -84,7 +86,6 @@ export default function BotonGoogle({ onError }) {
         const tieneSolicitud =
           casaDe(rol) !== DESTINOS.pendiente ? false : Boolean(await miSolicitud());
 
-        if (!vivo) return;
         // refresh() antes de navegar: obliga al servidor a releer la cookie
         // recién escrita. Sin esto, proxy.js todavía ve "sin sesión" y rebota.
         router.refresh();
@@ -94,64 +95,60 @@ export default function BotonGoogle({ onError }) {
         avisar.current?.("No se pudo entrar con Google. Inténtalo de nuevo.");
         setEntrando(false);
       }
-    };
+    },
+    [router]
+  );
 
-    const arrancar = async () => {
-      try {
-        nonce.current = await nonceParaGoogle();
-        if (!vivo || !window.google?.accounts?.id || !caja.current) return;
+  /** Se ejecuta cuando el guion está listo, y también en cada montaje. */
+  const dibujar = useCallback(async () => {
+    if (!haySupabaseNavegador()) return;
+    try {
+      nonce.current = await nonceParaGoogle();
+      if (!window.google?.accounts?.id || !caja.current) return;
 
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: recibirCredencial,
-          nonce: nonce.current.paraGoogle,
-          // El botón dibujado, NO el "One Tap" automático: One Tap lo bloquean
-          // bastantes extensiones y su migración a FedCM sigue moviéndose. Un
-          // botón que la persona pulsa es aburrido y funciona en todas partes.
-          use_fedcm_for_prompt: false,
-          auto_select: false,
-        });
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: recibirCredencial,
+        nonce: nonce.current.paraGoogle,
+        // El botón dibujado, NO el "One Tap" automático: One Tap lo bloquean
+        // bastantes extensiones y su migración a FedCM sigue moviéndose. Un
+        // botón que la persona pulsa es aburrido y funciona en todas partes.
+        use_fedcm_for_prompt: false,
+        auto_select: false,
+      });
 
-        window.google.accounts.id.renderButton(caja.current, {
-          theme: "outline",
-          size: "large",
-          shape: "rectangular",
-          text: "continue_with",
-          locale: "es-419",
-          width: 320,
-        });
-        setListo(true);
-      } catch (e) {
-        console.error("[google] no se pudo iniciar GIS:", e?.message);
-      }
-    };
-
-    // Si el guion ya está (por ejemplo al volver a esta pantalla), no se
-    // vuelve a cargar.
-    if (window.google?.accounts?.id) {
-      arrancar();
-      return () => { vivo = false; };
+      // Se vacía antes por si `onReady` vuelve a correr al regresar a esta
+      // pantalla: si no, Google dibujaría un segundo botón debajo del primero.
+      caja.current.innerHTML = "";
+      window.google.accounts.id.renderButton(caja.current, {
+        theme: "outline",
+        size: "large",
+        shape: "rectangular",
+        text: "continue_with",
+        locale: "es-419",
+        width: 320,
+      });
+    } catch (e) {
+      console.error("[google] no se pudo iniciar GIS:", e?.message);
     }
+  }, [recibirCredencial]);
 
-    const guion = document.createElement("script");
-    guion.src = GIS_SRC;
-    guion.async = true;
-    guion.defer = true;
-    guion.onload = arrancar;
-    guion.onerror = () => {
-      // No se avisa con un error rojo: abajo está el botón de siempre y esa
-      // puerta funciona. Meter miedo aquí sería peor que quedarse callado.
-      console.error("[google] no se pudo cargar", GIS_SRC);
-    };
-    document.head.appendChild(guion);
-
-    return () => {
-      vivo = false;
-    };
-  }, [router]);
+  // Sin Supabase configurado (modo demostración) no se carga nada de Google:
+  // no habría con qué canjear el token.
+  if (!haySupabaseNavegador()) return null;
 
   return (
-    <div style={{ minHeight: listo ? undefined : 0 }}>
+    <>
+      <Script
+        src={GIS_SRC}
+        strategy="afterInteractive"
+        onReady={dibujar}
+        onError={() => {
+          // No se pinta un error rojo: abajo está el botón de siempre y esa
+          // puerta funciona. Meter miedo aquí sería peor que callarse.
+          console.error("[google] no se pudo cargar", GIS_SRC);
+        }}
+      />
       {/* Aquí dentro dibuja Google su propio botón. Es suyo a propósito: así
           la pantalla que sale después es la que Google reserva a los orígenes
           que reconoce, y es justo lo que hace que diga morcast.mx. */}
@@ -161,6 +158,6 @@ export default function BotonGoogle({ onError }) {
           Entrando…
         </p>
       )}
-    </div>
+    </>
   );
 }
