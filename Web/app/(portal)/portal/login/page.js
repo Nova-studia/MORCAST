@@ -13,6 +13,7 @@ import OtrosAccesos from "@/components/OtrosAccesos";
 import { mensajeDeError } from "@/lib/errores-login.mjs";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
+import BotonGoogle from "@/components/BotonGoogle";
 
 export default function LoginPortal() {
   const router = useRouter();
@@ -145,10 +146,20 @@ export default function LoginPortal() {
 
           {error && <div className="pt-login-error">{error}</div>}
 
+          {/* El botón de Google, dibujado por Google en esta misma página.
+              Va primero porque es el camino bueno: la pantalla de permisos
+              dice "morcast.mx" en vez del dominio de Supabase. */}
+          <BotonGoogle onError={setError} />
+
+          {/* RESPALDO, a propósito. Si el guion de Google no carga —una
+              extensión que lo bloquea, un navegador viejo, la red— el de
+              arriba no aparece y éste sigue funcionando: manda por el camino
+              de redirección de toda la vida, que pasa por Supabase. Se ve
+              feo el nombre del dominio, pero se entra. */}
           <button
             type="button"
             className="pt-btn"
-            style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }}
+            style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem", marginTop: "0.7rem" }}
             onClick={entrarConGoogle}
             disabled={enviando}
           >
