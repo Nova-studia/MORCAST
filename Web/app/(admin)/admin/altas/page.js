@@ -43,12 +43,16 @@ export default function AltasAdmin() {
   };
 
   const [activando, setActivando] = useState(false);
-  const [credencial, setCredencial] = useState(null); // { correo, password, folio }
+  const [credencial, setCredencial] = useState(null); // { solicitudId, correo, password, folio }
 
   /** Contraseña legible por teléfono: sin l/1/O/0, que se confunden al dictarla. */
   const contrasenaNueva = () => {
+    // Sin `Math.random()`: no es criptográfico y de sus salidas se puede
+    // recuperar el estado del generador, así que dos contraseñas seguidas
+    // dejan de ser independientes. Esto SÍ es aleatoriedad de verdad.
     const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    return Array.from({ length: 12 }, () => abc[Math.floor(Math.random() * abc.length)]).join("");
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    return Array.from(bytes, (b) => abc[b % abc.length]).join("");
   };
 
   const activar = async (a) => {
@@ -59,7 +63,9 @@ export default function AltasAdmin() {
     setActivando(false);
     if (!r.ok) { setError(r.motivo || "No se pudo activar."); return; }
     // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
-    setCredencial({ correo: r.correo, password, folio: r.cliente.folio });
+    // Va con el `solicitudId` a cuestas: la tarjeta de abajo se pinta sólo
+    // sobre el detalle de ESTA persona.
+    setCredencial({ solicitudId: a.id, correo: r.correo, password, folio: r.cliente.folio });
     await recargar();
     setSel((s) => (s && s.id === a.id ? { ...s, estado: "aprobada" } : s));
   };
@@ -214,7 +220,13 @@ export default function AltasAdmin() {
                     Marcar contactada
                   </button>
                 )}
-                {sel.origen === "google" && sel.estado !== "aprobada" && (
+                {/* Para quien se registró con Google, "Activar cuenta" ES el
+                    gesto de aprobar: le crea la empresa y le liga el acceso.
+                    Se pinta sin mirar el estado —la acción del servidor ya
+                    rechaza la segunda activación con "Esa cuenta ya está
+                    activada"—, porque si se escondiera al quedar "aprobada"
+                    no habría forma de activarla desde la pantalla. */}
+                {sel.origen === "google" && (
                   <button
                     type="button"
                     className="pt-btn pt-btn-verde"
@@ -224,7 +236,12 @@ export default function AltasAdmin() {
                     <UserCircle /> {activando ? "Activando…" : "Activar cuenta"}
                   </button>
                 )}
-                {sel.estado !== "aprobada" && (
+                {/* Y por eso "Aprobar" se esconde ahí: es verde, idéntico y
+                    está pegado al otro, pero sólo cambia el estado y no crea
+                    nada. Quien lo pulsara primero dejaba a esa persona en
+                    `pendiente` y sin salida, porque el botón bueno ya no se
+                    pintaba. Tener los dos juntos era la trampa. */}
+                {sel.origen !== "google" && sel.estado !== "aprobada" && (
                   <button type="button" className="pt-btn pt-btn-verde" onClick={() => marcar(sel, "aprobada")}>
                     <Check /> Aprobar
                   </button>
@@ -236,7 +253,15 @@ export default function AltasAdmin() {
                 )}
               </div>
 
-              {credencial && (
+              {/* La tarjeta se pinta SÓLO si la credencial es de la solicitud
+                  que está abierta. Sin esta comprobación bastaba con clicar
+                  otra fila —o cambiar de filtro— para que el enlace de
+                  WhatsApp armara el teléfono del segundo cliente con la
+                  contraseña del primero, y la cabecera dijera un folio que no
+                  era. Se comprueba al pintar y no al cambiar de selección
+                  porque así quedan cubiertos TODOS los caminos que mueven
+                  `sel`, no sólo el clic en la tabla. */}
+              {credencial && credencial.solicitudId === sel.id && (
                 <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
                   <strong>Cuenta activada — cliente {credencial.folio}</strong>
                   <p style={{ margin: "0.5rem 0", fontSize: "0.9rem" }}>

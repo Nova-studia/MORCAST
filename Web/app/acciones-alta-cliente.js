@@ -275,16 +275,60 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
   }
 
   // Deshacer: SOLO lo que creamos nosotros. El usuario NO se toca.
+  //
+  // 🔴 Y aquí el orden no basta: hay que COMPROBAR. `perfiles.cliente_id`
+  // apunta a `clientes(id)` con ON DELETE CASCADE
+  // (`perfiles_cliente_id_fkey`). Si se borrara la empresa con el perfil
+  // todavía enganchado a ella, la cascada se llevaría por delante la fila de
+  // `perfiles` de una persona real. Y eso no se arregla: `usuarioActual()` le
+  // devolvería null para siempre, y volver a activarla tampoco la repondría.
+  // Es además el escenario correlacionado, porque este deshacer se dispara
+  // justo cuando un update sobre `perfiles` acaba de fallar.
+  //
+  // Por eso: primero se desengancha el perfil, se cuentan las filas, y sólo
+  // si quedó desenganchado de verdad se borra la empresa. Si no, la empresa
+  // se deja huérfana a propósito. Una empresa huérfana se limpia desde el
+  // panel; un perfil borrado, no.
   const deshacer = async () => {
     try {
       await sb.auth.admin.updateUserById(uid, { app_metadata: { rol: null, cliente_id: null } });
     } catch { /* se reporta el error de origen */ }
+
+    // Ojo: vaciar el `app_metadata` de arriba NO limpia `perfiles.cliente_id`,
+    // porque el disparador `sincronizar_perfil()` se sale temprano cuando el
+    // rol viene nulo. Lo único que desengancha el perfil es este update.
+    let desenganchado = false;
     try {
-      await sb.from("perfiles").update({ rol: "pendiente", cliente_id: null }).eq("id", uid);
-    } catch { /* idem */ }
+      const { data: soltado, error: errSoltar } = await sb
+        .from("perfiles")
+        .update({ rol: "pendiente", cliente_id: null })
+        .eq("id", uid)
+        .select("id");
+      // Un UPDATE que no encuentra fila NO da error: responde 200 y cambia cero.
+      desenganchado = !errSoltar && Boolean(soltado?.length);
+      if (!desenganchado) {
+        console.error(
+          `[activar] no se pudo desenganchar el perfil ${uid}: ${errSoltar?.message || "no se cambió ninguna fila"}`
+        );
+      }
+    } catch (e) {
+      console.error(`[activar] no se pudo desenganchar el perfil ${uid}: ${e?.message}`);
+    }
+
+    if (!desenganchado) {
+      console.error(
+        `[activar] la empresa ${cliente.folio} (${cliente.id}) se queda HUÉRFANA a propósito: ` +
+          `borrarla con el perfil ${uid} todavía enganchado se lo llevaría por cascada. ` +
+          `Hay que borrarla a mano desde el panel.`
+      );
+      return;
+    }
+
     try {
       await sb.from("clientes").delete().eq("id", cliente.id);
-    } catch { /* idem */ }
+    } catch (e) {
+      console.error(`[activar] no se pudo borrar la empresa ${cliente.id}: ${e?.message}`);
+    }
   };
 
   // 2) El sello y la contraseña, en una sola llamada. El disparador
