@@ -315,3 +315,51 @@ es el despliegue; el trabajo va en la rama `registro-google`.
 > acciones viven en `acciones-registro.js`. Y la función pura va en `.mjs`, no
 > `.js`, para que `node --test` la pueda importar — es como ya vive
 > `lib/punto-en-zona.mjs`.
+
+---
+
+## 12. AÑADIDO (28-ago): entrar con Google SIN salir de morcast.mx
+
+La pantalla de permisos de Google decía **"Accede a
+mbdmulygpupahocpylze.supabase.co"**, porque Google enseña el dominio al que
+ENTREGA al usuario, y con `signInWithOAuth` ese dominio es el de Supabase. A un
+cliente eso no le dice nada y da desconfianza justo en el momento de aceptar.
+
+Se cambió a **Google Identity Services**: Google entrega el token en la propia
+página y se le pasa a Supabase con `signInWithIdToken`. La pantalla se ancla al
+origen y dice **morcast.mx**. El botón de redirección **se conserva como
+respaldo**, y sólo se enseña si el guion de Google no consiguió dibujarse.
+
+### 🔴 REQUISITOS DE CONFIGURACIÓN — los dos, o el botón NO APARECE
+
+Esto no está en ningún otro sitio, y el fallo es mudo: si algo de esto falta,
+GIS sólo escribe en la consola del navegador y el botón simplemente no se
+dibuja. Nadie se entera.
+
+1. **Orígenes de JavaScript autorizados** en el cliente OAuth de Google Cloud
+   (proyecto `morcast`, cliente "Morcast Web"). **Esto es NUEVO**: el flujo de
+   redirección nunca lo necesitó, sólo pedía la URL de retorno.
+   Dados de alta el 28-ago-2026: `https://morcast.mx` y `http://localhost:3000`.
+   ⚠️ **Google NO acepta comodines en orígenes**, así que en las vistas previas
+   de Vercel el botón de GIS no funciona y sólo sirve el de respaldo. Es
+   esperado; no perseguirlo como un fallo.
+2. **El Client ID del proveedor Google en Supabase** tiene que ser
+   EXACTAMENTE el mismo que `Web/lib/google-datos.mjs`. Es una lista separada
+   por comas y sirve a los dos flujos. Se comprueba sin abrir el panel:
+   ```
+   curl -s -i -H "apikey: <anon>"      "https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fmorcast.mx%2Fauth%2Fcallback"      | grep -i location
+   ```
+   El `client_id=` de esa redirección es el que Supabase tiene configurado.
+
+### El nonce, que es donde falla siempre
+
+A **Google** se le manda **cifrado** (SHA-256 hex) y a **Supabase** **crudo**.
+Si se cruzan, el error no explica nada ("Passed nonce and nonce in id_token
+should either both exist or not"). Por eso `Web/lib/nonce-google.mjs` devuelve
+los dos juntos y tiene prueba propia.
+
+### CSP
+
+`accounts.google.com` va en **cuatro** directivas: `script-src`, `style-src`,
+`connect-src` y `frame-src`. Ojo con `style-src`: GIS carga una hoja remota y
+**`'unsafe-inline'` NO la cubre**.
