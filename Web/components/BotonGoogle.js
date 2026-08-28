@@ -46,7 +46,7 @@ import { miSolicitud } from "@/app/acciones-registro";
  * como en cada montaje posterior — que es justo lo que hace falta para volver
  * a dibujar el botón al regresar al login.
  */
-export default function BotonGoogle({ onError }) {
+export default function BotonGoogle({ onError, onDibujado }) {
   const router = useRouter();
   const caja = useRef(null);
   const [entrando, setEntrando] = useState(false);
@@ -61,6 +61,13 @@ export default function BotonGoogle({ onError }) {
   useEffect(() => {
     avisar.current = onError;
   }, [onError]);
+
+  // Igual con el aviso de "ya me dibuje", que es lo que apaga el boton de
+  // respaldo del padre.
+  const avisarDibujado = useRef(onDibujado);
+  useEffect(() => {
+    avisarDibujado.current = onDibujado;
+  }, [onDibujado]);
 
   /** Lo que Google llama cuando la persona ya eligió su cuenta. */
   const recibirCredencial = useCallback(
@@ -128,6 +135,10 @@ export default function BotonGoogle({ onError }) {
         locale: "es-419",
         width: 320,
       });
+      // Se avisa SOLO despues de que Google dibujo de verdad. Mientras esto no
+      // ocurra, el padre deja visible el boton de respaldo: mas vale dos
+      // caminos un instante que ninguno.
+      avisarDibujado.current?.(true);
     } catch (e) {
       console.error("[google] no se pudo iniciar GIS:", e?.message);
     }

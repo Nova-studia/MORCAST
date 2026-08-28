@@ -21,6 +21,10 @@ export default function LoginPortal() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // ¿Google consiguió dibujar su botón? Mientras no, se deja visible el de
+  // respaldo. Empieza en false a propósito: más vale enseñar dos caminos un
+  // instante que dejar a alguien sin ninguno si el guion no carga.
+  const [googleDibujado, setGoogleDibujado] = useState(false);
 
   // Si ya hay sesión, entra directo.
   useEffect(() => {
@@ -149,13 +153,16 @@ export default function LoginPortal() {
           {/* El botón de Google, dibujado por Google en esta misma página.
               Va primero porque es el camino bueno: la pantalla de permisos
               dice "morcast.mx" en vez del dominio de Supabase. */}
-          <BotonGoogle onError={setError} />
+          <BotonGoogle onError={setError} onDibujado={setGoogleDibujado} />
 
-          {/* RESPALDO, a propósito. Si el guion de Google no carga —una
-              extensión que lo bloquea, un navegador viejo, la red— el de
-              arriba no aparece y éste sigue funcionando: manda por el camino
-              de redirección de toda la vida, que pasa por Supabase. Se ve
+          {/* RESPALDO. Sólo se enseña si Google NO consiguió dibujar el suyo
+              —una extensión que lo bloquea, un navegador viejo, la red—. Si se
+              pintaran los dos, el cliente vería dos botones que dicen lo mismo
+              y llevan a pantallas de permisos distintas, justo en la pantalla
+              cuya confianza este cambio existe para mejorar. Este camino va
+              por la redirección de toda la vida, que pasa por Supabase: se ve
               feo el nombre del dominio, pero se entra. */}
+          {!googleDibujado && (
           <button
             type="button"
             className="pt-btn"
@@ -174,6 +181,7 @@ export default function LoginPortal() {
             </svg>
             Continuar con Google
           </button>
+          )}
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", margin: "1.1rem 0" }}>
             <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.15 }} />
