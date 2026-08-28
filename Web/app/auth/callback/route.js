@@ -29,16 +29,54 @@ import { solicitudDeUsuario } from "@/lib/solicitudes-registro";
  * de Supabase para Next prefiere `x-forwarded-host`, que es el host que pidió
  * el navegador de verdad. Si no viene (desarrollo local, o cualquier servidor
  * sin balanceador delante) se cae a `url.origin`, que ahí sí es el correcto.
+ *
+ * Lista blanca de hosts que puede devolver `x-forwarded-host`. Sin ella, un
+ * proxy que dejara pasar la cabecera del cliente tal cual (hoy Vercel no lo
+ * hace) permitiría mandar a la gente a cualquier dominio con sólo mentir en
+ * la cabecera: phishing por redirección abierta. La comparación es sobre el
+ * host SIN puerto —`morcast.mx:443` tiene que seguir aceptándose.
  */
+function hostPermitido(host) {
+  const [nombre] = host.split(":");
+  return (
+    nombre === "morcast.mx" ||
+    nombre === "www.morcast.mx" ||
+    nombre.endsWith(".vercel.app") ||
+    nombre === "localhost" ||
+    nombre === "127.0.0.1"
+  );
+}
+
 function origenReal(request, url) {
-  const host = request.headers.get("x-forwarded-host");
-  if (!host) return url.origin;
+  // `x-forwarded-host` y `x-forwarded-proto` son cabeceras ACUMULATIVAS: con
+  // varios proxies encadenados vienen separadas por coma (`"morcast.mx,
+  // interno"`), y el primer valor es el del cliente original —el que importa
+  // aquí—. Antes de este `split` un `new URL()` con la cabecera cruda tal
+  // cual lanzaba `TypeError: Invalid URL` y tumbaba la ruta con un 500 sin
+  // mensaje: nadie podía entrar y no había nada en pantalla que explicara
+  // por qué.
+  const hostCrudo = request.headers.get("x-forwarded-host");
+  const host = hostCrudo ? hostCrudo.split(",")[0].trim() : null;
+  if (!host || !hostPermitido(host)) {
+    if (host) {
+      console.error("[auth] x-forwarded-host fuera de la lista blanca, ignorada:", host);
+    }
+    return url.origin;
+  }
   // El protocolo también se pregunta: detrás del balanceador la conexión
   // interna suele ser http aunque el navegador venga por https. En producción
-  // se asume https por omisión; en local manda lo que diga `url`.
+  // se asume https por omisión; en local manda lo que diga `url`. Sólo se
+  // acepta "http" o "https" —cualquier otra cosa cae a https.
+  const protocoloCrudo = request.headers.get("x-forwarded-proto");
+  const protocoloPedido = protocoloCrudo ? protocoloCrudo.split(",")[0].trim() : null;
   const protocolo =
-    request.headers.get("x-forwarded-proto") ||
-    (process.env.NODE_ENV === "production" ? "https" : url.protocol.replace(":", ""));
+    protocoloPedido === "http" || protocoloPedido === "https"
+      ? protocoloPedido
+      : protocoloCrudo
+        ? "https"
+        : process.env.NODE_ENV === "production"
+          ? "https"
+          : url.protocol.replace(":", "");
   return `${protocolo}://${host}`;
 }
 
