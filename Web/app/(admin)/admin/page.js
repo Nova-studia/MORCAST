@@ -83,7 +83,7 @@ export default function PanelAdmin() {
       </div>
 
       {/* Ingresos + embudo */}
-      <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", gridTemplateColumns: "2fr 1.2fr" }}>
+      <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", "--pt-cols": "2fr 1.2fr" }}>
         <div className="pt-card">
           <div className="pt-card-head">
             <h2>Cobranza (12 meses)</h2>
