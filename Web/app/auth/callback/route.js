@@ -36,53 +36,14 @@ import { solicitudDeUsuario } from "@/lib/solicitudes-registro";
  * la cabecera: phishing por redirección abierta. La comparación es sobre el
  * host SIN puerto —`morcast.mx:443` tiene que seguir aceptándose.
  */
-function hostPermitido(host) {
-  const [nombre] = host.split(":");
-  return (
-    nombre === "morcast.mx" ||
-    nombre === "www.morcast.mx" ||
-    nombre.endsWith(".vercel.app") ||
-    nombre === "localhost" ||
-    nombre === "127.0.0.1"
-  );
-}
 
-function origenReal(request, url) {
-  // `x-forwarded-host` y `x-forwarded-proto` son cabeceras ACUMULATIVAS: con
-  // varios proxies encadenados vienen separadas por coma (`"morcast.mx,
-  // interno"`), y el primer valor es el del cliente original —el que importa
-  // aquí—. Antes de este `split` un `new URL()` con la cabecera cruda tal
-  // cual lanzaba `TypeError: Invalid URL` y tumbaba la ruta con un 500 sin
-  // mensaje: nadie podía entrar y no había nada en pantalla que explicara
-  // por qué.
-  const hostCrudo = request.headers.get("x-forwarded-host");
-  const host = hostCrudo ? hostCrudo.split(",")[0].trim() : null;
-  if (!host || !hostPermitido(host)) {
-    if (host) {
-      console.error("[auth] x-forwarded-host fuera de la lista blanca, ignorada:", host);
-    }
-    return url.origin;
-  }
-  // El protocolo también se pregunta: detrás del balanceador la conexión
-  // interna suele ser http aunque el navegador venga por https. En producción
-  // se asume https por omisión; en local manda lo que diga `url`. Sólo se
-  // acepta "http" o "https" —cualquier otra cosa cae a https.
-  const protocoloCrudo = request.headers.get("x-forwarded-proto");
-  const protocoloPedido = protocoloCrudo ? protocoloCrudo.split(",")[0].trim() : null;
-  const protocolo =
-    protocoloPedido === "http" || protocoloPedido === "https"
-      ? protocoloPedido
-      : protocoloCrudo
-        ? "https"
-        : process.env.NODE_ENV === "production"
-          ? "https"
-          : url.protocol.replace(":", "");
-  return `${protocolo}://${host}`;
-}
 
 export async function GET(request) {
   const url = new URL(request.url);
-  const origen = origenReal(request, url);
+  // El mismo calculo que usa el correo de recuperar contrasena, en un
+  // solo sitio: aqui habia una copia con su propia lista blanca, y dos
+  // versiones de una regla de seguridad acaban desincronizandose.
+  const origen = origenPermitido(request.headers);
   const code = url.searchParams.get("code");
   const errorDeGoogle = url.searchParams.get("error_description") || url.searchParams.get("error");
 
