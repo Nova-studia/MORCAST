@@ -73,7 +73,7 @@ export default function CotizadorPortal() {
         <p>Arma una cotización de referencia y descárgala en PDF.</p>
       </div>
 
-      <div className="pt-grid pt-grid-2" style={{ gridTemplateColumns: "2fr 1.2fr", alignItems: "start" }}>
+      <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "2fr 1.2fr", alignItems: "start" }}>
         {/* Catálogo */}
         <div className="pt-card">
           <div className="pt-card-head"><h2>Servicios</h2></div>

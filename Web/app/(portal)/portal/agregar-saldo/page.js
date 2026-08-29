@@ -120,7 +120,7 @@ export default function AgregarSaldo() {
       </div>
 
       {/* Saldo actual */}
-      <div className="pt-grid pt-grid-2" style={{ gridTemplateColumns: "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>
+      <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>
         <div className="pt-saldo">
           <div className="pt-saldo-etiqueta">Saldo a favor actual</div>
           <div className="pt-saldo-monto">{pesos(cuenta ? cuenta.saldoActual : 0)}</div>
@@ -176,7 +176,7 @@ export default function AgregarSaldo() {
       </div>
 
       {/* Formulario de comprobante */}
-      <div className="pt-grid pt-grid-2" style={{ gridTemplateColumns: "1.3fr 1fr", gap: "1.1rem", alignItems: "start" }}>
+      <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1.3fr 1fr", gap: "1.1rem", alignItems: "start" }}>
         <div className="pt-card">
           <div className="pt-card-head"><h2>Registrar comprobante</h2></div>
 

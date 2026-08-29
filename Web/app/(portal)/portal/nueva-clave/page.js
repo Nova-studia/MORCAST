@@ -26,6 +26,39 @@ import { avisarContrasenaCambiada } from "@/app/acciones-aviso-clave";
  * NO se hace es dar el formulario por bueno porque haya una sesión cualquiera
  * — ver el comentario del efecto.
  */
+/**
+ * El marco de la tarjeta.
+ *
+ * 🔴 VA FUERA DEL COMPONENTE, Y NO ES UN DETALLE DE ESTILO.
+ *
+ * Definido dentro, era una función NUEVA en cada render. React compara los
+ * componentes por identidad, así que en cada tecleo veía un componente
+ * distinto: desmontaba todo el árbol y lo volvía a montar. El campo perdía el
+ * foco a cada letra y en el teléfono **el teclado se cerraba solo**. En
+ * escritorio casi no se nota; en el móvil hace la pantalla inservible.
+ */
+function Marco({ children }) {
+  return (
+    <div className="pt-login">
+      <div className="pt-login-form-lado" style={{ gridColumn: "1 / -1" }}>
+        <div className="pt-login-card">
+          <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
+            <Image
+              src="/img/logo-h.png"
+              alt="Morcast del Norte"
+              width={688}
+              height={200}
+              style={{ width: "auto", height: 48 }}
+              priority
+            />
+          </Link>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NuevaClavePortal() {
   const router = useRouter();
   const [estado, setEstado] = useState("comprobando"); // comprobando | listo | invalido
@@ -129,26 +162,6 @@ export default function NuevaClavePortal() {
     router.refresh();
     router.replace("/portal");
   };
-
-  const Marco = ({ children }) => (
-    <div className="pt-login">
-      <div className="pt-login-form-lado" style={{ gridColumn: "1 / -1" }}>
-        <div className="pt-login-card">
-          <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
-            <Image
-              src="/img/logo-h.png"
-              alt="Morcast del Norte"
-              width={688}
-              height={200}
-              style={{ width: "auto", height: 48 }}
-              priority
-            />
-          </Link>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
 
   if (estado === "comprobando") {
     return (

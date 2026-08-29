@@ -135,7 +135,11 @@ export default function SolicitudesAdmin() {
         ))}
       </div>
 
-      <div className="pt-grid" style={{ gridTemplateColumns: sel ? "1.6fr 1fr" : "1fr", gap: "1.1rem", alignItems: "start" }}>
+      {/* La proporcion va por `--pt-cols`, no en `gridTemplateColumns`: en linea
+          le ganaria a la media query y en el telefono quedarian dos columnas
+          cortadas. `pt-grid-2` aporta el colapso a una columna en pantallas
+          estrechas. */}
+      <div className={`pt-grid ${sel ? "pt-grid-2" : ""}`} style={{ "--pt-cols": sel ? "1.6fr 1fr" : "1fr", gap: "1.1rem", alignItems: "start" }}>
         <div className="pt-card">
           <div className="pt-tabla-wrap">
             <table className="pt-tabla" style={{ minWidth: 560 }}>
@@ -288,7 +292,7 @@ export default function SolicitudesAdmin() {
               })()}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.86rem", marginBottom: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.6rem", fontSize: "0.86rem", marginBottom: "1rem" }}>
               <div><span style={{ color: "var(--mc-gris)" }}>Servicio</span><br /><strong>{sel.servicio}</strong></div>
               <div><span style={{ color: "var(--mc-gris)" }}>Frecuencia</span><br /><strong>{sel.frecuencia}</strong></div>
               <div><span style={{ color: "var(--mc-gris)" }}>Recibida</span><br /><strong>{fechaLarga(sel.fecha)}</strong></div>

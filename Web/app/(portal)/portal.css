@@ -205,9 +205,28 @@
    `.pt-grid-detalle` ya tenía su `min-width: 0` puesto —de cuando pasó con
    los mapas— pero la regla vivía pegada a ESA rejilla en vez de a todas. */
 .pt-grid > * { min-width: 0; }
-.pt-grid-4 { grid-template-columns: repeat(4, 1fr); }
-.pt-grid-3 { grid-template-columns: repeat(3, 1fr); }
-.pt-grid-2 { grid-template-columns: repeat(2, 1fr); }
+/* Las proporciones se pueden ajustar desde el JSX con la variable `--pt-cols`
+   (por ejemplo `style={{ "--pt-cols": "2fr 1.2fr" }}`), y NO escribiendo
+   `gridTemplateColumns` en linea.
+   
+   La diferencia importa: un `grid-template-columns` en linea LE GANA a las
+   media queries de mas abajo, asi que en el telefono las rejillas se quedaban
+   en dos y tres columnas y el texto se cortaba a media palabra. Con una
+   variable, la media query fija `grid-template-columns` directamente y gana,
+   porque la regla de aqui solo la LEE.
+   
+   Esto ya habia mordido tres veces en este repo (los mapas, `.pt-grid-detalle`
+   y el alto del logotipo de los logins) y a la cuarta se arreglo de raiz. */
+.pt-grid-4 { grid-template-columns: var(--pt-cols, repeat(4, 1fr)); }
+.pt-grid-3 { grid-template-columns: var(--pt-cols, repeat(3, 1fr)); }
+.pt-grid-2 { grid-template-columns: var(--pt-cols, repeat(2, 1fr)); }
+
+/* El panel del cliente: el saldo grande a la izquierda y los tres indicadores
+   a la derecha. Vive aqui y NO en un `style` en linea de page.js, porque el
+   estilo en linea le gana a la media query de abajo y en el telefono las
+   tarjetas se quedaban en fila, cortadas a media palabra. */
+.pt-panel-resumen { grid-template-columns: 1.3fr 2fr; margin-bottom: 1.1rem; }
+.pt-panel-kpis    { grid-template-columns: repeat(3, 1fr); }
 
 .pt-card {
   background: var(--mc-superficie);
@@ -780,6 +799,7 @@
 @media (max-width: 991.98px) {
   .pt-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .pt-grid-3 { grid-template-columns: 1fr; }
+  .pt-panel-resumen { grid-template-columns: 1fr; }
   /* auto 1fr: la franja de marca mide lo que mide el logo y el formulario se
      queda con todo el resto. Sin esto la rejilla parte el alto en dos y la
      franja crece a media pantalla. */
@@ -826,6 +846,10 @@
     transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
   }
   .pt-grid-4, .pt-grid-2 { grid-template-columns: 1fr; }
+  /* El resumen se apila, y los tres indicadores pasan a dos columnas: en tres
+     no cabe ni "Por pagar" sin partirse. */
+  .pt-panel-resumen { grid-template-columns: 1fr; }
+  .pt-panel-kpis    { grid-template-columns: repeat(2, 1fr); }
   .pt-content { padding: 1.1rem; }
   .pt-topbar { padding: 0.8rem 1.1rem; }
   .pt-user-datos { display: none; }

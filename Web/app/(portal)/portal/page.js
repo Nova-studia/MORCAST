@@ -144,7 +144,12 @@ export default function PanelPortal() {
       </div>
 
       {/* Saldo + KPIs */}
-      <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", gridTemplateColumns: "1.3fr 2fr" }}>
+      {/* ⚠️ Las proporciones van en CSS (`.pt-panel-resumen`), NO en un
+          `style` en linea. El estilo en linea LE GANA A LA MEDIA QUERY, asi
+          que con `gridTemplateColumns` aqui las tarjetas se quedaban en dos
+          columnas en el telefono y se cortaban a media palabra. Es la CUARTA
+          vez que este repo tropieza con lo mismo. */}
+      <div className="pt-grid pt-panel-resumen">
         <div className="pt-saldo">
           <div className="pt-saldo-etiqueta">Saldo a favor / crédito disponible</div>
           <div className="pt-saldo-monto">{pesos(cuenta.saldoActual)}</div>
@@ -160,7 +165,7 @@ export default function PanelPortal() {
           </Link>
         </div>
 
-        <div className="pt-grid pt-grid-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+        <div className="pt-grid pt-panel-kpis">
           <div className="pt-stat">
             <div className="pt-stat-icono desnudo"><IconoAnimado nombre="por-pagar" tam={44} /></div>
             <div className="pt-stat-etiqueta">Por pagar</div>
@@ -187,7 +192,7 @@ export default function PanelPortal() {
       </div>
 
       {/* Próximos servicios + composición */}
-      <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", gridTemplateColumns: "2fr 1.3fr" }}>
+      <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", "--pt-cols": "2fr 1.3fr" }}>
         <div className="pt-card">
           <div className="pt-card-head">
             <h2>Próximos servicios</h2>
@@ -260,7 +265,7 @@ export default function PanelPortal() {
       </div>
 
       {/* Servicios recientes + movimientos */}
-      <div className="pt-grid pt-grid-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 1fr" }}>
         <div className="pt-card">
           <div className="pt-card-head">
             <h2>Últimos servicios</h2>
