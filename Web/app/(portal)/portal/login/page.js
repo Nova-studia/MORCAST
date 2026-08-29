@@ -217,7 +217,13 @@ export default function LoginPortal() {
             </button>
           </form>
 
-          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "1.1rem" }}>
+          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "0.9rem" }}>
+            <Link href="/portal/recuperar" style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}>
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
+
+          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "0.6rem" }}>
             ¿Aún no eres cliente?{" "}
             <Link href="/portal/alta" style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}>
               Cotización/Alta

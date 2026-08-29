@@ -13,7 +13,14 @@ export default function PortalLayout({ children }) {
   // Fuera del shell protegido. El login y el alta los usa gente SIN sesión;
   // registro y pendiente los usa gente CON sesión pero SIN sello, y el shell
   // exige justamente ese sello: montarlo ahí las rebotaría al login.
-  const SIN_SHELL = ["/portal/login", "/portal/alta", "/portal/registro", "/portal/pendiente"];
+  const SIN_SHELL = [
+    "/portal/login",
+    "/portal/alta",
+    "/portal/registro",
+    "/portal/pendiente",
+    "/portal/recuperar",
+    "/portal/nueva-clave",
+  ];
   if (SIN_SHELL.includes(ruta)) {
     return <div className="pt-body">{children}</div>;
   }

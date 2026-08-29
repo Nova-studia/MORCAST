@@ -18,6 +18,11 @@ import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
 const ABIERTAS = [
   "/portal/login",
   "/portal/alta",
+  // Recuperar contrasena: quien llega aqui, por definicion, NO puede entrar.
+  // Van en ABIERTAS y no en el bloque de la sala de espera porque ahi hace
+  // falta sesion, y aqui justamente no hay ninguna.
+  "/portal/recuperar",
+  "/portal/nueva-clave",
   "/admin/login",
   "/chofer/login",
   "/auth",

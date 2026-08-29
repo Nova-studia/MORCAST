@@ -391,3 +391,39 @@ export async function correoCuentaActivada({ correo, contacto, empresa, folio })
         ¿Dudas? Responde a este correo o llámanos al 868 384 9478.</p>`),
   });
 }
+
+/**
+ * Enlace para crear una contraseña nueva.
+ *
+ * Lo manda Resend y no Supabase a propósito: el correo de Supabase sale con su
+ * remitente y su plantilla, y en el plan gratuito está limitado a unos pocos
+ * por hora. Ver `app/acciones-recuperar.js`.
+ *
+ * ⚠️ El enlace da acceso a la cuenta durante una hora. Por eso el texto dice
+ * qué hacer si la persona NO pidió esto: es el único aviso que va a recibir.
+ */
+export async function correoRecuperacion({ correo, enlace }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    subject: "Crea tu contraseña nueva — Morcast del Norte",
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Crea tu contraseña nueva</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Recibimos una solicitud para cambiar la contraseña de tu cuenta en el
+        portal de Morcast del Norte. Pulsa el botón y elige una nueva:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#144C4F;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Crear mi contraseña</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en una hora</strong> y sólo se puede usar una vez.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿No pediste esto? Puedes ignorar este correo: tu contraseña no cambia
+        hasta que alguien abra ese enlace y escriba una nueva. Si te llega
+        varias veces sin que tú lo pidas, avísanos al 868 384 9478.</p>`),
+  });
+}
