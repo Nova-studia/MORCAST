@@ -427,3 +427,29 @@ export async function correoRecuperacion({ correo, enlace }) {
         varias veces sin que tú lo pidas, avísanos al 868 384 9478.</p>`),
   });
 }
+
+/**
+ * Aviso de que la contraseña acaba de cambiar.
+ *
+ * Es la red de seguridad: si alguien toma una cuenta, éste es el ÚNICO correo
+ * que la persona va a recibir, y por eso dice qué hacer y a quién llamar. No
+ * lleva enlaces de acción a propósito — un correo de alerta con un botón es
+ * exactamente lo que imita el phishing.
+ */
+export async function correoContrasenaCambiada({ correo }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: "Tu contraseña de Morcast del Norte cambió",
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu contraseña cambió</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Te avisamos de que la contraseña de tu cuenta en el portal de Morcast
+        del Norte acaba de cambiar. Si fuiste tú, no tienes que hacer nada.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>¿No fuiste tú?</strong> Llámanos cuanto antes al
+        <strong>868 384 9478</strong> para que bloqueemos el acceso. No hace
+        falta que respondas a este correo ni que pulses ningún enlace.</p>`),
+  });
+}

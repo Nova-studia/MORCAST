@@ -3,113 +3,97 @@
 import { headers } from "next/headers";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { correoRecuperacion } from "@/lib/correo";
-import { puedePedirEnlace } from "@/lib/enfriamiento.mjs";
+import { origenPermitido } from "@/lib/origen.mjs";
 
 /**
  * RECUPERAR LA CONTRASEÑA.
  *
  * Por qué el correo lo manda Resend y no Supabase
  * -----------------------------------------------
- * `resetPasswordForEmail` de Supabase sería una línea, pero manda el correo
- * con SU remitente y SU plantilla, y en el plan gratuito está limitado a unos
- * pocos por hora: con varios clientes recuperando a la vez se bloquea, y nadie
- * se entera de por qué. `admin.generateLink` **genera el enlace sin enviarlo**,
- * y lo mandamos nosotros por Resend, con la misma imagen que los otros seis
- * correos del sistema y sin ese tope.
+ * `resetPasswordForEmail` sería una línea, pero manda el correo con SU
+ * remitente y SU plantilla, y en el plan gratuito está limitado a unos pocos
+ * por hora: con varios clientes recuperando a la vez se bloquea y nadie se
+ * entera. `admin.generateLink` **genera el enlace sin enviarlo**, y lo mandamos
+ * nosotros con la misma imagen que los otros correos del sistema.
  *
- * Por qué la respuesta es siempre la misma
- * ----------------------------------------
- * Si contestara "ese correo no existe", cualquiera podría averiguar quiénes
- * son los clientes de Morcast probando direcciones. Se contesta lo mismo haya
- * cuenta o no. El único caso en que se dice algo distinto es el enfriamiento, y
- * ahí no se filtra nada: sólo que hay que esperar.
+ * 🔴 LA REGLA QUE MANDA AQUÍ: UNA SOLA RESPUESTA
+ * ----------------------------------------------
+ * Esta pantalla es pública y contesta a cualquiera. Si la respuesta cambiara
+ * según lo que pasa por dentro, sería una herramienta para averiguar quiénes
+ * son los clientes de Morcast probando correos.
+ *
+ * Por eso **todos** los caminos devuelven exactamente el mismo acuse: la cuenta
+ * no existe, la cuenta existe, el freno la paró, Supabase falló, Resend falló.
+ * Todos. Lo que pasó de verdad va al registro con `console.error`, que lo lee
+ * quien opera el sitio y nadie más.
+ *
+ * La primera versión de este archivo fallaba justo aquí: contestaba "espera 47
+ * segundos" cuando la cuenta existía y estaba en enfriamiento, y el acuse
+ * genérico cuando no existía. Dos envíos seguidos y ya sabías si un correo
+ * estaba registrado.
  */
 
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Lo mismo que ve quien tiene cuenta y quien no. */
+/** Lo único que se contesta, pase lo que pase por dentro. */
 const ACUSE =
   "Si ese correo tiene una cuenta en Morcast, te acabamos de mandar un enlace para crear tu contraseña nueva. Revisa también la carpeta de no deseados.";
 
-/**
- * El origen real de la petición, para armar el enlace del correo.
- *
- * Se prefiere `x-forwarded-host` por lo mismo que en `/auth/callback`: detrás
- * de Vercel el host que ve la aplicación puede ser el interno de la
- * plataforma. Y por lo mismo va con lista blanca — si no, alguien podría
- * mandar esa cabecera y hacer que el enlace de recuperación de un cliente
- * apunte a un sitio suyo. Aquí importa MÁS que en el callback, porque este
- * enlace viaja por correo y da acceso a la cuenta.
- */
-function origenSeguro(cabeceras) {
-  const PERMITIDOS = ["morcast.mx", "www.morcast.mx", "localhost", "127.0.0.1"];
-  const crudo = (cabeceras.get("x-forwarded-host") || "").split(",")[0].trim();
-  const proto = (cabeceras.get("x-forwarded-proto") || "").split(",")[0].trim();
+/** El acuse, siempre. Se centraliza para que no haya forma de contestar otra cosa. */
+const acuse = () => ({ ok: true, mensaje: ACUSE });
 
-  if (crudo) {
-    const sinPuerto = crudo.split(":")[0];
-    if (PERMITIDOS.includes(sinPuerto)) {
-      const esquema = proto === "http" || proto === "https" ? proto : "https";
-      return `${esquema}://${crudo}`;
-    }
-    console.error(`[recuperar] host no permitido en x-forwarded-host: ${crudo}`);
-  }
-  // Respaldo: el host de la propia petición.
-  const host = cabeceras.get("host");
-  return host ? `https://${host}` : "https://morcast.mx";
-}
-
-/**
- * Pide un enlace para crear una contraseña nueva.
- * Devuelve SIEMPRE `{ ok: true, mensaje }` salvo que el correo esté mal escrito
- * o haya que esperar.
- */
 export async function pedirRecuperacion(correo) {
   const limpio = String(correo || "").trim().toLowerCase().slice(0, 160);
+
+  // Lo ÚNICO que se responde distinto: que el correo esté mal escrito. Eso no
+  // filtra nada —no depende de si existe la cuenta— y sin ello la persona se
+  // queda mirando un acuse que nunca se va a cumplir por una errata.
   if (!CORREO_RE.test(limpio)) {
     return { ok: false, motivo: "Escribe un correo válido." };
   }
 
-  if (!haySupabase()) return { ok: true, demo: true, mensaje: ACUSE };
+  if (!haySupabase()) return { ...acuse(), demo: true };
 
   const sb = supabaseServidor();
 
-  // ¿Existe? Se busca por correo. Si no existe, se contesta el mismo acuse y
-  // no se manda nada: quien prueba direcciones ajenas no aprende nada.
-  const { data: lista, error: errBusca } = await sb.auth.admin.listUsers({ page: 1, perPage: 200 });
-  if (errBusca) {
-    console.error("[recuperar] no se pudo consultar usuarios:", errBusca.message);
-    return { ok: false, motivo: "No se pudo procesar tu solicitud. Inténtalo en un momento." };
-  }
-  const usuario = lista?.users?.find((u) => (u.email || "").toLowerCase() === limpio);
-  if (!usuario) return { ok: true, mensaje: ACUSE };
+  // 1) El freno. Va PRIMERO y se anota exista la cuenta o no: si sólo se
+  //    frenaran los correos con cuenta, el propio freno delataría cuáles son.
+  //    La decisión se toma en una sola sentencia dentro de la base (db/018),
+  //    así que dos peticiones a la vez no pueden pasar las dos.
+  const { data: puede, error: errFreno } = await sb.rpc("puede_pedir_recuperacion", {
+    p_correo: limpio,
+  });
 
-  // Enfriamiento. `recovery_sent_at` la mantiene Supabase sola; sin esto, esta
-  // pantalla es un botón para bombardear el buzón de cualquier cliente.
-  const { puede, faltanSegundos } = puedePedirEnlace(usuario.recovery_sent_at, new Date());
+  if (errFreno) {
+    console.error("[recuperar] no se pudo consultar el freno:", errFreno.message);
+    return acuse();
+  }
   if (!puede) {
-    return {
-      ok: false,
-      motivo: `Ya te mandamos un enlace hace un momento. Espera ${faltanSegundos} segundos y vuelve a intentarlo.`,
-    };
+    console.error(`[recuperar] frenado por repetido: ${limpio}`);
+    return acuse();
   }
 
-  const origen = origenSeguro(await headers());
-
-  // `generateLink` NO envía nada: sólo devuelve el material del enlace.
+  // 2) El enlace. `generateLink` NO envía nada; devuelve el material.
+  //    Si el correo no tiene cuenta, responde error — y ese error es
+  //    justamente lo que NO se puede dejar salir hacia afuera.
+  //
+  //    Antes esto se resolvía con `listUsers({perPage: 200})`, que sólo miraba
+  //    la primera página: pasados los 200 usuarios, a los clientes MÁS
+  //    ANTIGUOS se les decía "te mandamos un enlace" y no les llegaba nunca,
+  //    sin un renglón en el registro. Preguntándole directo a `generateLink`
+  //    ese techo desaparece.
   const { data, error } = await sb.auth.admin.generateLink({
     type: "recovery",
     email: limpio,
   });
 
   if (error || !data?.properties?.hashed_token) {
-    console.error("[recuperar] no se pudo generar el enlace:", error?.message);
-    return { ok: false, motivo: "No se pudo procesar tu solicitud. Inténtalo en un momento." };
+    console.error(`[recuperar] sin enlace para ${limpio}: ${error?.message || "sin token"}`);
+    return acuse();
   }
 
-  // Se arma NUESTRO enlace con el token, en vez de usar `action_link`. Así
-  // apunta a nuestra pantalla y la sesión se crea ahí con `verifyOtp`, sin
-  // pasar por el flujo con código, que aquí no aporta nada y complica.
+  // 3) El correo.
+  const origen = origenPermitido(await headers());
   const enlace = `${origen}/portal/nueva-clave?token=${encodeURIComponent(
     data.properties.hashed_token
   )}`;
@@ -117,11 +101,11 @@ export async function pedirRecuperacion(correo) {
   try {
     await correoRecuperacion({ correo: limpio, enlace });
   } catch (e) {
-    // Aquí SÍ importa el fallo: si el correo no sale, la persona se queda
-    // esperando un enlace que no llega y el acuse le miente.
-    console.error("[recuperar] el correo NO salió:", e?.message);
-    return { ok: false, motivo: "No se pudo enviar el correo. Inténtalo en un momento." };
+    // Que falle el envío NO cambia la respuesta: decir "no se pudo enviar"
+    // sólo es alcanzable si la cuenta existe, así que sería otra fuga. Queda
+    // en el registro con un prefijo buscable, que es donde tiene que verse.
+    console.error(`[recuperar] EL CORREO NO SALIO para ${limpio}: ${e?.message}`);
   }
 
-  return { ok: true, mensaje: ACUSE };
+  return acuse();
 }

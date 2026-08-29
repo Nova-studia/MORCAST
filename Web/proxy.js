@@ -35,7 +35,10 @@ export async function proxy(request) {
 
   const protegida =
     (esArea(ruta, "/admin") || esArea(ruta, "/portal") || esArea(ruta, "/chofer")) &&
-    !ABIERTAS.some((p) => ruta.startsWith(p));
+    // `esArea` y no `startsWith`, por lo mismo que se explica mas abajo en el
+    // bloque de la sala de espera: `startsWith` no respeta el limite de
+    // segmento y dejaria pasar de colado a algo como `/portal/loginX`.
+    !ABIERTAS.some((p) => esArea(ruta, p));
 
   if (!protegida) return NextResponse.next({ request });
 

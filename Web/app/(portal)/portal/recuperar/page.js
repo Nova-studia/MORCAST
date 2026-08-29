@@ -27,13 +27,23 @@ export default function RecuperarPortal() {
     setError("");
     setAcuse("");
     setEnviando(true);
-    const r = await pedirRecuperacion(correo);
-    setEnviando(false);
-    if (!r.ok) {
-      setError(r.motivo);
-      return;
+    // try/finally: si la acción LANZA (red caída, tiempo agotado), sin esto
+    // `setEnviando(false)` no corre nunca y el botón se queda en "Enviando…"
+    // deshabilitado para siempre, sin decir nada. La única salida sería
+    // recargar la página.
+    try {
+      const r = await pedirRecuperacion(correo);
+      if (!r.ok) {
+        setError(r.motivo);
+        return;
+      }
+      setAcuse(r.mensaje);
+    } catch (e) {
+      console.error("[recuperar] la acción falló:", e?.message);
+      setError("No se pudo procesar tu solicitud. Inténtalo en un momento.");
+    } finally {
+      setEnviando(false);
     }
-    setAcuse(r.mensaje);
   };
 
   return (

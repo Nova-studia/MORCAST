@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ArrowRight, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { avisarContrasenaCambiada } from "@/app/acciones-aviso-clave";
 
 /**
  * CREAR LA CONTRASEÑA NUEVA — a donde lleva el enlace del correo.
@@ -20,9 +21,10 @@ import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegado
  * Resend), así que no hay verificador de PKCE que casar. Menos piezas, menos
  * formas de fallar.
  *
- * ⚠️ El token se canjea UNA sola vez. Por eso, si alguien recarga esta página
- * después de canjearlo, no se vuelve a intentar: ya hay sesión y el formulario
- * sigue sirviendo.
+ * ⚠️ El token se canjea UNA sola vez, así que recargar esta página después de
+ * usarlo lleva a "este enlace ya no sirve". Es correcto: se pide otro. Lo que
+ * NO se hace es dar el formulario por bueno porque haya una sesión cualquiera
+ * — ver el comentario del efecto.
  */
 export default function NuevaClavePortal() {
   const router = useRouter();
@@ -43,18 +45,34 @@ export default function NuevaClavePortal() {
       const supabase = supabaseNavegador();
       const token = new URLSearchParams(window.location.search).get("token");
 
-      // Si ya hay sesión (por ejemplo tras recargar), no se vuelve a canjear:
-      // el token es de un solo uso y el segundo intento fallaría.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        if (vivo) setEstado("listo");
+      // 🔴 SIN TOKEN NO SE ENSEÑA EL FORMULARIO, HAYA SESIÓN O NO.
+      //
+      // La primera versión miraba `getSession()` ANTES que el token y, si
+      // había sesión, daba el formulario por bueno sin canjear nada. Eso
+      // cambiaba la contraseña de QUIEN YA ESTABA DENTRO, no la del dueño del
+      // enlace. El caso real: el administrador, con su sesión del panel
+      // abierta, abre el enlace de un cliente para probarlo y se cambia SU
+      // PROPIA contraseña en silencio — y el cliente sigue sin poder entrar.
+      //
+      // Ahora manda el token y sólo el token. Quien llegue aquí con sesión y
+      // sin enlace se va a su área: cambiar la contraseña estando dentro es
+      // otra cosa, y esta pantalla no es el sitio.
+      if (!token) {
+        if (!vivo) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace("/portal");
+          return;
+        }
+        setEstado("invalido");
         return;
       }
 
-      if (!token) {
-        if (vivo) setEstado("invalido");
-        return;
-      }
+      // Si ya hubiera una sesión de otra persona en este navegador, se cierra
+      // antes de canjear: el token manda, y `updateUser` tiene que actuar
+      // sobre la cuenta del enlace y sobre ninguna otra.
+      const { data: { session: previa } } = await supabase.auth.getSession();
+      if (previa) await supabase.auth.signOut();
 
       const { error: err } = await supabase.auth.verifyOtp({
         token_hash: token,
@@ -77,7 +95,7 @@ export default function NuevaClavePortal() {
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [router]);
 
   const guardar = async (e) => {
     e.preventDefault();
@@ -100,6 +118,11 @@ export default function NuevaClavePortal() {
       setGuardando(false);
       return;
     }
+
+    // Aviso por correo de que la contraseña cambió. Es la red de seguridad:
+    // si alguien tomó la cuenta, éste es el único correo que la persona va a
+    // recibir. No se espera a que salga para dejarla entrar.
+    avisarContrasenaCambiada();
 
     // Ya con la contraseña puesta, se manda al portal. El guardia decide a
     // dónde va según su rol; si no tuviera sello, acabará en la sala de espera.
