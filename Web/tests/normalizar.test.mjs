@@ -82,6 +82,7 @@ import {
   tipoDeRuta,
   frecuenciaPorMes,
   claveDeRuta,
+  aNumero,
 } from "../scripts/cuaderno/normalizar.mjs";
 
 test("un dia suelto", () => {
@@ -166,4 +167,19 @@ test("la basura con varios puntos no se lee como numero", () => {
 
 test("un numero con decimales cae en el escalon que le toca", () => {
   assert.equal(frecuenciaPorMes(2.5), "quincenal");
+});
+
+test("aNumero conserva el signo, la misma regla que antes solo tenia frecuenciaPorMes", () => {
+  // La copia de cargar.mjs (linea ~251) tiraba el "-" junto con la basura:
+  // un "-8" en recolecciones al mes se leia como 8. `aNumero` es la unica
+  // fuente ahora, y la usan cargar.mjs y frecuenciaPorMes por igual.
+  assert.equal(aNumero("-8"), -8);
+  assert.equal(aNumero("8"), 8);
+  assert.equal(aNumero("-8.5"), -8.5);
+  assert.equal(aNumero(""), 0);
+  // "abc" no deja ni un digito: como con "" el saneo se queda vacio y da 0.
+  assert.equal(aNumero("abc"), 0);
+  // Varios puntos SI dan basura no numerica de verdad (ya cubierto tambien
+  // por "la basura con varios puntos no se lee como numero", arriba).
+  assert.equal(Number.isNaN(aNumero("4.5.6")), true);
 });

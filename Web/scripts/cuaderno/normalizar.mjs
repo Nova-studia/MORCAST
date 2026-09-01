@@ -162,6 +162,19 @@ export function claveDeRuta(txt) {
 }
 
 /**
+ * Texto suelto del cuaderno a numero, CONSERVANDO EL SIGNO.
+ *
+ * Esta regla vivia duplicada: aqui, en `frecuenciaPorMes`, y otra vez en
+ * `cargar.mjs` para "recolecciones al mes". La de aqui se arreglo primero y
+ * la otra copia se quedo con `[^\d.]`, que borra el "-" junto con la
+ * basura: un "-8" en la hoja se leia como 8. Ahora hay una sola fuente para
+ * las dos.
+ */
+export function aNumero(txt) {
+  return Number(String(txt ?? "").replace(/[^\d.-]/g, ""));
+}
+
+/**
  * De "recolecciones al mes" a la frecuencia que acepta `suscripciones`.
  *
  * Es una simplificacion, y a proposito: el numero EXACTO se guarda en
@@ -170,10 +183,7 @@ export function claveDeRuta(txt) {
  * el conteo real vive en la otra columna.
  */
 export function frecuenciaPorMes(n) {
-  // El saneo tiene que CONSERVAR el signo, no solo los digitos: si se borra
-  // el "-" junto con la basura, -5 se convierte en 5 y sale "semanal", la
-  // frecuencia MAS agresiva justo cuando el dato dice lo contrario.
-  const v = Number(String(n ?? "").replace(/[^\d.-]/g, ""));
+  const v = aNumero(n);
   if (!Number.isFinite(v) || v <= 0) return "mensual";
   if (v >= 4) return "semanal";
   if (v >= 2) return "quincenal";
