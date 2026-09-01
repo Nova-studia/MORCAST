@@ -223,9 +223,13 @@ export default function ClientesAdmin() {
                     {(() => {
                       const a = accesos[c.uuid] || {};
                       if (a.enviado || c.tieneAcceso) {
+                        // Luis lo pidio explicito: el sabe que la palomita
+                        // sola significa "ya tiene acceso", pero no es quien
+                        // va a usar el panel a diario. Y en una tablet no
+                        // hay cursor que se detenga sobre el `title`.
                         return (
                           <span className="pt-tabla-icono-estado" title="Ya tiene acceso al portal">
-                            <CheckCircle />
+                            <CheckCircle /> Con acceso
                           </span>
                         );
                       }
@@ -234,6 +238,12 @@ export default function ClientesAdmin() {
                       // habilitado un botón que el servidor va a rechazar,
                       // el cliente vería un error sin explicación.
                       const evaluado = puedeRecibirAcceso(c);
+                      // Etiqueta corta para el boton (cabe en la columna) y
+                      // `titulo` con la version larga para el `title`/
+                      // `aria-label` -- el resumen no sustituye el contexto.
+                      const etiqueta = evaluado.puede
+                        ? (a.enviando ? "Enviando…" : "Dar acceso")
+                        : MOTIVO_TEXTO[evaluado.motivo];
                       const titulo = evaluado.puede
                         ? (a.enviando ? "Enviando…" : `Dar acceso al portal a ${c.empresa}`)
                         : MOTIVO_TEXTO[evaluado.motivo];
@@ -241,13 +251,13 @@ export default function ClientesAdmin() {
                         <>
                           <button
                             type="button"
-                            className="pt-tabla-icono-btn"
+                            className="pt-btn pt-tabla-acceso-btn"
                             disabled={!evaluado.puede || a.enviando}
                             title={titulo}
                             aria-label={titulo}
                             onClick={() => darAcceso(c)}
                           >
-                            <Key />
+                            <Key /> {etiqueta}
                           </button>
                           {a.error && (
                             <p style={{ color: "#ef8080", fontSize: "0.78rem", margin: "0.35rem 0 0" }}>{a.error}</p>
