@@ -150,3 +150,20 @@ test("la frecuencia sale de las recolecciones al mes", () => {
   assert.equal(frecuenciaPorMes(""), "mensual");
   assert.equal(frecuenciaPorMes(0), "mensual");
 });
+
+test("un negativo NO se convierte en su valor absoluto", () => {
+  // El saneo borraba el signo junto con la basura, asi que -5 acababa
+  // siendo "semanal": la frecuencia MAS agresiva, justo lo contrario de
+  // lo conservador que promete la funcion.
+  assert.equal(frecuenciaPorMes(-5), "mensual");
+  assert.equal(frecuenciaPorMes("-5"), "mensual");
+  assert.equal(frecuenciaPorMes(-1), "mensual");
+});
+
+test("la basura con varios puntos no se lee como numero", () => {
+  assert.equal(frecuenciaPorMes("4.5.6"), "mensual");
+});
+
+test("un numero con decimales cae en el escalon que le toca", () => {
+  assert.equal(frecuenciaPorMes(2.5), "quincenal");
+});

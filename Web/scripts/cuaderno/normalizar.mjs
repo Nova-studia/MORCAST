@@ -170,7 +170,10 @@ export function claveDeRuta(txt) {
  * el conteo real vive en la otra columna.
  */
 export function frecuenciaPorMes(n) {
-  const v = Number(String(n ?? "").replace(/[^\d.]/g, ""));
+  // El saneo tiene que CONSERVAR el signo, no solo los digitos: si se borra
+  // el "-" junto con la basura, -5 se convierte en 5 y sale "semanal", la
+  // frecuencia MAS agresiva justo cuando el dato dice lo contrario.
+  const v = Number(String(n ?? "").replace(/[^\d.-]/g, ""));
   if (!Number.isFinite(v) || v <= 0) return "mensual";
   if (v >= 4) return "semanal";
   if (v >= 2) return "quincenal";
