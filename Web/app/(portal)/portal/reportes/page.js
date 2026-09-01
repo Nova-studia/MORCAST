@@ -143,7 +143,7 @@ export default function ReportesPortal() {
           idea, pero con el Hold ya no hace falta que cada pantalla decida
           por su cuenta si hay o no facturación. */}
       {enHold() && (
-        <p className="pt-nota">
+        <p className="pt-nota-demo">
           Los importes aparecerán aquí en cuanto empiece la facturación.
           Los servicios y sus fechas sí son reales.
         </p>

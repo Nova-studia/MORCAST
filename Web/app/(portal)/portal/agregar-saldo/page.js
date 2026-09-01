@@ -123,7 +123,7 @@ export default function AgregarSaldo() {
       {/* Saldo actual */}
       <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>
         {enHold() ? (
-          <p className="pt-nota" style={{ margin: 0 }}>
+          <p className="pt-nota-demo">
             {HOLD.motivo} Tu saldo aparecerá aquí en cuanto empiece la facturación.
           </p>
         ) : (
