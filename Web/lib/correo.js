@@ -393,6 +393,52 @@ export async function correoCuentaActivada({ correo, contacto, empresa, folio })
 }
 
 /**
+ * Invitación al portal para un cliente que YA estaba dado de alta en la
+ * operación (el cuaderno, o un alta anterior sin acceso) y nunca había
+ * tocado el sitio. Es distinta de `correoCuentaActivada`: aquélla le avisa a
+ * quien se registró SOLO con Google que ya puede entrar con ESE botón; esta
+ * le manda el enlace a alguien que nunca se registró, para que elija su
+ * contraseña por primera vez. Ver `app/acciones-alta-cliente.js:darAccesoACliente`.
+ *
+ * Mismo patrón que `correoRecuperacion`: el enlace lo genera Supabase pero lo
+ * envía Resend, para no toparse con el límite de correos del plan gratuito ni
+ * con la plantilla ajena.
+ */
+export async function correoAccesoCliente({ correo, contacto, empresa, folio, enlace }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Tu acceso al Portal de Clientes — Morcast del Norte (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu portal ya está listo</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, somos Morcast del Norte, la empresa que recolecta
+        los residuos de <strong>${esc(empresa)}</strong>. Ya dimos de alta tu
+        cuenta en el portal en línea; tu número de cliente es
+        <strong>${esc(folio)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Pulsa el botón y elige la contraseña con la que vas a entrar:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#144C4F;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Crear mi contraseña</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en una hora</strong> y sólo se puede usar una vez.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Con esa contraseña vas a entrar en
+        <a href="https://morcast.mx/portal/login" style="color:#144C4F">morcast.mx/portal/login</a>,
+        donde puedes agendar recolecciones, ver tu historial, descargar tus
+        manifiestos y consultar tu saldo.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿Dudas? Responde a este correo o llámanos al 868 384 9478.</p>`),
+  });
+}
+
+/**
  * Enlace para crear una contraseña nueva.
  *
  * Lo manda Resend y no Supabase a propósito: el correo de Supabase sale con su

@@ -4,6 +4,7 @@ import {
   loQueFalta,
   estadoPorCompletitud,
   etiquetaEstado,
+  puedeRecibirAcceso,
 } from "../lib/estado-cliente.mjs";
 
 const completo = {
@@ -72,4 +73,60 @@ test("cada estado tiene su etiqueta y su clase de badge", () => {
 
 test("un estado desconocido no truena la tabla", () => {
   assert.deepEqual(etiquetaEstado("inventado"), { texto: "inventado", clase: "" });
+});
+
+/* ====================================================================== */
+/* puedeRecibirAcceso — la regla de "dar acceso al portal" a un cliente   */
+/* que YA existe en la base (acciones-alta-cliente.js:darAccesoACliente). */
+/* ====================================================================== */
+
+test("puede recibir acceso: tiene correo y no tiene perfil ligado", () => {
+  assert.deepEqual(
+    puedeRecibirAcceso({ correo: "compras@golfo.mx", tieneAcceso: false }),
+    { puede: true }
+  );
+});
+
+test("ya tiene acceso: no se le crea un segundo perfil", () => {
+  assert.deepEqual(
+    puedeRecibirAcceso({ correo: "compras@golfo.mx", tieneAcceso: true }),
+    { puede: false, motivo: "ya-tiene-acceso" }
+  );
+});
+
+test("sin correo: no hay a donde mandarle el acceso", () => {
+  assert.deepEqual(
+    puedeRecibirAcceso({ correo: "", tieneAcceso: false }),
+    { puede: false, motivo: "sin-correo" }
+  );
+});
+
+// El guion largo lo pone datos-clientes.js (`correo: c.correo || "—"`), no el
+// cuaderno. Ya mordió una vez en `estadoPorCompletitud`; aquí es la misma
+// trampa con otro nombre.
+test("el guion largo de datos-clientes.js no cuenta como correo", () => {
+  assert.deepEqual(
+    puedeRecibirAcceso({ correo: "—", tieneAcceso: false }),
+    { puede: false, motivo: "sin-correo" }
+  );
+});
+
+test("los rellenos del cuaderno (N-A, n/a, etc) tampoco cuentan como correo", () => {
+  for (const relleno of ["N-A", "n/a", "-", "  "]) {
+    assert.deepEqual(
+      puedeRecibirAcceso({ correo: relleno, tieneAcceso: false }),
+      { puede: false, motivo: "sin-correo" },
+      `"${relleno}" se colo como correo valido`
+    );
+  }
+});
+
+// Orden: si YA tiene acceso, eso se contesta primero, aunque además le falte
+// el correo — decirle "sin correo" a alguien que ya tiene acceso sería
+// mentir sobre por qué no se le puede dar un segundo.
+test("si ya tiene acceso y ademas no tiene correo, gana ya-tiene-acceso", () => {
+  assert.deepEqual(
+    puedeRecibirAcceso({ correo: "", tieneAcceso: true }),
+    { puede: false, motivo: "ya-tiene-acceso" }
+  );
 });

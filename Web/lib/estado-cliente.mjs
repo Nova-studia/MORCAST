@@ -83,3 +83,39 @@ const ETIQUETAS = {
 export function etiquetaEstado(estado) {
   return ETIQUETAS[estado] || { texto: String(estado ?? ""), clase: "" };
 }
+
+/**
+ * ¿SE LE PUEDE DAR ACCESO AL PORTAL A ESTE CLIENTE?
+ *
+ * De donde sale esto
+ * -------------------
+ * De los 43 clientes reales cargados el 27-ago-2026, ninguno tiene acceso: las
+ * dos acciones que existian para eso (`activarCuentaCliente` y
+ * `activarCuentaRegistrada`, en app/acciones-alta-cliente.js) siempre hacian
+ * `insert` en `clientes` -- se escribieron para "llega un prospecto de la
+ * nada", no para "dale acceso a alguien que ya esta en la base". Intentarlo
+ * con ellas truena contra el indice unico `clientes_empresa_key` (db/020).
+ *
+ * `darAccesoACliente` (la accion nueva) usa esta funcion para decidir SI
+ * puede seguir, y la pantalla de /admin/clientes la usa para decidir si el
+ * boton se puede pulsar. Es la MISMA regla en los dos lados a proposito: si
+ * viviera por separado, tarde o temprano dirian cosas distintas y el boton
+ * se veria habilitado para un cliente que el servidor va a rechazar.
+ *
+ * `cliente.tieneAcceso` lo calcula `listarClientes()` mirando si hay algun
+ * `perfiles.cliente_id` que apunte a el -- no es una columna de `clientes`,
+ * asi que esta funcion no puede ir a buscarlo por su cuenta: recibe lo que ya
+ * se calculo.
+ *
+ * El orden importa: si ya tiene acceso, eso se contesta primero aunque
+ * ademas le falte el correo. Decirle "sin correo" a un cliente que ya tiene
+ * acceso seria disfrazar la razon real de por que no se le puede dar otro.
+ */
+export function puedeRecibirAcceso(cliente) {
+  if (cliente?.tieneAcceso) return { puede: false, motivo: "ya-tiene-acceso" };
+  // hayDato() ya trata "N-A" y el guion largo (el que pone `datos-clientes.js`
+  // cuando no hay correo) como vacios. Sin reusarla, un cliente sin correo
+  // pero con el relleno "—" se veria con correo valido.
+  if (!hayDato(cliente?.correo)) return { puede: false, motivo: "sin-correo" };
+  return { puede: true };
+}

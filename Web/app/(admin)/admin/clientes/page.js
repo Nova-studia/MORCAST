@@ -4,10 +4,19 @@ import { useEffect, useState } from "react";
 import {
   Plus,
   X,
+  Key,
+  CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { listarClientes, crearCliente } from "@/lib/datos-clientes";
+import { darAccesoACliente } from "@/app/acciones-alta-cliente";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
-import { etiquetaEstado, loQueFalta } from "@/lib/estado-cliente.mjs";
+import { etiquetaEstado, loQueFalta, puedeRecibirAcceso } from "@/lib/estado-cliente.mjs";
+
+/** Por qué no se puede pulsar el botón, en el mismo texto que va en el `title`. */
+const MOTIVO_TEXTO = {
+  "ya-tiene-acceso": "Ya tiene acceso",
+  "sin-correo": "Sin correo",
+};
 
 export default function ClientesAdmin() {
   const [lista, setLista] = useState([]);
@@ -25,6 +34,28 @@ export default function ClientesAdmin() {
   }, []);
   const [alta, setAlta] = useState(false);
   const [form, setForm] = useState({ empresa: "", contacto: "", correo: "", telefono: "", plan: "Por evento" });
+  // Acceso al portal por cliente: { [uuid]: { enviando, error, enviado } }.
+  // Va por `uuid` (el id real) y no por `c.id` (el folio, que es lo que se ve
+  // en pantalla) porque es lo que la acción del servidor necesita para
+  // encontrar al cliente.
+  const [accesos, setAccesos] = useState({});
+  const setAcceso = (uuid, patch) =>
+    setAccesos((a) => ({ ...a, [uuid]: { ...(a[uuid] || {}), ...patch } }));
+
+  const darAcceso = async (c) => {
+    // Es un correo real a un cliente real: se confirma antes de mandarlo.
+    if (!window.confirm(`¿Enviar el acceso al portal a ${c.empresa} (${c.correo})?`)) return;
+    setAcceso(c.uuid, { enviando: true, error: "" });
+    const r = await darAccesoACliente({ clienteId: c.uuid });
+    if (!r.ok) {
+      setAcceso(c.uuid, { enviando: false, error: r.motivo || "No se pudo dar el acceso." });
+      return;
+    }
+    setAcceso(c.uuid, { enviando: false, error: "", enviado: true });
+    // El cliente ya tiene acceso: refleja el cambio sin volver a pedir toda
+    // la lista, igual que hace /admin/solicitudes al activar una cuenta.
+    setLista((l) => l.map((x) => (x.uuid === c.uuid ? { ...x, tieneAcceso: true } : x)));
+  };
 
   const totalPorPagar = lista.reduce((a, c) => a + c.porPagar, 0);
   const activos = lista.filter((c) => c.estatus === "activo").length;
@@ -104,7 +135,7 @@ export default function ClientesAdmin() {
 
       <div className="pt-card">
         <div className="pt-tabla-wrap">
-          <table className="pt-tabla" style={{ minWidth: 820 }}>
+          <table className="pt-tabla" style={{ minWidth: 940 }}>
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -114,6 +145,7 @@ export default function ClientesAdmin() {
                 <th className="num">Por pagar</th>
                 <th>Estatus</th>
                 <th>Desde</th>
+                <th>Acceso al portal</th>
               </tr>
             </thead>
             <tbody>
@@ -152,6 +184,40 @@ export default function ClientesAdmin() {
                     })()}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(c.desde)}</td>
+                  <td style={{ minWidth: 200 }}>
+                    {(() => {
+                      const a = accesos[c.uuid] || {};
+                      if (a.enviado || c.tieneAcceso) {
+                        return (
+                          <span className="pt-badge ok" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                            <CheckCircle /> Tiene acceso
+                          </span>
+                        );
+                      }
+                      // `puedeRecibirAcceso()` es la MISMA regla que usa el
+                      // servidor (estado-cliente.mjs): si aquí se pintara
+                      // habilitado un botón que el servidor va a rechazar,
+                      // el cliente vería un error sin explicación.
+                      const evaluado = puedeRecibirAcceso(c);
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            className="pt-btn pt-btn-verde"
+                            disabled={!evaluado.puede || a.enviando}
+                            title={evaluado.puede ? "" : MOTIVO_TEXTO[evaluado.motivo]}
+                            style={{ opacity: evaluado.puede && !a.enviando ? 1 : 0.55, whiteSpace: "nowrap" }}
+                            onClick={() => darAcceso(c)}
+                          >
+                            <Key /> {a.enviando ? "Enviando…" : evaluado.puede ? "Dar acceso al portal" : MOTIVO_TEXTO[evaluado.motivo]}
+                          </button>
+                          {a.error && (
+                            <p style={{ color: "#ef8080", fontSize: "0.78rem", margin: "0.35rem 0 0" }}>{a.error}</p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>
