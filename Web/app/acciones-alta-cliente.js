@@ -7,7 +7,7 @@ import { usuarioActual } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { correoCuentaActivada, correoAccesoCliente } from "@/lib/correo";
 import { origenPermitido } from "@/lib/origen.mjs";
-import { puedeRecibirAcceso } from "@/lib/estado-cliente.mjs";
+import { puedeRecibirAcceso, puedeSellarUsuarioExistente } from "@/lib/estado-cliente.mjs";
 
 /**
  * ALTA DE UN CLIENTE CON SU ACCESO AL PORTAL.
@@ -516,6 +516,53 @@ export async function darAccesoACliente({ clienteId }) {
     materialEnlace = intento.data.properties;
   }
 
+  // GUARDIA. Antes de sellar a un usuario que YA existía hay que mirar QUÉ
+  // era. Sin esto, si el correo de un cliente coincidiera con el de alguien
+  // ya ligado a OTRA empresa, o con personal de Morcast (dueño, admin,
+  // operador), se le sobrescribiría el rol y la empresa sin decir nada — es
+  // exactamente el daño silencioso que `scripts/cuaderno/limpiar.mjs` ya
+  // frena con su guardia de "no toco a un `dueno` ni a un `operador`". Aquí
+  // no se arregla solo: se para y se dice, para que lo mire una persona.
+  //
+  // La decisión ("¿para o sigue?") vive en `puedeSellarUsuarioExistente()`
+  // (estado-cliente.mjs), pura y con pruebas propias; aquí solo se junta lo
+  // que esa función necesita mirar y se arma el mensaje, que sí necesita ir
+  // a la base a buscar el nombre de la otra empresa.
+  if (yaExistia) {
+    const { data: perfilAjeno } = await sb
+      .from("perfiles")
+      .select("nombre, rol, cliente_id")
+      .eq("id", uid)
+      .maybeSingle();
+
+    const evaluadoSello = puedeSellarUsuarioExistente(perfilAjeno, cliente.id);
+
+    if (!evaluadoSello.puede && evaluadoSello.motivo === "es-personal") {
+      return {
+        ok: false,
+        motivo:
+          `El correo ${correo} ya es de una cuenta de personal de Morcast ` +
+          `(${perfilAjeno?.nombre || "sin nombre"}, rol: ${evaluadoSello.rol}). ` +
+          `No se puede convertir en cliente desde aquí — revísalo a mano.`,
+      };
+    }
+
+    if (!evaluadoSello.puede && evaluadoSello.motivo === "otra-empresa") {
+      const { data: otraEmpresa } = await sb
+        .from("clientes")
+        .select("folio, empresa")
+        .eq("id", evaluadoSello.clienteIdAjeno)
+        .maybeSingle();
+      return {
+        ok: false,
+        motivo:
+          `El correo ${correo} ya tiene una cuenta ligada a otra empresa` +
+          (otraEmpresa ? ` (${otraEmpresa.empresa}, ${otraEmpresa.folio})` : "") +
+          `. Revísalo a mano antes de continuar.`,
+      };
+    }
+  }
+
   // Deshacer: SOLO lo que creó esta acción.
   //
   // 🔴 Si el usuario ya existía, NUNCA se borra — sería destruir la cuenta de
@@ -535,9 +582,27 @@ export async function darAccesoACliente({ clienteId }) {
     try {
       await sb.auth.admin.updateUserById(uid, { app_metadata: { rol: null, cliente_id: null } });
     } catch { /* se reporta el error de origen */ }
+
+    // Un UPDATE que no encuentra fila NO da error: responde 200 y cambia
+    // cero. Sin contar las filas, un fallo aquí se traga en silencio y una
+    // persona real queda ligada a una empresa que no es la suya, sin
+    // registro y sin que nadie se entere — el error que ve el admin es el de
+    // la falla ORIGINAL, no el de este deshacer. Mismo patrón que el
+    // deshacer de `activarCuentaRegistrada`, unas líneas más abajo.
     try {
-      await sb.from("perfiles").update({ rol: "pendiente", cliente_id: null }).eq("id", uid);
-    } catch { /* se reporta el error de origen */ }
+      const { data: soltado, error: errSoltar } = await sb
+        .from("perfiles")
+        .update({ rol: "pendiente", cliente_id: null })
+        .eq("id", uid)
+        .select("id");
+      if (errSoltar || !soltado?.length) {
+        console.error(
+          `[dar-acceso] no se pudo desenganchar el perfil ${uid}: ${errSoltar?.message || "no se cambió ninguna fila"}`
+        );
+      }
+    } catch (e) {
+      console.error(`[dar-acceso] no se pudo desenganchar el perfil ${uid}: ${e?.message}`);
+    }
   };
 
   if (!uid) {

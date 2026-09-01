@@ -119,3 +119,45 @@ export function puedeRecibirAcceso(cliente) {
   if (!hayDato(cliente?.correo)) return { puede: false, motivo: "sin-correo" };
   return { puede: true };
 }
+
+/**
+ * ¿ES SEGURO SELLAR (rol "cliente" + esta empresa) A UN USUARIO QUE YA
+ * EXISTIA en Supabase Auth?
+ *
+ * De donde sale esto
+ * -------------------
+ * `darAccesoACliente` (app/acciones-alta-cliente.js) liga un usuario ya
+ * existente cuando el correo del cliente coincide con alguien que se
+ * registro solo, por ejemplo con Google. Pero "ya existe un usuario con ese
+ * correo" no dice QUE es ese usuario: podria ser personal de Morcast (dueno,
+ * admin, operador) o un cliente que YA administra OTRA empresa. Sellarlo sin
+ * mirar eso primero le sobrescribiria el rol o la empresa a una persona real
+ * sin que nadie se entere -- exactamente el dano silencioso que
+ * `scripts/cuaderno/limpiar.mjs` ya frena con su guardia de "no toco a un
+ * `dueno` ni a un `operador`".
+ *
+ * Por que es pura
+ * ----------------
+ * No consulta la base: recibe el perfil tal cual se leyo (o `null` si el
+ * usuario es nuevo y no tiene perfil todavia) y el id del cliente al que se
+ * le quiere dar acceso. Quien la llama es quien decide como enriquecer el
+ * mensaje de error (por ejemplo, buscando el nombre de la OTRA empresa) --
+ * aqui solo vive la decision de "para o sigue".
+ *
+ * Los motivos:
+ *   "es-personal"   -> el perfil no es `cliente` ni `pendiente`.
+ *   "otra-empresa"  -> ya es cliente, pero de una empresa distinta.
+ */
+export function puedeSellarUsuarioExistente(perfilAjeno, clienteId) {
+  if (!perfilAjeno) return { puede: true };
+
+  if (perfilAjeno.rol !== "cliente" && perfilAjeno.rol !== "pendiente") {
+    return { puede: false, motivo: "es-personal", rol: perfilAjeno.rol };
+  }
+
+  if (perfilAjeno.cliente_id && perfilAjeno.cliente_id !== clienteId) {
+    return { puede: false, motivo: "otra-empresa", clienteIdAjeno: perfilAjeno.cliente_id };
+  }
+
+  return { puede: true };
+}
