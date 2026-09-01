@@ -83,3 +83,81 @@ const ETIQUETAS = {
 export function etiquetaEstado(estado) {
   return ETIQUETAS[estado] || { texto: String(estado ?? ""), clase: "" };
 }
+
+/**
+ * ¿SE LE PUEDE DAR ACCESO AL PORTAL A ESTE CLIENTE?
+ *
+ * De donde sale esto
+ * -------------------
+ * De los 43 clientes reales cargados el 27-ago-2026, ninguno tiene acceso: las
+ * dos acciones que existian para eso (`activarCuentaCliente` y
+ * `activarCuentaRegistrada`, en app/acciones-alta-cliente.js) siempre hacian
+ * `insert` en `clientes` -- se escribieron para "llega un prospecto de la
+ * nada", no para "dale acceso a alguien que ya esta en la base". Intentarlo
+ * con ellas truena contra el indice unico `clientes_empresa_key` (db/020).
+ *
+ * `darAccesoACliente` (la accion nueva) usa esta funcion para decidir SI
+ * puede seguir, y la pantalla de /admin/clientes la usa para decidir si el
+ * boton se puede pulsar. Es la MISMA regla en los dos lados a proposito: si
+ * viviera por separado, tarde o temprano dirian cosas distintas y el boton
+ * se veria habilitado para un cliente que el servidor va a rechazar.
+ *
+ * `cliente.tieneAcceso` lo calcula `listarClientes()` mirando si hay algun
+ * `perfiles.cliente_id` que apunte a el -- no es una columna de `clientes`,
+ * asi que esta funcion no puede ir a buscarlo por su cuenta: recibe lo que ya
+ * se calculo.
+ *
+ * El orden importa: si ya tiene acceso, eso se contesta primero aunque
+ * ademas le falte el correo. Decirle "sin correo" a un cliente que ya tiene
+ * acceso seria disfrazar la razon real de por que no se le puede dar otro.
+ */
+export function puedeRecibirAcceso(cliente) {
+  if (cliente?.tieneAcceso) return { puede: false, motivo: "ya-tiene-acceso" };
+  // hayDato() ya trata "N-A" y el guion largo (el que pone `datos-clientes.js`
+  // cuando no hay correo) como vacios. Sin reusarla, un cliente sin correo
+  // pero con el relleno "—" se veria con correo valido.
+  if (!hayDato(cliente?.correo)) return { puede: false, motivo: "sin-correo" };
+  return { puede: true };
+}
+
+/**
+ * ¿ES SEGURO SELLAR (rol "cliente" + esta empresa) A UN USUARIO QUE YA
+ * EXISTIA en Supabase Auth?
+ *
+ * De donde sale esto
+ * -------------------
+ * `darAccesoACliente` (app/acciones-alta-cliente.js) liga un usuario ya
+ * existente cuando el correo del cliente coincide con alguien que se
+ * registro solo, por ejemplo con Google. Pero "ya existe un usuario con ese
+ * correo" no dice QUE es ese usuario: podria ser personal de Morcast (dueno,
+ * admin, operador) o un cliente que YA administra OTRA empresa. Sellarlo sin
+ * mirar eso primero le sobrescribiria el rol o la empresa a una persona real
+ * sin que nadie se entere -- exactamente el dano silencioso que
+ * `scripts/cuaderno/limpiar.mjs` ya frena con su guardia de "no toco a un
+ * `dueno` ni a un `operador`".
+ *
+ * Por que es pura
+ * ----------------
+ * No consulta la base: recibe el perfil tal cual se leyo (o `null` si el
+ * usuario es nuevo y no tiene perfil todavia) y el id del cliente al que se
+ * le quiere dar acceso. Quien la llama es quien decide como enriquecer el
+ * mensaje de error (por ejemplo, buscando el nombre de la OTRA empresa) --
+ * aqui solo vive la decision de "para o sigue".
+ *
+ * Los motivos:
+ *   "es-personal"   -> el perfil no es `cliente` ni `pendiente`.
+ *   "otra-empresa"  -> ya es cliente, pero de una empresa distinta.
+ */
+export function puedeSellarUsuarioExistente(perfilAjeno, clienteId) {
+  if (!perfilAjeno) return { puede: true };
+
+  if (perfilAjeno.rol !== "cliente" && perfilAjeno.rol !== "pendiente") {
+    return { puede: false, motivo: "es-personal", rol: perfilAjeno.rol };
+  }
+
+  if (perfilAjeno.cliente_id && perfilAjeno.cliente_id !== clienteId) {
+    return { puede: false, motivo: "otra-empresa", clienteIdAjeno: perfilAjeno.cliente_id };
+  }
+
+  return { puede: true };
+}

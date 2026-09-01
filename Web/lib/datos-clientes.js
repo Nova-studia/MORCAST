@@ -35,12 +35,22 @@ export async function listarClientes() {
   if (!haySupabaseNavegador()) return CLIENTES_ADMIN;
 
   const supabase = supabaseNavegador();
-  const [{ data: clientes, error }, { data: saldos }] = await Promise.all([
+  // Tres consultas en el mismo Promise.all, no una por fila: con 43 clientes
+  // eso serian 43 viajes extra solo para saber quien ya tiene acceso.
+  //
+  // ⚠️ Ya son tres elementos aqui adentro. Si agregas una consulta más,
+  // ajusta la desestructuración de abajo en el MISMO orden — si no, cada
+  // resultado queda leyendo el dato de otro sin que nada truene.
+  const [{ data: clientes, error }, { data: saldos }, { data: conAcceso }] = await Promise.all([
     supabase
       .from("clientes")
       .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito, nota_interna")
       .order("empresa"),
     supabase.from("saldos_clientes").select("cliente_id, saldo, cargos, por_verificar"),
+    // `puedeRecibirAcceso()` (estado-cliente.mjs) necesita saber si el
+    // cliente YA tiene un perfil ligado; se calcula aqui, no en la base, para
+    // que la regla siga viviendo en un solo lugar.
+    supabase.from("perfiles").select("cliente_id").not("cliente_id", "is", null),
   ]);
 
   if (error) {
@@ -49,6 +59,7 @@ export async function listarClientes() {
   }
 
   const porId = Object.fromEntries((saldos || []).map((s) => [s.cliente_id, s]));
+  const conAccesoIds = new Set((conAcceso || []).map((p) => p.cliente_id));
 
   return (clientes || []).map((c) => ({
     id: c.folio,
@@ -68,6 +79,7 @@ export async function listarClientes() {
     desde: c.desde,
     saldo: Number(porId[c.id]?.saldo ?? 0),
     porPagar: Number(porId[c.id]?.cargos ?? 0),
+    tieneAcceso: conAccesoIds.has(c.id),
   }));
 }
 
@@ -119,6 +131,8 @@ export async function crearCliente(datos) {
       desde: data.desde,
       saldo: 0,
       porPagar: 0,
+      // Recien nacido: todavia no puede tener ningun perfil ligado.
+      tieneAcceso: false,
     },
   };
 }
