@@ -38,6 +38,24 @@
 .pt-side-logo img {
   height: 42px;
   width: auto;
+  /* Antes el tamano venia de un `style` en linea en AdminShell/PortalShell.
+     Se movio aqui a proposito: el rail de iconos (mas abajo, min-width
+     768px) necesita RECORTAR esta misma imagen a solo el simbolo, y un
+     estilo en linea le hubiera ganado a esa regla sin remedio. */
+  object-fit: contain;
+}
+/* `pt-logo-recogido` (el logo VERTICAL, dibujado con `background-image` —
+   ver la nota grande mas abajo sobre por que no es un <img>) solo existe
+   para el rail recogido de escritorio, mas abajo en este archivo. En
+   cualquier otro caso —movil, o escritorio desplegado— se queda oculta y se
+   ve la horizontal de siempre. Sin esto se verian los DOS logos apilados. */
+.pt-logo-recogido {
+  display: none;
+}
+/* El admin trae ademas la etiqueta "Panel de administración" debajo, así que
+   su logo entra un poco más chico para no correr al pie fuera del bloque. */
+.pt-admin .pt-side-logo img {
+  height: 38px;
 }
 
 .pt-nav {
@@ -409,6 +427,95 @@
   /* Sin esto "REC-2026-0144" se parte en tres renglones y la fila crece al
      triple de alto. Es un identificador: o se lee entero o no sirve. */
   white-space: nowrap;
+}
+
+/* =====================================================================
+   CELDA RECORTADA (/admin/clientes, columna Contacto)
+   ---------------------------------------------------------------------
+   El correo largo era lo que ensanchaba la columna a 346px, mas que
+   "Cliente" y "Plan" juntas. Se le pone un tope y se recorta con puntos
+   suspensivos; el valor completo sigue disponible en el `title`, no se
+   pierde, solo deja de estirar la tabla.
+   ===================================================================== */
+.pt-celda-recorte { max-width: 140px; }
+/* Solo esta tabla: 8 columnas de 0.9rem de relleno cada lado sumaban mas
+   de lo que cualquier dato de aqui necesita. Se angosta con una clase
+   propia -- .pt-tabla sola la usan mas pantallas y no se les quita el
+   relleno a ellas por esto. */
+.pt-tabla-compacta th,
+.pt-tabla-compacta td {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+.pt-recorte {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =====================================================================
+   BOTON DE ICONO EN TABLA (/admin/clientes, columna Acceso)
+   ---------------------------------------------------------------------
+   "Dar acceso al portal al correo" ocupaba 244px de boton con texto. Un
+   icono compacto dice lo mismo con el `title`/`aria-label` puestos en el
+   propio botón (page.js), pero un icono se pulsa por accidente mas facil
+   que un boton con texto de sobra — por eso la confirmacion antes de
+   mandar el correo real SIGUE en pie (`window.confirm` en page.js), y aqui
+   solo se resuelve el tamano.
+   ===================================================================== */
+.pt-tabla-icono-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--mc-linea);
+  background: transparent;
+  color: var(--mc-verde-claro);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              color 200ms ease,
+              opacity 200ms ease,
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pt-tabla-icono-btn:hover:not(:disabled) {
+  border-color: var(--mc-verde);
+  background: rgba(78, 179, 74, 0.1);
+}
+.pt-tabla-icono-btn:active:not(:disabled) {
+  transform: scale(0.9);
+  transition-duration: 100ms;
+}
+.pt-tabla-icono-btn:disabled {
+  opacity: 0.4;
+  color: var(--mc-gris);
+  cursor: not-allowed;
+}
+/* "Ya tiene acceso": no es un boton, es un estado -- mismo tamano que el
+   boton de al lado para que la columna no salte de ancho fila a fila. */
+.pt-tabla-icono-estado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #6fce69;
+  font-size: 1.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-tabla-icono-btn:active:not(:disabled) {
+    transform: none;
+    filter: brightness(1.25);
+  }
+}
+@media (prefers-contrast: more) {
+  .pt-tabla-icono-btn { border-color: #5d6f6b; }
 }
 
 /* Insignias de estatus */
@@ -854,6 +961,154 @@
   .pt-topbar { padding: 0.8rem 1.1rem; }
   .pt-user-datos { display: none; }
 }
+
+/* =====================================================================
+   RAIL DE ICONOS (escritorio) — se despliega al pasar el mouse
+   ---------------------------------------------------------------------
+   Luis midio la caja de la tabla de /admin/clientes contra `.pt-content`
+   (max-width: 1200px, y ESE tope no se toca: es a proposito para que las
+   lineas no se vuelvan ilegibles en un monitor ancho) y encontro que la
+   barra de 264px se estaba comiendo ~200px de contenido en TODAS las
+   pantallas, angostas o anchas. La resolvio asi: una franja fija de solo
+   iconos, y el menu completo aparece flotando ENCIMA del contenido al pasar
+   el cursor — `.pt-main` conserva el `margin-left` del rail (64px) todo el
+   tiempo, así que nada se recoloca ni reflowea bajo el cursor cuando el
+   menu se abre.
+
+   🔴 SOLO A PARTIR DE min-width: 768px. Por debajo de eso el sidebar sigue
+   siendo el cajon de `cajon-arrastrable.js` (arriba, en el bloque
+   max-width: 767.98px): en un telefono no hay mouse que "pase por encima",
+   asi que un rail que se despliega al hover no existe ahi.
+
+   `:hover, :focus-within` y no solo `:hover`: quien navega con Tab no
+   tiene cursor, y sin `:focus-within` el foco entraria a un enlace dentro
+   de una franja de 64px con el texto invisible — nadie sabria donde esta
+   parado.
+
+   El truco de abajo es `:not(:hover):not(:focus-within)`: en vez de
+   escribir dos juegos de reglas (uno "recogido", otro "desplegado"), solo
+   se escribe el juego RECOGIDO con esa guardia. Desplegado no necesita
+   reglas propias: es simplemente lo que el resto de este archivo YA dice
+   para `.pt-sidebar` a 264px. Menos reglas, cero riesgo de que las dos
+   copias se desincronicen. */
+@media (min-width: 768px) {
+  .pt-sidebar {
+    width: 64px;
+    /* `width` se anima igual que el `transform` del cajon movil: mismo
+       criterio de curva (llega rapido, se asienta sin pasarse). El bloque
+       de prefers-reduced-motion de mas abajo ya apaga TODA transicion de
+       `.pt-sidebar` por duracion, asi que no hace falta tocarlo aparte. */
+    transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1),
+                width 200ms ease,
+                box-shadow 200ms ease;
+  }
+  .pt-main { margin-left: 64px; }
+
+  .pt-sidebar:hover,
+  .pt-sidebar:focus-within {
+    width: 264px;
+    /* Dice "esto flota encima", no "esto empujo al contenido": el mismo
+       lenguaje que ya usa `.pt-modal` para separarse de lo que hay detras. */
+    box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45);
+  }
+
+  /* ---------- Recogido: logo a solo el simbolo ---------- */
+  /* Antes esto recortaba el logo HORIZONTAL (`logo-h-blanco.png`, el
+     camion+hoja pegado al texto) con `object-fit: cover`. Salio mal: en un
+     logo horizontal el simbolo no esta aislado en un extremo limpio, asi
+     que el recorte cortaba el camion por la derecha, partia la hoja a la
+     mitad y dejaba un pedazo de flecha naranja suelto. No hay object-position
+     que arregle eso porque el problema es la imagen de origen, no el encuadre.
+
+     La solucion es usar OTRO archivo, no ajustar el encuadre del mismo:
+     `logo-morcast-blanco.png` es la version VERTICAL, con el simbolo
+     COMPLETO arriba y el texto "MORCAST / DEL NORTE / MANEJO DE RESIDUOS"
+     abajo. Recortando desde arriba (`object-position: top`) sale el simbolo
+     entero, sin cortes. Los dos archivos SON necesarios: el vertical no
+     sirve desplegado (el texto queda comprimido y feo a lo ancho), y el
+     horizontal no sirve recogido (no se puede aislar el simbolo sin
+     cortarlo). Por eso hay dos <img> en AdminShell/PortalShell y esta regla
+     solo cambia CUAL de las dos se ve, no el object-fit de una sola. */
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo {
+    padding: 1.1rem 0.75rem;
+  }
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo .pt-logo-desplegado {
+    display: none;
+  }
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo .pt-logo-recogido {
+    display: block;
+    /* Se probo primero con un <img> y `object-fit: cover`, pero el ancho
+       renderizado de next/image no coincidia con el `width` puesto aqui.
+       La causa real: el Link de admin es `display:flex`, y sin
+       `flex-shrink: 0` el navegador ENCOGE el elemento para que quepa en el
+       espacio libre real dentro del padding (~34px, no 40 — el padding de
+       aqui abajo esta en rem y esta pagina usa una escala de raiz de 1.2x,
+       asi que el hueco disponible es mas chico de lo que el numero "0.75rem"
+       sugiere a simple vista). Con `background-image` el control de pixeles
+       es directo, sin el intermediario de next/image, pero el mismo encogido
+       por flex le pasaba tambien al fondo — de ahi el `flex-shrink: 0` de
+       abajo, y por lo que el ancho aqui es 34, no 40: es el hueco real
+       disponible, medido en el navegador, no calculado del CSS.
+
+       El calculo del recorte: `background-size: 34px auto` escala la imagen
+       (vertical, 1000x820) a 34 de ancho exacto y ~27.9 de alto (mantiene
+       proporcion). El cuadro mide MENOS que esos 27.9 de alto a proposito:
+       eso es lo que hace que `background-position: top` recorte por ABAJO
+       en vez de encajar la imagen entera comprimida (que mostraria el logo
+       completo, texto incluido, del mismo tamano que el simbolo — el bug
+       que Luis reporto la primera vez). El alto exacto del cuadro se ajusto
+       A OJO viendo capturas del rail, no calculandolo del tamano del
+       archivo: es la franja de arriba donde cabe el camion+hoja completo y
+       CERO texto. Si se vuelve a tocar esta imagen, comprobar de nuevo con
+       una captura — no basta con mirar los numeros. */
+    flex-shrink: 0;
+    width: 44px;
+    height: 17px;
+    background-image: url("/img/logo-morcast-blanco.png");
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: 44px auto;
+  }
+  /* La etiqueta "Panel de administración" y el pie no caben en 64px, y no
+     hay version corta que valga la pena: se ocultan recogidos y vuelven
+     enteros al desplegar. Van al DOM siempre —no son controles, son
+     texto— asi que ocultarlos con `display: none` no le quita nada al
+     tabulador. */
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-admin-tag,
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-pie {
+    display: none;
+  }
+
+  /* ---------- Recogido: renglones del menu a solo el icono ---------- */
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-nav {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-nav-item {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    justify-content: center;
+    /* Sin esto el `gap` seguiria reservando el hueco hacia el texto aunque
+       el texto mida 0 de ancho, y el icono quedaria descentrado. */
+    gap: 0;
+  }
+  /* El texto del renglon SIGUE en el DOM (accesible para quien usa lector
+     de pantalla): solo se le quita el espacio visual. El nombre accesible
+     de cada enlace ya no depende de esto — vive en el `title` — pero
+     tapar el texto en vez de borrarlo evita un `aria-hidden` de mas. */
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-nav-texto {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+/* NOTA: `.pt-sidebar` ya esta en la lista de `prefers-reduced-motion` de
+   mas abajo (~linea 1276), asi que la transicion de `width`/`box-shadow`
+   que se le acaba de agregar ya queda apagada ahi sin tocar nada mas. El
+   logo no necesita entrar a esa lista: `object-fit` no es animable —pasar
+   de recortado a completo ya es un salto, no un recorrido. */
 
 /* ===== Comprobante de servicio (evidencia antes/después) ===== */
 .pt-evi {

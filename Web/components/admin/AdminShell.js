@@ -101,13 +101,41 @@ export default function AdminShell({ children }) {
         <aside ref={refCajon} className={`pt-sidebar ${abierto ? "abierto" : ""}`}>
           <div className="pt-side-logo">
             <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              {/* Dos archivos, no uno, a proposito: `logo-h-blanco.png` es
+                  horizontal (el simbolo pegado al texto) y no hay forma de
+                  recortarlo para quedarse solo con el camion+hoja sin cortar
+                  la mitad de la hoja o dejar un pedazo de flecha suelto —eso
+                  fue justo el bug que se vio en el rail recogido. La version
+                  vertical (`logo-morcast-blanco.png`) trae el simbolo
+                  COMPLETO arriba y el texto abajo, asi que recortando desde
+                  arriba sale el simbolo entero. Desplegado sigue con la
+                  horizontal porque ahi si cabe el logo completo con texto.
+                  Verlas como "dos logos redundantes" y dejar solo uno rompe
+                  el rail recogido de nuevo. */}
               <Image
                 src="/img/logo-h-blanco.png"
                 alt="Morcast del Norte"
                 width={688}
                 height={200}
-                style={{ height: 38, width: "auto" }}
+                className="pt-logo-desplegado"
+                // El tamano ya NO va aqui: en el rail recogido (portal.css,
+                // min-width 768px) la imagen se recorta a solo el simbolo, y
+                // un `style` en linea le ganaria a esa regla y la dejaria sin
+                // efecto.
                 priority
+              />
+              {/* `background-image` y no `<Image>`/`<img>` a proposito: con
+                  `next/image` el ancho renderizado de este logo no
+                  coincidia con el `width` puesto en portal.css (quedaba
+                  mas angosto de lo pedido, aun con el object-fit/position
+                  correctos) — probablemente por como next/image calcula su
+                  propio tamano a partir de `sizes`/`srcset`. Un fondo le da
+                  control directo en pixeles vía `background-size` y
+                  `background-position`, sin ese intermediario. */}
+              <span
+                className="pt-logo-recogido"
+                role="img"
+                aria-label="Morcast del Norte"
               />
             </Link>
             <span className="pt-admin-tag">Panel de administración</span>
@@ -123,12 +151,16 @@ export default function AdminShell({ children }) {
                   // compiten con las consultas de los datos del panel.
                   prefetch={false}
                   className={`pt-nav-item ${activo(item) ? "activo" : ""}`}
+                  // Recogido, el rail solo enseña el icono: el `title` es lo
+                  // unico que le dice a quien pasa el mouse que renglon es
+                  // cada uno (portal.css, rail de iconos).
+                  title={item.texto}
                 >
                   {/* Quieto por omisión; se mueve sólo en el renglón donde
                       estás y en el que traes el cursor encima. Diecinueve
                       dibujos agitándose a la vez dejan de ser un menú. */}
                   <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
-                  {item.texto}
+                  <span className="pt-nav-texto">{item.texto}</span>
                 </Link>
               );
             })}
@@ -136,10 +168,11 @@ export default function AdminShell({ children }) {
               type="button"
               className="pt-nav-item"
               onClick={salir}
+              title="Cerrar sesión"
               style={{ marginTop: "auto", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
               <IconoAnimado nombre="cerra-sesion" tam={30} />
-              Cerrar sesión
+              <span className="pt-nav-texto">Cerrar sesión</span>
             </button>
           </nav>
           <div className="pt-side-pie">
