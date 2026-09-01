@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { listarClientes, crearCliente } from "@/lib/datos-clientes";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
+import { etiquetaEstado, loQueFalta } from "@/lib/estado-cliente.mjs";
 
 export default function ClientesAdmin() {
   const [lista, setLista] = useState([]);
@@ -27,6 +28,11 @@ export default function ClientesAdmin() {
 
   const totalPorPagar = lista.reduce((a, c) => a + c.porPagar, 0);
   const activos = lista.filter((c) => c.estatus === "activo").length;
+  // El cuaderno del 27-ago-2026 llego con 16 de 42 clientes sin correo,
+  // telefono o contacto: se cargan igual (ver `estado-cliente.mjs`), pero
+  // Morcast necesita ver cuantos le faltan por completar sin tener que
+  // contarlos fila por fila.
+  const pendientes = lista.filter((c) => c.estatus === "pendiente-info").length;
 
   const crear = async (e) => {
     e.preventDefault();
@@ -48,7 +54,11 @@ export default function ClientesAdmin() {
       <div className="pt-page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h1>Clientes</h1>
-          <p>{lista.length} clientes · {activos} activos · Por cobrar {pesos(totalPorPagar)}</p>
+          <p>
+            {lista.length} clientes · {activos} activos
+            {pendientes > 0 && <> · {pendientes} pendientes por información</>}
+            {" "}· Por cobrar {pesos(totalPorPagar)}
+          </p>
         </div>
         <button className="pt-btn pt-btn-naranja" onClick={() => setAlta((v) => !v)}>
           {alta ? <><X /> Cancelar</> : <><Plus /> Nuevo cliente</>}
@@ -124,9 +134,22 @@ export default function ClientesAdmin() {
                     <span className={c.porPagar > 0 ? "pt-mov cargo" : ""}>{pesos(c.porPagar)}</span>
                   </td>
                   <td>
-                    <span className={`pt-badge ${c.estatus === "activo" ? "ok" : "ruta"}`}>
-                      {c.estatus === "activo" ? "Activo" : "Moroso"}
-                    </span>
+                    {(() => {
+                      // `title` es la unica pista visible de QUE le falta a
+                      // un pendiente: sin esto, "Pendiente por informacion"
+                      // no dice si es el correo, el telefono o el contacto,
+                      // y Morcast tendria que ir a buscarlo a mano.
+                      const et = etiquetaEstado(c.estatus);
+                      const falta = loQueFalta(c);
+                      return (
+                        <span
+                          className={`pt-badge ${et.clase}`}
+                          title={falta.length ? `Falta: ${falta.join(", ")}` : ""}
+                        >
+                          {et.texto}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(c.desde)}</td>
                 </tr>

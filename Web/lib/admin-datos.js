@@ -109,6 +109,10 @@ export const ADMIN_KPIS = {
   ingresosMesAnterior: 154200,
   solicitudesNuevas: 2,
   clientesActivos: 4,
+  // Mismo campo que ahora devuelve `kpisAdmin()` contra Supabase (Task 3): se
+  // agrega aqui tambien para que el modo demo no entregue una forma de datos
+  // distinta a la real.
+  clientesPendientes: 0,
   serviciosMes: 27,
   porCobrar: 45780,
 };
