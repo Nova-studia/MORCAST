@@ -11,6 +11,7 @@ import { obtenerSesion, cerrarSesion } from "@/lib/portal-sesion";
 import { CLIENTE } from "@/lib/portal-datos";
 import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
+import AvisoHold from "@/components/AvisoHold";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -193,6 +194,7 @@ export default function PortalShell({ children }) {
             </div>
           </header>
           <main className="pt-content">
+            <AvisoHold />
             <TransicionPagina>{children}</TransicionPagina>
           </main>
         </div>

@@ -20,8 +20,16 @@ import {
   HORARIOS,
 } from "@/lib/cotizacion-datos";
 import { clienteActual } from "@/lib/portal-sesion";
+import { enHold, HOLD } from "@/lib/estado-sistema";
 
 export default function CotizadorPortal() {
+  // Los 12 precios de `CATALOGO_COTIZADOR` los invento Claude en agosto-2026;
+  // la empresa devolvio el cuaderno con CERO precios. Un cotizador que suma
+  // montos falsos y los baja en un PDF con membrete es la superficie mas
+  // peligrosa del portal: ese PDF sobrevive al Hold y anda suelto para
+  // siempre. Por eso aqui no se ocultan los numeros: no se llega a calcular.
+  if (enHold()) return <CotizadorEnEspera />;
+
   const [cantidades, setCantidades] = useState({}); // id -> cantidad
   const [bajando, setBajando] = useState(null);
 
@@ -180,5 +188,26 @@ export default function CotizadorPortal() {
         </div>
       </div>
     </>
+  );
+}
+
+// Fuera de `CotizadorPortal` a proposito: un componente definido dentro de
+// otro es distinto en cada render para React, que desmonta el arbol entero.
+// En el telefono eso cierra el teclado a cada letra — ya paso en
+// /portal/nueva-clave y costo tiempo encontrarlo.
+function CotizadorEnEspera() {
+  return (
+    <div className="pt-card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
+      <FileText size={48} weight="duotone" style={{ opacity: 0.5, marginBottom: "1rem" }} />
+      <h2 style={{ marginBottom: "0.6rem" }}>{HOLD.titulo}</h2>
+      <p style={{ maxWidth: "42ch", margin: "0 auto 1.4rem", color: "var(--mc-gris)" }}>
+        Estamos afinando nuestra lista de precios. Mientras tanto,
+        cotizamos por escrito: escríbenos y te contestamos con los montos
+        de tus servicios.
+      </p>
+      <a className="mc-btn mc-btn-verde" href="/contacto">
+        Pedir una cotización
+      </a>
+    </div>
   );
 }

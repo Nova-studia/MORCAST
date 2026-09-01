@@ -26,6 +26,7 @@ import {
 import { resumenCliente } from "@/lib/datos-panel";
 import { listarSolicitudes, misServicios } from "@/lib/datos-solicitudes";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { enHold } from "@/lib/estado-sistema";
 
 /** Estados que el cliente ve como "todavía va a pasar". */
 const PENDIENTES = ["solicitada", "confirmada", "en-ruta"];
@@ -152,13 +153,24 @@ export default function PanelPortal() {
       <div className="pt-grid pt-panel-resumen">
         <div className="pt-saldo">
           <div className="pt-saldo-etiqueta">Saldo a favor / crédito disponible</div>
-          <div className="pt-saldo-monto">{pesos(cuenta.saldoActual)}</div>
-          <div className="pt-saldo-barra">
-            <span style={{ width: `${100 - usoCredito}%` }} />
-          </div>
+          <div className="pt-saldo-monto">{enHold() ? "—" : pesos(cuenta.saldoActual)}</div>
+          {/* La barra de uso de crédito es un porcentaje de dos cifras que
+              todavía no existen: en Hold no hay nada que medir, así que se
+              quita en vez de enseñar una barra llena o vacía sin sentido. */}
+          {!enHold() && (
+            <div className="pt-saldo-barra">
+              <span style={{ width: `${100 - usoCredito}%` }} />
+            </div>
+          )}
           <div className="pt-saldo-fila">
-            <span>Línea de crédito {pesos(cuenta.limiteCredito)}</span>
-            <span>{cuenta.diasCredito} días</span>
+            {enHold() ? (
+              <span>Sin cobros todavía</span>
+            ) : (
+              <>
+                <span>Línea de crédito {pesos(cuenta.limiteCredito)}</span>
+                <span>{cuenta.diasCredito} días</span>
+              </>
+            )}
           </div>
           <Link href="/portal/agregar-saldo" prefetch={false} className="mc-btn mc-btn-verde" style={{ marginTop: "1rem", width: "100%", justifyContent: "center", padding: "0.6rem" }}>
             <PlusCircle /> Agregar saldo
@@ -169,11 +181,13 @@ export default function PanelPortal() {
           <div className="pt-stat">
             <div className="pt-stat-icono desnudo"><IconoAnimado nombre="por-pagar" tam={44} /></div>
             <div className="pt-stat-etiqueta">Por pagar</div>
-            <div className="pt-stat-valor">{pesos(cuenta.porPagar)}</div>
+            <div className="pt-stat-valor">{enHold() ? "—" : pesos(cuenta.porPagar)}</div>
             <div className="pt-stat-sub">
-              {real
-                ? (cuenta.diasCredito ? `Crédito a ${cuenta.diasCredito} días` : "Pago de contado")
-                : `Corte: ${fechaLarga(CUENTA.proximoCorte)}`}
+              {enHold()
+                ? "Sin cobros todavía"
+                : real
+                  ? (cuenta.diasCredito ? `Crédito a ${cuenta.diasCredito} días` : "Pago de contado")
+                  : `Corte: ${fechaLarga(CUENTA.proximoCorte)}`}
             </div>
           </div>
           <div className="pt-stat">

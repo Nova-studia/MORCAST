@@ -19,8 +19,12 @@ export async function kpisAdmin() {
   const hoy = new Date();
   const primeroDeMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
 
-  const [clientes, cotizaciones, servicios, saldos] = await Promise.all([
+  // Dos conteos (activos y pendientes) van en el MISMO Promise.all porque los
+  // dos usan `head: true` — no traen filas — y separarlos en una llamada
+  // aparte agregaria un viaje de red por cada carga del tablero.
+  const [clientes, clientesPend, cotizaciones, servicios, saldos] = await Promise.all([
     supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
+    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente-info"),
     supabase.from("cotizaciones").select("id", { count: "exact", head: true }).eq("estado", "nueva"),
     supabase
       .from("solicitudes_recoleccion")
@@ -39,6 +43,7 @@ export async function kpisAdmin() {
     ingresosMesAnterior: 0,
     solicitudesNuevas: cotizaciones.count ?? 0,
     clientesActivos: clientes.count ?? 0,
+    clientesPendientes: clientesPend.count ?? 0,
     serviciosMes: servicios.count ?? 0,
     porCobrar,
   };

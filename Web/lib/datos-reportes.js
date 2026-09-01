@@ -144,8 +144,5 @@ export async function reportes() {
     mensual: serie(filas, 12, "mes"),
     anual: serie(filas, 4, "anio"),
     composicion,
-    // Se avisa a la pantalla que el dinero todavía no tiene de dónde salir,
-    // para que lo diga en vez de mostrar ceros sin explicación.
-    hayFacturacion: false,
   };
 }

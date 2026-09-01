@@ -14,6 +14,7 @@ import { pesos, fechaLarga } from "@/lib/portal-datos";
 import { DATOS_DEPOSITO, BANCOS, RESPONSABLE_RECARGAS, estadoRecarga } from "@/lib/recargas-datos";
 import { listarMovimientos, reportarDeposito, miSaldo } from "@/lib/datos-clientes";
 import { clienteActual } from "@/lib/portal-sesion";
+import { enHold, HOLD } from "@/lib/estado-sistema";
 
 export default function AgregarSaldo() {
   const inputRef = useRef(null);
@@ -121,13 +122,19 @@ export default function AgregarSaldo() {
 
       {/* Saldo actual */}
       <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>
-        <div className="pt-saldo">
-          <div className="pt-saldo-etiqueta">Saldo a favor actual</div>
-          <div className="pt-saldo-monto">{pesos(cuenta ? cuenta.saldoActual : 0)}</div>
-          <div className="pt-saldo-fila" style={{ marginTop: "0.6rem" }}>
-            <span>Por pagar {pesos(cuenta ? cuenta.porPagar : 0)}</span>
+        {enHold() ? (
+          <p className="pt-nota-demo">
+            {HOLD.motivo} Tu saldo aparecerá aquí en cuanto empiece la facturación.
+          </p>
+        ) : (
+          <div className="pt-saldo">
+            <div className="pt-saldo-etiqueta">Saldo a favor actual</div>
+            <div className="pt-saldo-monto">{pesos(cuenta ? cuenta.saldoActual : 0)}</div>
+            <div className="pt-saldo-fila" style={{ marginTop: "0.6rem" }}>
+              <span>Por pagar {pesos(cuenta ? cuenta.porPagar : 0)}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Datos de depósito */}
         <div className="pt-card" style={{ margin: 0 }}>

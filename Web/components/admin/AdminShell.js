@@ -11,6 +11,7 @@ import { obtenerSesionAdmin, cerrarSesionAdmin } from "@/lib/admin-sesion";
 import { ADMIN_PERFIL } from "@/lib/admin-datos";
 import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
+import AvisoHold from "@/components/AvisoHold";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -187,6 +188,7 @@ export default function AdminShell({ children }) {
             </div>
           </header>
           <main className="pt-content">
+            <AvisoHold lado="admin" />
             <TransicionPagina>{children}</TransicionPagina>
           </main>
         </div>

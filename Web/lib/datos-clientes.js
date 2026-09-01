@@ -38,7 +38,7 @@ export async function listarClientes() {
   const [{ data: clientes, error }, { data: saldos }] = await Promise.all([
     supabase
       .from("clientes")
-      .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito")
+      .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito, nota_interna")
       .order("empresa"),
     supabase.from("saldos_clientes").select("cliente_id, saldo, cargos, por_verificar"),
   ]);
@@ -58,7 +58,13 @@ export async function listarClientes() {
     correo: c.correo || "",
     telefono: c.telefono || "",
     plan: c.plan || "Sin plan",
-    estatus: c.estado === "activo" ? "activo" : c.estado,
+    // `c.estado` ya trae el valor real ("activo", "pendiente-info",
+    // "suspendido", "baja"): el `? "activo" : c.estado` de antes era un
+    // no-op que solo disfrazaba que la pantalla no sabia pintar mas que dos
+    // casos. `etiquetaEstado()` en `estado-cliente.mjs` es quien decide como
+    // se ve cada uno.
+    estatus: c.estado,
+    notaInterna: c.nota_interna || "",
     desde: c.desde,
     saldo: Number(porId[c.id]?.saldo ?? 0),
     porPagar: Number(porId[c.id]?.cargos ?? 0),

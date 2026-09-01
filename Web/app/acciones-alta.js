@@ -3,6 +3,7 @@
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { correoAvisoAlta, correoAcuseAlta } from "@/lib/correo";
 import { registrar } from "@/lib/bitacora";
+import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
 
 /**
  * Alta de cliente desde la pantalla pública.
@@ -42,7 +43,7 @@ export async function zonasDeCobertura() {
     console.error("[alta] no se pudieron leer las zonas:", error.message);
     return null;
   }
-  return (data || [])
+  const conZona = (data || [])
     .filter((r) => Array.isArray(r.zona) && r.zona.length >= 3)
     .map((r) => ({
       id: r.id,
@@ -53,6 +54,15 @@ export async function zonasDeCobertura() {
       zona: r.zona,
       activa: true,
     }));
+
+  // Las 5 rutas reales entraron SIN poligono: el cuaderno da nombres de
+  // colonias, no coordenadas. Sin este respaldo el verificador le contestaria
+  // "no hay cobertura" a todo el mundo, incluida la gente que si la tiene.
+  // Se quita el dia que la empresa entregue las zonas por ruta.
+  if (!conZona.length) {
+    return [{ id: ZONA_MATAMOROS.clave, ...ZONA_MATAMOROS, activa: true }];
+  }
+  return conZona;
 }
 
 const LIMITES = {
