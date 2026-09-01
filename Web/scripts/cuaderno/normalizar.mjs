@@ -87,3 +87,92 @@ export function esRenglonDeInstrucciones(fila) {
   const restoVacio = (fila || []).slice(1).every((c) => !String(c ?? "").trim());
   return restoVacio;
 }
+
+/* ==================================================================== */
+/* DIAS, TIPO DE RUTA Y FRECUENCIA                                      */
+/* ==================================================================== */
+
+/** El orden de la semana laboral, empezando en lunes. `DIAS_SEMANA` no sirve
+ *  aqui porque su orden es el del panel, y para resolver rangos hace falta
+ *  saber que el domingo va AL FINAL. */
+const ORDEN = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+
+/** Sin acentos y en minusculas, para comparar contra lo que tecleo la empresa. */
+const pelado = (s) =>
+  String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+const PELADOS = ORDEN.map(pelado); // ["lunes", ..., "miercoles", ...]
+
+/**
+ * Los dias en que se pasa, sacados del texto libre del cuaderno.
+ *
+ * La empresa escribio: "LUNES", "miercoles", "LUNES Y JUEVES",
+ * "MARTES Y VIERNES", "LUNES A SABADO", "LUNES A DOMINGO" y "POR LLAMADA"
+ * (hoja "1 Rutas", columna "Días que pasa").
+ *
+ * "POR LLAMADA" NO ES UN DIA, y es la unica de estas que importa de verdad:
+ * son 8 puntos que se atienden cuando el cliente llama. Meterlos en un dia
+ * fijo inventaria una visita que nadie acordo, y dejarlos sin ninguna marca
+ * los volveria invisibles en la agenda. Se devuelve la bandera aparte.
+ */
+export function diasDesdeTexto(txt) {
+  const v = pelado(limpio(txt) ?? "");
+  if (!v) return { dias: [], porLlamada: false };
+
+  if (/por\s+llamada|a\s+solicitud|cuando\s+llam/.test(v)) {
+    return { dias: [], porLlamada: true };
+  }
+
+  // Rango: "lunes a sabado", "lunes a domingo".
+  const rango = v.match(/(\w+)\s+a\s+(\w+)/);
+  if (rango) {
+    const desde = PELADOS.indexOf(rango[1]);
+    const hasta = PELADOS.indexOf(rango[2]);
+    if (desde >= 0 && hasta >= desde) {
+      return { dias: ORDEN.slice(desde, hasta + 1), porLlamada: false };
+    }
+  }
+
+  // Lista: "lunes y jueves", "martes, viernes".
+  const dias = ORDEN.filter((_, i) => new RegExp(`\\b${PELADOS[i]}\\b`).test(v));
+  return { dias, porLlamada: false };
+}
+
+/** Los tres tipos de `rutas.tipo`, como los escribio la empresa (hoja "1
+ *  Rutas", columna "Tipo": "manual", "compactador ", "roll off", "ROLL -OFF"). */
+export function tipoDeRuta(txt) {
+  const v = pelado(limpio(txt) ?? "").replace(/[\s-]/g, "");
+  if (!v) return null;
+  if (v.includes("rolloff")) return "roll-off";
+  if (v.includes("compactador")) return "compactador";
+  if (v.includes("manual")) return "manual";
+  return null;
+}
+
+/**
+ * `RUTA 10` y `RUTA10` son la misma ruta.
+ * El cuaderno usa las dos formas en hojas distintas (nombre de ruta en la
+ * hoja "1 Rutas" contra la columna de ruta en "3 Puntos de recoleccion").
+ */
+export function claveDeRuta(txt) {
+  const v = limpio(txt);
+  if (!v) return null;
+  const m = pelado(v).match(/ruta\s*0*(\d+)/);
+  return m ? `RUTA-${Number(m[1])}` : null;
+}
+
+/**
+ * De "recolecciones al mes" a la frecuencia que acepta `suscripciones`.
+ *
+ * Es una simplificacion, y a proposito: el numero EXACTO se guarda en
+ * `suscripciones.servicios_por_mes`, asi que nada se pierde al redondear
+ * aqui. `frecuencia` sirve para decirle al cliente "cada cuando pasamos";
+ * el conteo real vive en la otra columna.
+ */
+export function frecuenciaPorMes(n) {
+  const v = Number(String(n ?? "").replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(v) || v <= 0) return "mensual";
+  if (v >= 4) return "semanal";
+  if (v >= 2) return "quincenal";
+  return "mensual";
+}

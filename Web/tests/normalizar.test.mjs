@@ -76,3 +76,77 @@ test("un servicio de verdad NO se descarta como instruccion", () => {
                 "CONTENEDOR ", "3 M3", "1", "", ""];
   assert.equal(esRenglonDeInstrucciones(real), false);
 });
+
+import {
+  diasDesdeTexto,
+  tipoDeRuta,
+  frecuenciaPorMes,
+  claveDeRuta,
+} from "../scripts/cuaderno/normalizar.mjs";
+
+test("un dia suelto", () => {
+  assert.deepEqual(diasDesdeTexto("LUNES"), { dias: ["lunes"], porLlamada: false });
+  assert.deepEqual(diasDesdeTexto("miercoles"), { dias: ["miércoles"], porLlamada: false });
+  assert.deepEqual(diasDesdeTexto("SABADO"), { dias: ["sábado"], porLlamada: false });
+});
+
+test("dos dias unidos por Y", () => {
+  assert.deepEqual(diasDesdeTexto("LUNES Y JUEVES"),
+    { dias: ["lunes", "jueves"], porLlamada: false });
+  assert.deepEqual(diasDesdeTexto("MIERCOLES Y SABADO"),
+    { dias: ["miércoles", "sábado"], porLlamada: false });
+});
+
+test("un rango con A", () => {
+  assert.deepEqual(diasDesdeTexto("LUNES A SABADO"), {
+    dias: ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+    porLlamada: false,
+  });
+});
+
+// RUTA 10 y RUTA 11, las de TPI. Es la razon por la que DIAS_SEMANA gano el
+// domingo: sin el, este dia se borraba solo al editar la ruta en el panel.
+test("LUNES A DOMINGO son los siete dias", () => {
+  const r = diasDesdeTexto("LUNES A DOMINGO");
+  assert.equal(r.dias.length, 7);
+  assert.ok(r.dias.includes("domingo"));
+});
+
+test("POR LLAMADA no es un dia", () => {
+  // 8 puntos del cuaderno dicen esto. Meterlos en un dia fijo inventaria una
+  // visita que nadie acordo; dejarlos sin marca los volveria invisibles.
+  assert.deepEqual(diasDesdeTexto("POR LLAMADA"), { dias: [], porLlamada: true });
+});
+
+test("un texto que no dice nada no inventa dias", () => {
+  assert.deepEqual(diasDesdeTexto(""), { dias: [], porLlamada: false });
+  assert.deepEqual(diasDesdeTexto("N-A"), { dias: [], porLlamada: false });
+});
+
+test("los tipos de ruta como los escribio la empresa", () => {
+  assert.equal(tipoDeRuta("roll off"), "roll-off");
+  assert.equal(tipoDeRuta("ROLL -OFF"), "roll-off");
+  assert.equal(tipoDeRuta("compactador"), "compactador");
+  assert.equal(tipoDeRuta("manual"), "manual");
+  assert.equal(tipoDeRuta("lo que sea"), null);
+});
+
+test("la clave de ruta se empareja aunque falte el espacio", () => {
+  // El cuaderno escribe "RUTA 10" en una hoja y "RUTA10" en otra.
+  assert.equal(claveDeRuta("RUTA 3"), "RUTA-3");
+  assert.equal(claveDeRuta("RUTA10"), "RUTA-10");
+  assert.equal(claveDeRuta("ruta 11"), "RUTA-11");
+  assert.equal(claveDeRuta("N-A"), null);
+});
+
+test("la frecuencia sale de las recolecciones al mes", () => {
+  assert.equal(frecuenciaPorMes(30), "semanal");
+  assert.equal(frecuenciaPorMes(4), "semanal");
+  assert.equal(frecuenciaPorMes(3), "quincenal");
+  assert.equal(frecuenciaPorMes(2), "quincenal");
+  assert.equal(frecuenciaPorMes(1), "mensual");
+  // Sin dato: la frecuencia mas conservadora. El numero exacto se guarda
+  // aparte en `servicios_por_mes`, asi que no se pierde nada.
+  assert.equal(frecuenciaPorMes(""), "mensual");
+  assert.equal(frecuenciaPorMes(0), "mensual");
+});
