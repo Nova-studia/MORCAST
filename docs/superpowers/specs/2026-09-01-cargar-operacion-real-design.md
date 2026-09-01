@@ -59,7 +59,7 @@ producción el 1-sep-2026. **Corrige dos cifras que la memoria traía mal.**
 | Clientes | 42 únicos (44 renglones, 2 duplicados: `LLANTERA LLANTAS` y `LLANTERA JESUS`) |
 | Puntos de recolección | 68 |
 | Servicios contratados | 64 |
-| Rutas | 5 — RUTA 1 (roll-off, Rafael), RUTA 2 (manual, Jorge), RUTA 3 (compactador, Jair), RUTA 10 (Marco Antonio) y RUTA 11 (Rodolfo) |
+| Rutas | 5 — RUTA 1 (roll-off), RUTA 2 (manual), RUTA 3 (compactador), RUTA 10 y RUTA 11 (cada una con su chofer, que no se nombra aquí: el repositorio es público) |
 
 ### Lo que está roto en el cuaderno
 
@@ -73,8 +73,13 @@ producción el 1-sep-2026. **Corrige dos cifras que la memoria traía mal.**
 - **Un renglón de instrucciones del cuaderno se coló entre los servicios**
   ("RECOLECCIONES AL MES es el dato que más importa…"). No es un servicio: se
   descarta, no se mapea.
-- **El "Domicilio fiscal" trae el RÉGIMEN** ("General de Ley Personas Morales") en
-  28 de 42.
+- **NINGUNO de los 42 clientes tiene domicilio fiscal.** Medido el 1-sep-2026
+  contra el volcado, sobre los 42 únicos: **29** traen el RÉGIMEN en esa columna
+  ("General de Ley Personas Morales", "Personas Físicas con Actividades
+  Empresariales"), **11** están vacíos y **2** dicen literalmente `"N-A"`.
+  Morcast **no puede facturarle a ningún cliente** hasta que la empresa entregue
+  esos datos. Ya se los pidieron en la hoja 3 de
+  `MORCAST - Lo que falta del cuaderno.xlsx`.
 
 > **Corrección a la memoria:** decía 23 puntos huérfanos, 70 puntos y 64 servicios.
 > Lo medido es **21**, **68** y **65 renglones, de los cuales 64 son servicios**.
@@ -89,11 +94,16 @@ Se eligió **contacto + teléfono + correo**: es lo que hace falta para *operar*
 | Sólo correo | 31 | 11 |
 | **Contacto + teléfono + correo** | **26** | **16** |
 | + RFC | 18 | 24 |
-| + domicilio fiscal real | 2 | 40 |
+| + domicilio fiscal real | **0** | 42 |
 
 El último renglón es la razón de la decisión: exigir domicilio fiscal dejaría
-**2 clientes activos de 42**, porque la empresa llenó mal esa columna. Lo fiscal
-sirve para facturar, no para operar.
+**CERO clientes activos de 42**, porque la empresa llenó mal esa columna en
+todos. Lo fiscal sirve para facturar, no para operar.
+
+> Corregido el 1-sep-2026 al medirlo con la regla real de `esRegimen()`. La
+> primera medición decía "28 de 42" y que 2 tenían dirección; se le habían
+> escapado 3 regímenes escritos como "Personas Físicas con Actividades
+> Empresariales", y los 2 supuestos domicilios dicen `"N-A"`.
 
 ## 4. El modelo de datos
 
@@ -274,8 +284,8 @@ Todas las reglas viven aquí, y aquí aplica TDD. Cada regla nace de un renglón
 del cuaderno, y ese renglón es su prueba:
 
 - `N-A`, `NA`, `NO`, `-` → `null` de verdad, no la cadena `"N-A"`.
-- Teléfonos: `(868)1490531` → `8681490531`.
-- **El régimen se muda, no se tira.** Los 28 "General de Ley Personas Morales" de la
+- Teléfonos: `(868)1234567` → `8681234567`.
+- **El régimen se muda, no se tira.** Los 29 regímenes mal puestos en la
   columna de domicilio pasan a `clientes.regimen`, que existe y está vacía;
   `domicilio_fiscal` queda en `null`. Es un dato bueno guardado en el cajón
   equivocado.

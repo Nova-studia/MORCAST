@@ -22,3 +22,9 @@ ACCESO-*.txt
 # Es borrador: el registro de verdad es el historial de git. Y este repo es
 # publico desde el 20-ago-2026, asi que aqui no entra nada de andamio.
 .superpowers/
+
+# El volcado fiel del cuaderno de la empresa trae datos personales de 31
+# negocios y personas de Matamoros (correos, telefonos, RFC, contactos) y
+# este repositorio es PUBLICO. Se queda local; `cuaderno-auditoria.json`,
+# su copia redactada, SI se versiona (ver `scripts/cuaderno/extraer.py`).
+Web/scripts/cuaderno/cuaderno.json

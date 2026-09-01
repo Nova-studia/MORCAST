@@ -118,7 +118,7 @@ export default function ReportesPortal() {
         <div className="pt-card-head">
           <h2>{cfg.titulo}</h2>
           <div className="pt-segmento">
-            <button className={metrica === "monto" ? "activo" : ""} onClick={() => setMetrica("monto")} title="La facturacion todavia no esta en el sistema">Monto</button>
+            <button className={metrica === "monto" ? "activo" : ""} onClick={() => setMetrica("monto")}>Monto</button>
             <button className={metrica === "volumen" ? "activo" : ""} onClick={() => setMetrica("volumen")}>Peso</button>
           </div>
         </div>

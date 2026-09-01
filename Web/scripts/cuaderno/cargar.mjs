@@ -1,0 +1,483 @@
+/**
+ * LA OPERACION REAL DEL CUADERNO -> LA BASE.
+ *
+ *   node scripts/cuaderno/cargar.mjs              (ENSAYO: no escribe nada)
+ *   node scripts/cuaderno/cargar.mjs --de-verdad  (escribe)
+ *
+ * EL ENSAYO ES EL MODO POR OMISION, y es a proposito: escribir en produccion
+ * tiene que costar teclear una bandera, no olvidarla.
+ *
+ * ES IDEMPOTENTE. Busca por llave natural (empresa normalizada; punto por
+ * cliente + alias) y actualiza si ya existe. Se puede volver a correr cuando
+ * la empresa mande las correcciones sin duplicar nada.
+ *
+ * SE DETIENE ANTES DE ESCRIBIR si encuentra un nombre que no esta en
+ * `equivalencias.js`. Vale mas que falle diez veces a que le cuelgue un
+ * servicio a la empresa equivocada.
+ */
+import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+import {
+  limpio, telefono, esRegimen, nombreClave, esRenglonDeInstrucciones,
+  diasDesdeTexto, tipoDeRuta, frecuenciaPorMes, claveDeRuta, aNumero,
+} from "./normalizar.mjs";
+import { EMPRESAS, PUNTOS, ALIAS_PROPIO, CLIENTES_EXTRA, SIN_RESOLVER } from "./equivalencias.js";
+import { estadoPorCompletitud, loQueFalta } from "../../lib/estado-cliente.mjs";
+
+const DE_VERDAD = process.argv.includes("--de-verdad");
+
+// Se lee con readFileSync y no con `import ... with { type: "json" }`: la
+// sintaxis de atributos de importacion cambio entre versiones de Node (`assert`
+// antes, `with` despues) y este script tiene que correr sin depender de cual
+// esta instalada.
+const cuaderno = JSON.parse(
+  readFileSync(new URL("./cuaderno.json", import.meta.url), "utf8")
+);
+
+/* ---------- 1. LEER Y NORMALIZAR (sin tocar la base) ---------------- */
+
+const filas = (hoja, n) =>
+  cuaderno.hojas[hoja].slice(5).filter((f) => String(f[0]).trim()).map((f) => f.slice(0, n));
+
+// CLIENTES. Los 2 renglones duplicados se quedan con el primero: son la misma
+// empresa tecleada dos veces, no dos empresas.
+const renglonesClientes = filas("2 Clientes", 11);
+let clientesDuplicados = 0;
+const clientes = new Map();
+for (const f of renglonesClientes) {
+  const clave = nombreClave(f[0]);
+  if (clientes.has(clave)) { clientesDuplicados++; continue; }
+  const domicilio = limpio(f[6]);
+  const cli = {
+    clave,
+    empresa: limpio(f[0]),
+    contacto: limpio(f[1]),
+    telefono: telefono(f[2]),
+    correo: limpio(f[3]),
+    rfc: limpio(f[5]),
+    // El "domicilio fiscal" que en realidad es el regimen se MUDA a su
+    // columna en vez de tirarse: es un dato bueno mal guardado.
+    regimen: domicilio && esRegimen(domicilio) ? domicilio : null,
+    domicilio_fiscal: domicilio && !esRegimen(domicilio) ? domicilio : null,
+    codigo_postal: limpio(f[7]),
+    uso_cfdi: limpio(f[8]),
+    forma_pago: limpio(f[9]),
+  };
+  cli.estado = estadoPorCompletitud(cli);
+  cli.falta = loQueFalta(cli);
+  clientes.set(clave, cli);
+}
+
+// Clientes que la hoja 2 no trae y que la hoja de PUNTOS revela. Hoy solo
+// KARZINI: tiene 2 puntos propios en las mismas direcciones que KARZO y con
+// sus propios conteos (12 al mes contra 8). Luis decidio el 1-sep-2026 que
+// son negocios distintos, no un duplicado de captura.
+let clientesExtraAgregados = 0;
+for (const extra of CLIENTES_EXTRA) {
+  const clave = nombreClave(extra.empresa);
+  if (clientes.has(clave)) continue;
+  clientesExtraAgregados++;
+  const cli = {
+    clave, empresa: extra.empresa,
+    contacto: null, telefono: null, correo: null,
+    rfc: null, regimen: null, domicilio_fiscal: null,
+    codigo_postal: null, uso_cfdi: null, forma_pago: null,
+    notaExtra: extra.nota || null,
+  };
+  cli.estado = estadoPorCompletitud(cli);
+  cli.falta = loQueFalta(cli);
+  clientes.set(clave, cli);
+}
+
+// RUTAS.
+//
+// ⚠️ SE UNEN LOS DIAS DE **TODOS** LOS RENGLONES DE LA HOJA 1, no solo de los
+// 46-62. Los renglones 46-62 son las rutas como se disenaron, dia por dia,
+// pero VERIFICADO contra el cuaderno: ahi solo aparecen RUTA 1, RUTA 2 y
+// RUTA 3. RUTA 10 y RUTA 11 —las de TPI, las UNICAS que trabajan domingo—
+// existen unicamente en los renglones 6-45. Usar solo 46-62 las dejaria sin
+// dias, sin tipo y sin chofer, y de paso volveria inutil el domingo que se le
+// agrego a DIAS_SEMANA.
+//
+// La union ademas es correcta: si un punto de RUTA 3 se atiende el lunes,
+// RUTA 3 pasa el lunes. El `cupo` sale del maximo, que lo aportan los
+// renglones 46-62 (paradas por dia de la ruta), no los 6-45 (por punto).
+const renglonesRutas = filas("1 Rutas", 8);
+let rutasSinClave = 0;
+const rutas = new Map();
+for (const f of renglonesRutas) {
+  const clave = claveDeRuta(f[0]);
+  if (!clave) { rutasSinClave++; continue; }
+  const r = rutas.get(clave) || {
+    clave, nombre: `Ruta ${clave.split("-")[1]}`, tipo: null,
+    dias: new Set(), unidad: null, chofer: null, cupo: 0, colonias: new Set(),
+  };
+  r.tipo = r.tipo || tipoDeRuta(f[1]);
+  for (const d of diasDesdeTexto(f[2]).dias) r.dias.add(d);
+  r.unidad = r.unidad || limpio(f[3]);
+  r.chofer = r.chofer || limpio(f[4]);
+  r.cupo = Math.max(r.cupo, Number(f[5]) || 0);
+  if (limpio(f[6])) r.colonias.add(limpio(f[6]));
+  rutas.set(clave, r);
+}
+
+// EL CALENDARIO ESCONDIDO: los renglones 6-45 de la hoja 1 van en el MISMO
+// orden que los renglones de la hoja 3. De ahi salen los dias de cada punto.
+// Ver el comentario de `suscripciones.dias` en db/019.
+const calendario = cuaderno.hojas["1 Rutas"].slice(5, 45).map((f) => diasDesdeTexto(f[2]));
+
+// PUNTOS. Aqui se resuelven las empresas escritas como sucursal.
+//
+// ⚠️ SE RECORRE LA HOJA CRUDA, NO `filas()`. Dos razones, las dos medidas
+// contra el cuaderno real:
+//
+//  1. `filas()` descarta los renglones cuya primera columna esta vacia, y los
+//     puntos "PLANTA TOLVA" y "PLANTA COMPACTADOR" de TPI (indices 37 y 38)
+//     traen la empresa EN BLANCO: se sobreentiende que heredan la de arriba.
+//     Descartarlos perderia 2 puntos reales de un cliente grande.
+//
+//  2. EL INDICE DEL CALENDARIO ES EL DEL RENGLON EN LA HOJA. Si se descarta un
+//     renglon antes de indexar, TODOS los de abajo se recorren y heredan los
+//     dias de otro punto. Serian dias plausibles pero de otro cliente: el peor
+//     tipo de error, porque no se ve raro al revisarlo.
+const sinMapear = new Set();
+const puntos = [];
+const HOJA3 = cuaderno.hojas["3 Puntos de recoleccion"].slice(5);
+let empresaAnterior = null;
+let puntosVacios = 0;
+
+// RUTAS QUE EL CUADERNO NOMBRA Y NO EXISTEN. CARTA BLANCA / SUCURSAL trae
+// "RUTA 20" en la hoja 3, y la hoja 1 solo define RUTA 1, 2, 3, 10 y 11.
+// Luis decidio (1-sep-2026) que esto NO detiene la carga ni se adivina: la
+// ruta puede existir y la empresa todavia no mando la informacion. Se
+// acumula para el informe y para la nota_interna del cliente, y la
+// suscripcion se carga igual con `ruta_id = null` mas abajo.
+const rutasFaltantes = []; // { empresa, alias, rutaTexto }
+
+for (let i = 0; i < HOJA3.length; i++) {
+  const f = HOJA3[i].slice(0, 8);
+  if (!String(f[1]).trim()) { puntosVacios++; continue; } // sin nombre de punto: renglon vacio
+
+  let bruto = nombreClave(f[0]);
+  if (bruto) empresaAnterior = bruto;
+  else bruto = empresaAnterior; // hereda la de arriba: los 2 puntos de TPI
+
+  const empresa = clientes.has(bruto) ? bruto : nombreClave(EMPRESAS[bruto] || "");
+  if (!empresa || !clientes.has(empresa)) {
+    sinMapear.add(f[0] || `(empresa en blanco) ${f[1]}`);
+    continue;
+  }
+  // `ALIAS_PROPIO` manda sobre el alias de la hoja: es el caso de KARZO
+  // PIPAS / KARZO CONSTITUYENTES, que traen el MISMO alias de hoja ("AV
+  // CONSTITUYENTES") para 2 puntos distintos. Sin este nombre propio se
+  // pisarian al escribir: la llave natural del cargador es (cliente, alias).
+  const alias = ALIAS_PROPIO[bruto] || limpio(f[1]) || "SUCURSAL";
+  const ruta = claveDeRuta(f[6]);
+  if (ruta && !rutas.has(ruta)) {
+    rutasFaltantes.push({ empresa, alias, rutaTexto: limpio(f[6]) });
+  }
+  puntos.push({
+    empresa,
+    alias,
+    calle: limpio(f[2]),
+    colonia: limpio(f[3]),
+    cp: limpio(f[4]),
+    ruta,
+    // `i` es la posicion en la HOJA. Ese es el amarre con el calendario.
+    dias: calendario[i]?.dias || [],
+    porLlamada: calendario[i]?.porLlamada || false,
+  });
+}
+
+// EL GUARDIA QUE FALTABA. El emparejamiento de servicios busca el punto por
+// (empresa, alias); si DOS puntos del mismo cliente comparten alias, los
+// servicios de ambos calzarian contra los dos SIN error visible —fue asi como
+// paso desapercibido el caso de KARZO PIPAS / KARZO CONSTITUYENTES, que
+// duplico 2 servicios en la corrida del 1-sep-2026 sin que `sinMapear` se
+// diera cuenta: el emparejamiento por alias SI funciono, dos veces. Por eso
+// no basta con el freno de `equivalencias.js` (ese cubre nombres que no
+// existen, no alias que se repiten): hace falta este, aparte, ANTES de armar
+// servicios, para que la proxima vez que la empresa mande datos esto se cace
+// solo.
+const aliasDuplicado = new Map(); // "EMPRESA :: ALIAS" -> cuantas veces aparece
+for (const p of puntos) {
+  const llave = `${p.empresa} :: ${nombreClave(p.alias)}`;
+  aliasDuplicado.set(llave, (aliasDuplicado.get(llave) || 0) + 1);
+}
+const duplicados = [...aliasDuplicado].filter(([, n]) => n > 1);
+if (duplicados.length) {
+  console.error(`\n🔴 DOS PUNTOS DEL MISMO CLIENTE CON EL MISMO ALIAS (${duplicados.length}):`);
+  for (const [llave, n] of duplicados) console.error(`  ${llave}  (${n} puntos)`);
+  console.error(
+    `\nLa llave natural del cargador es (cliente, alias): si se escriben asi se\n` +
+    `pisan en una sola fila. Dales un nombre propio en ALIAS_PROPIO, en\n` +
+    `equivalencias.js, tal como se hizo con KARZO PIPAS / KARZO CONSTITUYENTES.`
+  );
+  process.exit(1);
+}
+
+// SERVICIOS.
+const servicios = [];
+const renglonesServicios = filas("4 Servicio contratado", 9);
+let serviciosInstrucciones = 0;
+// LOS REPARTOS, UNO POR UNO. El informe ya decia CUANTOS servicios se
+// repartieron entre varios puntos; esto dice CUALES, para cuando el script se
+// vuelva a correr con las correcciones y ya no haya nadie extrayendolos a
+// mano de la consola.
+const repartos = []; // { renglon, alMes, entre, porPunto, puntos }
+for (const f of renglonesServicios) {
+  if (esRenglonDeInstrucciones(f)) { serviciosInstrucciones++; continue; }
+  const bruto = nombreClave(f[0]);
+  const llave = `${bruto} :: ${nombreClave(f[1])}`;
+  const tieneMapa = llave in PUNTOS;
+  const mapa = PUNTOS[llave];
+
+  // La empresa sale de tres sitios, en este orden. El tercero y el cuarto
+  // existen por LLANTERA y TPI: los 4 servicios de LLANTERA dicen solo
+  // "LLANTERA", que no es cliente de nadie —hay DOS llanteras con RFC
+  // distinto—, y quien sabe de cual es cada uno es la tabla, no la hoja.
+  let empresa = clientes.has(bruto) ? bruto : nombreClave(EMPRESAS[bruto] || "");
+  if (!empresa && mapa?.empresa) empresa = nombreClave(mapa.empresa);
+  if (!empresa && mapa?.porEquipo) {
+    const porEq = mapa.porEquipo[nombreClave(f[4])];
+    if (porEq) empresa = nombreClave(porEq.empresa);
+  }
+  if (!empresa || !clientes.has(empresa)) { sinMapear.add(f[0]); continue; }
+
+  const propios = puntos.filter((p) => p.empresa === empresa);
+  // Si el cliente trae un alias propio (KARZO PIPAS / KARZO CONSTITUYENTES),
+  // el servicio hay que buscarlo por ESE alias, no por el de la hoja: los dos
+  // servicios dicen "AV CONSTITUYENTES" en su columna de punto, que ya no es
+  // el alias de NINGUN punto desde que se separaron en la construccion de
+  // `puntos`. Sin esto, ninguno de los dos volveria a encontrar su destino.
+  const aliasPropio = ALIAS_PROPIO[bruto];
+  let destino = aliasPropio
+    ? propios.filter((p) => nombreClave(p.alias) === nombreClave(aliasPropio))
+    : propios.filter((p) => nombreClave(p.alias) === nombreClave(f[1]));
+
+  if (!destino.length) {
+    // `tieneMapa` y `mapa === null` NO son lo mismo: `null` significa "se
+    // reparte entre todos los puntos de la empresa" y es un valor legitimo
+    // de la tabla. Un `if (!mapa)` a secas confundiria los dos casos.
+    if (!tieneMapa) { sinMapear.add(llave); continue; }
+
+    if (mapa === null) {
+      destino = propios;                          // se reparte entre todos
+    } else if (mapa.porEquipo) {
+      // TPI: los 3 servicios comparten la MISMA llave porque los 3 dicen
+      // "PLANTA"; lo unico que los distingue es el equipo.
+      const porEq = mapa.porEquipo[nombreClave(f[4])];
+      if (!porEq) { sinMapear.add(`${llave} (equipo ${JSON.stringify(f[4])})`); continue; }
+      destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(porEq.alias));
+    } else {
+      destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(mapa.alias));
+    }
+  }
+  if (!destino.length) { sinMapear.add(llave); continue; }
+
+  // `aNumero` conserva el signo: un "-8" en la hoja no se vuelve 8.
+  const alMes = aNumero(f[2]) || 0;
+  const porPunto = Math.round(alMes / destino.length);
+  if (destino.length > 1) {
+    repartos.push({
+      renglon: llave, alMes, entre: destino.length, porPunto,
+      puntos: destino.map((p) => p.alias),
+    });
+  }
+  for (const p of destino) {
+    servicios.push({
+      empresa, alias: p.alias, ruta: p.ruta, dias: p.dias,
+      // El spec de "POR LLAMADA" pedia dos cosas: dias vacios (ya estaba) Y
+      // marcarlo como servicio a solicitud. Sin esto, los 13 puntos por
+      // llamada quedaban indistinguibles de los que simplemente no tienen
+      // calendario todavia: los dos con `dias = '{}'`.
+      porLlamada: p.porLlamada,
+      servicios_por_mes: porPunto || null,
+      frecuencia: frecuenciaPorMes(porPunto),
+      repartido: destino.length > 1,
+      equipo: [{
+        tipo: limpio(f[4]), medida: limpio(f[5]),
+        cantidad: Number(f[6]) || 1, residuo: limpio(f[3]),
+      }],
+    });
+  }
+}
+
+/* ---------- 2. EL INFORME ------------------------------------------- */
+
+const activos = [...clientes.values()].filter((c) => c.estado === "activo");
+const pendientes = [...clientes.values()].filter((c) => c.estado === "pendiente-info");
+
+console.log(`\n${DE_VERDAD ? "CARGA DE VERDAD" : "ENSAYO — no se escribe nada"}\n${"=".repeat(60)}`);
+console.log(`Clientes:   ${clientes.size}  (${activos.length} activos, ${pendientes.length} pendientes)`);
+console.log(`Rutas:      ${rutas.size}`);
+console.log(`Puntos:     ${puntos.length}`);
+console.log(`Servicios:  ${servicios.length}` +
+  (servicios.some((s) => s.repartido) ? `  (${servicios.filter((s) => s.repartido).length} repartidos entre varios puntos)` : ""));
+
+console.log(`\nPENDIENTES POR INFORMACION (${pendientes.length}):`);
+for (const c of pendientes) console.log(`  ${c.empresa.padEnd(28)} falta: ${c.falta.join(", ")}`);
+
+if (rutasFaltantes.length) {
+  console.log(`\nRUTAS QUE EL CUADERNO NOMBRA Y NO EXISTEN (${rutasFaltantes.length}):`);
+  for (const r of rutasFaltantes) {
+    const nombreEmpresa = clientes.get(r.empresa)?.empresa || r.empresa;
+    console.log(`  ${nombreEmpresa} / "${r.alias}" dice ${r.rutaTexto}, y esa ruta no esta en la hoja de rutas`);
+  }
+}
+
+if (repartos.length) {
+  // Cuales servicios se repartieron, no solo cuantos. Para
+  // cuando el script se vuelva a correr con las correcciones de la empresa y
+  // ya no haya nadie extrayendo esto a mano de una corrida vieja.
+  console.log(`\nSERVICIOS REPARTIDOS ENTRE VARIOS PUNTOS (${repartos.length}):`);
+  for (const r of repartos) {
+    console.log(`  ${r.renglon}: ${r.alMes} recolecciones/mes entre ${r.entre} puntos -> ${r.porPunto} c/u (${r.puntos.join(", ")})`);
+  }
+}
+
+// RECONCILIACION CONTRA EL CRUDO. Si un renglon se cae por el
+// camino sin que nadie lo note, aqui se ve solo: renglones del crudo,
+// cuantos se descartaron y por que, y cuantos quedaron procesados.
+console.log(`\nRECONCILIACION CONTRA EL CRUDO:`);
+console.log(`  hoja 1 (rutas):     ${renglonesRutas.length} renglones · ${rutasSinClave} sin ruta reconocible · ` +
+  `${renglonesRutas.length - rutasSinClave} procesados · ${rutas.size} rutas`);
+console.log(`  hoja 2 (clientes):  ${renglonesClientes.length} renglones · ${clientesDuplicados} duplicado(s) · ` +
+  `${renglonesClientes.length - clientesDuplicados} procesados · ${clientes.size} clientes` +
+  (clientesExtraAgregados ? ` (incluye ${clientesExtraAgregados} agregado(s) a mano, no vienen en la hoja)` : ""));
+console.log(`  hoja 3 (puntos):    ${HOJA3.length} renglones · ${puntosVacios} vacio(s) · ` +
+  `${HOJA3.length - puntosVacios} procesados · ${puntos.length} puntos`);
+console.log(`  hoja 4 (servicios): ${renglonesServicios.length} renglones · ${serviciosInstrucciones} descartado(s) (instrucciones) · ` +
+  `${renglonesServicios.length - serviciosInstrucciones} procesados · ${servicios.length} suscripciones tras repartos`);
+
+if (SIN_RESOLVER.length) {
+  console.log(`\n🔴 PREGUNTAS SIN CONTESTAR (${SIN_RESOLVER.length}):`);
+  for (const q of SIN_RESOLVER) console.log(`  - ${q}`);
+}
+if (sinMapear.size) {
+  console.log(`\n🔴 NOMBRES QUE NO ESTAN EN equivalencias.js (${sinMapear.size}):`);
+  for (const n of [...sinMapear].sort()) console.log(`  ${JSON.stringify(n)}`);
+}
+
+if (sinMapear.size || SIN_RESOLVER.length) {
+  console.error(`\nEl script NO escribe con amarres sin resolver. Un servicio colgado de la\n` +
+                `empresa equivocada es facturarle a quien no era.`);
+  process.exit(1);
+}
+
+if (!DE_VERDAD) {
+  console.log(`\nEnsayo terminado. Para escribir:  node scripts/cuaderno/cargar.mjs --de-verdad`);
+  process.exit(0);
+}
+
+/* ---------- 3. ESCRIBIR --------------------------------------------- */
+
+const env = Object.fromEntries(
+  readFileSync(new URL("../../.env.local", import.meta.url), "utf8")
+    .split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith("#") && l.includes("="))
+    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
+);
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } });
+
+/** Escribe y COMPRUEBA. Un insert bloqueado por RLS responde 200 sin escribir. */
+async function guardar(tabla, fila, filtro) {
+  const previa = await supabase.from(tabla).select("id").match(filtro).maybeSingle();
+  // `maybeSingle()` traga el error de "no encontrado" (PGRST116) y deja
+  // `data` en null a proposito: asi se sabe que no existe todavia. Pero si
+  // el filtro encuentra DOS filas —la llave natural dejo de ser unica en la
+  // base— el error es OTRO, y antes de este freno `data` tambien salia null:
+  // el script lo leia como "no existe" e insertaba una tercera. Es la misma
+  // trampa que ya se evita del lado de la escritura (abajo), olvidada del
+  // lado de la lectura.
+  if (previa.error && previa.error.code !== "PGRST116") {
+    console.error(`[${tabla}] no se pudo verificar si ya existia: ${previa.error.message}`, filtro);
+    process.exit(1);
+  }
+  const q = previa.data
+    ? supabase.from(tabla).update(fila).eq("id", previa.data.id).select("id")
+    : supabase.from(tabla).insert(fila).select("id");
+  const { data, error } = await q;
+  if (error) { console.error(`[${tabla}] ${error.message}`, filtro); process.exit(1); }
+  if (!data?.length) { console.error(`[${tabla}] no se escribio nada (RLS)`, filtro); process.exit(1); }
+  return data[0].id;
+}
+
+// RUTAS primero: los puntos se cuelgan de ellas.
+const idRuta = new Map();
+for (const r of rutas.values()) {
+  const id = await guardar("rutas", {
+    clave: r.clave, nombre: r.nombre, tipo: r.tipo || "manual",
+    dias: [...r.dias], unidad: r.unidad, chofer: r.chofer,
+    cupo: r.cupo || 10, activa: true, zona: [],
+  }, { clave: r.clave });
+  idRuta.set(r.clave, id);
+}
+console.log(`Rutas: ${idRuta.size}`);
+
+// Las notas de ruta faltante, una por cliente afectado (hoy solo CARTA
+// BLANCA). Se escriben en la base y no solo en la consola: para que el
+// pendiente no dependa de que alguien haya leido la salida de esta corrida.
+const notasRutaFaltante = new Map(); // clave del cliente -> [texto, ...]
+for (const r of rutasFaltantes) {
+  const texto = `Su punto "${r.alias}" dice ${r.rutaTexto} en el cuaderno, y esa ruta no existe en la hoja de rutas. Pendiente de confirmar con la empresa (1-sep-2026).`;
+  const lista = notasRutaFaltante.get(r.empresa) || [];
+  lista.push(texto);
+  notasRutaFaltante.set(r.empresa, lista);
+}
+
+// CLIENTES. El folio lo pone el trigger de db/014, no el script.
+const idCliente = new Map();
+for (const c of clientes.values()) {
+  // La nota interna junta lo que falta, de donde salio el expediente y
+  // cualquier ruta que el cuaderno nombro sin que exista. Lo que falta
+  // TAMBIEN se calcula al vuelo en la pantalla (`loQueFalta`); esto es el
+  // rastro de como entro, no la fuente. `notaExtra` solo la traen los
+  // clientes que NO vienen en la hoja 2 (hoy KARZINI), y dice quien decidio
+  // crearlos y por que.
+  const nota = [
+    c.notaExtra || null,
+    ...(notasRutaFaltante.get(c.clave) || []),
+    c.falta.length
+      ? `Cargado del cuaderno de la empresa (27-ago-2026). Falta: ${c.falta.join(", ")}.`
+      : `Cargado del cuaderno de la empresa (27-ago-2026).`,
+  ].filter(Boolean).join(" ") || null;
+  const id = await guardar("clientes", {
+    empresa: c.empresa, contacto: c.contacto, telefono: c.telefono, correo: c.correo,
+    rfc: c.rfc, regimen: c.regimen, domicilio_fiscal: c.domicilio_fiscal,
+    codigo_postal: c.codigo_postal, uso_cfdi: c.uso_cfdi, forma_pago: c.forma_pago,
+    estado: c.estado, nota_interna: nota,
+  }, { empresa: c.empresa });
+  idCliente.set(c.clave, id);
+}
+console.log(`Clientes: ${idCliente.size}`);
+
+// PUNTOS.
+const idPunto = new Map();
+for (const p of puntos) {
+  const id = await guardar("domicilios", {
+    cliente_id: idCliente.get(p.empresa), alias: p.alias,
+    calle: p.calle, colonia: p.colonia, cp: p.cp,
+  }, { cliente_id: idCliente.get(p.empresa), alias: p.alias });
+  idPunto.set(`${p.empresa} :: ${p.alias}`, id);
+}
+console.log(`Puntos: ${idPunto.size}`);
+
+// SERVICIOS.
+let n = 0;
+for (const s of servicios) {
+  const domicilio_id = idPunto.get(`${s.empresa} :: ${s.alias}`);
+  if (!domicilio_id) { console.error(`Sin punto: ${s.empresa} / ${s.alias}`); process.exit(1); }
+  await guardar("suscripciones", {
+    cliente_id: idCliente.get(s.empresa), domicilio_id,
+    // `RUTA 20` de CARTA BLANCA (y cualquier otra ruta que el cuaderno
+    // nombre y no exista) se queda en null a proposito: no se adivina la
+    // ruta, queda pendiente en `nota_interna` (ver `rutasFaltantes` arriba).
+    ruta_id: idRuta.get(s.ruta) || null,
+    frecuencia: s.frecuencia, servicios_por_mes: s.servicios_por_mes,
+    dias: s.dias, por_llamada: s.porLlamada, equipo: s.equipo, estado: "activa",
+  }, { cliente_id: idCliente.get(s.empresa), domicilio_id });
+  n++;
+}
+console.log(`Servicios: ${n}`);
+console.log(`\nCarga terminada.`);
