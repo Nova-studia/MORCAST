@@ -1,7 +1,7 @@
 {
  "archivo": "MORCAST - Cuaderno de captura LLENO.xlsx",
  "extraido": "2026-09-01T14:01:39",
- "nota": "Copia redactada de cuaderno.json para el repositorio publico. En la hoja '2 Clientes', las columnas de persona de contacto, telefono, correo, razon social, RFC, domicilio fiscal y CP van en blanco. Lo demas —incluida la propia columna Empresa, y todas las hojas de rutas, puntos y servicios— esta intacto.",
+ "nota": "Copia redactada de cuaderno.json para el repositorio publico. En la hoja '2 Clientes', las columnas de persona de contacto, telefono, correo, razon social, RFC, domicilio fiscal y CP van en blanco. La hoja '1 Rutas' tambien va redactada: la columna Chofer (nombre completo del operador) va en blanco. Lo demas —incluida la propia columna Empresa, y el resto de las hojas de rutas, puntos y servicios— esta intacto.",
  "hojas": {
   "LÉEME": [
    [
@@ -145,7 +145,7 @@
     "compactador ",
     "LUNES  ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "CARR VICTORIA",
     ""
@@ -155,7 +155,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ZONA INDUSTRIAL",
     ""
@@ -165,7 +165,7 @@
     "compactador ",
     "miercoles",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "VILLA COAPA",
     ""
@@ -175,7 +175,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "BERTHA DEL AVELLANO",
     ""
@@ -185,7 +185,7 @@
     "compactador ",
     "MARTES Y VIERNES ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ZONA CENTRO",
     ""
@@ -195,7 +195,7 @@
     "compactador ",
     "LUNES Y JUEVES ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "CANALES",
     ""
@@ -205,7 +205,7 @@
     "compactador ",
     "MARTES Y VIERNES ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "EMILIO PORTES GIL",
     ""
@@ -215,7 +215,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "CARR ANAHUAC -MATAMOROS 21",
     ""
@@ -225,7 +225,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "Cd Industrial",
     ""
@@ -235,7 +235,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "Cd Industrial",
     ""
@@ -245,7 +245,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "C.Sendero Nacional 7 S/N",
     ""
@@ -255,7 +255,7 @@
     "compactador ",
     "LUNES A SABADO ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "6",
     "Quinta Real,",
     ""
@@ -265,7 +265,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "COL. DEL VALLE",
     ""
@@ -275,7 +275,7 @@
     "compactador ",
     "MIERCOLES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ZONA CENTRO",
     ""
@@ -285,7 +285,7 @@
     "compactador ",
     "LUNES -MIERCOLES Y VIERNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "3",
     "PARQUE INDUSTRIAL CYLSA ",
     ""
@@ -295,7 +295,7 @@
     "compactador ",
     "JUEVES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ZONA INDUSTRIAL",
     ""
@@ -305,7 +305,7 @@
     "ROLL-OFF",
     "MIERCOLES Y SABADO",
     "PEND",
-    "RAFAEL RAMIREZ",
+    "",
     "2",
     "PARQUE INDUSTRIAL  ",
     ""
@@ -315,7 +315,7 @@
     "compactador ",
     "MIERCOLES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "LOS ARADOS ",
     ""
@@ -325,7 +325,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "CIUDAD INDUSTRIAL",
     ""
@@ -335,7 +335,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "SENDERO NACIONAL",
     ""
@@ -345,7 +345,7 @@
     "compactador ",
     "LUNES A SABADO ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "Magisterial",
     ""
@@ -355,7 +355,7 @@
     "compactador ",
     "MARTES Y JUEVES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "Parque Industrial Las Ventanas",
     ""
@@ -365,7 +365,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ejido",
     ""
@@ -375,7 +375,7 @@
     "compactador ",
     "MIERCOLES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "SAN JUAN",
     ""
@@ -385,7 +385,7 @@
     "compactador ",
     "LUNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "FRACC. VICTORIA",
     ""
@@ -395,7 +395,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "ZONA CENTRO",
     ""
@@ -405,7 +405,7 @@
     "compactador ",
     "LUNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "COL. MODELO ",
     ""
@@ -415,7 +415,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "COL SAN FRANCISCO ",
     ""
@@ -425,7 +425,7 @@
     "compactador ",
     "VIERNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "LOS LAURELES",
     ""
@@ -435,7 +435,7 @@
     "compactador ",
     "LUNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     " Victoria",
     ""
@@ -445,7 +445,7 @@
     "compactador ",
     "POR LLAMADA",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "CIUDAD INDUSTRIAL",
     ""
@@ -455,7 +455,7 @@
     "compactador ",
     "MIERCOLES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "VILLA COAPA",
     ""
@@ -465,7 +465,7 @@
     "compactador ",
     "MARTES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "entre Roberto guerra y rio rhin, Treviño Zapata",
     ""
@@ -475,7 +475,7 @@
     "compactador ",
     "SABADO",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "Buena Vista",
     ""
@@ -485,7 +485,7 @@
     "compactador ",
     "MARTES-MIERCOLES Y VIERNES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "3",
     "CIUDAD INDUSTRIAL",
     ""
@@ -495,7 +495,7 @@
     "compactador ",
     "MIERCOLES",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     " Las Granjas",
     ""
@@ -505,7 +505,7 @@
     "compactador ",
     "LUNES A SABADO ",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "1",
     "PARQUE INDUSTRIAL LA VENTANA",
     ""
@@ -515,7 +515,7 @@
     "ROLL -OFF",
     "LUNES A DOMINGO",
     "WC-55-86-C ",
-    "MARCO ANTONIO TORRES LUMBRERAS",
+    "",
     "2",
     "PARQUE INDUSTRIAL LA VENTANA",
     ""
@@ -525,7 +525,7 @@
     "ROLL -OFF",
     "LUNES A DOMINGO",
     "NA",
-    "RODOLFO GONZALEZ REYNA",
+    "",
     "2",
     "PARQUE INDUSTRIAL LA VENTANA",
     ""
@@ -535,7 +535,7 @@
     "compactador ",
     "MIERCOLES Y SABADO",
     "WC-68-81A",
-    "JAIR ALEJANDRO RODRIGUEZ MANRIQUE",
+    "",
     "2",
     "FRACC. VICTORIA",
     ""
@@ -545,7 +545,7 @@
     "roll off",
     "lunes",
     "",
-    "rafael",
+    "",
     "9",
     "pedro cardenas, lauro villar, avenida del maestro, avenida del niño",
     ""
@@ -555,7 +555,7 @@
     "manual",
     "lunes",
     "",
-    "jorge",
+    "",
     "11",
     "tecnologico, lauro villar, av del niño, zona centro, san francisco, sendero nacional",
     ""
@@ -565,7 +565,7 @@
     "compactador",
     "lunes",
     "",
-    "Jair",
+    "",
     "4",
     "",
     ""
@@ -575,7 +575,7 @@
     "roll off",
     "martes",
     "",
-    "rafael",
+    "",
     "11",
     "lauro villar, divicion del norte, centro, sexta, col jardin, pedo cardenas",
     ""
@@ -585,7 +585,7 @@
     "manual",
     "martes",
     "",
-    "jorge",
+    "",
     "5",
     "roberto guerra, centro, marte r gomez",
     ""
@@ -595,7 +595,7 @@
     "compactador",
     "martes",
     "",
-    "jahir",
+    "",
     "1",
     "",
     ""
@@ -605,7 +605,7 @@
     "roll off",
     "miercoles",
     "",
-    "rafael",
+    "",
     "8",
     "lauro villar, division del norte, centro, av del niño, pedo cardenas",
     ""
@@ -615,7 +615,7 @@
     "manual",
     "miercoles",
     "",
-    "jorge",
+    "",
     "6",
     "tecnologico, av del niño, zona centro, mariano matamoros,sendero nacional",
     ""
@@ -625,7 +625,7 @@
     "compactador",
     "miercoles",
     "",
-    "jahir",
+    "",
     "2",
     "",
     ""
@@ -635,7 +635,7 @@
     "manual",
     "jueves",
     "",
-    "jorge",
+    "",
     "7",
     "lauro villar, zona centro, valle alto, pedro cardenas",
     ""
@@ -645,7 +645,7 @@
     "compactador",
     "jueves",
     "",
-    "jahir",
+    "",
     "2",
     "",
     ""
@@ -655,7 +655,7 @@
     "roll off",
     "viernes",
     "",
-    "rafael",
+    "",
     "17",
     "l. villar, divi del nte, roberto g, av niño, jardin, sexta, centro, pedro c,  ",
     ""
@@ -665,7 +665,7 @@
     "manual",
     "viernes",
     "",
-    "jorge",
+    "",
     "7",
     "tecnologico, av del niño, zona centro, mariano matamoros,sendero nacional",
     ""
@@ -675,7 +675,7 @@
     "compactador",
     "viernes",
     "",
-    "jahir",
+    "",
     "3",
     "",
     ""
@@ -685,7 +685,7 @@
     "roll off",
     "SABADO",
     "",
-    "rafael",
+    "",
     "6",
     "lauro villar, division del norte, pedro cardenas",
     ""
@@ -695,7 +695,7 @@
     "manual",
     "SABADO",
     "",
-    "jorge",
+    "",
     "6",
     "tecnologico, av del niño, zona centro, mariano matamoros,sendero nacional",
     ""
@@ -705,7 +705,7 @@
     "compactador",
     "SABADO",
     "",
-    "jahir",
+    "",
     "",
     "",
     ""

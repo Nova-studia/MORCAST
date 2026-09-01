@@ -59,7 +59,7 @@ producción el 1-sep-2026. **Corrige dos cifras que la memoria traía mal.**
 | Clientes | 42 únicos (44 renglones, 2 duplicados: `LLANTERA LLANTAS` y `LLANTERA JESUS`) |
 | Puntos de recolección | 68 |
 | Servicios contratados | 64 |
-| Rutas | 5 — RUTA 1 (roll-off, Rafael), RUTA 2 (manual, Jorge), RUTA 3 (compactador, Jair), RUTA 10 (Marco Antonio) y RUTA 11 (Rodolfo) |
+| Rutas | 5 — RUTA 1 (roll-off), RUTA 2 (manual), RUTA 3 (compactador), RUTA 10 y RUTA 11 (cada una con su chofer, que no se nombra aquí: el repositorio es público) |
 
 ### Lo que está roto en el cuaderno
 
@@ -284,7 +284,7 @@ Todas las reglas viven aquí, y aquí aplica TDD. Cada regla nace de un renglón
 del cuaderno, y ese renglón es su prueba:
 
 - `N-A`, `NA`, `NO`, `-` → `null` de verdad, no la cadena `"N-A"`.
-- Teléfonos: `(868)1490531` → `8681490531`.
+- Teléfonos: `(868)1234567` → `8681234567`.
 - **El régimen se muda, no se tira.** Los 29 regímenes mal puestos en la
   columna de domicilio pasan a `clientes.regimen`, que existe y está vacía;
   `domicilio_fiscal` queda en `null`. Es un dato bueno guardado en el cajón

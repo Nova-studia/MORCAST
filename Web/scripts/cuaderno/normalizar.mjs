@@ -17,7 +17,8 @@ export function limpio(txt) {
 }
 
 /**
- * Solo los digitos. El cuaderno trae "(868)1490531" y "868 170 7754".
+ * Solo los digitos. El cuaderno trae numeros con parentesis y con espacios,
+ * por ejemplo "(868)1234567" y "868 987 6543".
  * No se valida el largo: hay telefonos de 7 digitos legitimos en la region y
  * rechazarlos perderia el unico contacto de ese cliente.
  */

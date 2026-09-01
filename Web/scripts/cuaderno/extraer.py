@@ -30,15 +30,20 @@ Por eso:
                          permite ver dentro de seis meses con que datos se
                          pobló la base, sin exponer a nadie.
 
-Lo que se vacia en `cuaderno-auditoria.json`, y SOLO eso: en la hoja
-"2 Clientes", las columnas 1 (persona de contacto), 2 (telefono), 3 (correo),
-4 (razon social), 5 (RFC), 6 (domicilio fiscal) y 7 (CP), y solo en los
-renglones de datos (los que carga.mjs sí procesa, `.slice(5)` en adelante). La
-columna 0 (empresa), las 8/9/10 (uso de CFDI, forma de pago, observaciones) y
-las demas hojas —rutas, puntos, servicios— son datos de OPERACION, no
-personales, y quedan intactas porque son justo lo que hay que poder auditar.
+Lo que se vacia en `cuaderno-auditoria.json`:
+  - hoja "2 Clientes": las columnas 1 (persona de contacto), 2 (telefono),
+    3 (correo), 4 (razon social), 5 (RFC), 6 (domicilio fiscal) y 7 (CP), y
+    solo en los renglones de datos (los que carga.mjs sí procesa, `.slice(5)`
+    en adelante).
+  - hoja "1 Rutas": la columna 4 (Chofer, nombre completo del operador), con
+    el mismo corte de renglones. Es personal aunque no sea de un cliente: un
+    operador real, no un dato de la operacion.
+La columna 0 (empresa) de "2 Clientes", las 8/9/10 (uso de CFDI, forma de
+pago, observaciones), el resto de "1 Rutas" (unidad, dias, colonias) y las
+demas hojas —puntos, servicios— son datos de OPERACION, no personales, y
+quedan intactas porque son justo lo que hay que poder auditar.
 Los renglones 0-4 (titulo y encabezados de columna) tambien quedan intactos:
-son etiquetas de la hoja, no datos de ningun cliente.
+son etiquetas de la hoja, no datos de ningun cliente ni operador.
 
 Se corre una sola vez:
     python scripts/cuaderno/extraer.py
@@ -56,8 +61,10 @@ DESTINO = Path(__file__).with_name("cuaderno.json")
 DESTINO_AUDITORIA = Path(__file__).with_name("cuaderno-auditoria.json")
 
 HOJA_CLIENTES = "2 Clientes"
+HOJA_RUTAS = "1 Rutas"
 PRIMER_RENGLON_DE_DATOS = 5  # el mismo corte que usa `filas()` en cargar.mjs
 COLUMNAS_PERSONALES = (1, 2, 3, 4, 5, 6, 7)
+COLUMNA_CHOFER = 4
 
 
 def celda(v):
@@ -70,12 +77,13 @@ def celda(v):
 
 
 def redactado(hojas):
-    """Copia de `hojas` con las columnas personales de "2 Clientes" en "".
+    """Copia de `hojas` con las columnas personales de "2 Clientes" y "1
+    Rutas" en "".
 
     Solo toca los renglones de datos (desde `PRIMER_RENGLON_DE_DATOS`): los
-    de titulo y encabezado no traen datos de ningun cliente, son etiquetas de
-    la hoja, y perderlos volveria el archivo de auditoria mudo sobre que
-    significaba cada columna.
+    de titulo y encabezado no traen datos de ningun cliente ni operador, son
+    etiquetas de la hoja, y perderlos volveria el archivo de auditoria mudo
+    sobre que significaba cada columna.
     """
     copia = copy.deepcopy(hojas)
     clientes = copia.get(HOJA_CLIENTES, [])
@@ -83,6 +91,10 @@ def redactado(hojas):
         for i in COLUMNAS_PERSONALES:
             if i < len(fila):
                 fila[i] = ""
+    rutas = copia.get(HOJA_RUTAS, [])
+    for fila in rutas[PRIMER_RENGLON_DE_DATOS:]:
+        if COLUMNA_CHOFER < len(fila):
+            fila[COLUMNA_CHOFER] = ""
     return copia
 
 
@@ -117,8 +129,10 @@ def main():
             "Copia redactada de cuaderno.json para el repositorio publico. "
             "En la hoja '2 Clientes', las columnas de persona de contacto, "
             "telefono, correo, razon social, RFC, domicilio fiscal y CP van "
-            "en blanco. Lo demas —incluida la propia columna Empresa, y "
-            "todas las hojas de rutas, puntos y servicios— esta intacto."
+            "en blanco. La hoja '1 Rutas' tambien va redactada: la columna "
+            "Chofer (nombre completo del operador) va en blanco. Lo demas "
+            "—incluida la propia columna Empresa, y el resto de las hojas "
+            "de rutas, puntos y servicios— esta intacto."
         ),
         "hojas": redactado(hojas),
     }

@@ -7,10 +7,10 @@ import {
 } from "../lib/estado-cliente.mjs";
 
 const completo = {
-  empresa: "AGAR",
-  contacto: "CRUZ A. CASAS",
-  telefono: "8681490531",
-  correo: "facturacion@agarlabels.com",
+  empresa: "Industrias del Golfo",
+  contacto: "Ana Ruiz",
+  telefono: "8681234567",
+  correo: "compras@golfo.mx",
 };
 
 test("un cliente con contacto, telefono y correo esta completo", () => {

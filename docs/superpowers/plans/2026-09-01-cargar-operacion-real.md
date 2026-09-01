@@ -449,10 +449,10 @@ import {
 } from "../lib/estado-cliente.mjs";
 
 const completo = {
-  empresa: "AGAR",
-  contacto: "CRUZ A. CASAS",
-  telefono: "8681490531",
-  correo: "facturacion@agarlabels.com",
+  empresa: "Industrias del Golfo",
+  contacto: "Ana Ruiz",
+  telefono: "8681234567",
+  correo: "compras@golfo.mx",
 };
 
 test("un cliente con contacto, telefono y correo esta completo", () => {
@@ -1322,15 +1322,16 @@ test("los rellenos que tecleo la empresa se vuelven nulo de verdad", () => {
 });
 
 test("un dato de verdad se conserva recortado", () => {
-  assert.equal(limpio("  ABRAHAM  "), "ABRAHAM");
-  assert.equal(limpio("facturacion@agarlabels.com"), "facturacion@agarlabels.com");
+  assert.equal(limpio("  ANA RUIZ  "), "ANA RUIZ");
+  assert.equal(limpio("compras@golfo.mx"), "compras@golfo.mx");
 });
 
-test("el telefono de AGAR pierde los adornos", () => {
-  // El cuaderno trae "(868)1490531".
-  assert.equal(telefono("(868)1490531"), "8681490531");
-  assert.equal(telefono("868 170 7754"), "8681707754");
-  assert.equal(telefono("5612603034"), "5612603034");
+test("el telefono de Industrias del Golfo pierde los adornos", () => {
+  // El cuaderno trae numeros con parentesis y con espacios, por ejemplo
+  // "(868)1234567" y "868 987 6543".
+  assert.equal(telefono("(868)1234567"), "8681234567");
+  assert.equal(telefono("868 987 6543"), "8689876543");
+  assert.equal(telefono("5551234567"), "5551234567");
 });
 
 test("un telefono vacio o de relleno es nulo, no una cadena de ceros", () => {
@@ -1375,7 +1376,7 @@ test("el renglon de instrucciones NO es un servicio", () => {
 });
 
 test("un servicio de verdad NO se descarta como instruccion", () => {
-  const real = ["AGAR", "SUCURSAL", "4", "Residuos Sólidos Urbanos (RSU)",
+  const real = ["INDUSTRIAS DEL GOLFO", "SUCURSAL", "4", "Residuos Sólidos Urbanos (RSU)",
                 "CONTENEDOR ", "3 M3", "1", "", ""];
   assert.equal(esRenglonDeInstrucciones(real), false);
 });
@@ -1410,7 +1411,8 @@ export function limpio(txt) {
 }
 
 /**
- * Solo los digitos. El cuaderno trae "(868)1490531" y "868 170 7754".
+ * Solo los digitos. El cuaderno trae numeros con parentesis y con espacios,
+ * por ejemplo "(868)1234567" y "868 987 6543".
  * No se valida el largo: hay telefonos de 7 digitos legitimos en la region y
  * rechazarlos perderia el unico contacto de ese cliente.
  */

@@ -174,11 +174,11 @@ export const PUNTOS = {
 
   // RESUELTO 1-sep-2026 (Luis). Los 4 servicios dicen solo "LLANTERA" en la
   // columna de empresa, que no existe como cliente: la hoja 2 tiene DOS
-  // llanteras, cada una con su propio RFC —
-  //   LLANTERA LLANTAS — RFC LRM950503EH7, razon social "LLANTAS Y
-  //     REFACCIONES DE MATAMOROS"
-  //   LLANTERA JESUS   — RFC ROGJ710704FUA, razon social "JESUS ROBERTO
-  //     RODRIGUEZ"
+  // llanteras LLANTERA LLANTAS y LLANTERA JESUS, y son dos contribuyentes
+  // distintos (RFC DISTINTOS, uno de persona moral y otro de persona fisica)
+  // aunque compartan proveedor de servicio y apodo generico. Para facturar
+  // hay que respetar el RFC de cada una; los RFC estan en el cuaderno, que
+  // vive fuera del repositorio: este es publico.
   // No es adivinanza por parecido: cada apodo del servicio (SEXTA, CENTRO,
   // LAURO, DIAGONAL) aparece en el alias de UN UNICO punto en TODO el
   // cuaderno, y ese alias ya trae de que empresa es la planta —
