@@ -299,7 +299,87 @@ if (!DE_VERDAD) {
   process.exit(0);
 }
 
-/* ---------- 3. ESCRIBIR (solo con --de-verdad) ---------------------- */
-// (se completa en la Task 15)
-console.error("La escritura se implementa en la Task 15 del plan.");
-process.exit(1);
+/* ---------- 3. ESCRIBIR --------------------------------------------- */
+
+const env = Object.fromEntries(
+  readFileSync(new URL("../../.env.local", import.meta.url), "utf8")
+    .split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith("#") && l.includes("="))
+    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
+);
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } });
+
+/** Escribe y COMPRUEBA. Un insert bloqueado por RLS responde 200 sin escribir. */
+async function guardar(tabla, fila, filtro) {
+  const previa = await supabase.from(tabla).select("id").match(filtro).maybeSingle();
+  const q = previa.data
+    ? supabase.from(tabla).update(fila).eq("id", previa.data.id).select("id")
+    : supabase.from(tabla).insert(fila).select("id");
+  const { data, error } = await q;
+  if (error) { console.error(`[${tabla}] ${error.message}`, filtro); process.exit(1); }
+  if (!data?.length) { console.error(`[${tabla}] no se escribio nada (RLS)`, filtro); process.exit(1); }
+  return data[0].id;
+}
+
+// RUTAS primero: los puntos se cuelgan de ellas.
+const idRuta = new Map();
+for (const r of rutas.values()) {
+  const id = await guardar("rutas", {
+    clave: r.clave, nombre: r.nombre, tipo: r.tipo || "manual",
+    dias: [...r.dias], unidad: r.unidad, chofer: r.chofer,
+    cupo: r.cupo || 10, activa: true, zona: [],
+  }, { clave: r.clave });
+  idRuta.set(r.clave, id);
+}
+console.log(`Rutas: ${idRuta.size}`);
+
+// CLIENTES. El folio lo pone el trigger de db/014, no el script.
+const idCliente = new Map();
+for (const c of clientes.values()) {
+  // La nota interna junta dos cosas: de donde salio el expediente y que le
+  // falta. Lo que falta TAMBIEN se calcula al vuelo en la pantalla
+  // (`loQueFalta`); esto es el rastro de como entro, no la fuente. `notaExtra`
+  // solo la traen los clientes que NO vienen en la hoja 2 (hoy KARZINI), y
+  // dice quien decidio crearlos y por que.
+  const nota = [
+    c.notaExtra || null,
+    c.falta.length
+      ? `Cargado del cuaderno de la empresa (27-ago-2026). Falta: ${c.falta.join(", ")}.`
+      : `Cargado del cuaderno de la empresa (27-ago-2026).`,
+  ].filter(Boolean).join(" ") || null;
+  const id = await guardar("clientes", {
+    empresa: c.empresa, contacto: c.contacto, telefono: c.telefono, correo: c.correo,
+    rfc: c.rfc, regimen: c.regimen, domicilio_fiscal: c.domicilio_fiscal,
+    codigo_postal: c.codigo_postal, uso_cfdi: c.uso_cfdi, forma_pago: c.forma_pago,
+    estado: c.estado, nota_interna: nota,
+  }, { empresa: c.empresa });
+  idCliente.set(c.clave, id);
+}
+console.log(`Clientes: ${idCliente.size}`);
+
+// PUNTOS.
+const idPunto = new Map();
+for (const p of puntos) {
+  const id = await guardar("domicilios", {
+    cliente_id: idCliente.get(p.empresa), alias: p.alias,
+    calle: p.calle, colonia: p.colonia, cp: p.cp,
+  }, { cliente_id: idCliente.get(p.empresa), alias: p.alias });
+  idPunto.set(`${p.empresa} :: ${p.alias}`, id);
+}
+console.log(`Puntos: ${idPunto.size}`);
+
+// SERVICIOS.
+let n = 0;
+for (const s of servicios) {
+  const domicilio_id = idPunto.get(`${s.empresa} :: ${s.alias}`);
+  if (!domicilio_id) { console.error(`Sin punto: ${s.empresa} / ${s.alias}`); process.exit(1); }
+  await guardar("suscripciones", {
+    cliente_id: idCliente.get(s.empresa), domicilio_id,
+    ruta_id: idRuta.get(s.ruta) || null,
+    frecuencia: s.frecuencia, servicios_por_mes: s.servicios_por_mes,
+    dias: s.dias, equipo: s.equipo, estado: "activa",
+  }, { cliente_id: idCliente.get(s.empresa), domicilio_id });
+  n++;
+}
+console.log(`Servicios: ${n}`);
+console.log(`\nCarga terminada.`);
