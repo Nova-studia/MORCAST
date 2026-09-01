@@ -456,66 +456,41 @@
 }
 
 /* =====================================================================
-   BOTON DE ICONO EN TABLA (/admin/clientes, columna Acceso)
+   COLUMNA "Acceso" (/admin/clientes)
    ---------------------------------------------------------------------
-   "Dar acceso al portal al correo" ocupaba 244px de boton con texto. Un
-   icono compacto dice lo mismo con el `title`/`aria-label` puestos en el
-   propio botón (page.js), pero un icono se pulsa por accidente mas facil
-   que un boton con texto de sobra — por eso la confirmacion antes de
-   mandar el correo real SIGUE en pie (`window.confirm` en page.js), y aqui
-   solo se resuelve el tamano.
+   Esto era un icono solo (llave/palomita) con la explicacion escondida
+   en el `title`. Luis lo pidio de vuelta con texto: el sabe que significa
+   el icono, pero el equipo de Morcast que va a usar este panel a diario
+   no, y en una tablet no hay cursor que se detenga encima para leer el
+   `title`. El motivo de un boton apagado ("Sin correo", "Ya tiene
+   acceso") tambien se ve ahora, no solo se adivina.
+   Se reutiliza `.pt-btn` (el mismo boton compacto de "Nuevo cliente" ahi
+   arriba) en vez de inventar uno nuevo -- ya trae `white-space: nowrap`,
+   el estado `:disabled` y la respuesta al tacto de todo el panel.
    ===================================================================== */
-.pt-tabla-icono-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  border: 1px solid var(--mc-linea);
-  background: transparent;
+/* Selector doble (en vez de solo `.pt-tabla-acceso-btn`) para que estas
+   reglas ganen sin importar el orden en la hoja: `.pt-btn` esta declarado
+   mas abajo en este archivo y, a igual especificidad, la regla que viene
+   despues gana -- aqui se necesita que gane esta. */
+.pt-btn.pt-tabla-acceso-btn {
+  padding: 0.4rem 0.7rem;
   color: var(--mc-verde-claro);
-  font-size: 1.05rem;
-  cursor: pointer;
-  transition: background-color 200ms ease,
-              border-color 200ms ease,
-              color 200ms ease,
-              opacity 200ms ease,
-              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-.pt-tabla-icono-btn:hover:not(:disabled) {
-  border-color: var(--mc-verde);
-  background: rgba(78, 179, 74, 0.1);
-}
-.pt-tabla-icono-btn:active:not(:disabled) {
-  transform: scale(0.9);
-  transition-duration: 100ms;
-}
-.pt-tabla-icono-btn:disabled {
-  opacity: 0.4;
+.pt-btn.pt-tabla-acceso-btn:disabled {
   color: var(--mc-gris);
-  cursor: not-allowed;
 }
-/* "Ya tiene acceso": no es un boton, es un estado -- mismo tamano que el
-   boton de al lado para que la columna no salte de ancho fila a fila. */
+/* "Ya tiene acceso": no es un boton, es un estado -- mismo alto y relleno
+   que el boton de al lado para que la fila no salte al cambiar de una a
+   otro. */
 .pt-tabla-icono-estado {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
   color: #6fce69;
-  font-size: 1.2rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pt-tabla-icono-btn:active:not(:disabled) {
-    transform: none;
-    filter: brightness(1.25);
-  }
-}
-@media (prefers-contrast: more) {
-  .pt-tabla-icono-btn { border-color: #5d6f6b; }
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Insignias de estatus */
