@@ -21,7 +21,7 @@ import {
   limpio, telefono, esRegimen, nombreClave, esRenglonDeInstrucciones,
   diasDesdeTexto, tipoDeRuta, frecuenciaPorMes, claveDeRuta,
 } from "./normalizar.mjs";
-import { EMPRESAS, PUNTOS, CLIENTES_EXTRA, SIN_RESOLVER } from "./equivalencias.js";
+import { EMPRESAS, PUNTOS, ALIAS_PROPIO, CLIENTES_EXTRA, SIN_RESOLVER } from "./equivalencias.js";
 import { estadoPorCompletitud, loQueFalta } from "../../lib/estado-cliente.mjs";
 
 const DE_VERDAD = process.argv.includes("--de-verdad");
@@ -154,7 +154,11 @@ for (let i = 0; i < HOJA3.length; i++) {
   }
   puntos.push({
     empresa,
-    alias: limpio(f[1]) || "SUCURSAL",
+    // `ALIAS_PROPIO` manda sobre el alias de la hoja: es el caso de KARZO
+    // PIPAS / KARZO CONSTITUYENTES, que traen el MISMO alias de hoja ("AV
+    // CONSTITUYENTES") para 2 puntos distintos. Sin este nombre propio se
+    // pisarian al escribir: la llave natural del cargador es (cliente, alias).
+    alias: ALIAS_PROPIO[bruto] || limpio(f[1]) || "SUCURSAL",
     calle: limpio(f[2]),
     colonia: limpio(f[3]),
     cp: limpio(f[4]),
@@ -163,6 +167,33 @@ for (let i = 0; i < HOJA3.length; i++) {
     dias: calendario[i]?.dias || [],
     porLlamada: calendario[i]?.porLlamada || false,
   });
+}
+
+// EL GUARDIA QUE FALTABA. El emparejamiento de servicios busca el punto por
+// (empresa, alias); si DOS puntos del mismo cliente comparten alias, los
+// servicios de ambos calzarian contra los dos SIN error visible —fue asi como
+// paso desapercibido el caso de KARZO PIPAS / KARZO CONSTITUYENTES, que
+// duplico 2 servicios en la corrida del 1-sep-2026 sin que `sinMapear` se
+// diera cuenta: el emparejamiento por alias SI funciono, dos veces. Por eso
+// no basta con el freno de `equivalencias.js` (ese cubre nombres que no
+// existen, no alias que se repiten): hace falta este, aparte, ANTES de armar
+// servicios, para que la proxima vez que la empresa mande datos esto se cace
+// solo.
+const aliasDuplicado = new Map(); // "EMPRESA :: ALIAS" -> cuantas veces aparece
+for (const p of puntos) {
+  const llave = `${p.empresa} :: ${nombreClave(p.alias)}`;
+  aliasDuplicado.set(llave, (aliasDuplicado.get(llave) || 0) + 1);
+}
+const duplicados = [...aliasDuplicado].filter(([, n]) => n > 1);
+if (duplicados.length) {
+  console.error(`\n🔴 DOS PUNTOS DEL MISMO CLIENTE CON EL MISMO ALIAS (${duplicados.length}):`);
+  for (const [llave, n] of duplicados) console.error(`  ${llave}  (${n} puntos)`);
+  console.error(
+    `\nLa llave natural del cargador es (cliente, alias): si se escriben asi se\n` +
+    `pisan en una sola fila. Dales un nombre propio en ALIAS_PROPIO, en\n` +
+    `equivalencias.js, tal como se hizo con KARZO PIPAS / KARZO CONSTITUYENTES.`
+  );
+  process.exit(1);
 }
 
 // SERVICIOS.
@@ -187,7 +218,15 @@ for (const f of filas("4 Servicio contratado", 9)) {
   if (!empresa || !clientes.has(empresa)) { sinMapear.add(f[0]); continue; }
 
   const propios = puntos.filter((p) => p.empresa === empresa);
-  let destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(f[1]));
+  // Si el cliente trae un alias propio (KARZO PIPAS / KARZO CONSTITUYENTES),
+  // el servicio hay que buscarlo por ESE alias, no por el de la hoja: los dos
+  // servicios dicen "AV CONSTITUYENTES" en su columna de punto, que ya no es
+  // el alias de NINGUN punto desde que se separaron en la construccion de
+  // `puntos`. Sin esto, ninguno de los dos volveria a encontrar su destino.
+  const aliasPropio = ALIAS_PROPIO[bruto];
+  let destino = aliasPropio
+    ? propios.filter((p) => nombreClave(p.alias) === nombreClave(aliasPropio))
+    : propios.filter((p) => nombreClave(p.alias) === nombreClave(f[1]));
 
   if (!destino.length) {
     // `tieneMapa` y `mapa === null` NO son lo mismo: `null` significa "se

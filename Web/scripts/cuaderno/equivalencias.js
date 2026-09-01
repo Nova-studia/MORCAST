@@ -217,6 +217,32 @@ export const PUNTOS = {
 };
 
 /**
+ * Puntos que comparten alias con otro del mismo cliente, y el nombre propio
+ * con el que se les distingue.
+ *
+ * KARZO tiene DOS renglones en AV CONSTITUYENTES #213, con el mismo alias
+ * ("AV CONSTITUYENTES"), la misma colonia, la misma ruta y 8 recolecciones al
+ * mes cada uno. Lo unico que los diferencia es la etiqueta que la empresa puso
+ * en la columna de empresa: "KARZO PIPAS" y "KARZO CONSTITUYENTES".
+ *
+ * Luis decidio el 1-sep-2026 que son dos servicios distintos —uno con pipa,
+ * otro general—, no un dedazo. Sin nombres propios se pisarian: la llave
+ * natural del cargador es (cliente, alias).
+ *
+ * Es el UNICO alias repetido del cuaderno (verificado sobre las 70 filas).
+ *
+ * Las llaves son `nombreClave()` sobre la columna de empresa de la hoja 3 (y
+ * de la hoja 4, que usa la misma etiqueta): comprobado con
+ *   node -e "import('./normalizar.mjs').then(m =>
+ *     console.log(m.nombreClave('KARZO PIPAS ')))"
+ *   // -> "KARZO PIPAS"
+ */
+export const ALIAS_PROPIO = {
+  "KARZO PIPAS": "PIPAS",
+  "KARZO CONSTITUYENTES": "CONSTITUYENTES",
+};
+
+/**
  * LO QUE EL SCRIPT NO PUEDE RESOLVER SOLO, Y LUIS TIENE QUE DECIDIR.
  *
  * Mientras algo este en esta lista, el cargador se DETIENE al encontrarlo. No
