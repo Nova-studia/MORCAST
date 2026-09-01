@@ -107,7 +107,10 @@ export default function PortalShell({ children }) {
                 alt="Morcast del Norte"
                 width={688}
                 height={200}
-                style={{ height: 42, width: "auto" }}
+                // El tamano ya NO va aqui: en el rail recogido (portal.css,
+                // min-width 768px) la imagen se recorta a solo el simbolo, y
+                // un `style` en linea le ganaria a esa regla y la dejaria sin
+                // efecto.
                 priority
               />
             </Link>
@@ -127,12 +130,16 @@ export default function PortalShell({ children }) {
                   // los datos que el cliente sí está esperando ver.
                   prefetch={false}
                   className={`pt-nav-item ${activo(item) ? "activo" : ""}`}
+                  // Recogido, el rail solo enseña el icono: el `title` es lo
+                  // unico que le dice a quien pasa el mouse que renglon es
+                  // cada uno (portal.css, rail de iconos).
+                  title={item.texto}
                 >
                   {/* Quieto por omisión; se mueve sólo en el renglón donde
                       estás y en el que traes el cursor encima. Diecinueve
                       dibujos agitándose a la vez dejan de ser un menú. */}
                   <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
-                  {item.texto}
+                  <span className="pt-nav-texto">{item.texto}</span>
                 </Link>
               );
             })}
@@ -140,10 +147,11 @@ export default function PortalShell({ children }) {
               type="button"
               className="pt-nav-item"
               onClick={salir}
+              title="Cerrar sesión"
               style={{ marginTop: "auto", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
               <IconoAnimado nombre="cerra-sesion" tam={30} />
-              Cerrar sesión
+              <span className="pt-nav-texto">Cerrar sesión</span>
             </button>
           </nav>
           <div className="pt-side-pie">

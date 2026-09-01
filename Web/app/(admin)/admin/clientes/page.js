@@ -11,11 +11,24 @@ import { listarClientes, crearCliente } from "@/lib/datos-clientes";
 import { darAccesoACliente } from "@/app/acciones-alta-cliente";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
 import { etiquetaEstado, loQueFalta, puedeRecibirAcceso } from "@/lib/estado-cliente.mjs";
+import { enHold } from "@/lib/estado-sistema";
 
 /** Por qué no se puede pulsar el botón, en el mismo texto que va en el `title`. */
 const MOTIVO_TEXTO = {
   "ya-tiene-acceso": "Ya tiene acceso",
   "sin-correo": "Sin correo",
+};
+
+/**
+ * Version corta de la etiqueta, SOLO para esta tabla.
+ *
+ * `etiquetaEstado()` (lib/estado-cliente.mjs) no se toca: la usan las
+ * pruebas (tests/estado-cliente.test.mjs) y la puede estar usando otra
+ * pantalla que si necesite el texto largo. Acortar aqui, no alla, deja
+ * claro que es una cosa de esta tabla y no un cambio de significado.
+ */
+const ETIQUETA_CORTA_TABLA = {
+  "pendiente-info": "Pendiente",
 };
 
 export default function ClientesAdmin() {
@@ -135,17 +148,23 @@ export default function ClientesAdmin() {
 
       <div className="pt-card">
         <div className="pt-tabla-wrap">
-          <table className="pt-tabla" style={{ minWidth: 940 }}>
+          <table className="pt-tabla pt-tabla-compacta">
             <thead>
               <tr>
                 <th>Cliente</th>
                 <th>Contacto</th>
                 <th>Plan</th>
-                <th className="num">Saldo</th>
-                <th className="num">Por pagar</th>
+                {/* Saldo y Por pagar median 212px juntas y HOY dicen $0.00
+                    en los 43 clientes: no hay facturacion todavia y el
+                    sistema esta en Hold (lib/estado-sistema.js). Se funden
+                    en una sola columna y se ESCONDEN mientras dure el Hold
+                    -- no es una columna que se borro, es una que reaparece
+                    sola en cuanto entren los precios reales y se apague el
+                    interruptor. */}
+                {!enHold() && <th className="num">Saldo</th>}
                 <th>Estatus</th>
                 <th>Desde</th>
-                <th>Acceso al portal</th>
+                <th style={{ textAlign: "center" }}>Acceso</th>
               </tr>
             </thead>
             <tbody>
@@ -155,42 +174,58 @@ export default function ClientesAdmin() {
                     <strong style={{ display: "block" }}>{c.empresa}</strong>
                     <span className="folio" style={{ fontSize: "0.8rem" }}>{c.id}</span>
                   </td>
-                  <td>
-                    {c.contacto}
-                    <br />
-                    <span style={{ color: "var(--mc-gris)", fontSize: "0.8rem" }}>{c.correo}</span>
+                  <td className="pt-celda-recorte">
+                    {/* El correo largo era lo que ensanchaba esta columna a
+                        346px. Se recorta con puntos suspensivos y el valor
+                        completo se mueve al `title`. */}
+                    <span className="pt-recorte" title={c.contacto}>{c.contacto}</span>
+                    <span className="pt-recorte" style={{ color: "var(--mc-gris)", fontSize: "0.8rem" }} title={c.correo}>{c.correo}</span>
                   </td>
                   <td>{c.plan}</td>
-                  <td className="num">{pesos(c.saldo)}</td>
-                  <td className="num">
-                    <span className={c.porPagar > 0 ? "pt-mov cargo" : ""}>{pesos(c.porPagar)}</span>
-                  </td>
+                  {!enHold() && (
+                    <td className="num">
+                      {/* Saldo a favor y por pagar son cosas distintas (uno
+                          es lo que el cliente tiene, el otro lo que debe):
+                          fundir la columna no es promediarlas ni restarlas,
+                          es mostrar las dos apiladas en el mismo espacio. */}
+                      <div>{pesos(c.saldo)}</div>
+                      {c.porPagar > 0 && (
+                        <div className="pt-mov cargo" style={{ fontSize: "0.76rem" }}>
+                          {pesos(c.porPagar)} por pagar
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td>
                     {(() => {
                       // `title` es la unica pista visible de QUE le falta a
-                      // un pendiente: sin esto, "Pendiente por informacion"
-                      // no dice si es el correo, el telefono o el contacto,
-                      // y Morcast tendria que ir a buscarlo a mano.
+                      // un pendiente: sin esto, "Pendiente" (o el texto
+                      // largo) no dice si es el correo, el telefono o el
+                      // contacto, y Morcast tendria que ir a buscarlo a
+                      // mano.
                       const et = etiquetaEstado(c.estatus);
+                      const corto = ETIQUETA_CORTA_TABLA[c.estatus] || et.texto;
                       const falta = loQueFalta(c);
+                      const piezas = [];
+                      // Si se acorto, el texto completo tambien va al
+                      // tooltip -- si no, ya se ve entero en la insignia.
+                      if (corto !== et.texto) piezas.push(et.texto);
+                      if (falta.length) piezas.push(`Falta: ${falta.join(", ")}`);
                       return (
-                        <span
-                          className={`pt-badge ${et.clase}`}
-                          title={falta.length ? `Falta: ${falta.join(", ")}` : ""}
-                        >
-                          {et.texto}
+                        <span className={`pt-badge ${et.clase}`} title={piezas.join(" — ")}>
+                          {corto}
                         </span>
                       );
                     })()}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(c.desde)}</td>
-                  <td style={{ minWidth: 200 }}>
+                  <td style={{ textAlign: "center" }}>
                     {(() => {
                       const a = accesos[c.uuid] || {};
                       if (a.enviado || c.tieneAcceso) {
                         return (
-                          <span className="pt-badge ok" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                            <CheckCircle /> Tiene acceso
+                          <span className="pt-tabla-icono-estado" title="Ya tiene acceso al portal">
+                            <CheckCircle />
                           </span>
                         );
                       }
@@ -199,17 +234,20 @@ export default function ClientesAdmin() {
                       // habilitado un botón que el servidor va a rechazar,
                       // el cliente vería un error sin explicación.
                       const evaluado = puedeRecibirAcceso(c);
+                      const titulo = evaluado.puede
+                        ? (a.enviando ? "Enviando…" : `Dar acceso al portal a ${c.empresa}`)
+                        : MOTIVO_TEXTO[evaluado.motivo];
                       return (
                         <>
                           <button
                             type="button"
-                            className="pt-btn pt-btn-verde"
+                            className="pt-tabla-icono-btn"
                             disabled={!evaluado.puede || a.enviando}
-                            title={evaluado.puede ? "" : MOTIVO_TEXTO[evaluado.motivo]}
-                            style={{ opacity: evaluado.puede && !a.enviando ? 1 : 0.55, whiteSpace: "nowrap" }}
+                            title={titulo}
+                            aria-label={titulo}
                             onClick={() => darAcceso(c)}
                           >
-                            <Key /> {a.enviando ? "Enviando…" : evaluado.puede ? "Dar acceso al portal" : MOTIVO_TEXTO[evaluado.motivo]}
+                            <Key />
                           </button>
                           {a.error && (
                             <p style={{ color: "#ef8080", fontSize: "0.78rem", margin: "0.35rem 0 0" }}>{a.error}</p>
