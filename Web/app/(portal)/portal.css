@@ -44,6 +44,14 @@
      estilo en linea le hubiera ganado a esa regla sin remedio. */
   object-fit: contain;
 }
+/* `pt-logo-recogido` (el logo VERTICAL, dibujado con `background-image` —
+   ver la nota grande mas abajo sobre por que no es un <img>) solo existe
+   para el rail recogido de escritorio, mas abajo en este archivo. En
+   cualquier otro caso —movil, o escritorio desplegado— se queda oculta y se
+   ve la horizontal de siempre. Sin esto se verian los DOS logos apilados. */
+.pt-logo-recogido {
+  display: none;
+}
 /* El admin trae ademas la etiqueta "Panel de administración" debajo, así que
    su logo entra un poco más chico para no correr al pie fuera del bloque. */
 .pt-admin .pt-side-logo img {
@@ -1005,22 +1013,61 @@
   }
 
   /* ---------- Recogido: logo a solo el simbolo ---------- */
-  /* El logo es horizontal (688×200) y el simbolo del camion+hoja ocupa su
-     30% izquierdo. Un cuadro de 40×40 con `object-fit: cover` escala la
-     imagen POR ALTO (40px), lo que la deja de sobra ancha para el cuadro
-     —eso es justo lo que permite recortar— y `object-position: left`
-     conserva el simbolo y descarta la palabra "MORCAST". Desplegado no
-     necesita regla propia: sin la guardia, gana la de mas arriba
-     (`.pt-side-logo img`, 42px/38px, `object-fit: contain`) y se ve el
-     logo completo sin recortar. */
+  /* Antes esto recortaba el logo HORIZONTAL (`logo-h-blanco.png`, el
+     camion+hoja pegado al texto) con `object-fit: cover`. Salio mal: en un
+     logo horizontal el simbolo no esta aislado en un extremo limpio, asi
+     que el recorte cortaba el camion por la derecha, partia la hoja a la
+     mitad y dejaba un pedazo de flecha naranja suelto. No hay object-position
+     que arregle eso porque el problema es la imagen de origen, no el encuadre.
+
+     La solucion es usar OTRO archivo, no ajustar el encuadre del mismo:
+     `logo-morcast-blanco.png` es la version VERTICAL, con el simbolo
+     COMPLETO arriba y el texto "MORCAST / DEL NORTE / MANEJO DE RESIDUOS"
+     abajo. Recortando desde arriba (`object-position: top`) sale el simbolo
+     entero, sin cortes. Los dos archivos SON necesarios: el vertical no
+     sirve desplegado (el texto queda comprimido y feo a lo ancho), y el
+     horizontal no sirve recogido (no se puede aislar el simbolo sin
+     cortarlo). Por eso hay dos <img> en AdminShell/PortalShell y esta regla
+     solo cambia CUAL de las dos se ve, no el object-fit de una sola. */
   .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo {
     padding: 1.1rem 0.75rem;
   }
-  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo img {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-    object-position: left center;
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo .pt-logo-desplegado {
+    display: none;
+  }
+  .pt-sidebar:not(:hover):not(:focus-within) .pt-side-logo .pt-logo-recogido {
+    display: block;
+    /* Se probo primero con un <img> y `object-fit: cover`, pero el ancho
+       renderizado de next/image no coincidia con el `width` puesto aqui.
+       La causa real: el Link de admin es `display:flex`, y sin
+       `flex-shrink: 0` el navegador ENCOGE el elemento para que quepa en el
+       espacio libre real dentro del padding (~34px, no 40 — el padding de
+       aqui abajo esta en rem y esta pagina usa una escala de raiz de 1.2x,
+       asi que el hueco disponible es mas chico de lo que el numero "0.75rem"
+       sugiere a simple vista). Con `background-image` el control de pixeles
+       es directo, sin el intermediario de next/image, pero el mismo encogido
+       por flex le pasaba tambien al fondo — de ahi el `flex-shrink: 0` de
+       abajo, y por lo que el ancho aqui es 34, no 40: es el hueco real
+       disponible, medido en el navegador, no calculado del CSS.
+
+       El calculo del recorte: `background-size: 34px auto` escala la imagen
+       (vertical, 1000x820) a 34 de ancho exacto y ~27.9 de alto (mantiene
+       proporcion). El cuadro mide MENOS que esos 27.9 de alto a proposito:
+       eso es lo que hace que `background-position: top` recorte por ABAJO
+       en vez de encajar la imagen entera comprimida (que mostraria el logo
+       completo, texto incluido, del mismo tamano que el simbolo — el bug
+       que Luis reporto la primera vez). El alto exacto del cuadro se ajusto
+       A OJO viendo capturas del rail, no calculandolo del tamano del
+       archivo: es la franja de arriba donde cabe el camion+hoja completo y
+       CERO texto. Si se vuelve a tocar esta imagen, comprobar de nuevo con
+       una captura — no basta con mirar los numeros. */
+    flex-shrink: 0;
+    width: 44px;
+    height: 17px;
+    background-image: url("/img/logo-morcast-blanco.png");
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: 44px auto;
   }
   /* La etiqueta "Panel de administración" y el pie no caben en 64px, y no
      hay version corta que valga la pena: se ocultan recogidos y vuelven

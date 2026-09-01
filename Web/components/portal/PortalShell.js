@@ -102,16 +102,41 @@ export default function PortalShell({ children }) {
             {/* El logo apunta al panel, que es donde ya estas parado:
                 precargarlo es trabajo puro para nada. */}
             <Link href="/portal" prefetch={false}>
+              {/* Dos archivos, no uno, a proposito: `logo-h-blanco.png` es
+                  horizontal (el simbolo pegado al texto) y no hay forma de
+                  recortarlo para quedarse solo con el camion+hoja sin cortar
+                  la mitad de la hoja o dejar un pedazo de flecha suelto —eso
+                  fue justo el bug que se vio en el rail recogido. La version
+                  vertical (`logo-morcast-blanco.png`) trae el simbolo
+                  COMPLETO arriba y el texto abajo, asi que recortando desde
+                  arriba sale el simbolo entero. Desplegado sigue con la
+                  horizontal porque ahi si cabe el logo completo con texto.
+                  Verlas como "dos logos redundantes" y dejar solo uno rompe
+                  el rail recogido de nuevo. */}
               <Image
                 src="/img/logo-h-blanco.png"
                 alt="Morcast del Norte"
                 width={688}
                 height={200}
+                className="pt-logo-desplegado"
                 // El tamano ya NO va aqui: en el rail recogido (portal.css,
                 // min-width 768px) la imagen se recorta a solo el simbolo, y
                 // un `style` en linea le ganaria a esa regla y la dejaria sin
                 // efecto.
                 priority
+              />
+              {/* `background-image` y no `<Image>`/`<img>` a proposito: con
+                  `next/image` el ancho renderizado de este logo no
+                  coincidia con el `width` puesto en portal.css (quedaba
+                  mas angosto de lo pedido, aun con el object-fit/position
+                  correctos) — probablemente por como next/image calcula su
+                  propio tamano a partir de `sizes`/`srcset`. Un fondo le da
+                  control directo en pixeles vía `background-size` y
+                  `background-position`, sin ese intermediario. */}
+              <span
+                className="pt-logo-recogido"
+                role="img"
+                aria-label="Morcast del Norte"
               />
             </Link>
           </div>
