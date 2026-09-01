@@ -2030,7 +2030,7 @@ import {
   limpio, telefono, esRegimen, nombreClave, esRenglonDeInstrucciones,
   diasDesdeTexto, tipoDeRuta, frecuenciaPorMes, claveDeRuta,
 } from "./normalizar.mjs";
-import { EMPRESAS, PUNTOS, SIN_RESOLVER } from "./equivalencias.js";
+import { EMPRESAS, PUNTOS, CLIENTES_EXTRA, SIN_RESOLVER } from "./equivalencias.js";
 import { estadoPorCompletitud, loQueFalta } from "../../lib/estado-cliente.mjs";
 
 const DE_VERDAD = process.argv.includes("--de-verdad");
@@ -2075,6 +2075,25 @@ for (const f of filas("2 Clientes", 11)) {
   clientes.set(clave, cli);
 }
 
+// Clientes que la hoja 2 no trae y que la hoja de PUNTOS revela. Hoy solo
+// KARZINI: tiene 2 puntos propios en las mismas direcciones que KARZO y con
+// sus propios conteos (12 al mes contra 8). Luis decidio el 1-sep-2026 que
+// son negocios distintos, no un duplicado de captura.
+for (const extra of CLIENTES_EXTRA) {
+  const clave = nombreClave(extra.empresa);
+  if (clientes.has(clave)) continue;
+  const cli = {
+    clave, empresa: extra.empresa,
+    contacto: null, telefono: null, correo: null,
+    rfc: null, regimen: null, domicilio_fiscal: null,
+    codigo_postal: null, uso_cfdi: null, forma_pago: null,
+    notaExtra: extra.nota || null,
+  };
+  cli.estado = estadoPorCompletitud(cli);
+  cli.falta = loQueFalta(cli);
+  clientes.set(clave, cli);
+}
+
 // RUTAS.
 //
 // ⚠️ SE UNEN LOS DIAS DE **TODOS** LOS RENGLONES DE LA HOJA 1, no solo de los
@@ -2112,19 +2131,36 @@ const calendario = cuaderno.hojas["1 Rutas"].slice(5, 45).map((f) => diasDesdeTe
 
 // PUNTOS. Aqui se resuelven las empresas escritas como sucursal.
 //
-// ⚠️ EL INDICE DEL CALENDARIO ES EL DEL RENGLON EN LA HOJA, NO LA POSICION EN
-// ESTE ARREGLO. Si un punto se salta por no estar mapeado, todos los que
-// vienen despues se recorren un lugar y heredan los dias del punto anterior.
-// Serian dias PLAUSIBLES pero de otro cliente — el peor tipo de error, porque
-// no se ve raro al revisarlo.
+// ⚠️ SE RECORRE LA HOJA CRUDA, NO `filas()`. Dos razones, las dos medidas
+// contra el cuaderno real:
+//
+//  1. `filas()` descarta los renglones cuya primera columna esta vacia, y los
+//     puntos "PLANTA TOLVA" y "PLANTA COMPACTADOR" de TPI (indices 37 y 38)
+//     traen la empresa EN BLANCO: se sobreentiende que heredan la de arriba.
+//     Descartarlos perderia 2 puntos reales de un cliente grande.
+//
+//  2. EL INDICE DEL CALENDARIO ES EL DEL RENGLON EN LA HOJA. Si se descarta un
+//     renglon antes de indexar, TODOS los de abajo se recorren y heredan los
+//     dias de otro punto. Serian dias plausibles pero de otro cliente: el peor
+//     tipo de error, porque no se ve raro al revisarlo.
 const sinMapear = new Set();
 const puntos = [];
-const filasPuntos = filas("3 Puntos de recoleccion", 8);
-for (let i = 0; i < filasPuntos.length; i++) {
-  const f = filasPuntos[i];
-  const bruto = nombreClave(f[0]);
+const HOJA3 = cuaderno.hojas["3 Puntos de recoleccion"].slice(5);
+let empresaAnterior = null;
+
+for (let i = 0; i < HOJA3.length; i++) {
+  const f = HOJA3[i].slice(0, 8);
+  if (!String(f[1]).trim()) continue; // sin nombre de punto: renglon vacio
+
+  let bruto = nombreClave(f[0]);
+  if (bruto) empresaAnterior = bruto;
+  else bruto = empresaAnterior; // hereda la de arriba: los 2 puntos de TPI
+
   const empresa = clientes.has(bruto) ? bruto : nombreClave(EMPRESAS[bruto] || "");
-  if (!empresa || !clientes.has(empresa)) { sinMapear.add(f[0]); continue; }
+  if (!empresa || !clientes.has(empresa)) {
+    sinMapear.add(f[0] || `(empresa en blanco) ${f[1]}`);
+    continue;
+  }
   puntos.push({
     empresa,
     alias: limpio(f[1]) || "SUCURSAL",
@@ -2143,19 +2179,42 @@ const servicios = [];
 for (const f of filas("4 Servicio contratado", 9)) {
   if (esRenglonDeInstrucciones(f)) continue;
   const bruto = nombreClave(f[0]);
-  const empresa = clientes.has(bruto) ? bruto : nombreClave(EMPRESAS[bruto] || "");
+  const llave = `${bruto} :: ${nombreClave(f[1])}`;
+  const tieneMapa = llave in PUNTOS;
+  const mapa = PUNTOS[llave];
+
+  // La empresa sale de tres sitios, en este orden. El tercero y el cuarto
+  // existen por LLANTERA y TPI: los 4 servicios de LLANTERA dicen solo
+  // "LLANTERA", que no es cliente de nadie —hay DOS llanteras con RFC
+  // distinto—, y quien sabe de cual es cada uno es la tabla, no la hoja.
+  let empresa = clientes.has(bruto) ? bruto : nombreClave(EMPRESAS[bruto] || "");
+  if (!empresa && mapa?.empresa) empresa = nombreClave(mapa.empresa);
+  if (!empresa && mapa?.porEquipo) {
+    const porEq = mapa.porEquipo[nombreClave(f[4])];
+    if (porEq) empresa = nombreClave(porEq.empresa);
+  }
   if (!empresa || !clientes.has(empresa)) { sinMapear.add(f[0]); continue; }
 
-  const llave = `${bruto} :: ${nombreClave(f[1])}`;
   const propios = puntos.filter((p) => p.empresa === empresa);
   let destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(f[1]));
 
   if (!destino.length) {
-    if (!(llave in PUNTOS)) { sinMapear.add(llave); continue; }
-    const mapa = PUNTOS[llave];
-    destino = mapa === null
-      ? propios                                   // se reparte entre todos
-      : propios.filter((p) => nombreClave(p.alias) === nombreClave(mapa.alias));
+    // `tieneMapa` y `mapa === null` NO son lo mismo: `null` significa "se
+    // reparte entre todos los puntos de la empresa" y es un valor legitimo
+    // de la tabla. Un `if (!mapa)` a secas confundiria los dos casos.
+    if (!tieneMapa) { sinMapear.add(llave); continue; }
+
+    if (mapa === null) {
+      destino = propios;                          // se reparte entre todos
+    } else if (mapa.porEquipo) {
+      // TPI: los 3 servicios comparten la MISMA llave porque los 3 dicen
+      // "PLANTA"; lo unico que los distingue es el equipo.
+      const porEq = mapa.porEquipo[nombreClave(f[4])];
+      if (!porEq) { sinMapear.add(`${llave} (equipo ${JSON.stringify(f[4])})`); continue; }
+      destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(porEq.alias));
+    } else {
+      destino = propios.filter((p) => nombreClave(p.alias) === nombreClave(mapa.alias));
+    }
   }
   if (!destino.length) { sinMapear.add(llave); continue; }
 
@@ -2219,11 +2278,13 @@ process.exit(1);
 - [ ] **Step 2: Correr el ensayo**
 
 Run: `cd Web && node scripts/cuaderno/cargar.mjs`
-Expected: el informe con 42 clientes (26 activos / 16 pendientes), 5 rutas, ~68 puntos y ~64 servicios. Si `SIN_RESOLVER` sigue con casos, **sale con error 1**, que es lo correcto.
+Expected: el informe con **43 clientes** (42 de la hoja 2 + KARZINI, que sale de `CLIENTES_EXTRA`), **5 rutas**, **70 puntos** y **64 servicios**. `SIN_RESOLVER` ya está vacío, así que no debe detenerse por eso; si `sinMapear` trae algo, **sale con error 1** y eso es lo correcto: significa que falta una equivalencia.
 
 - [ ] **Step 3: Verificar los números contra el spec**
 
-Confirmar contra la sección 3 del spec: **42 clientes, 26 activos, 16 pendientes, 5 rutas.** Si no cuadra, el error está en las reglas, no en el spec: revisar antes de seguir.
+Confirmar: **43 clientes** (los 42 de la hoja 2 más KARZINI), **5 rutas**, **70 puntos**, **64 servicios**. KARZINI entra en `pendiente-info` porque no trae correo ni teléfono, así que los pendientes suben a **17** y los activos siguen en **26**.
+
+🔴 **Los 70 puntos son la prueba de que la herencia de empresa funcionó.** Si salen 68, los puntos `PLANTA TOLVA` y `PLANTA COMPACTADOR` de TPI se perdieron —y con ellos se habrá descuadrado el calendario de todos los puntos que van después. Parar y revisar.
 
 - [ ] **Step 4: Volver a comprobar el cruce por posición del calendario**
 
