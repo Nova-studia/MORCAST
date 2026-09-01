@@ -11,8 +11,8 @@
  *   node scripts/cuaderno/respaldar.mjs
  */
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 const env = Object.fromEntries(
   readFileSync(new URL("../../.env.local", import.meta.url), "utf8")
@@ -34,12 +34,19 @@ const TABLAS = [
   "solicitudes_alta", "zonas_pedidas", "cotizaciones",
 ];
 
-const sello = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-const destino = resolve(
-  process.env.USERPROFILE || process.env.HOME,
-  "Downloads",
-  `morcast-respaldo-${sello}.json`
-);
+// Con segundos, no solo minuto: dos corridas en el mismo minuto no deben
+// pisarse una a la otra sin avisar.
+const sello = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+const raiz = process.env.USERPROFILE || process.env.HOME;
+const destino = resolve(raiz, "Downloads", `morcast-respaldo-${sello}.json`);
+const carpetaArchivos = resolve(raiz, "Downloads", `morcast-respaldo-${sello}-archivos`);
+
+// Nunca sobreescribir un respaldo que ya existe: mejor fallar y que Luis
+// corra el script de nuevo un segundo despues que perder el de antes.
+if (existsSync(destino)) {
+  console.error(`[respaldo] ya existe ${destino}, no lo piso. Vuelve a correr el script.`);
+  process.exit(1);
+}
 
 const datos = { fecha: new Date().toISOString(), tablas: {} };
 
@@ -70,11 +77,83 @@ datos.usuarios = usuarios.users.map((u) => ({
 }));
 console.log(`  auth.users: ${datos.usuarios.length} usuarios`);
 
-for (const cubeta of ["comprobantes", "evidencias"]) {
-  const { data } = await supabase.storage.from(cubeta).list("", { limit: 1000 });
-  datos[`cubeta_${cubeta}`] = data || [];
-  console.log(`  cubeta ${cubeta}: ${(data || []).length} entradas`);
+// `list()` no es recursivo: una entrada con id null es una CARPETA (Supabase
+// la representa asi, sin metadata), no un archivo. Hay que bajar un nivel
+// para llegar a las rutas de verdad, o el respaldo "de la cubeta" queda
+// siendo solo un listado de nombres de carpeta.
+async function listarArchivos(cubeta, prefijo = "") {
+  const { data, error } = await supabase.storage.from(cubeta).list(prefijo, { limit: 1000 });
+  if (error) {
+    console.error(`[respaldo] cubeta ${cubeta}${prefijo ? "/" + prefijo : ""}: ${error.message}`);
+    process.exit(1); // Mismo criterio que las tablas: sin lectura completa, no hay respaldo.
+  }
+  let archivos = [];
+  for (const entrada of data || []) {
+    const ruta = prefijo ? `${prefijo}/${entrada.name}` : entrada.name;
+    if (entrada.id === null) {
+      archivos = archivos.concat(await listarArchivos(cubeta, ruta));
+    } else {
+      archivos.push({
+        ruta,
+        tamano: entrada.metadata?.size ?? null,
+        tipo: entrada.metadata?.mimetype ?? null,
+      });
+    }
+  }
+  return archivos;
+}
+
+const CUBETAS = ["comprobantes", "evidencias"];
+for (const cubeta of CUBETAS) {
+  const archivos = await listarArchivos(cubeta);
+  datos[`cubeta_${cubeta}`] = archivos;
+  console.log(`  cubeta ${cubeta}: ${archivos.length} archivos`);
+}
+
+// Freno: hoy son 5 fotos, pero el dia que haya miles de recolecciones reales
+// bajar todo aqui adentro seria absurdo (tardaria o llenaria el disco sin
+// avisar). Si se llega al tope, el script se detiene ANTES de escribir nada
+// -- ni el JSON de las tablas -- para no dejar la impresion de que hubo un
+// respaldo completo cuando los archivos se quedaron fuera.
+const TOPE_ARCHIVOS = 200;
+const TOPE_BYTES = 100 * 1024 * 1024; // 100 MB
+const totalArchivos = CUBETAS.reduce((n, c) => n + datos[`cubeta_${c}`].length, 0);
+const totalBytes = CUBETAS.reduce(
+  (n, c) => n + datos[`cubeta_${c}`].reduce((m, a) => m + (a.tamano || 0), 0),
+  0
+);
+if (totalArchivos > TOPE_ARCHIVOS || totalBytes > TOPE_BYTES) {
+  console.error(
+    `[respaldo] las cubetas tienen ${totalArchivos} archivos (${(totalBytes / 1024 / 1024).toFixed(1)} MB), ` +
+    `por encima del tope de ${TOPE_ARCHIVOS} archivos / ${TOPE_BYTES / 1024 / 1024} MB.`
+  );
+  console.error(
+    "[respaldo] no se bajo nada. Sube TOPE_ARCHIVOS/TOPE_BYTES en este script si de verdad " +
+    "hace falta respaldar todo, o respalda la cubeta aparte (por ejemplo desde el panel de " +
+    "Supabase, o replicando el bucket) en vez de meterlo dentro de este respaldo rapido."
+  );
+  process.exit(1);
+}
+
+// Descargar SI es leer -- nada de mover ni borrar del bucket. Se guardan
+// junto al JSON, respetando la ruta interna de la cubeta, para que una
+// lista de nombres no sea lo unico que quede si hay que recuperar de verdad.
+for (const cubeta of CUBETAS) {
+  for (const archivo of datos[`cubeta_${cubeta}`]) {
+    const { data: blob, error: eDescarga } =
+      await supabase.storage.from(cubeta).download(archivo.ruta);
+    if (eDescarga) {
+      console.error(`[respaldo] descarga ${cubeta}/${archivo.ruta}: ${eDescarga.message}`);
+      process.exit(1);
+    }
+    const destinoArchivo = join(carpetaArchivos, cubeta, archivo.ruta);
+    mkdirSync(dirname(destinoArchivo), { recursive: true });
+    writeFileSync(destinoArchivo, Buffer.from(await blob.arrayBuffer()));
+    archivo.local = destinoArchivo;
+  }
+  console.log(`  cubeta ${cubeta}: ${datos[`cubeta_${cubeta}`].length} archivos bajados`);
 }
 
 writeFileSync(destino, JSON.stringify(datos, null, 1), "utf8");
 console.log(`\nRespaldo escrito en:\n  ${destino}`);
+console.log(`Archivos de las cubetas en:\n  ${carpetaArchivos}`);
