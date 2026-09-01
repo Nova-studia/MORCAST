@@ -18,8 +18,21 @@ export const TIPOS_RUTA = [
   { id: "compactador", nombre: "Compactador trasero", detalle: "Carga trasera compactada, para alto volumen de RSU." },
 ];
 
-/** Se opera de lunes a sábado. Nunca domingo. */
-export const DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+/**
+ * Los dias en que puede pasar una unidad.
+ *
+ * Aqui decia "se opera de lunes a sabado, nunca domingo". Era una suposicion
+ * de Claude, y el cuaderno real de la empresa (27-ago-2026) la desmiente:
+ * RUTA 10 y RUTA 11, las dos de TPI, trabajan "LUNES A DOMINGO".
+ *
+ * ⚠️ No es cosmetico: `/admin/rutas` FILTRA los dias guardados contra esta
+ * lista (`DIAS_SEMANA.filter(d => dias.includes(d))`). Con el domingo fuera,
+ * el domingo de esas dos rutas se borraba solo, sin avisar, la primera vez
+ * que alguien abriera la ruta en el panel y guardara.
+ */
+export const DIAS_SEMANA = [
+  "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo",
+];
 
 export const ESTADOS_SOLICITUD_REC = [
   { id: "solicitada", texto: "Solicitada", clase: "prog" },
