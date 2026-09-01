@@ -2539,9 +2539,15 @@ for (const c of clientes.values()) {
   // La nota interna dice lo que el expediente no puede decir solo: que le
   // falta, y de donde salio. Lo que falta TAMBIEN se calcula al vuelo en la
   // pantalla (`loQueFalta`); esto es el rastro de como entro, no la fuente.
-  const nota = c.falta.length
-    ? `Cargado del cuaderno de la empresa (27-ago-2026). Falta: ${c.falta.join(", ")}.`
-    : null;
+  // La nota interna junta dos cosas: de donde salio el expediente y que le
+  // falta. `notaExtra` solo la traen los clientes que NO vienen en la hoja 2
+  // (hoy KARZINI), y dice quien decidio crearlos y por que.
+  const nota = [
+    c.notaExtra || null,
+    c.falta.length
+      ? `Cargado del cuaderno de la empresa (27-ago-2026). Falta: ${c.falta.join(", ")}.`
+      : `Cargado del cuaderno de la empresa (27-ago-2026).`,
+  ].filter(Boolean).join(" ") || null;
   const id = await guardar("clientes", {
     empresa: c.empresa, contacto: c.contacto, telefono: c.telefono, correo: c.correo,
     rfc: c.rfc, regimen: c.regimen, domicilio_fiscal: c.domicilio_fiscal,
@@ -2583,7 +2589,9 @@ console.log(`\nCarga terminada.`);
 - [ ] **Step 5: Cargar de verdad**
 
 Run: `cd Web && node scripts/cuaderno/cargar.mjs --de-verdad`
-Expected: `Rutas: 5`, `Clientes: 42`, `Puntos: 68`, `Servicios: 64`, `Carga terminada.`
+Expected: `Rutas: 5`, `Clientes: 43`, `Puntos: 70`, `Servicios: 69`, `Carga terminada.`
+
+Son los MISMOS números que dio el ensayo. Si alguno baja, algo se perdió al escribir: parar y comparar contra la salida del ensayo antes de seguir.
 
 - [ ] **Step 6: Correrlo otra vez para probar que es idempotente**
 
