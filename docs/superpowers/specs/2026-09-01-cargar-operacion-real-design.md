@@ -202,6 +202,12 @@ La distinción es **por quién mira**, no por si la pantalla habla de dinero.
 | PDF de cotización (`lib/portal-pdf.js`) | **No se genera.** Un PDF con membrete y precios inventados sobrevive al Hold y anda suelto para siempre |
 | `/portal/agregar-saldo` | Ya oculta la CLABE falsa; ahora también el resto de las cifras |
 | Tarjeta de saldo de `/portal` | El aviso en lugar de los montos |
+| `/portal/reportes` | Los importes en `—` y sin PDF. **Los servicios y sus fechas se quedan: son ciertos** |
+
+> `/portal/reportes` se agregó a esta tabla al revisar el plan contra el spec.
+> Se me había pasado: la pantalla llama a `pesos()` y baja un PDF. La regla no
+> cambia —del lado del cliente se apaga todo el dinero—, sólo faltaba el
+> renglón.
 
 **Del lado de Morcast se quedan las cifras, con el banner encima** —
 `/admin/saldos`, `/admin/clientes`, el tablero y reportes. Son sumas reales de la
