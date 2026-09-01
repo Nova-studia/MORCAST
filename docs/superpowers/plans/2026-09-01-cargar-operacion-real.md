@@ -1353,6 +1353,9 @@ test("un domicilio de verdad NO se confunde con un regimen", () => {
 
 test("los nombres se comparan sin acentos, sin dobles espacios y sin guiones", () => {
   assert.equal(nombreClave("  Carne-Mart  "), "CARNE MART");
+  // Verificado contra el cuaderno: estos dos son los que de verdad rompian.
+  assert.equal(nombreClave('Carne-Mart "Coliseo"'), "CARNE MART COLISEO");
+  assert.equal(nombreClave("NACIONAL AV DEL NIÑO"), "NACIONAL AV DEL NINO");
   assert.equal(nombreClave("RUTA10"), "RUTA10");
   assert.equal(nombreClave("Nacionales"), "NACIONALES");
   assert.equal(nombreClave("MCDONALD'S"), "MCDONALDS");
@@ -1447,7 +1450,10 @@ export function nombreClave(txt) {
   return String(txt ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/['’]/g, "")
+    // Comillas simples Y DOBLES. El cuaderno trae `Carne-Mart "Coliseo"` con
+    // comillas dobles y la hoja de clientes lo llama `CARNE MART` a secas: sin
+    // quitarlas, esos dos nombres nunca se reconocen como el mismo.
+    .replace(/['’"“”]/g, "")
     .replace(/-/g, " ")
     .toUpperCase()
     .split(/\s+/)
@@ -1497,7 +1503,7 @@ git commit -m "Reglas de limpieza del cuaderno: celdas, telefonos y el regimen m
 - Modify: `Web/tests/normalizar.test.mjs` (agregar al final)
 
 **Interfaces:**
-- Consumes: `DIAS_SEMANA` de `Web/lib/rutas-datos.js` (Task 4), `limpio` y `nombreClave` de la Task 9.
+- Consumes: `limpio` y `nombreClave` de la Task 9. **NO consume `DIAS_SEMANA`**: define su propio `ORDEN` porque para resolver rangos ("LUNES A DOMINGO") necesita el domingo al final por semantica, y en `DIAS_SEMANA` esta al final por el orden del panel. Depender de una constante de presentacion para calcular rangos es un amarre falso.
 - Produces:
   - `diasDesdeTexto(txt: string): {dias: string[], porLlamada: boolean}`
   - `tipoDeRuta(txt: string): "manual"|"roll-off"|"compactador"|null`
@@ -1758,8 +1764,18 @@ Expected: los 21 nombres huérfanos, los 12 servicios sueltos, y el detalle de l
  * Nombre tal como aparece en el cuaderno (ya pasado por `nombreClave`) →
  * empresa real de la hoja 2.
  *
- * ⚠️ Las llaves van en la forma que produce `nombreClave()`: MAYUSCULAS, sin
- * acentos, sin apostrofes, guiones como espacio, espacios colapsados.
+ * ⚠️ Las llaves van EXACTAMENTE en la forma que produce `nombreClave()`:
+ * MAYUSCULAS, sin acentos, sin comillas ni apostrofes, guiones como espacio,
+ * espacios colapsados.
+ *
+ * 🔴 LA TRAMPA: la normalizacion NFD le quita la tilde a la Ñ. O sea que
+ * `nombreClave("NACIONAL AV DEL NIÑO")` devuelve "NACIONAL AV DEL NINO", con N
+ * pelada. Escribir la llave con Ñ hace que NUNCA case, en silencio. Lo mismo
+ * con `Carne-Mart "Coliseo"`: las comillas dobles se quitan.
+ *
+ * Comprobarlo, no confiar en el ojo:
+ *   node -e "import('./scripts/cuaderno/normalizar.mjs').then(m =>
+ *     console.log(m.nombreClave('NACIONAL AV DEL NIÑO')))"
  */
 export const EMPRESAS = {
   // Sucursales de KARZO escritas como si fueran empresas.
@@ -1774,7 +1790,7 @@ export const EMPRESAS = {
   "KARZO TOMATES": "KARZO",
 
   // Sucursales de Nacionales.
-  "NACIONAL AV DEL NIÑO": "Nacionales",
+  "NACIONAL AV DEL NINO": "Nacionales",
   "NACIONAL CAMINO REAL": "Nacionales",
   "NACIONAL DIVISION DEL NORTE": "Nacionales",
   "NACIONAL MARINADOS": "Nacionales",
@@ -1803,7 +1819,7 @@ export const PUNTOS = {
   "CARNE MART :: SURCURSAL 01 02 03 Y 04": null,
   "CARTA BLANCA :: PLANTA": null,
   "TPI :: PLANTA": null,
-  "NACIONAL AV DEL NIÑO :: AV DEL NIÑO": { empresa: "Nacionales", alias: "AV DEL NIÑO" },
+  "NACIONAL AV DEL NINO :: AV DEL NINO": { empresa: "Nacionales", alias: "AV DEL NIÑO" },
 };
 
 /**
@@ -2059,9 +2075,19 @@ for (const f of filas("2 Clientes", 11)) {
   clientes.set(clave, cli);
 }
 
-// RUTAS. Los renglones 46-62 del cuaderno son las rutas como se disenaron
-// (dia por dia); los 6-45 son otra cosa (el calendario de puntos). Se unen
-// los dias de todos los renglones de cada ruta.
+// RUTAS.
+//
+// ⚠️ SE UNEN LOS DIAS DE **TODOS** LOS RENGLONES DE LA HOJA 1, no solo de los
+// 46-62. Los renglones 46-62 son las rutas como se disenaron, dia por dia,
+// pero VERIFICADO contra el cuaderno: ahi solo aparecen RUTA 1, RUTA 2 y
+// RUTA 3. RUTA 10 y RUTA 11 —las de TPI, las UNICAS que trabajan domingo—
+// existen unicamente en los renglones 6-45. Usar solo 46-62 las dejaria sin
+// dias, sin tipo y sin chofer, y de paso volveria inutil el domingo que se le
+// agrego a DIAS_SEMANA.
+//
+// La union ademas es correcta: si un punto de RUTA 3 se atiende el lunes,
+// RUTA 3 pasa el lunes. El `cupo` sale del maximo, que lo aportan los
+// renglones 46-62 (paradas por dia de la ruta), no los 6-45 (por punto).
 const rutas = new Map();
 for (const f of filas("1 Rutas", 8)) {
   const clave = claveDeRuta(f[0]);
@@ -2326,8 +2352,19 @@ for (const c of cli || []) console.log(`  ${c.folio}  ${c.empresa}`);
 const { data: perfiles } = await supabase.from("perfiles").select("id, nombre").in("cliente_id", ids);
 console.log(`Perfiles a desenganchar y borrar: ${perfiles?.length ?? 0}`);
 
-const { data: recs } = await supabase
-  .from("recolecciones").select("id, foto_antes, foto_despues");
+// ⚠️ SOLO las fotos de los clientes de prueba. Antes esto leia TODAS las
+// recolecciones sin filtro. Hoy no haria dano —las 2 que existen son de
+// prueba— pero es una bomba de tiempo: si este script se vuelve a correr
+// cuando ya haya evidencia real, borraria las fotos de clientes reales y
+// dejaria sus filas apuntando a archivos que ya no estan.
+const { data: solicitudesPrueba } = await supabase
+  .from("solicitudes_recoleccion").select("id").in("cliente_id", ids);
+const idsSolicitud = (solicitudesPrueba || []).map((s) => s.id);
+
+const { data: recs } = idsSolicitud.length
+  ? await supabase.from("recolecciones")
+      .select("id, foto_antes, foto_despues").in("solicitud_id", idsSolicitud)
+  : { data: [] };
 const fotos = (recs || []).flatMap((r) => [r.foto_antes, r.foto_despues]).filter(Boolean);
 console.log(`Fotos en la cubeta a borrar: ${fotos.length}`);
 
@@ -2351,8 +2388,7 @@ const borra = async (tabla, columna, valores) => {
   console.log(`  ${tabla}: ${data.length} filas`);
 };
 
-const { data: sols } = await supabase.from("solicitudes_recoleccion").select("id").in("cliente_id", ids);
-if (sols?.length) await borra("recolecciones", "solicitud_id", sols.map((s) => s.id));
+if (idsSolicitud.length) await borra("recolecciones", "solicitud_id", idsSolicitud);
 await borra("solicitudes_recoleccion", "cliente_id", ids);
 await borra("movimientos_saldo", "cliente_id", ids);
 await borra("suscripciones", "cliente_id", ids);
