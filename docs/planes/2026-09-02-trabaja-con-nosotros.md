@@ -219,7 +219,14 @@ export const MAX_CV_BYTES = 5 * 1024 * 1024;
 /** Cuánto se guarda una solicitud. Lo promete el Aviso de Privacidad. */
 export const MESES_QUE_SE_GUARDA = 12;
 
-/** Cuántas puede mandar el mismo teléfono en 24 horas. */
+/**
+ * Cuántas puede mandar el mismo teléfono en 24 horas.
+ *
+ * ⚠️ Este número está escrito DOS veces: aquí y en la función
+ * `puede_solicitar_empleo` de `db/021`. Manda **el SQL**, porque es donde la
+ * decisión es atómica; éste sirve sólo para redactar el mensaje. Si se cambia
+ * uno, se cambia el otro.
+ */
 export const TOPE_POR_DIA = 3;
 
 export const ESTADOS_SOLICITUD = ["nueva", "revisada", "contactada", "descartada"];
@@ -581,6 +588,8 @@ begin
         end
   returning intentos into v_intentos;
 
+  -- ⚠️ El 3 tambien esta en `TOPE_POR_DIA` de lib/empleo.mjs, que solo lo usa
+  -- para redactar el mensaje. Aqui es donde MANDA. Si se cambia uno, el otro.
   return coalesce(v_intentos, 1) <= 3;
 end;
 $$;
@@ -1002,6 +1011,12 @@ git commit -m "Acciones de servidor de empleo: leer vacantes y recibir solicitud
 Se calca de `Web/components/FormularioCotizacion.js`, que ya resuelve el envío,
 los estados y los mensajes. Reglas que no se negocian:
 
+- **El contrato con el servidor, que no se negocia** (así lo lee
+  `enviarSolicitudEmpleo`): los campos se llaman `nombre`, `telefono`,
+  `correo`, `puesto`, `experiencia` y `curriculum`; la casilla del aviso es
+  `name="aviso" value="si"` (sin marcar no viaja, y eso es justo lo que la
+  hace obligatoria); y la vacante va en un campo oculto `name="vacanteId"`,
+  vacío cuando es una solicitud general.
 - Es `"use client"` y usa las clases `mc-form`, `form-control`, `form-select`
   del sitio público.
 - El `<select>` de puesto lista las vacantes abiertas **más** la opción
@@ -1172,7 +1187,8 @@ git commit -m "Enlaces a Trabaja con nosotros desde el pie y desde Equipo"
   `puedeBorrarseVacante` (Tarea 1).
 - Produce: `listarVacantes()`, `guardarVacante(v)`, `cambiarEstadoVacante(id,
   estado)`, `borrarVacante(id)`, `listarSolicitudesEmpleo()`,
-  `cambiarEstadoSolicitud(id, estado, notas)`; y `enlaceCurriculum(ruta)`.
+  `cambiarEstadoSolicitud(id, estado, notas)`,
+  `contarSolicitudesPorVacante()`; y `enlaceCurriculum(ruta)`.
 
 - [ ] **Paso 1: El enlace del currículum**
 
@@ -1214,6 +1230,31 @@ export async function borrarVacante(id) {
   const { error } = await supabaseNavegador().from("vacantes").delete().eq("id", id);
   if (error) return { ok: false, motivo: error.message };
   return { ok: true };
+}
+```
+
+`contarSolicitudesPorVacante()` devuelve `{ [vacanteId]: número }` en **una
+sola consulta**, no una por vacante. La usa la pantalla (Tarea 10) para apagar
+el botón de borrar, y la usa `borrarVacante` para negarse. Es el mismo dato,
+pedido una vez:
+
+```js
+export async function contarSolicitudesPorVacante() {
+  if (!haySupabaseNavegador()) {
+    return SOLICITUDES_EMPLEO_SEED.reduce((acc, s) => {
+      if (s.vacante_id) acc[s.vacante_id] = (acc[s.vacante_id] || 0) + 1;
+      return acc;
+    }, {});
+  }
+  const { data, error } = await supabaseNavegador()
+    .from("solicitudes_empleo")
+    .select("vacante_id")
+    .not("vacante_id", "is", null);
+  if (error) return {};
+  return (data || []).reduce((acc, s) => {
+    acc[s.vacante_id] = (acc[s.vacante_id] || 0) + 1;
+    return acc;
+  }, {});
 }
 ```
 
