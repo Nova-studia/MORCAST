@@ -175,6 +175,28 @@ navegador porque están dentro del sistema. Aquí no hay nadie dentro.
   escribir**. Se lee igual por teléfono, se ahorra un disparador, un candado y
   una carrera que no hay que resolver porque no se crea.
 
+### 6.3 bis — Dos cosas de Next que casi arruinan la función
+
+Las encontró la revisión final, y las dos habrían roto la promesa central el
+primer día. Quedan escritas porque no son evidentes y se vuelven a colar solo.
+
+**1. `/empleo` TIENE que ser dinámica.** Si la página se prerenderiza, las
+vacantes se congelan en la compilación: la dueña publica una desde el panel y
+**el sitio nunca la enseña** hasta el siguiente despliegue; si la cierra, sigue
+visible recibiendo gente. Lleva `export const dynamic = "force-dynamic"`.
+🔑 Cómo se comprueba: en la salida de `npm run build`, `/empleo` debe salir con
+`ƒ` (se calcula en cada visita), **nunca** con `○` (congelada).
+Ojo con el precedente: `zonasDeCobertura()` se llama desde componentes de
+navegador dentro de un efecto, así que ahí el momento ya es dinámico. Aquí se
+copió la vía pero no el momento.
+
+**2. Las acciones de servidor cortan el cuerpo en 1 MB por omisión.** Y aquí se
+prometen currículums de hasta 5 MB, que un PDF escaneado pasa casi siempre. El
+tope se sube en `next.config.mjs`, **atado por import a `MAX_CV_BYTES`** para
+que no se desincronice. Y el formulario envuelve la llamada en `try/catch`: sin
+eso, la acción rechazada deja el botón en "Enviando…" para siempre y sin
+mensaje — el peor fallo posible para quien tiene mala señal y poca paciencia.
+
 ### 6.4 Correos
 
 - **A Morcast**, cada solicitud: quién, qué teléfono, a qué vacante, y si trajo
