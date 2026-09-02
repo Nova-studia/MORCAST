@@ -91,3 +91,11 @@ export const enlaceEvidencia = (ruta) => enlaceTemporal("evidencias", ruta);
 
 /** Atajo para el comprobante de un pago. */
 export const enlaceComprobante = (ruta) => enlaceTemporal("comprobantes", ruta);
+
+/**
+ * Atajo para el currículum de un candidato.
+ *
+ * Éste SÍ vive aquí, aunque la SUBIDA no: subir lo hace el servidor, porque
+ * quien aplica no tiene sesión. Leerlo lo hace el panel, que sí la tiene.
+ */
+export const enlaceCurriculum = (ruta) => enlaceTemporal("curriculums", ruta);
