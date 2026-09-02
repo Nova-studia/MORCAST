@@ -268,8 +268,18 @@ export default function RecoleccionesAdmin() {
                 </div>
 
                 <div style={{ fontSize: "0.84rem", color: "var(--mc-gris)", marginTop: 5 }}>
-                  {s.domicilio} · {s.rutaNombre} · pedida para {fechaConDia(s.fechaPedida)} ·{" "}
-                  {s.origen === "extra" ? "Extra" : "De ruta"}
+                  {/* Los pedazos vacios se caen ANTES de unirlos: escritos a mano
+                      con "·" en medio, una solicitud sin ruta salia como
+                      "Matriz · Zona Centro · · pedida para…", con el separador
+                      colgando de la nada. */}
+                  {[
+                    s.domicilio,
+                    s.rutaNombre,
+                    `pedida para ${fechaConDia(s.fechaPedida)}`,
+                    s.origen === "extra" ? "Extra" : "De ruta",
+                  ]
+                    .filter((t) => t && String(t).trim() && String(t).trim() !== "—")
+                    .join(" · ")}
                 </div>
 
                 {venc.vencida && (
@@ -281,7 +291,14 @@ export default function RecoleccionesAdmin() {
                     Acordado: {fechaConDia(s.fechaConfirmada)}
                     {s.horaConfirmada ? ` a las ${String(s.horaConfirmada).slice(0, 5)}` : " (sin hora)"}
                     {" · "}
-                    {s.choferAsignado ? `${s.choferAsignado} (asignado)` : `${s.chofer} (de la ruta)`}
+                    {/* Sin chofer se imprimia la palabra "undefined" tal cual.
+                        Y no es un caso raro: hoy las 5 rutas reales tienen el
+                        chofer vacio. */}
+                    {s.choferAsignado
+                      ? `${s.choferAsignado} (asignado)`
+                      : s.chofer
+                        ? `${s.chofer} (de la ruta)`
+                        : "sin chofer asignado"}
                   </div>
                 )}
 
@@ -339,7 +356,10 @@ export default function RecoleccionesAdmin() {
                         className="pt-input"
                         value={planDe(s).fecha || ""}
                         onChange={(e) => setPlanDe(s.folio, { fecha: e.target.value })}
-                        style={{ marginLeft: 6, width: 150 }}
+                        /* 150 px no alcanzaban: con el relleno de `.pt-input`
+                           y el icono del calendario, la fecha se veia
+                           "02/09/202" — con el ano cortado a la mitad. */
+                        style={{ marginLeft: 6, width: 190 }}
                       />
                     </label>
                     <label style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
@@ -349,7 +369,9 @@ export default function RecoleccionesAdmin() {
                         className="pt-input"
                         value={planDe(s).hora || ""}
                         onChange={(e) => setPlanDe(s.folio, { hora: e.target.value })}
-                        style={{ marginLeft: 6, width: 120 }}
+                        /* Igual que el dia: el icono del reloj se comia el
+                           final de la hora. */
+                        style={{ marginLeft: 6, width: 155 }}
                       />
                       <span style={{ marginLeft: 4 }}>(opcional)</span>
                     </label>
@@ -361,7 +383,10 @@ export default function RecoleccionesAdmin() {
                         onChange={(e) => setPlanDe(s.folio, { choferId: e.target.value })}
                         style={{ marginLeft: 6, minWidth: 190 }}
                       >
-                        <option value="">El de la ruta ({s.chofer})</option>
+                        {/* Sin chofer en la ruta salia "El de la ruta ()". */}
+                        <option value="">
+                          {s.chofer ? `El de la ruta (${s.chofer})` : "El de la ruta (sin asignar)"}
+                        </option>
                         {choferes.map((c) => (
                           <option key={c.id} value={c.id}>{c.nombre}</option>
                         ))}

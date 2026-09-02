@@ -123,7 +123,10 @@ export default function AgregarSaldo() {
       {/* Saldo actual */}
       <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>
         {enHold() ? (
-          <p className="pt-nota-demo">
+          /* `alignSelf` propio: la rejilla estira a lo alto para la tarjeta de
+             saldo, y con el Hold ese hueco lo ocupaba un recuadro ambar de
+             tres renglones estirado a 290 px de alto, casi todo vacio. */
+          <p className="pt-nota-demo" style={{ alignSelf: "start" }}>
             {HOLD.motivo} Tu saldo aparecerá aquí en cuanto empiece la facturación.
           </p>
         ) : (

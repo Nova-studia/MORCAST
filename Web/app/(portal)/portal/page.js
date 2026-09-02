@@ -141,7 +141,13 @@ export default function PanelPortal() {
     <>
       <div className="pt-page-head">
         <h1>{cargando && real ? "Hola 👋" : `Hola, ${saludo} 👋`}</h1>
-        <p>{cargando && real ? "Cargando el resumen de tu cuenta…" : `Resumen de la cuenta de ${empresa}.`}</p>
+        {/* El punto final solo si la razon social no lo trae ya: casi todas
+            terminan en "S.A. de C.V." y salia "…de C.V..". */}
+        <p>
+          {cargando && real
+            ? "Cargando el resumen de tu cuenta…"
+            : `Resumen de la cuenta de ${empresa}${String(empresa).trim().endsWith(".") ? "" : "."}`}
+        </p>
       </div>
 
       {/* Saldo + KPIs */}

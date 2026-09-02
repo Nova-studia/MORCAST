@@ -182,7 +182,11 @@ export const EQUIPAMIENTO = [
   {
     nombre: "Camiones recolectores de 4 toneladas",
     detalle: "Unidades compactadoras para la recolección de desechos.",
-    foto: "/img/hero-camion.jpg",
+    // `hero-camion.jpg` es un FOLLETO con el texto "…LÍQUIDOS Y DE MANEJO
+    // ESPECIAL" impreso encima: en la tarjeta de flota salía cortado a la
+    // mitad sobre la foto. `flota-recolector.jpg` es la misma imagen sin esa
+    // franja. El original se conserva por si se ocupa completo.
+    foto: "/img/flota-recolector.jpg",
   },
   {
     nombre: "Pipas certificadas",

@@ -258,7 +258,7 @@ export function Permisos({ hueso = false }) {
                   retraso={i * 90}
                 >
                   <div className="mc-tarjeta" style={{ padding: "1.5rem" }}>
-                    <div className="d-flex gap-3 align-items-start">
+                    <div className="d-flex gap-3 align-items-start mc-permiso-fila">
                       {p.logo ? (
                         <div className="mc-permiso-logo" aria-hidden="false">
                           <img src={p.logo} alt={p.logoAlt || p.tipo} loading="lazy" />

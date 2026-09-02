@@ -59,16 +59,13 @@ export default function DocumentosPortal() {
       {/* Constancia fiscal */}
       <div className="pt-card" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-card-head"><h2>Documentos fiscales</h2></div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "1rem",
-            padding: "0.6rem 0",
-          }}
-        >
+        {/* La fila se apila en el telefono (`pt-doc-fila`, en portal.css):
+            el boton "Descargar PDF" no se encoge, y en una sola linea la
+            descripcion se quedaba con 55 px de ancho — una palabra por
+            renglon, en vertical, detras del boton. */}
+        <div className="pt-doc-fila">
           <div className="pt-stat-icono teal" style={{ margin: 0 }}><FileText /></div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="pt-doc-texto">
             <strong>Constancia de Situación Fiscal</strong>
             <div style={{ color: "var(--mc-gris)", fontSize: "0.84rem" }}>
               Datos fiscales de Morcast del Norte, S.A. de C.V. para facturación.
@@ -88,7 +85,17 @@ export default function DocumentosPortal() {
             {manifiestos.length} documentos
           </span>
         </div>
-        <div className="pt-tabla-wrap">
+        {/* Sin manifiestos NO se pinta la tabla: quedaba el encabezado de
+            cinco columnas y su raya colgando sobre el vacio, sin una palabra
+            que dijera por que. Es el mismo trato que ya se le daba al
+            historial de servicios. */}
+        {manifiestos.length === 0 && (
+          <div className="pt-vacio">
+            Todavía no tienes manifiestos. Aquí aparece uno por cada
+            recolección completada, listo para descargar en PDF.
+          </div>
+        )}
+        <div className="pt-tabla-wrap" hidden={manifiestos.length === 0}>
           <table className="pt-tabla" style={{ minWidth: 620 }}>
             <thead>
               <tr>

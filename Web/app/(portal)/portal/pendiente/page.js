@@ -136,7 +136,11 @@ export default function PendientePortal() {
         <div className="pt-login-card">
           <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
             <Image
-              src="/img/logo-h.png"
+              /* El BLANCO: las cuatro pantallas sueltas del portal van sobre
+                 el fondo casi negro, y con `logo-h.png` el renglon
+                 "DEL NORTE / MANEJO DE RESIDUOS" queda verde oscuro sobre
+                 negro, ilegible. */
+              src="/img/logo-h-blanco.png"
               alt="Morcast del Norte"
               width={688}
               height={200}

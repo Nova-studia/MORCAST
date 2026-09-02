@@ -36,8 +36,11 @@ function aFormatoPantalla(f) {
     folio: f.folio,
     cliente: f.clientes?.empresa || "—",
     clienteFolio: f.clientes?.folio || "",
+    // Un punto sin colonia dejaba el separador colgando ("MATRIZ ·"): `.trim()`
+    // solo quita espacios de las orillas, el "·" se quedaba. Se unen las
+    // piezas que existen.
     domicilio: f.domicilios
-      ? `${f.domicilios.alias} · ${f.domicilios.colonia || ""}`.trim()
+      ? [f.domicilios.alias, f.domicilios.colonia].filter(Boolean).join(" · ")
       : "—",
     rutaId: f.rutas?.clave || null,
     rutaNombre: f.rutas?.nombre || "Sin ruta",

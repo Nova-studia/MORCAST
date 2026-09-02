@@ -503,6 +503,13 @@
   font-size: 0.74rem;
   font-weight: 700;
   white-space: nowrap;
+  /* Insignia NEUTRA, para la que no trae ok/prog/ruta/mal. Sin esto se
+     quedaba sin fondo y sin color propio: "Facturación", "Invitado" o "Baja"
+     salian como texto suelto con un punto, al lado de "Activo" o
+     "Administrador" que si tienen su pastilla. El mismo componente pintado
+     de dos formas distintas en la misma tabla. */
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--mc-gris);
 }
 .pt-badge::before {
   content: "";
@@ -1156,12 +1163,21 @@
 .pt-deposito-fila:last-child { border-bottom: none; }
 .pt-deposito-fila > span { color: var(--mc-gris); font-size: 0.84rem; }
 .pt-deposito-fila strong { font-size: 0.95rem; letter-spacing: 0.01em; }
+/* Es un PARRAFO, no una fila. Con `display: flex` cada <strong> de adentro
+   se volvia una columna: la nota de "pidenos los datos para transferir"
+   quedaba partida en cuatro bloques verticales, con el telefono y el correo
+   cada uno en su propia tira. El icono se alinea solo, sin sacar al texto de
+   su flujo. */
 .pt-nota-demo {
-  display: flex; align-items: center; gap: 0.45rem;
   margin: 0.8rem 0 0; padding: 0.5rem 0.7rem; border-radius: 8px;
   background: rgba(219, 152, 45, 0.12); color: #e0a94d; font-size: 0.8rem;
+  line-height: 1.55;
 }
-.pt-nota-demo svg { flex-shrink: 0; }
+.pt-nota-demo svg {
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+}
 
 .pt-dropzone {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2733,4 +2749,82 @@
 }
 @media (prefers-contrast: more) {
   .mc-icono-anim { opacity: 1; }
+}
+
+/* ---------- 6. La barra superior no cabía en el teléfono ----------
+   Medido a 390 px: el botón de menú (40) + el subtítulo (28vw) + el nombre
+   (42vw) + el avatar (38) + los tres huecos de 1rem + el relleno suman 433 px.
+   El avatar se salía 25 px de la pantalla y se veía cortado a la mitad.
+
+   Se aprieta lo que se puede apretar (huecos y relleno) y se recortan los dos
+   textos, que ya venían con puntos suspensivos. Lo que NO se encoge es el
+   botón de menú ni el avatar: son blancos de toque, y con las iniciales
+   adentro el avatar es lo que dice quién eres. */
+@media (max-width: 575.98px) {
+  .pt-topbar {
+    gap: 0.6rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+  .pt-menu-btn,
+  .pt-avatar {
+    flex-shrink: 0;
+  }
+  .pt-user {
+    min-width: 0;
+    gap: 0.55rem;
+  }
+  .pt-topbar-titulo small {
+    max-width: 22vw;
+  }
+  .pt-user-datos strong,
+  .pt-user-datos span {
+    max-width: 34vw;
+  }
+}
+
+
+/* ---------- 7. La fila de la constancia fiscal en el teléfono ----------
+   Icono + texto + botón en una sola línea. El botón "Descargar PDF" no se
+   encoge, así que a 390 px la descripción se quedaba con ~55 px de ancho:
+   "Datos fiscales de Morcast del Norte, S.A. de C.V. para facturación" caía
+   en una tira vertical de una palabra por renglón, justo detrás del botón. */
+.pt-doc-fila {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0;
+}
+.pt-doc-texto {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 575.98px) {
+  .pt-doc-fila {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .pt-doc-texto {
+    flex: none;
+    width: 100%;
+  }
+  .pt-doc-fila > .pt-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ---------- 8. Las etiquetas de la gráfica se tocaban en el teléfono ----------
+   Doce meses en ~310 px de caja: con `gap: 0.55rem` cada columna se queda en
+   17.7 px y la etiqueta ("Oct" a 0.72rem) mide 21 — se salía de su columna y
+   se pegaba a la vecina: "OctNovDicEneFebMar" de corrido. Se aprieta el hueco
+   entre barras y se achica la etiqueta para que cada una quepa en lo suyo. */
+@media (max-width: 575.98px) {
+  .pt-bars {
+    gap: 0.3rem;
+  }
+  .pt-bar-label {
+    font-size: 0.6rem;
+  }
 }

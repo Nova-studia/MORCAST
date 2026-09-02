@@ -93,7 +93,9 @@ export default function NavBar() {
         expand="lg"
         className={`mc-nav py-2 ${modoHero ? "mc-nav-hero" : ""} ${
           solido ? "mc-nav-scroll" : ""
-        } ${escondido ? "mc-nav-oculto" : ""}`}
+        } ${escondido ? "mc-nav-oculto" : ""} ${
+          abierto ? "mc-nav-abierto" : ""
+        }`}
         container={false}
       >
         <Container fluid className="mc-nav-cont px-3 px-lg-4">

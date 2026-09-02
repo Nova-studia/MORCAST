@@ -12,6 +12,7 @@ import {
   NAVEGACION_SECUNDARIA,
   SERVICIOS,
 } from "@/lib/datos";
+import Correo from "@/components/Correo";
 
 export default function Footer() {
   const anio = new Date().getFullYear();
@@ -81,14 +82,20 @@ export default function Footer() {
               <a
                 key={correo}
                 href={`mailto:${correo}`}
-                style={{ wordBreak: "break-all", fontSize: "0.84rem" }}
+                /* `break-all` cortaba el correo largo por donde cayera y
+                   dejaba "com" solo en el segundo renglon. Con `break-word`
+                   solo parte si de plano no cabe, y el <wbr /> de abajo le
+                   dice que parta por la arroba, que es donde se lee bien. */
+                style={{ overflowWrap: "break-word", fontSize: "0.84rem" }}
               >
                 <span className="d-inline-flex align-items-start gap-2">
                   <Envelope
                     size={14}
                     style={{ color: "var(--mc-verde)", marginTop: 4, flexShrink: 0 }}
                   />
-                  {correo}
+                  <span>
+                    <Correo correo={correo} />
+                  </span>
                 </span>
               </a>
             ))}
@@ -98,7 +105,9 @@ export default function Footer() {
         <div className="mc-footer-base">
           <div className="row align-items-center g-3">
             <div className="col-md-7">
-              © {anio} {EMPRESA.razonSocial}. Todos los derechos reservados.
+              {/* Sin punto extra: `razonSocial` ya termina en "S.A. de C.V.",
+                  asi que el pie decia "C.V.. Todos los derechos reservados". */}
+              © {anio} {EMPRESA.razonSocial} Todos los derechos reservados.
             </div>
             <div className="col-md-5 text-md-end">
               <Link

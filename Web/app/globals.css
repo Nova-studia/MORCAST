@@ -904,13 +904,26 @@ section {
 }
 .mc-form .form-control,
 .mc-form .form-select {
-  background: var(--mc-blanco);
+  /* `background-color`, NO el atajo `background`: el atajo borraba el
+     `background-image` con el que Bootstrap dibuja la flechita del desplegable
+     y los tres <select> del formulario se veian iguales a un campo de texto,
+     sin nada que dijera que se abren. */
+  background-color: var(--mc-blanco);
   color: var(--mc-tinta);
   border: 1.5px solid var(--mc-linea);
   border-radius: var(--mc-radio-sm);
   padding: 0.72rem 0.95rem;
   font-size: 0.94rem;
   transition: all var(--mc-transicion);
+}
+.mc-form .form-select {
+  /* La flecha de Bootstrap viene en gris oscuro (#343a40), pensada para campos
+     claros; sobre este fondo casi negro no se veria. Va en el gris del tema. */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a6b6b3' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.95rem center;
+  background-size: 15px 11px;
+  padding-right: 2.6rem;
 }
 .mc-form .form-control:focus,
 .mc-form .form-select:focus {
@@ -989,7 +1002,10 @@ section {
   font-weight: 600;
   font-size: 0.96rem;
   margin: 0;
-  word-break: break-word;
+  /* `break-word` parte por donde sea y dejaba ".com" solo en un renglon.
+     Con `overflow-wrap` solo corta si de plano no cabe, asi que respeta el
+     <wbr /> que la pagina pone despues de la arroba del correo. */
+  overflow-wrap: break-word;
 }
 .mc-contacto-item a:hover {
   color: var(--mc-verde);
@@ -1023,7 +1039,10 @@ section {
 }
 .mc-footer-base {
   margin-top: 3rem;
-  padding: 1.5rem 0;
+  /* Abajo lleva el hueco del boton flotante de WhatsApp (58 px + 20 de
+     margen): estando pegado al final de la pagina, el boton le tapaba la
+     ultima letra a "Aviso de Privacidad" en escritorio. */
+  padding: 1.5rem 0 6rem;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
   font-size: 0.82rem;
   color: rgba(255, 255, 255, 0.42);
@@ -2043,4 +2062,109 @@ section {
 @media (prefers-contrast: more) {
   .mc-confianza-item { border-color: rgba(255, 255, 255, 0.5); }
   .mc-confianza-txt { color: rgba(255, 255, 255, 0.92); }
+}
+
+/* =====================================================================
+   MENÚ MÓVIL: EL PANEL NECESITA FONDO PROPIO
+   ---------------------------------------------------------------------
+   En el inicio la navbar es transparente A PROPÓSITO (decisión de julio) y
+   `.mc-nav-hero.mc-nav-scroll` la mantiene transparente incluso al abrir el
+   menú. Resultado en el teléfono: los enlaces del desplegable caían ENCIMA
+   del hero y se leían los dos textos revueltos.
+
+   No se toca la transparencia del inicio: sólo se le da fondo a la navbar
+   MIENTRAS el menú está abierto, y sólo por debajo de 992 px (arriba de eso
+   el menú no se despliega, va en línea).
+   ===================================================================== */
+@media (max-width: 991.98px) {
+  .mc-nav.mc-nav-abierto,
+  .mc-nav-hero.mc-nav-abierto,
+  .mc-nav-hero.mc-nav-scroll.mc-nav-abierto {
+    /* OPACO del todo, no translucido: con 0.98 el titulo del hero todavia
+       se leia por detras de los enlaces. Y el desenfoque no sirve de red
+       aqui (backdrop-filter sale 'none' en la navbar del inicio). */
+    background-color: var(--mc-negro);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  /* El desplegable como cajón: separado del logo, con aire y con tope de
+     alto para que en pantallas cortas se deslice en vez de desbordarse. */
+  .mc-nav .navbar-collapse.show,
+  .mc-nav .navbar-collapse.collapsing {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0 1.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: calc(100dvh - 6.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Blancos de toque de 44 px: en el teléfono los enlaces iban muy juntos. */
+  .mc-nav .mc-nav-link {
+    padding: 0.7rem 0.25rem !important;
+    font-size: 1rem;
+  }
+  /* El subrayado que se desliza es de escritorio: apilado, una línea de lado
+     a lado bajo cada renglón parece un separador roto. */
+  .mc-nav .navbar-collapse.show .nav-link::after,
+  .mc-nav .navbar-collapse.collapsing .nav-link::after {
+    display: none;
+  }
+  .mc-nav .navbar-collapse.show .mc-nav-link.activo,
+  .mc-nav .navbar-collapse.collapsing .mc-nav-link.activo {
+    color: var(--mc-verde) !important;
+  }
+  /* Los dos botones a lo ancho: sueltos y de distinto tamaño se veían
+     desalineados contra la columna de enlaces. */
+  .mc-nav .navbar-collapse.show .mc-btn,
+  .mc-nav .navbar-collapse.collapsing .mc-btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* En el teléfono la tarjeta de permiso se apila.
+   El logo oficial mide 100 px fijos: al lado del texto dejaba la columna de
+   la derecha en ~195 px y "Autorización municipal vigente para recolección
+   de RSU" caía en cuatro renglones de tres palabras. Arriba, el texto usa
+   el ancho completo de la tarjeta. */
+@media (max-width: 575.98px) {
+  .mc-permiso-fila {
+    flex-direction: column;
+    gap: 0.9rem !important;
+  }
+}
+
+/* "Equipo en renta" del portafolio: en el teléfono cada grupo se apila.
+   Es una fila flexible con la etiqueta a la izquierda; con 3 medidas
+   ("Contenedores") no cabían y bajaban, pero con 2 ("Tolvas",
+   "Compactadores") se quedaban a la derecha. Tres renglones, dos formas
+   distintas de acomodarse. */
+@media (max-width: 575.98px) {
+  .mc-equipo-grupo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+}
+
+/* ---------- Tabla de permisos del Aviso de Privacidad ----------
+   La clase `mc-tabla-privacidad` estaba puesta en el HTML pero NUNCA se
+   escribió: la tabla se quedaba con los colores de fábrica de Bootstrap
+   (fondo blanco, texto negro, líneas claras) en medio de una página de tema
+   oscuro. Se veía como un recorte pegado. */
+.mc-tabla-privacidad {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--mc-gris);
+  --bs-table-border-color: var(--mc-linea);
+  color: var(--mc-gris);
+  margin-top: 0.9rem;
+}
+.mc-tabla-privacidad th {
+  color: var(--mc-tinta);
+  font-weight: 700;
+}
+.mc-tabla-privacidad td {
+  color: var(--mc-gris);
 }

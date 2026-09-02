@@ -59,6 +59,14 @@ const cabeceras = [
 ];
 
 const nextConfig = {
+  images: {
+    // La foto del hero del inicio se pide con `quality={92}`. Next 16 solo
+    // sirve las calidades que estan aqui: sin el 92, la bajaba a 75 sin decir
+    // nada (solo un aviso en la consola) y la portada salia mas pastosa de lo
+    // que se pidio.
+    qualities: [75, 92],
+  },
+
   async headers() {
     return [{ source: "/:path*", headers: cabeceras }];
   },

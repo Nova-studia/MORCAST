@@ -44,7 +44,11 @@ function Marco({ children }) {
         <div className="pt-login-card">
           <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
             <Image
-              src="/img/logo-h.png"
+              /* BLANCO, no el de color: estas dos pantallas van sobre el fondo
+                 casi negro del portal y con `logo-h.png` el renglon
+                 "DEL NORTE / MANEJO DE RESIDUOS" queda en verde oscuro sobre
+                 negro, ilegible. El login ya usaba el blanco. */
+              src="/img/logo-h-blanco.png"
               alt="Morcast del Norte"
               width={688}
               height={200}

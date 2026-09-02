@@ -18,6 +18,7 @@ import { resolverDepositoAuditado } from "@/app/acciones-auditadas";
 import { RECARGAS_SEED, estadoRecarga } from "@/lib/recargas-datos";
 import { obtenerSesionAdmin } from "@/lib/admin-sesion";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { etiquetaEstado } from "@/lib/estado-cliente.mjs";
 import { enlaceTemporal } from "@/lib/datos-archivos";
 import { pesos, fechaLarga, folioCorto } from "@/lib/portal-datos";
 
@@ -248,7 +249,17 @@ export default function SaldosAdmin() {
                   <td>{c.plan}</td>
                   <td className="num"><span className="pt-mov abono">{pesos(c.saldo)}</span></td>
                   <td className="num">{c.porPagar ? pesos(c.porPagar) : "—"}</td>
-                  <td><span className={`pt-badge ${c.estatus === "activo" ? "ok" : ""}`}>{c.estatus === "activo" ? "Activo" : "Moroso"}</span></td>
+                  {/* La MISMA regla que /admin/clientes, no una copia.
+                      Esta celda se quedo con el "o activo o moroso" de antes
+                      de que existiera `pendiente-info` (db/019): a los 17
+                      clientes reales a los que solo les falta un dato les
+                      estaba pintando "Moroso" en vivo. */}
+                  <td>
+                    {(() => {
+                      const et = etiquetaEstado(c.estatus);
+                      return <span className={`pt-badge ${et.clase}`}>{et.texto}</span>;
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>

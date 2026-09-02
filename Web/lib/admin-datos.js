@@ -49,12 +49,19 @@ export const SOLICITUDES = [
   { id: "COT-1180", fecha: "2026-07-05", nombre: "Héctor Lozano", empresa: "Vidriera Matamoros", correo: "hlozano@vidrieramtm.com", telefono: "868 655 3312", servicio: "Residuos Sólidos Urbanos (RSU)", frecuencia: "2 veces por semana", estado: "ganada", mensaje: "Contenedor de 6 m³ con recolección dos veces por semana." },
 ];
 
-/** Clientes activos con cuenta en el portal. */
+/**
+ * Clientes de EJEMPLO (solo modo demostracion, cuando no hay Supabase).
+ *
+ * Los `estatus` tienen que ser de los que acepta la base
+ * (`db/019`: activo · pendiente-info · suspendido · baja). Uno decia "moroso",
+ * que ya no existe: `etiquetaEstado()` no lo encontraba en su tabla y lo
+ * pintaba crudo, en minusculas y sin color, junto a los "Activo".
+ */
 export const CLIENTES_ADMIN = [
   { id: "MOR-2024-0187", empresa: "Industrias del Golfo, S.A. de C.V.", contacto: "Lic. Verónica Salazar", correo: "cliente@demo.com", telefono: "868 812 4590", plan: "Contrato anual", saldo: 18450, porPagar: 24680, estatus: "activo", desde: "2024-03-01" },
   { id: "MOR-2025-0233", empresa: "Centro Comercial Puerta Norte", contacto: "Patricia Anaya", correo: "mantenimiento@puertanorte.mx", telefono: "868 902 5567", plan: "Contrato anual", saldo: 0, porPagar: 12200, estatus: "activo", desde: "2025-08-15" },
   { id: "MOR-2025-0301", empresa: "Vidriera Matamoros", contacto: "Héctor Lozano", correo: "hlozano@vidrieramtm.com", telefono: "868 655 3312", plan: "Por evento", saldo: 3400, porPagar: 0, estatus: "activo", desde: "2025-11-02" },
-  { id: "MOR-2026-0044", empresa: "Maquilas TechNorte", contacto: "Jorge Villarreal", correo: "jvillarreal@technorte.com", telefono: "868 233 8890", plan: "Contrato mensual", saldo: 0, porPagar: 8900, estatus: "moroso", desde: "2026-02-20" },
+  { id: "MOR-2026-0044", empresa: "Maquilas TechNorte", contacto: "Jorge Villarreal", correo: "jvillarreal@technorte.com", telefono: "868 233 8890", plan: "Contrato mensual", saldo: 0, porPagar: 8900, estatus: "suspendido", desde: "2026-02-20" },
   { id: "MOR-2026-0071", empresa: "Ferretera del Golfo", contacto: "Roberto Múzquiz", correo: "rmuzquiz@ferregolfo.com", telefono: "868 341 7789", plan: "Por evento", saldo: 1200, porPagar: 0, estatus: "activo", desde: "2026-05-11" },
 ];
 

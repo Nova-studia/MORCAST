@@ -8,6 +8,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { Encabezado } from "@/components/Secciones";
 import FormularioCotizacion from "@/components/FormularioCotizacion";
 import { EMPRESA, enlaceWhatsApp } from "@/lib/datos";
+import Correo from "@/components/Correo";
 
 export const metadata = {
   title: "Contacto y cotización",
@@ -59,7 +60,9 @@ export default function Contacto() {
                     </div>
                     <div>
                       <h4>{i === 0 ? "Correo" : "Correo alterno"}</h4>
-                      <a href={`mailto:${correo}`}>{correo}</a>
+                      <a href={`mailto:${correo}`}>
+                        <Correo correo={correo} />
+                      </a>
                     </div>
                   </div>
                 ))}

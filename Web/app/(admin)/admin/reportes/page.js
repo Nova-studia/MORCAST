@@ -95,6 +95,14 @@ export default function ReportesAdmin() {
 
       <div className="pt-card" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-card-head"><h2>Peso recolectado por mes</h2></div>
+        {/* Doce columnas vacias sin una palabra parecen una grafica rota. El
+            Panel ya resolvia esto mismo con una linea; aqui faltaba. */}
+        {total === 0 && (
+          <p style={{ fontSize: "0.82rem", color: "var(--mc-gris)", marginTop: "-0.2rem" }}>
+            Todavía no hay recolecciones con peso registrado, por eso las barras
+            salen en cero.
+          </p>
+        )}
         <div className="pt-bars">
           {serie.map((d) => (
             <div className="pt-bar-col" key={d.periodo}>

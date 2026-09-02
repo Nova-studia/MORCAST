@@ -8,7 +8,7 @@ import {
   CheckCircle,
   WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
-import { nombreTipoRuta } from "@/lib/rutas-datos";
+import { nombreTipoRuta, RUTAS_SEED } from "@/lib/rutas-datos";
 // Las zonas se piden al SERVIDOR, no con la sesión del cliente. La acción
 // devuelve solo clave, nombre, tipo, días y polígono: un cliente no tiene por
 // qué saber quién maneja cada ruta ni con qué unidad. Es la misma vía que ya
@@ -24,14 +24,19 @@ const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
 
 export default function CoberturaPortal() {
   const [pin, setPin] = useState(null);
-  const [rutas, setRutas] = useState([]);
+  // RUTAS_SEED de respaldo, igual que en /portal/alta: `zonasDeCobertura()`
+  // devuelve **null** si la base contesta con error, y esta pantalla lo metia
+  // tal cual en el estado. El siguiente renglon hacia `null.filter(...)` y la
+  // pantalla se caia entera con "Cannot read properties of null".
+  const [rutas, setRutas] = useState(RUTAS_SEED);
 
   // Las rutas salen de la base: si Morcast redibuja una zona en su panel, el
   // cliente ve la nueva sin que nadie toque el código.
   useEffect(() => {
     let vivo = true;
     zonasDeCobertura().then((lista) => {
-      if (vivo) setRutas(lista);
+      // Solo se pisa el respaldo si de verdad llegaron zonas.
+      if (vivo && Array.isArray(lista) && lista.length) setRutas(lista);
     });
     return () => {
       vivo = false;

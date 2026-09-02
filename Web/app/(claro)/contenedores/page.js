@@ -37,8 +37,14 @@ export default function Contenedores() {
             </p>
           </div>
           <div className="row g-4">
+            {/* Una sola columna en el telefono: a dos columnas la tarjeta se
+                queda en ~175 px, "1.5 m³" se parte en dos renglones y el texto
+                cae en una tira de dos palabras por linea.
+                Y en escritorio `col-lg` (sin numero) reparte el ancho entre
+                las que haya: con `col-lg-3` eran cuatro por renglon y la
+                quinta medida se quedaba sola con tres huecos vacios al lado. */}
             {CONTENEDORES_MEDIDAS.map((c) => (
-              <div key={c.medida} className="col-6 col-lg-3">
+              <div key={c.medida} className="col-12 col-sm-6 col-lg">
                 <div className="mc-tarjeta text-center h-100">
                   <div
                     className="mc-tarjeta-icono verde"

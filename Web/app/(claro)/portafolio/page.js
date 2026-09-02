@@ -21,6 +21,7 @@ import {
   HORARIOS,
   CONDICIONES_COMERCIALES,
 } from "@/lib/cotizacion-datos";
+import Correo from "@/components/Correo";
 
 export const metadata = {
   title: "Portafolio de servicios",
@@ -92,7 +93,12 @@ export default function PaginaPortafolio() {
                   {EMPRESA_COTIZACION.telefonos.join(" · ")}
                 </Dato>
                 <Dato etiqueta="Correo">
-                  {EMPRESA_COTIZACION.correos.join(" · ")}
+                  {EMPRESA_COTIZACION.correos.map((correo, i) => (
+                    <span key={correo}>
+                      {i > 0 && " · "}
+                      <Correo correo={correo} />
+                    </span>
+                  ))}
                 </Dato>
               </div>
             </div>
