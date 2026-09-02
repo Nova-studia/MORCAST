@@ -597,6 +597,13 @@ $$;
 comment on function public.puede_solicitar_empleo(text) is
   'Anota el intento y dice si cabe. 3 por telefono cada 24 horas.';
 
+-- Que solo el servidor pueda invocarla, igual que 018 con la suya. Es
+-- SECURITY DEFINER: sin este revoke, cualquiera con la llave anonima podria
+-- llamarla desde el navegador y quemarle la cuota a un telefono ajeno, o
+-- tantear cuales ya mandaron solicitud.
+revoke all on function public.puede_solicitar_empleo(text) from public, anon, authenticated;
+grant execute on function public.puede_solicitar_empleo(text) to service_role;
+
 commit;
 
 -- =====================================================================
