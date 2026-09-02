@@ -925,6 +925,12 @@ export async function enviarSolicitudEmpleo(formData) {
     };
   }
 
+  // ⚠️ El freno YA se cobró. De aquí para abajo, cada camino de fallo tiene que
+  // DEVOLVER el intento con `devolver_intento_empleo`: cobrarse por adelantado
+  // es a propósito (si no, alguien sube archivos de 5 MB sin tope), pero
+  // cobrárselo a quien falló por culpa nuestra lo deja bloqueado 24 horas sin
+  // haber mandado nada. Se compensa, igual que se borra el archivo huérfano.
+
   // 3) El archivo primero. Si el registro falla después, se borra: currículums
   //    huérfanos en la cubeta son archivos de una persona que nadie sabe de
   //    quién son.
