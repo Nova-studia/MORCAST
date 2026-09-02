@@ -499,3 +499,54 @@ export async function correoContrasenaCambiada({ correo }) {
         falta que respondas a este correo ni que pulses ningún enlace.</p>`),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Trabaja con nosotros                                                */
+/* ------------------------------------------------------------------ */
+
+/** A MORCAST: llegó una solicitud de empleo. */
+export async function correoAvisoEmpleo(datos) {
+  const fila = (etiqueta, valor) =>
+    valor
+      ? `<tr><td style="padding:6px 12px 6px 0;font-weight:bold;white-space:nowrap;vertical-align:top">${etiqueta}</td><td style="padding:6px 0">${esc(valor)}</td></tr>`
+      : "";
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    ...(datos.correo ? { reply_to: datos.correo } : {}),
+    subject: `Solicitud de empleo — ${datos.nombre} (${datos.puesto})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Nueva solicitud de empleo</h1>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5">
+        ${fila("Folio", datos.folio)}
+        ${fila("Nombre", datos.nombre)}
+        ${fila("Teléfono", datos.telefono)}
+        ${fila("Correo", datos.correo)}
+        ${fila("Puesto", datos.puesto)}
+        ${fila("Experiencia", datos.experiencia)}
+        ${fila("Currículum", datos.traeCurriculum ? "Sí, adjunto en el panel" : "No adjuntó")}
+      </table>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Ábrela en el panel, en <strong>Trabaja con nosotros</strong>. El currículum
+        no viaja en este correo a propósito: se ve desde el panel con un enlace que
+        caduca, para que no se multiplique en bandejas de entrada.</p>`),
+  });
+}
+
+/** AL CANDIDATO: acuse, sólo si dejó correo. */
+export async function correoAcuseEmpleo({ correo, nombre, folio, puesto }) {
+  if (!correo) return { ok: true, omitido: true };
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    subject: `Recibimos tu solicitud — ${folio}`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Gracias, ${esc(nombre)}</h1>
+      <p style="font-size:14px;line-height:1.6">
+        Recibimos tu solicitud para <strong>${esc(puesto)}</strong>. Tu folio es
+        <strong>${esc(folio)}</strong>.</p>
+      <p style="font-size:14px;line-height:1.6">
+        Si tu perfil encaja con una vacante, te contactamos por teléfono. Guardamos
+        tu información 12 meses y después se borra.</p>`),
+  });
+}
