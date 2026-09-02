@@ -17,6 +17,15 @@ import { validarArchivo, LIMITES } from "@/lib/empleo.mjs";
 const CUALQUIER_PUESTO = "Cualquier puesto disponible";
 
 /**
+ * El VALOR que lleva esa opción en el `<select>`. NO puede ser `""`: un
+ * `<select required>` cuyo valor elegido es la cadena vacía no pasa la
+ * validación del navegador y bloquea el envío —justo en el camino más
+ * usado, porque la solicitud general es la razón de ser del formulario—.
+ * Un id de vacante es un uuid, así que nunca choca con este centinela.
+ */
+const CUALQUIER_VALOR = "cualquiera";
+
+/**
  * EL FORMULARIO PÚBLICO DE "TRABAJA CON NOSOTROS".
  *
  * Calcado de `FormularioCotizacion`: mismos estados, mismas clases
@@ -43,18 +52,22 @@ export default function FormularioEmpleo({ vacantes = [] }) {
   // guardar el id no hay ida y vuelta: la URL ES el valor del <select>.
   const idPreseleccionado = searchParams.get("vacante") || "";
 
-  const [vacanteId, setVacanteId] = useState(
-    vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : ""
+  // `seleccion` es el valor CRUDO del <select>: o el id de una vacante real,
+  // o el centinela `CUALQUIER_VALOR`. Nunca es `""` —por eso el `required`
+  // del <select> puede quedarse tal cual—.
+  const [seleccion, setSeleccion] = useState(
+    vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
   );
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [listo, setListo] = useState(null);
 
-  // El texto que se manda como `puesto` (lo que guarda el registro) se
-  // deriva del id, nunca al revés. Sin id (la opción "Cualquier puesto
-  // disponible") es ese mismo texto fijo.
-  const vacanteElegida = vacantes.find((v) => v.id === vacanteId);
+  // Lo que de verdad se manda se deriva de `seleccion`, nunca al revés.
+  // Con el centinela no hay vacante que encontrar: vacanteId va vacío y
+  // puesto lleva el texto fijo de la opción general.
+  const vacanteElegida = vacantes.find((v) => v.id === seleccion);
+  const vacanteId = vacanteElegida?.id || "";
   const puesto = vacanteElegida?.puesto || CUALQUIER_PUESTO;
 
   const enviar = async (e) => {
@@ -84,7 +97,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
     setListo({ folio: r.folio, aviso: r.aviso });
     e.target.reset();
     setArchivo(null);
-    setVacanteId("");
+    setSeleccion(CUALQUIER_VALOR);
   };
 
   if (listo) {
@@ -197,8 +210,8 @@ export default function FormularioEmpleo({ vacantes = [] }) {
           <select
             id="puesto"
             className="form-select"
-            value={vacanteId}
-            onChange={(e) => setVacanteId(e.target.value)}
+            value={seleccion}
+            onChange={(e) => setSeleccion(e.target.value)}
             required
           >
             {vacantes.map((v) => (
@@ -206,7 +219,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
                 {v.puesto}
               </option>
             ))}
-            <option value="">{CUALQUIER_PUESTO}</option>
+            <option value={CUALQUIER_VALOR}>{CUALQUIER_PUESTO}</option>
           </select>
         </div>
 
