@@ -1,4 +1,5 @@
 import { Encabezado } from "@/components/Secciones";
+import Correo from "@/components/Correo";
 import { EMPRESA } from "@/lib/datos";
 
 export const metadata = {
@@ -54,6 +55,37 @@ export default function AvisoPrivacidad() {
                   </li>
                   <li>Atender dudas, quejas y solicitudes de servicio</li>
                 </ul>
+
+                <h2 style={{ fontSize: "1.35rem", marginTop: "2.5rem" }}>
+                  Si nos mandas una solicitud de empleo
+                </h2>
+                <p>
+                  Cuando envías una solicitud desde{" "}
+                  <strong>Trabaja con nosotros</strong> recabamos tu{" "}
+                  <strong>
+                    nombre, teléfono, el puesto que buscas y tu experiencia
+                  </strong>
+                  ; tu <strong>correo</strong> sólo si decides dejarlo, y tu{" "}
+                  <strong>currículum</strong> sólo si decides adjuntarlo.
+                </p>
+                <p>
+                  Los usamos <strong>únicamente</strong> para evaluar tu
+                  candidatura y para contactarte. No se comparten con nadie,
+                  no se usan para publicidad y no se cruzan con la
+                  información de nuestros clientes.
+                </p>
+                <p>
+                  <strong>Los conservamos 12 meses</strong> a partir del día
+                  que los envías, y después se borran solos, incluido tu
+                  currículum. Si quieres que los borremos antes, escríbenos a{" "}
+                  <a
+                    href={`mailto:${EMPRESA.correos[0]}`}
+                    style={{ color: "var(--mc-verde)", fontWeight: 600 }}
+                  >
+                    <Correo correo={EMPRESA.correos[0]} />
+                  </a>{" "}
+                  con tu nombre y el folio que te dimos al enviarla.
+                </p>
 
                 <h2 style={{ fontSize: "1.35rem", marginTop: "2.5rem" }}>
                   ¿Qué datos personales recabamos?
