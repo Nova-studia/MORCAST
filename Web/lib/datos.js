@@ -11,6 +11,17 @@
 
 import { EMPRESA_COTIZACION, HORARIOS } from "./cotizacion-datos";
 
+/**
+ * VERSIÓN DEL AVISO DE PRIVACIDAD.
+ *
+ * Es la fecha en que cambió el TEXTO, no la del día. Cada solicitud de empleo
+ * guarda cuál aceptó: si algún día alguien pregunta bajo qué términos entregó
+ * sus datos, la respuesta sale de la base y no de la memoria de nadie.
+ *
+ * 🔑 Se sube esta fecha CADA VEZ que se toque el texto del aviso.
+ */
+export const AVISO_PRIVACIDAD = { version: "2026-09-02" };
+
 export const EMPRESA = {
   nombre: "MORCAST DEL NORTE",
   razonSocial: "Morcast del Norte, S.A. de C.V.",
@@ -332,6 +343,7 @@ export const NAVEGACION_SECUNDARIA = [
   { texto: "Servicios", href: "/servicios" },
   { texto: "Nosotros", href: "/nosotros" },
   { texto: "Contacto", href: "/contacto" },
+  { texto: "Trabaja con nosotros", href: "/empleo" },
 ];
 
 export const FRECUENCIAS = [

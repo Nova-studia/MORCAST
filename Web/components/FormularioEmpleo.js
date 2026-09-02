@@ -1,0 +1,385 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  CheckCircle,
+  WarningCircle,
+  PaperPlaneTilt,
+} from "@phosphor-icons/react/dist/ssr";
+import { enviarSolicitudEmpleo } from "@/app/acciones-empleo";
+import { validarSolicitud, validarArchivo, LIMITES, CAMPO_HONEYPOT } from "@/lib/empleo.mjs";
+
+/**
+ * No es una vacante real —no tiene id—, así que nunca lleva `vacanteId`: es
+ * justo la opción que convierte la solicitud en general.
+ */
+const CUALQUIER_PUESTO = "Cualquier puesto disponible";
+
+/**
+ * El VALOR que lleva esa opción en el `<select>`.
+ *
+ * NO puede ser `""`: aunque este formulario lleva `noValidate` (el navegador
+ * NO bloquea nada por su cuenta, ver el porqué junto al `<form>` de abajo),
+ * `""` es el valor que React usa para "nada seleccionado" en un `<select>`
+ * controlado —lo mismo que produce la opción vacía típica de un
+ * placeholder—, y aquí SIEMPRE hay algo elegido: la solicitud general es la
+ * opción por omisión, no la ausencia de opción. Un id de vacante es un
+ * uuid, así que nunca choca con este centinela.
+ */
+const CUALQUIER_VALOR = "cualquiera";
+
+/**
+ * EL FORMULARIO PÚBLICO DE "TRABAJA CON NOSOTROS".
+ *
+ * Calcado de `FormularioCotizacion`: mismos estados, mismas clases
+ * (`mc-form`, `form-control`, `form-select`), mismo botón que se apaga
+ * mientras envía. La diferencia es el contrato de vuelta: `enviarCotizacion`
+ * regresa `{ok, mensaje, errores}` por `useActionState`; `enviarSolicitudEmpleo`
+ * regresa `{ok, folio, motivo, aviso}` a mano, porque además valida un
+ * archivo ANTES de mandar el FormData —eso useActionState no lo resuelve
+ * bien— y aquí se sigue tal cual lo entrega el encargo.
+ */
+export default function FormularioEmpleo({ vacantes = [] }) {
+  const searchParams = useSearchParams();
+
+  // El `id` es único y el `puesto` NO —dos plazas de "Ayudante de
+  // recolección" son lo más normal del mundo—, así que el estado guarda el
+  // id elegido, nunca el texto. Si se guardara el texto, un `find` por texto
+  // devolvería SIEMPRE la primera vacante que lo tenga, amarrando la
+  // solicitud a la plaza equivocada.
+  //
+  // Eso hacía además que `?vacante=<id>` fallara EN SILENCIO con vacantes
+  // duplicadas: la preselección encontraba el id de la URL, pero al
+  // reconvertir su texto de vuelta a id devolvía el de la primera coincidencia
+  // — el candidato aplicaba a una plaza y quedaba registrado en otra. Al
+  // guardar el id no hay ida y vuelta: la URL ES el valor del <select>.
+  const idPreseleccionado = searchParams.get("vacante") || "";
+
+  // `seleccion` es el valor CRUDO del <select>: o el id de una vacante real,
+  // o el centinela `CUALQUIER_VALOR`. Nunca es `""` —para que siempre haya
+  // algo elegido, ver el porqué junto a `CUALQUIER_VALOR` arriba—.
+  const [seleccion, setSeleccion] = useState(
+    vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
+  );
+
+  // Último id de `?vacante=` que ya se aplicó al <select>. Arranca igual que
+  // `idPreseleccionado` para que el efecto de abajo no repita en el montaje
+  // lo que el `useState` de arriba ya resolvió.
+  const idAplicadoRef = useRef(idPreseleccionado);
+
+  // POR QUÉ EXISTE ESTE EFECTO: `<Link>` entre `/empleo` y
+  // `/empleo?vacante=<id>` es la MISMA ruta, así que Next hace una navegación
+  // suave y este componente no se vuelve a montar. Sin este efecto, el
+  // `useState` de arriba —que sólo lee `searchParams` una vez, al montar—
+  // nunca se entera de que la URL cambió: el candidato hace clic en "Aplicar
+  // a esta vacante" y el formulario le llega con el puesto sin elegir, cree
+  // que aplicó a una plaza concreta y en realidad quedó como solicitud
+  // general.
+  //
+  // Sólo se aplica cuando el id de la URL CAMBIA DE VERDAD (se compara contra
+  // `idAplicadoRef`, no se dispara en cada render) para no pisar una elección
+  // manual: si alguien está en `/empleo?vacante=A`, cambia el <select> a
+  // "Cualquier puesto" a mano y no toca la URL, `idPreseleccionado` sigue
+  // siendo "A" —igual al último aplicado— y este efecto no vuelve a correr.
+  useEffect(() => {
+    if (idPreseleccionado === idAplicadoRef.current) return;
+    idAplicadoRef.current = idPreseleccionado;
+    setSeleccion(
+      vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
+    );
+  }, [idPreseleccionado, vacantes]);
+
+  const [archivo, setArchivo] = useState(null);
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [listo, setListo] = useState(null);
+
+  // Lo que de verdad se manda se deriva de `seleccion`, nunca al revés.
+  // Con el centinela no hay vacante que encontrar: vacanteId va vacío y
+  // puesto lleva el texto fijo de la opción general.
+  const vacanteElegida = vacantes.find((v) => v.id === seleccion);
+  const vacanteId = vacanteElegida?.id || "";
+  const puesto = vacanteElegida?.puesto || CUALQUIER_PUESTO;
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    const datos = new FormData(e.currentTarget);
+    if (archivo) datos.set("curriculum", archivo);
+
+    // Amabilidad, no seguridad: quien manda de verdad es el servidor, que
+    // repite exactamente esta misma llamada (`validarSolicitud`) del otro
+    // lado. Corre ANTES de llamar al servidor para responder al instante en
+    // el error más común —falta un campo obligatorio—, sin el viaje de ida y
+    // vuelta. Ver el porqué de `noValidate` junto al `<form>` de abajo: el
+    // navegador ya no hace esta comprobación por su cuenta.
+    const revisionSolicitud = validarSolicitud({
+      nombre: datos.get("nombre"),
+      telefono: datos.get("telefono"),
+      correo: datos.get("correo"),
+      puesto: datos.get("puesto"),
+      experiencia: datos.get("experiencia"),
+      aviso: datos.get("aviso") === "si",
+    });
+    if (!revisionSolicitud.ok) {
+      setError(revisionSolicitud.motivo);
+      return;
+    }
+
+    const revision = validarArchivo(archivo);
+    if (!revision.ok) {
+      setError(revision.motivo);
+      return;
+    }
+
+    setEnviando(true);
+    let r;
+    try {
+      r = await enviarSolicitudEmpleo(datos);
+    } catch (err) {
+      // Aquí caen los fallos que la acción de servidor NO alcanza a
+      // convertir en `{ ok: false, motivo }` —sin conexión, o un cuerpo que
+      // el servidor rechaza de plano (por ejemplo, por pasarse del límite
+      // de tamaño)—. Sin este `catch`, ese rechazo tumbaba la promesa,
+      // `setEnviando(false)` nunca corría y el botón se quedaba en
+      // "Enviando…" para siempre, sin ningún mensaje.
+      console.error("[empleo] fallo inesperado al enviar:", err?.message);
+      setEnviando(false);
+      setError("No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
+    setEnviando(false);
+
+    if (!r.ok) {
+      // NO se limpia nada: que no tenga que volver a escribirlo todo.
+      setError(r.motivo);
+      return;
+    }
+    // Y hasta aqui, con r.ok en la mano, se dice "gracias".
+    setListo({ folio: r.folio, aviso: r.aviso });
+    e.target.reset();
+    setArchivo(null);
+    setSeleccion(CUALQUIER_VALOR);
+  };
+
+  if (listo) {
+    return (
+      <div className="mc-form text-center" style={{ padding: "3rem 2rem" }}>
+        <div
+          className="mc-tarjeta-icono mx-auto"
+          style={{
+            width: 72,
+            height: 72,
+            fontSize: "2rem",
+            background: "rgba(78,179,74,0.13)",
+            color: "var(--mc-verde)",
+          }}
+        >
+          <CheckCircle />
+        </div>
+        <h3 style={{ fontSize: "1.4rem", marginBottom: "0.75rem" }}>
+          Solicitud enviada
+        </h3>
+        <p className="mc-lead mb-0">
+          Tu folio es <strong>{listo.folio}</strong>. Morcast la tiene y te
+          contactará.
+        </p>
+        {listo.aviso && (
+          <p className="mc-lead mb-0" style={{ marginTop: "0.75rem" }}>
+            {listo.aviso}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    // `noValidate` apaga POR COMPLETO la validación nativa del navegador
+    // (los globos de "completa este campo", el estilo `:invalid`, todo):
+    // los `required` de abajo YA NO bloquean nada por su cuenta —quedan
+    // como pista para lectores de pantalla y navegación por teclado, no
+    // como candado—. Es a propósito: los mensajes en español de `enviar()`
+    // (arriba) son mejores que los del navegador, que ni siquiera salen
+    // todos en el mismo idioma según el sistema de quien visita. La
+    // validación de verdad —la que decide si algo se guarda— es la de
+    // `validarSolicitud()` en el servidor; la de aquí sólo adelanta la
+    // respuesta.
+    <form onSubmit={enviar} className="mc-form" noValidate>
+      <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>
+        Trabaja con nosotros
+      </h3>
+      <p style={{ fontSize: "0.92rem", color: "var(--mc-gris)", marginBottom: "1.75rem" }}>
+        Cuéntanos de ti y te contactamos.
+      </p>
+
+      {error && (
+        <div className="mc-alerta mc-alerta-error mb-4" role="alert">
+          <WarningCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Honeypot anti-bots: oculto para personas, calcado de
+          FormularioCotizacion.js. La comprobación de verdad vive en
+          `enviarSolicitudEmpleo()` — esto sólo hace que un bot lo encuentre y
+          lo llene. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+        }}
+      >
+        <label htmlFor="empleo-sitio-web">No llenar</label>
+        <input
+          id="empleo-sitio-web"
+          name={CAMPO_HONEYPOT}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
+
+      {/* Ocultos a propósito: los llena el <select> de más abajo, no la
+          persona escribiéndolos directo. El `vacanteId` manda —es único—; el
+          texto que se guarda en el registro (`puesto`) se deriva de él, y
+          nunca al revés (ver el porqué en el comentario de arriba). */}
+      <input type="hidden" name="vacanteId" value={vacanteId} />
+      <input type="hidden" name="puesto" value={puesto} />
+
+      <div className="row g-3">
+        <div className="col-md-6">
+          <label htmlFor="nombre">
+            Nombre <span className="mc-requerido">*</span>
+          </label>
+          <input
+            id="nombre"
+            name="nombre"
+            type="text"
+            className="form-control"
+            placeholder="Tu nombre completo"
+            maxLength={LIMITES.nombre}
+            autoComplete="name"
+            required
+          />
+        </div>
+
+        <div className="col-md-6">
+          <label htmlFor="telefono">
+            Teléfono <span className="mc-requerido">*</span>
+          </label>
+          <input
+            id="telefono"
+            name="telefono"
+            type="tel"
+            inputMode="tel"
+            className="form-control"
+            placeholder="868 123 4567"
+            maxLength={LIMITES.telefono}
+            autoComplete="tel"
+            required
+          />
+        </div>
+
+        <div className="col-md-6">
+          {/* Sin asterisco: el correo es opcional a propósito —el chofer o
+              el ayudante muchas veces no usa correo—, ver `empleo.mjs`. */}
+          <label htmlFor="correo">Correo</label>
+          <input
+            id="correo"
+            name="correo"
+            type="email"
+            className="form-control"
+            placeholder="tucorreo@ejemplo.mx"
+            maxLength={LIMITES.correo}
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="col-md-6">
+          <label htmlFor="puesto">
+            Puesto <span className="mc-requerido">*</span>
+          </label>
+          <select
+            id="puesto"
+            className="form-select"
+            value={seleccion}
+            onChange={(e) => setSeleccion(e.target.value)}
+            required
+          >
+            {vacantes.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.puesto}
+              </option>
+            ))}
+            <option value={CUALQUIER_VALOR}>{CUALQUIER_PUESTO}</option>
+          </select>
+        </div>
+
+        <div className="col-12">
+          <label htmlFor="experiencia">
+            Experiencia <span className="mc-requerido">*</span>
+          </label>
+          <textarea
+            id="experiencia"
+            name="experiencia"
+            rows={4}
+            className="form-control"
+            placeholder="Dónde has trabajado, qué hacías, cuánto tiempo…"
+            maxLength={LIMITES.experiencia}
+            required
+          />
+        </div>
+
+        <div className="col-12">
+          <label htmlFor="curriculum">Currículum (PDF, JPG o PNG, máximo 5 MB)</label>
+          <input
+            id="curriculum"
+            name="curriculum"
+            type="file"
+            className="form-control"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+          />
+        </div>
+
+        <div className="col-12">
+          <div className="form-check">
+            <input
+              id="aviso"
+              name="aviso"
+              type="checkbox"
+              value="si"
+              className="form-check-input"
+              required
+            />
+            <label className="form-check-label" htmlFor="aviso" style={{ fontWeight: 400 }}>
+              Acepto el{" "}
+              <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde)" }}>
+                Aviso de Privacidad
+              </a>{" "}
+              <span className="mc-requerido">*</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="col-12 mt-4">
+          <button type="submit" className="mc-btn mc-btn-verde w-100" disabled={enviando}>
+            {enviando ? (
+              "Enviando…"
+            ) : (
+              <>
+                Enviar solicitud <PaperPlaneTilt aria-hidden="true" />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}

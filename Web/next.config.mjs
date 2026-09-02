@@ -1,6 +1,31 @@
 /** @type {import('next').NextConfig} */
 
+// Ruta relativa, no el alias "@/...": este archivo lo carga Node directo (no
+// pasa por el empaquetador de Next), y `lib/empleo.mjs` está escrito a
+// propósito sin importar React ni Supabase para poder importarse así, igual
+// que ya hacen las pruebas de `npm test`.
+import { MAX_CV_BYTES } from "./lib/empleo.mjs";
+
 const enDesarrollo = process.env.NODE_ENV === "development";
+
+/**
+ * Next 16 corta el cuerpo de una acción de servidor en 1 MB por omisión —
+ * para no gastar recursos del servidor de más ni abrir la puerta a un DDoS
+ * con cuerpos gigantes—, pero `enviarSolicitudEmpleo()` (acciones-empleo.js)
+ * recibe el currículum dentro de ese mismo cuerpo, y tanto `lib/empleo.mjs`
+ * como la etiqueta del formulario prometen hasta `MAX_CV_BYTES` (5 MB). Sin
+ * subir este límite, un currículum escaneado de más de 1 MB —la mayoría—
+ * rebotaba con la acción entera rechazada, no con el mensaje de "máximo
+ * 5 MB" que sí existe para ese caso.
+ *
+ * Atado a `MAX_CV_BYTES` (no a un número suelto) para que suban juntos si un
+ * día cambia el tope del currículum. El +1 MB de margen es para lo que
+ * `multipart/form-data` añade encima del archivo: los boundaries, las
+ * cabeceras de cada parte y los demás campos del formulario (nombre,
+ * teléfono, correo, puesto, hasta 2000 caracteres de experiencia) — de sobra
+ * para eso, que no llega ni a unos KB.
+ */
+const LIMITE_ACCIONES_SERVIDOR = MAX_CV_BYTES + 1024 * 1024;
 
 /**
  * Política de Contenido (CSP). Se manda en modo SOLO-REPORTE a propósito.
@@ -59,6 +84,12 @@ const cabeceras = [
 ];
 
 const nextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: LIMITE_ACCIONES_SERVIDOR,
+    },
+  },
+
   images: {
     // La foto del hero del inicio se pide con `quality={92}`. Next 16 solo
     // sirve las calidades que estan aqui: sin el 92, la bajaba a 75 sin decir

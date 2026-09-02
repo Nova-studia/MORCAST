@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Encabezado, BandaCTA } from "@/components/Secciones";
 import { EQUIPAMIENTO, EQUIPAMIENTO_LISTA } from "@/lib/datos";
 
@@ -101,6 +102,16 @@ export default function Equipo() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mc-seccion">
+        <div className="container">
+          <div className="mc-nota">
+            <strong>¿Quieres manejar una de estas unidades?</strong> Morcast contrata
+            choferes y ayudantes de recolección en Matamoros.{" "}
+            <Link href="/empleo">Ver vacantes y dejar tu solicitud</Link>.
           </div>
         </div>
       </section>

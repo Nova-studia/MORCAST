@@ -219,7 +219,14 @@ export const MAX_CV_BYTES = 5 * 1024 * 1024;
 /** Cuánto se guarda una solicitud. Lo promete el Aviso de Privacidad. */
 export const MESES_QUE_SE_GUARDA = 12;
 
-/** Cuántas puede mandar el mismo teléfono en 24 horas. */
+/**
+ * Cuántas puede mandar el mismo teléfono en 24 horas.
+ *
+ * ⚠️ Este número está escrito DOS veces: aquí y en la función
+ * `puede_solicitar_empleo` de `db/021`. Manda **el SQL**, porque es donde la
+ * decisión es atómica; éste sirve sólo para redactar el mensaje. Si se cambia
+ * uno, se cambia el otro.
+ */
 export const TOPE_POR_DIA = 3;
 
 export const ESTADOS_SOLICITUD = ["nueva", "revisada", "contactada", "descartada"];
@@ -355,7 +362,7 @@ export function puedeBorrarseVacante(numeroDeSolicitudes) {
 - [ ] **Paso 4: Correr las pruebas y comprobar que pasan**
 
 Correr: `cd Web && npm test`
-Se espera: las 78 de antes + las 9 nuevas, todas en verde.
+Se espera: las 78 de antes + las 12 nuevas, todas en verde.
 
 - [ ] **Paso 5: Guardar**
 
@@ -581,12 +588,21 @@ begin
         end
   returning intentos into v_intentos;
 
+  -- ⚠️ El 3 tambien esta en `TOPE_POR_DIA` de lib/empleo.mjs, que solo lo usa
+  -- para redactar el mensaje. Aqui es donde MANDA. Si se cambia uno, el otro.
   return coalesce(v_intentos, 1) <= 3;
 end;
 $$;
 
 comment on function public.puede_solicitar_empleo(text) is
   'Anota el intento y dice si cabe. 3 por telefono cada 24 horas.';
+
+-- Que solo el servidor pueda invocarla, igual que 018 con la suya. Es
+-- SECURITY DEFINER: sin este revoke, cualquiera con la llave anonima podria
+-- llamarla desde el navegador y quemarle la cuota a un telefono ajeno, o
+-- tantear cuales ya mandaron solicitud.
+revoke all on function public.puede_solicitar_empleo(text) from public, anon, authenticated;
+grant execute on function public.puede_solicitar_empleo(text) to service_role;
 
 commit;
 
@@ -909,6 +925,12 @@ export async function enviarSolicitudEmpleo(formData) {
     };
   }
 
+  // ⚠️ El freno YA se cobró. De aquí para abajo, cada camino de fallo tiene que
+  // DEVOLVER el intento con `devolver_intento_empleo`: cobrarse por adelantado
+  // es a propósito (si no, alguien sube archivos de 5 MB sin tope), pero
+  // cobrárselo a quien falló por culpa nuestra lo deja bloqueado 24 horas sin
+  // haber mandado nada. Se compensa, igual que se borra el archivo huérfano.
+
   // 3) El archivo primero. Si el registro falla después, se borra: currículums
   //    huérfanos en la cubeta son archivos de una persona que nadie sabe de
   //    quién son.
@@ -1002,6 +1024,12 @@ git commit -m "Acciones de servidor de empleo: leer vacantes y recibir solicitud
 Se calca de `Web/components/FormularioCotizacion.js`, que ya resuelve el envío,
 los estados y los mensajes. Reglas que no se negocian:
 
+- **El contrato con el servidor, que no se negocia** (así lo lee
+  `enviarSolicitudEmpleo`): los campos se llaman `nombre`, `telefono`,
+  `correo`, `puesto`, `experiencia` y `curriculum`; la casilla del aviso es
+  `name="aviso" value="si"` (sin marcar no viaja, y eso es justo lo que la
+  hace obligatoria); y la vacante va en un campo oculto `name="vacanteId"`,
+  vacío cuando es una solicitud general.
 - Es `"use client"` y usa las clases `mc-form`, `form-control`, `form-select`
   del sitio público.
 - El `<select>` de puesto lista las vacantes abiertas **más** la opción
@@ -1172,7 +1200,8 @@ git commit -m "Enlaces a Trabaja con nosotros desde el pie y desde Equipo"
   `puedeBorrarseVacante` (Tarea 1).
 - Produce: `listarVacantes()`, `guardarVacante(v)`, `cambiarEstadoVacante(id,
   estado)`, `borrarVacante(id)`, `listarSolicitudesEmpleo()`,
-  `cambiarEstadoSolicitud(id, estado, notas)`; y `enlaceCurriculum(ruta)`.
+  `cambiarEstadoSolicitud(id, estado, notas)`,
+  `contarSolicitudesPorVacante()`; y `enlaceCurriculum(ruta)`.
 
 - [ ] **Paso 1: El enlace del currículum**
 
@@ -1214,6 +1243,31 @@ export async function borrarVacante(id) {
   const { error } = await supabaseNavegador().from("vacantes").delete().eq("id", id);
   if (error) return { ok: false, motivo: error.message };
   return { ok: true };
+}
+```
+
+`contarSolicitudesPorVacante()` devuelve `{ [vacanteId]: número }` en **una
+sola consulta**, no una por vacante. La usa la pantalla (Tarea 10) para apagar
+el botón de borrar, y la usa `borrarVacante` para negarse. Es el mismo dato,
+pedido una vez:
+
+```js
+export async function contarSolicitudesPorVacante() {
+  if (!haySupabaseNavegador()) {
+    return SOLICITUDES_EMPLEO_SEED.reduce((acc, s) => {
+      if (s.vacante_id) acc[s.vacante_id] = (acc[s.vacante_id] || 0) + 1;
+      return acc;
+    }, {});
+  }
+  const { data, error } = await supabaseNavegador()
+    .from("solicitudes_empleo")
+    .select("vacante_id")
+    .not("vacante_id", "is", null);
+  if (error) return {};
+  return (data || []).reduce((acc, s) => {
+    acc[s.vacante_id] = (acc[s.vacante_id] || 0) + 1;
+    return acc;
+  }, {});
 }
 ```
 
@@ -1475,7 +1529,23 @@ Sin sesión, intentar abrir
 Borrar de producción la vacante y las solicitudes de prueba, y sus archivos de
 la cubeta.
 
-- [ ] **Paso 5: Enseñárselo a Luis y pedirle autorización para desplegar**
+- [ ] **Paso 5: 🔴 EL CANDADO LEGAL — antes de proponer siquiera el despliegue**
+
+El Aviso de Privacidad (Tarea 2) **ya promete** que los currículums "se borran
+solos" a los 12 meses. Ese texto no puede llegar a `main` mientras la promesa
+no sea verdad. Comprobar las tres, y que las tres den que sí:
+
+1. La Tarea 11 está terminada y `vercel.json` declara la tarea programada.
+2. El plan de Vercel del socio **permite** tareas programadas (confirmado por
+   él, no supuesto).
+3. La ruta contesta 401 sin el secreto y 200 con él.
+
+Si alguna falla, **no se despliega el Aviso**: o se espera, o se cambia el
+texto por uno que diga la verdad de ese momento. Publicar una web que promete
+un borrado que no ocurre es exposición legal para Morcast, no un detalle de
+redacción.
+
+- [ ] **Paso 6: Enseñárselo a Luis y pedirle autorización para desplegar**
 
 🔴 **No se empuja a `main` sin su visto bueno.** `git push` a `main` ES el
 despliegue.
