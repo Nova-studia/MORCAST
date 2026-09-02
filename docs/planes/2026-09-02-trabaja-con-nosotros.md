@@ -1516,7 +1516,23 @@ Sin sesión, intentar abrir
 Borrar de producción la vacante y las solicitudes de prueba, y sus archivos de
 la cubeta.
 
-- [ ] **Paso 5: Enseñárselo a Luis y pedirle autorización para desplegar**
+- [ ] **Paso 5: 🔴 EL CANDADO LEGAL — antes de proponer siquiera el despliegue**
+
+El Aviso de Privacidad (Tarea 2) **ya promete** que los currículums "se borran
+solos" a los 12 meses. Ese texto no puede llegar a `main` mientras la promesa
+no sea verdad. Comprobar las tres, y que las tres den que sí:
+
+1. La Tarea 11 está terminada y `vercel.json` declara la tarea programada.
+2. El plan de Vercel del socio **permite** tareas programadas (confirmado por
+   él, no supuesto).
+3. La ruta contesta 401 sin el secreto y 200 con él.
+
+Si alguna falla, **no se despliega el Aviso**: o se espera, o se cambia el
+texto por uno que diga la verdad de ese momento. Publicar una web que promete
+un borrado que no ocurre es exposición legal para Morcast, no un detalle de
+redacción.
+
+- [ ] **Paso 6: Enseñárselo a Luis y pedirle autorización para desplegar**
 
 🔴 **No se empuja a `main` sin su visto bueno.** `git push` a `main` ES el
 despliegue.
