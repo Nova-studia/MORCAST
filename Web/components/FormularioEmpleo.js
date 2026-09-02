@@ -8,7 +8,7 @@ import {
   PaperPlaneTilt,
 } from "@phosphor-icons/react/dist/ssr";
 import { enviarSolicitudEmpleo } from "@/app/acciones-empleo";
-import { validarArchivo, LIMITES } from "@/lib/empleo.mjs";
+import { validarSolicitud, validarArchivo, LIMITES, CAMPO_HONEYPOT } from "@/lib/empleo.mjs";
 
 /**
  * No es una vacante real —no tiene id—, así que nunca lleva `vacanteId`: es
@@ -17,11 +17,15 @@ import { validarArchivo, LIMITES } from "@/lib/empleo.mjs";
 const CUALQUIER_PUESTO = "Cualquier puesto disponible";
 
 /**
- * El VALOR que lleva esa opción en el `<select>`. NO puede ser `""`: un
- * `<select required>` cuyo valor elegido es la cadena vacía no pasa la
- * validación del navegador y bloquea el envío —justo en el camino más
- * usado, porque la solicitud general es la razón de ser del formulario—.
- * Un id de vacante es un uuid, así que nunca choca con este centinela.
+ * El VALOR que lleva esa opción en el `<select>`.
+ *
+ * NO puede ser `""`: aunque este formulario lleva `noValidate` (el navegador
+ * NO bloquea nada por su cuenta, ver el porqué junto al `<form>` de abajo),
+ * `""` es el valor que React usa para "nada seleccionado" en un `<select>`
+ * controlado —lo mismo que produce la opción vacía típica de un
+ * placeholder—, y aquí SIEMPRE hay algo elegido: la solicitud general es la
+ * opción por omisión, no la ausencia de opción. Un id de vacante es un
+ * uuid, así que nunca choca con este centinela.
  */
 const CUALQUIER_VALOR = "cualquiera";
 
@@ -53,8 +57,8 @@ export default function FormularioEmpleo({ vacantes = [] }) {
   const idPreseleccionado = searchParams.get("vacante") || "";
 
   // `seleccion` es el valor CRUDO del <select>: o el id de una vacante real,
-  // o el centinela `CUALQUIER_VALOR`. Nunca es `""` —por eso el `required`
-  // del <select> puede quedarse tal cual—.
+  // o el centinela `CUALQUIER_VALOR`. Nunca es `""` —para que siempre haya
+  // algo elegido, ver el porqué junto a `CUALQUIER_VALOR` arriba—.
   const [seleccion, setSeleccion] = useState(
     vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
   );
@@ -102,7 +106,28 @@ export default function FormularioEmpleo({ vacantes = [] }) {
     e.preventDefault();
     setError("");
 
-    // Amabilidad, no seguridad: quien manda es el servidor.
+    const datos = new FormData(e.currentTarget);
+    if (archivo) datos.set("curriculum", archivo);
+
+    // Amabilidad, no seguridad: quien manda de verdad es el servidor, que
+    // repite exactamente esta misma llamada (`validarSolicitud`) del otro
+    // lado. Corre ANTES de llamar al servidor para responder al instante en
+    // el error más común —falta un campo obligatorio—, sin el viaje de ida y
+    // vuelta. Ver el porqué de `noValidate` junto al `<form>` de abajo: el
+    // navegador ya no hace esta comprobación por su cuenta.
+    const revisionSolicitud = validarSolicitud({
+      nombre: datos.get("nombre"),
+      telefono: datos.get("telefono"),
+      correo: datos.get("correo"),
+      puesto: datos.get("puesto"),
+      experiencia: datos.get("experiencia"),
+      aviso: datos.get("aviso") === "si",
+    });
+    if (!revisionSolicitud.ok) {
+      setError(revisionSolicitud.motivo);
+      return;
+    }
+
     const revision = validarArchivo(archivo);
     if (!revision.ok) {
       setError(revision.motivo);
@@ -110,10 +135,21 @@ export default function FormularioEmpleo({ vacantes = [] }) {
     }
 
     setEnviando(true);
-    const datos = new FormData(e.currentTarget);
-    if (archivo) datos.set("curriculum", archivo);
-
-    const r = await enviarSolicitudEmpleo(datos);
+    let r;
+    try {
+      r = await enviarSolicitudEmpleo(datos);
+    } catch (err) {
+      // Aquí caen los fallos que la acción de servidor NO alcanza a
+      // convertir en `{ ok: false, motivo }` —sin conexión, o un cuerpo que
+      // el servidor rechaza de plano (por ejemplo, por pasarse del límite
+      // de tamaño)—. Sin este `catch`, ese rechazo tumbaba la promesa,
+      // `setEnviando(false)` nunca corría y el botón se quedaba en
+      // "Enviando…" para siempre, sin ningún mensaje.
+      console.error("[empleo] fallo inesperado al enviar:", err?.message);
+      setEnviando(false);
+      setError("No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
     setEnviando(false);
 
     if (!r.ok) {
@@ -160,6 +196,16 @@ export default function FormularioEmpleo({ vacantes = [] }) {
   }
 
   return (
+    // `noValidate` apaga POR COMPLETO la validación nativa del navegador
+    // (los globos de "completa este campo", el estilo `:invalid`, todo):
+    // los `required` de abajo YA NO bloquean nada por su cuenta —quedan
+    // como pista para lectores de pantalla y navegación por teclado, no
+    // como candado—. Es a propósito: los mensajes en español de `enviar()`
+    // (arriba) son mejores que los del navegador, que ni siquiera salen
+    // todos en el mismo idioma según el sistema de quien visita. La
+    // validación de verdad —la que decide si algo se guarda— es la de
+    // `validarSolicitud()` en el servidor; la de aquí sólo adelanta la
+    // respuesta.
     <form onSubmit={enviar} className="mc-form" noValidate>
       <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>
         Trabaja con nosotros
@@ -174,6 +220,30 @@ export default function FormularioEmpleo({ vacantes = [] }) {
           <span>{error}</span>
         </div>
       )}
+
+      {/* Honeypot anti-bots: oculto para personas, calcado de
+          FormularioCotizacion.js. La comprobación de verdad vive en
+          `enviarSolicitudEmpleo()` — esto sólo hace que un bot lo encuentre y
+          lo llene. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+        }}
+      >
+        <label htmlFor="empleo-sitio-web">No llenar</label>
+        <input
+          id="empleo-sitio-web"
+          name={CAMPO_HONEYPOT}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
 
       {/* Ocultos a propósito: los llena el <select> de más abajo, no la
           persona escribiéndolos directo. El `vacanteId` manda —es único—; el

@@ -4,7 +4,13 @@ import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { correoAvisoEmpleo, correoAcuseEmpleo } from "@/lib/correo";
 import { AVISO_PRIVACIDAD } from "@/lib/datos";
 import { VACANTES_SEED } from "@/lib/empleo-datos";
-import { validarSolicitud, validarArchivo, folioEmpleo } from "@/lib/empleo.mjs";
+import {
+  validarSolicitud,
+  validarArchivo,
+  folioEmpleo,
+  CAMPO_HONEYPOT,
+  EXTENSION_POR_TIPO_CV,
+} from "@/lib/empleo.mjs";
 import { registrar } from "@/lib/bitacora";
 import { usuarioActual } from "@/lib/supabase-sesion";
 
@@ -65,6 +71,16 @@ async function devolverIntento(sb, telefono) {
  * Aquí, si el correo falla, la solicitud ya está guardada y no se pierde.
  */
 export async function enviarSolicitudEmpleo(formData) {
+  // Honeypot: campo oculto que sólo un bot rellena (una persona no lo ve).
+  // El freno del paso 2 sólo mira el teléfono, y un bot que varía el
+  // teléfono en cada intento lo esquiva sin problema — y cada intento que sí
+  // pasa dispara el correo del paso 5. Se le dice que "sí" SIN tocar la base
+  // ni gastar un intento del freno: calcado de `enviarCotizacion()` en
+  // `app/actions.js`, para no darle pistas de que fue detectado.
+  if (formData.get(CAMPO_HONEYPOT)) {
+    return { ok: true, folio: folioEmpleo() };
+  }
+
   const entrada = {
     nombre: formData.get("nombre"),
     telefono: formData.get("telefono"),
@@ -114,7 +130,11 @@ export async function enviarSolicitudEmpleo(formData) {
   //    quién son.
   let cvRuta = null;
   if (traeArchivo) {
-    const extension = (archivo.name.split(".").pop() || "pdf").toLowerCase();
+    // La extensión sale del TIPO ya validado (`archivo.type`, uno de
+    // `TIPOS_CV`), no del nombre que mandó el navegador: ese nombre es texto
+    // libre —cualquiera puede llamar a su archivo "x/../y.pdf" o
+    // "curriculum.pdf/evil"— y va derecho a la ruta de Storage de abajo.
+    const extension = EXTENSION_POR_TIPO_CV[archivo.type] || "pdf";
     cvRuta = `${folio}/${Date.now()}.${extension}`;
     const { error: errSubida } = await sb.storage
       .from("curriculums")
@@ -158,7 +178,11 @@ export async function enviarSolicitudEmpleo(formData) {
 
   // 5) Los correos, hasta el final y sin poder tumbar nada.
   try {
-    await correoAvisoEmpleo({ folio, nombre, telefono, correo, puesto, experiencia, traeCurriculum: Boolean(cvRuta) });
+    await correoAvisoEmpleo({
+      folio, nombre, telefono, correo, puesto, experiencia,
+      traeCurriculum: Boolean(cvRuta),
+      vacanteCerrada: vacanteSeCerro,
+    });
     await correoAcuseEmpleo({ correo, nombre, folio, puesto });
   } catch (e) {
     console.error("[empleo] la solicitud SI se guardo, pero el correo fallo:", e?.message);

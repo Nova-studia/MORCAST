@@ -1,5 +1,6 @@
 /**
- * BORRA LAS SOLICITUDES DE MÁS DE 12 MESES.
+ * BORRA LAS SOLICITUDES DE MÁS DE 12 MESES — Y LOS INTENTOS DEL FRENO, DE
+ * MÁS DE 24 HORAS.
  *
  * La llama una tarea programada de Vercel una vez al día (`Web/vercel.json`).
  * Lo que el Aviso de Privacidad promete, lo cumple esto — por eso no se deja
@@ -9,9 +10,13 @@
  * Borra TODAS las de más de 12 meses, sin importar su estado, también las ya
  * contactadas. Inventar excepciones sería prometer una cosa en el Aviso y
  * hacer otra.
+ *
+ * De paso limpia `intentos_empleo`: esa tabla no la toca ninguna otra tarea,
+ * y guardarla más de 24 horas no cumple ninguna función (ver
+ * `corteIntentosEmpleo()` en `lib/empleo.mjs`).
  */
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
-import { fechaDeCorte } from "@/lib/empleo.mjs";
+import { fechaDeCorte, corteIntentosEmpleo } from "@/lib/empleo.mjs";
 
 export async function GET(peticion) {
   // `process.env.CRON_SECRET` sin definir es `undefined`, y una cabecera sin
@@ -29,6 +34,22 @@ export async function GET(peticion) {
   if (!haySupabase()) return Response.json({ ok: true, demo: true });
 
   const sb = supabaseServidor();
+
+  // `intentos_empleo` (db/021) es el freno de "3 por teléfono cada 24
+  // horas": un renglón de más de 24 horas ya no frena nada —ver el porqué en
+  // `corteIntentosEmpleo()`, en empleo.mjs—, así que se borra con SU PROPIO
+  // corte de 24 horas, no con los 12 meses de `solicitudes_empleo`. Va
+  // primero y aparte: no depende de si hoy hay o no solicitudes viejas que
+  // purgar, y un fallo aquí no debe impedir que la purga de abajo —la que sí
+  // cumple una promesa del Aviso de Privacidad— se intente igual.
+  const { error: errIntentos } = await sb
+    .from("intentos_empleo")
+    .delete()
+    .lt("ventana", corteIntentosEmpleo().toISOString());
+  if (errIntentos) {
+    console.error("[purga] no se pudieron borrar los intentos:", errIntentos.message);
+  }
+
   const corte = fechaDeCorte().toISOString();
 
   const { data: viejas, error } = await sb
@@ -40,7 +61,9 @@ export async function GET(peticion) {
     console.error("[purga] no se pudieron leer:", error.message);
     return Response.json({ ok: false }, { status: 500 });
   }
-  if (!viejas?.length) return Response.json({ ok: true, borradas: 0 });
+  if (!viejas?.length) {
+    return Response.json({ ok: true, borradas: 0, intentosFallaron: Boolean(errIntentos) });
+  }
 
   // Primero los archivos de la cubeta. Al revés quedarían currículums
   // huérfanos —documentos personales de gente real— que ya nadie sabe de
@@ -67,5 +90,10 @@ export async function GET(peticion) {
     return Response.json({ ok: false }, { status: 500 });
   }
 
-  return Response.json({ ok: true, borradas: viejas.length, archivos: rutas.length });
+  return Response.json({
+    ok: true,
+    borradas: viejas.length,
+    archivos: rutas.length,
+    intentosFallaron: Boolean(errIntentos),
+  });
 }

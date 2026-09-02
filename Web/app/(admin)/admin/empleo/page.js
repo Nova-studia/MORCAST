@@ -27,7 +27,7 @@ import {
 } from "@/lib/datos-empleo";
 import { enlaceCurriculum } from "@/lib/datos-archivos";
 import {
-  nombreDeVacante,
+  nombreDeSolicitud,
   fichaDeVacante,
   puedeBorrarseVacante,
   ESTADOS_SOLICITUD,
@@ -540,12 +540,15 @@ export default function EmpleoAdmin() {
                             <td style={{ whiteSpace: "nowrap" }}>{fecha(s.creado)}</td>
                             <td>{s.nombre}</td>
                             <td style={{ whiteSpace: "nowrap" }}>{s.telefono}</td>
-                            {/* SIEMPRE por `nombreDeVacante()`: la mayoría de
-                                las solicitudes NO traen vacante (son
+                            {/* SIEMPRE por `nombreDeSolicitud()`: la mayoría
+                                de las solicitudes NO traen vacante (son
                                 generales), y ese caso es el normal, no el
-                                raro. Escribir `s.puesto` a secas imprimió
-                                "undefined" en /admin/recolecciones. */}
-                            <td>{nombreDeVacante(vacantePorId.get(s.vacante_id))}</td>
+                                raro. Y a diferencia de `nombreDeVacante()` a
+                                secas, ésta SÍ mira `s.puesto` cuando la
+                                vacante ya no está —la plaza se cerró a medio
+                                llenado el formulario—, para no perder a qué
+                                puesto quería entrar la persona. */}
+                            <td>{nombreDeSolicitud(s, vacantePorId.get(s.vacante_id))}</td>
                             <td>{s.cv_ruta ? <Paperclip title="Trae currículum" /> : "—"}</td>
                             <td><span className={`pt-badge ${info.clase}`}>{info.texto}</span></td>
                           </tr>
@@ -590,7 +593,7 @@ export default function EmpleoAdmin() {
                     )}
                   </div>
 
-                  <Dato etiqueta="Puesto que busca" valor={nombreDeVacante(vacantePorId.get(sel.vacante_id))} />
+                  <Dato etiqueta="Puesto que busca" valor={nombreDeSolicitud(sel, vacantePorId.get(sel.vacante_id))} />
                   <Dato etiqueta="Teléfono" valor={sel.telefono} />
                   <Dato etiqueta="Correo" valor={sel.correo} />
                   <Dato etiqueta="Experiencia" valor={sel.experiencia} />

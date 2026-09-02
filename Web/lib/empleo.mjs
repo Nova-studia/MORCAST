@@ -22,6 +22,23 @@ export const LIMITES = {
 export const TIPOS_CV = ["application/pdf", "image/jpeg", "image/png"];
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
 
+/**
+ * A qué extensión corresponde cada tipo de `TIPOS_CV`.
+ *
+ * `acciones-empleo.js` la usa para nombrar el archivo en Storage EN VEZ de
+ * tomar la extensión del nombre que mandó el navegador: ese nombre es texto
+ * libre que la persona (o un bot) escribe a su antojo, y va derecho a la ruta
+ * de un archivo (`${folio}/${Date.now()}.${extension}`) — una extensión con
+ * un `/` o `..` metida ahí rompería esa ruta. El tipo (`archivo.type`) ya
+ * pasó por `validarArchivo()` antes de llegar aquí, así que sólo puede ser
+ * uno de estos tres.
+ */
+export const EXTENSION_POR_TIPO_CV = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+
 /** Cuánto se guarda una solicitud. Lo promete el Aviso de Privacidad. */
 export const MESES_QUE_SE_GUARDA = 12;
 
@@ -35,9 +52,48 @@ export const MESES_QUE_SE_GUARDA = 12;
  */
 export const TOPE_POR_DIA = 3;
 
+/**
+ * Desde cuándo se puede borrar un renglón de `intentos_empleo` (db/021).
+ *
+ * Esa tabla existe SÓLO para el freno de arriba (`TOPE_POR_DIA`,
+ * `puede_solicitar_empleo` en el SQL): un renglón de hace más de 24 horas ya
+ * no frena a nadie —la siguiente solicitud de ese teléfono reinicia la
+ * ventana igual, la encuentre vieja o no—, así que guardarlo más tiempo no
+ * cumple ninguna función. Y sí tiene un costo: es una lista de teléfonos de
+ * gente que buscó trabajo, algo que el Aviso de Privacidad ni siquiera
+ * contempla para esta tabla (sólo promete 12 meses para `solicitudes_empleo`,
+ * que es otra cosa). Por eso la tarea de purga (`purgar-empleo/route.js`)
+ * también la limpia, con el mismo corte de 24 horas del freno, no con los 12
+ * meses de `MESES_QUE_SE_GUARDA`.
+ */
+export function corteIntentosEmpleo(ahora = new Date()) {
+  return new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+}
+
 export const ESTADOS_SOLICITUD = ["nueva", "revisada", "contactada", "descartada"];
 export const AREAS = ["operacion", "oficina"];
 export const TIPOS_VACANTE = ["tiempo-completo", "medio-tiempo", "temporal"];
+
+/**
+ * Nombre fijo de la casilla trampa (honeypot) del formulario público.
+ *
+ * Un campo oculto que ninguna persona ve ni llena, pero que un bot que
+ * rellena todos los `<input>` sí. Calcado de `sitio_web` en
+ * `FormularioCotizacion.js` / `app/actions.js`: mismo nombre, mismo criterio
+ * ("si viene lleno, es un bot"). Vive en UN solo lugar para que el formulario
+ * y la acción de servidor nunca se desincronicen en el nombre del campo.
+ */
+export const CAMPO_HONEYPOT = "sitio_web";
+
+/**
+ * No es una vacante real —no tiene id—, así que la solicitud que la usa
+ * nunca lleva `vacanteId`: es justo la opción que la vuelve general.
+ *
+ * Vive aquí y no en `FormularioEmpleo.js` porque `nombreDeSolicitud()`
+ * también la necesita, para distinguir "de verdad no pidió nada" de "sí
+ * pidió un puesto, pero la vacante ya no existe".
+ */
+export const CUALQUIER_PUESTO = "Cualquier puesto disponible";
 
 /**
  * Topes de lo que Morcast escribe en una vacante.
@@ -141,6 +197,30 @@ export function fechaDeCorte(hoy = new Date(), meses = MESES_QUE_SE_GUARDA) {
  */
 export function nombreDeVacante(vacante) {
   return vacante?.puesto || "Solicitud general";
+}
+
+/**
+ * Cómo se llama la vacante de una SOLICITUD, en el panel.
+ *
+ * Distinto de `nombreDeVacante()`: esa función sólo mira la vacante (o su
+ * ausencia). Ésta mira también `solicitud.puesto` —el texto que el
+ * candidato tenía delante al mandar el formulario, que la acción de servidor
+ * SIEMPRE guarda, tenga o no `vacante_id`—: si la vacante se cerró a medio
+ * llenado el formulario, `vacante_id` queda `null` pero `puesto` sí quedó
+ * escrito. El panel llamaba antes a `nombreDeVacante(vacantePorId.get(...))`
+ * a secas, así que ese caso mostraba "Solicitud general" y se perdía a qué
+ * plaza quería entrar la persona.
+ *
+ * "Solicitud general" a secas queda sólo para quien de verdad no pidió
+ * nada (mandó el formulario con el centinela `CUALQUIER_PUESTO`).
+ */
+export function nombreDeSolicitud(solicitud, vacante) {
+  if (vacante) return nombreDeVacante(vacante);
+  const puesto = solicitud?.puesto;
+  if (puesto && puesto !== CUALQUIER_PUESTO) {
+    return `Solicitud general · pedía: ${puesto}`;
+  }
+  return "Solicitud general";
 }
 
 /** Etiquetas legibles de área y tipo. */

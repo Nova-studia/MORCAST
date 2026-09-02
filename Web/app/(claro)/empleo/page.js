@@ -14,6 +14,21 @@ export const metadata = {
 };
 
 /**
+ * Esta página NO puede ser estática, aunque nada de lo de arriba lo delate.
+ *
+ * `vacantesAbiertas()` lee la base EN CADA VISITA porque así lo necesita esta
+ * pantalla: sin esta línea, Next no ve ninguna razón para no congelarla en
+ * el build (no hay cookies, ni headers, ni nada que la vuelva dinámica "por
+ * accidente"), y la prerenderiza una sola vez (`○ /empleo` en la salida de
+ * `next build`). El resultado es que la dueña publica una vacante desde el
+ * panel y el sitio sigue enseñando lo de antes hasta el próximo despliegue
+ * —o, peor, la cierra y /empleo la sigue ofreciendo, recibiendo gente para
+ * un puesto que ya no existe—. Eso rompe la razón de ser de la función: que
+ * ella publique sola, sin depender de un despliegue de nadie.
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * `FormularioEmpleo` lee `?vacante=<id>` con `useSearchParams()` para
  * preseleccionar la vacante —esa lógica vive ahí, no se repite aquí—. Este
  * bloque de respaldo evita el salto de maquetado mientras Next resuelve el

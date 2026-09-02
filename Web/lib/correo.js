@@ -504,12 +504,35 @@ export async function correoContrasenaCambiada({ correo }) {
 /* Trabaja con nosotros                                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Cuánto de la experiencia entra al correo. `LIMITES.experiencia` (en
+ * `empleo.mjs`) permite hasta 2000 caracteres, y este correo cae en un buzón
+ * que nadie borra (`CORREO_AVISOS`) — mismo criterio que ya se usa para no
+ * mandar el currículum por correo: lo largo se ve en el panel, no aquí.
+ */
+const EXTRACTO_EXPERIENCIA = 220;
+
+/** Recorta la experiencia a un extracto, con "…" sólo si de verdad se cortó. */
+function extractoExperiencia(experiencia) {
+  const texto = String(experiencia ?? "");
+  if (texto.length <= EXTRACTO_EXPERIENCIA) return texto;
+  return `${texto.slice(0, EXTRACTO_EXPERIENCIA).trimEnd()}…`;
+}
+
 /** A MORCAST: llegó una solicitud de empleo. */
 export async function correoAvisoEmpleo(datos) {
   const fila = (etiqueta, valor) =>
     valor
       ? `<tr><td style="padding:6px 12px 6px 0;font-weight:bold;white-space:nowrap;vertical-align:top">${etiqueta}</td><td style="padding:6px 0">${esc(valor)}</td></tr>`
       : "";
+  // `datos.puesto` ya trae el título de la vacante real, o el texto fijo de
+  // "solicitud general" cuando no aplicó a ninguna — ver `puesto` en
+  // `enviarSolicitudEmpleo()`. Si la vacante se cerró a medio llenado el
+  // formulario, se avisa aparte: el título en `puesto` sigue siendo el de
+  // esa plaza, pero ya no hay vacante abierta detrás.
+  const vacante = datos.vacanteCerrada
+    ? `${datos.puesto} (se cerró antes de que llegara esta solicitud)`
+    : datos.puesto;
   return enviar({
     from: REMITENTE,
     to: [CORREO_AVISOS],
@@ -522,14 +545,15 @@ export async function correoAvisoEmpleo(datos) {
         ${fila("Nombre", datos.nombre)}
         ${fila("Teléfono", datos.telefono)}
         ${fila("Correo", datos.correo)}
-        ${fila("Puesto", datos.puesto)}
-        ${fila("Experiencia", datos.experiencia)}
+        ${fila("Vacante", vacante)}
+        ${fila("Experiencia", extractoExperiencia(datos.experiencia))}
         ${fila("Currículum", datos.traeCurriculum ? "Sí, adjunto en el panel" : "No adjuntó")}
       </table>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
-        Ábrela en el panel, en <strong>Trabaja con nosotros</strong>. El currículum
-        no viaja en este correo a propósito: se ve desde el panel con un enlace que
-        caduca, para que no se multiplique en bandejas de entrada.</p>`),
+        Ábrela en el panel, en <strong>Trabaja con nosotros</strong>, para ver la
+        experiencia completa. El currículum tampoco viaja en este correo a
+        propósito: se ve desde el panel con un enlace que caduca, para que no
+        se multiplique en bandejas de entrada.</p>`),
   });
 }
 
