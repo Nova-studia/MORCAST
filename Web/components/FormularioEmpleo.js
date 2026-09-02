@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CheckCircle,
@@ -58,6 +58,34 @@ export default function FormularioEmpleo({ vacantes = [] }) {
   const [seleccion, setSeleccion] = useState(
     vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
   );
+
+  // Último id de `?vacante=` que ya se aplicó al <select>. Arranca igual que
+  // `idPreseleccionado` para que el efecto de abajo no repita en el montaje
+  // lo que el `useState` de arriba ya resolvió.
+  const idAplicadoRef = useRef(idPreseleccionado);
+
+  // POR QUÉ EXISTE ESTE EFECTO: `<Link>` entre `/empleo` y
+  // `/empleo?vacante=<id>` es la MISMA ruta, así que Next hace una navegación
+  // suave y este componente no se vuelve a montar. Sin este efecto, el
+  // `useState` de arriba —que sólo lee `searchParams` una vez, al montar—
+  // nunca se entera de que la URL cambió: el candidato hace clic en "Aplicar
+  // a esta vacante" y el formulario le llega con el puesto sin elegir, cree
+  // que aplicó a una plaza concreta y en realidad quedó como solicitud
+  // general.
+  //
+  // Sólo se aplica cuando el id de la URL CAMBIA DE VERDAD (se compara contra
+  // `idAplicadoRef`, no se dispara en cada render) para no pisar una elección
+  // manual: si alguien está en `/empleo?vacante=A`, cambia el <select> a
+  // "Cualquier puesto" a mano y no toca la URL, `idPreseleccionado` sigue
+  // siendo "A" —igual al último aplicado— y este efecto no vuelve a correr.
+  useEffect(() => {
+    if (idPreseleccionado === idAplicadoRef.current) return;
+    idAplicadoRef.current = idPreseleccionado;
+    setSeleccion(
+      vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : CUALQUIER_VALOR
+    );
+  }, [idPreseleccionado, vacantes]);
+
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);

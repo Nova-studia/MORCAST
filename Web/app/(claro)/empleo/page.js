@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { Encabezado } from "@/components/Secciones";
 import FormularioEmpleo from "@/components/FormularioEmpleo";
@@ -64,22 +65,12 @@ export default async function Empleo() {
                             ))}
                           </ul>
                         )}
-                        {/* `<a>` a propósito, no `<Link>`: la preselección del
-                            `<select>` la resuelve `FormularioEmpleo` una sola
-                            vez, al montarse, leyendo `?vacante=` con
-                            `useSearchParams()`. La navegación suave de
-                            `<Link>` entre `/empleo` y `/empleo?vacante=…` no
-                            remonta el formulario —sigue siendo la misma
-                            ruta—, así que el cambio de query nunca le llega y
-                            la vacante se queda sin marcar. La recarga
-                            completa de `<a>` sí lo remonta con el parámetro
-                            ya puesto. */}
-                        <a
+                        <Link
                           href={`/empleo?vacante=${v.id}#solicitud`}
                           className="mc-btn mc-btn-linea mt-auto"
                         >
                           Aplicar a esta vacante <ArrowRight aria-hidden="true" />
-                        </a>
+                        </Link>
                       </article>
                     </div>
                   );
