@@ -316,11 +316,18 @@ export default function EmpleoAdmin() {
                   <X />
                 </button>
               </div>
+              {/* Los `id` van fijos (no con `useId()`) porque este `<form>`
+                  sale de un único `{form && (...)}`: nunca hay una vacante en
+                  alta y otra en edición montadas a la vez en la pantalla, así
+                  que no hace falta generarlos por instancia. Prefijados con
+                  `empleo-vacante-` para no chocar con otro `id="puesto"` que
+                  pudiera existir en el resto del panel. */}
               <form onSubmit={guardar}>
                 <div className="pt-grid pt-grid-3" style={{ gap: "0.8rem", marginBottom: "0.4rem" }}>
                   <div className="pt-campo" style={{ margin: 0 }}>
-                    <label>Puesto</label>
+                    <label htmlFor="empleo-vacante-puesto">Puesto</label>
                     <input
+                      id="empleo-vacante-puesto"
                       className="pt-input"
                       required
                       maxLength={120}
@@ -329,8 +336,9 @@ export default function EmpleoAdmin() {
                     />
                   </div>
                   <div className="pt-campo" style={{ margin: 0 }}>
-                    <label>Área</label>
+                    <label htmlFor="empleo-vacante-area">Área</label>
                     <select
+                      id="empleo-vacante-area"
                       className="pt-input"
                       value={form.area}
                       onChange={(e) => setForm({ ...form, area: e.target.value })}
@@ -341,8 +349,9 @@ export default function EmpleoAdmin() {
                     </select>
                   </div>
                   <div className="pt-campo" style={{ margin: 0 }}>
-                    <label>Tipo</label>
+                    <label htmlFor="empleo-vacante-tipo">Tipo</label>
                     <select
+                      id="empleo-vacante-tipo"
                       className="pt-input"
                       value={form.tipo}
                       onChange={(e) => setForm({ ...form, tipo: e.target.value })}
@@ -354,8 +363,9 @@ export default function EmpleoAdmin() {
                   </div>
                 </div>
                 <div className="pt-campo">
-                  <label>Descripción</label>
+                  <label htmlFor="empleo-vacante-descripcion">Descripción</label>
                   <textarea
+                    id="empleo-vacante-descripcion"
                     className="pt-input"
                     rows={3}
                     maxLength={1200}
@@ -365,8 +375,9 @@ export default function EmpleoAdmin() {
                   />
                 </div>
                 <div className="pt-campo">
-                  <label>Requisitos (uno por renglón)</label>
+                  <label htmlFor="empleo-vacante-requisitos">Requisitos (uno por renglón)</label>
                   <textarea
+                    id="empleo-vacante-requisitos"
                     className="pt-input"
                     rows={4}
                     value={form.requisitosTexto}
