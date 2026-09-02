@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  LIMITES, MAX_CV_BYTES, MESES_QUE_SE_GUARDA,
+  LIMITES, MAX_CV_BYTES, MESES_QUE_SE_GUARDA, LIMITES_VACANTE,
   texto, folioEmpleo, validarSolicitud, validarArchivo,
   fechaDeCorte, puedeBorrarseVacante, nombreDeVacante, fichaDeVacante,
+  validarVacante,
 } from "../lib/empleo.mjs";
 
 const buena = {
@@ -103,4 +104,40 @@ test("una vacante con candidatos no se puede borrar", () => {
   assert.equal(puedeBorrarseVacante(0).ok, true);
   assert.equal(puedeBorrarseVacante(1).ok, false);
   assert.match(puedeBorrarseVacante(3).motivo, /3 candidatos/);
+});
+
+// La vacante SALE A /empleo, que es publica: sin este tope, un texto pegado
+// por accidente al capturarla revienta la maqueta de las tarjetas y del
+// <select> del formulario. La columna es `text` sin limite en la base, asi
+// que nada mas lo para.
+test("un puesto larguisimo se recorta al tope, no revienta el guardado", () => {
+  const r = validarVacante({ puesto: "x".repeat(500), area: "operacion", tipo: "temporal" });
+  assert.equal(r.ok, true);
+  assert.equal(r.limpia.puesto.length, LIMITES_VACANTE.puesto);
+});
+
+test("una vacante sin puesto no pasa", () => {
+  assert.equal(validarVacante({ puesto: "", area: "operacion" }).ok, false);
+  assert.equal(validarVacante({ area: "operacion" }).ok, false);
+});
+
+test("la lista de requisitos se corta al maximo de renglones", () => {
+  const muchos = Array.from({ length: 30 }, (_, i) => `Requisito ${i}`);
+  const r = validarVacante({ puesto: "Chofer", requisitos: muchos });
+  assert.equal(r.ok, true);
+  assert.equal(r.limpia.requisitos.length, LIMITES_VACANTE.requisitos);
+  // Se quedan los primeros, no unos al azar: es lo que la persona capturo
+  // primero, y es lo que deberia sobrevivir si algo se corta.
+  assert.equal(r.limpia.requisitos[0], "Requisito 0");
+});
+
+test("cada requisito se recorta al tope, y los renglones vacios no cuentan", () => {
+  const r = validarVacante({
+    puesto: "Chofer",
+    requisitos: ["y".repeat(500), "", "  ", "Licencia federal"],
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.limpia.requisitos[0].length, LIMITES_VACANTE.requisito);
+  // "" y "  " (solo espacios) desaparecen: no ocupan uno de los 12 lugares.
+  assert.deepEqual(r.limpia.requisitos.slice(1), ["Licencia federal"]);
 });

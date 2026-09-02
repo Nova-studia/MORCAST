@@ -39,6 +39,22 @@ export const ESTADOS_SOLICITUD = ["nueva", "revisada", "contactada", "descartada
 export const AREAS = ["operacion", "oficina"];
 export const TIPOS_VACANTE = ["tiempo-completo", "medio-tiempo", "temporal"];
 
+/**
+ * Topes de lo que Morcast escribe en una vacante.
+ *
+ * Van aparte de `LIMITES`, que son los del candidato: no es lo mismo el puesto
+ * que alguien BUSCA que el titulo de una plaza que se PUBLICA. Y existen
+ * porque esto sale en /empleo, que es publico: un texto pegado por error
+ * revienta la maqueta de las tarjetas y del desplegable del formulario. La
+ * columna es `text` sin tope en la base, asi que sin esto nada lo para.
+ */
+export const LIMITES_VACANTE = {
+  puesto: 120,
+  descripcion: 1200,
+  requisito: 200,
+  requisitos: 12, // cuantos renglones de requisitos, como maximo
+};
+
 /** Recorta al límite en vez de reventar. Igual que en `acciones-alta.js`. */
 export const texto = (v, max) => String(v ?? "").trim().slice(0, max);
 
@@ -146,6 +162,34 @@ export function fichaDeVacante(vacante) {
   return [NOMBRE_AREA[vacante?.area], NOMBRE_TIPO[vacante?.tipo]]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * Recorta y valida lo que Morcast escribe al publicar (o editar) una
+ * vacante. Se llama ANTES de escribir, no después: `puesto` y `descripcion`
+ * salen tal cual a /empleo, que es pública.
+ *
+ * Recortar en vez de rechazar sigue el mismo criterio que `texto()` usa para
+ * el candidato: un puesto larguísimo pegado por error se acorta, no revienta
+ * el guardado. Un puesto vacío sí se rechaza —no hay nada razonable que
+ * recortar de la nada.
+ */
+export function validarVacante(entrada) {
+  const puesto = texto(entrada?.puesto, LIMITES_VACANTE.puesto);
+  const descripcion = texto(entrada?.descripcion, LIMITES_VACANTE.descripcion);
+  // Renglones vacíos (el candado "Enter" de más en el formulario) se caen
+  // ANTES de contar el máximo, para no gastar un lugar de los 12 en nada.
+  const requisitos = (Array.isArray(entrada?.requisitos) ? entrada.requisitos : [])
+    .map((r) => texto(r, LIMITES_VACANTE.requisito))
+    .filter(Boolean)
+    .slice(0, LIMITES_VACANTE.requisitos);
+
+  if (!puesto) return { ok: false, motivo: "Falta el puesto." };
+
+  return {
+    ok: true,
+    limpia: { puesto, area: entrada?.area, tipo: entrada?.tipo, descripcion, requisitos },
+  };
 }
 
 /**

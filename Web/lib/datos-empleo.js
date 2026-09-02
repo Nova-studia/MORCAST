@@ -16,7 +16,7 @@
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { VACANTES_SEED, SOLICITUDES_EMPLEO_SEED } from "@/lib/empleo-datos";
-import { puedeBorrarseVacante } from "@/lib/empleo.mjs";
+import { puedeBorrarseVacante, validarVacante } from "@/lib/empleo.mjs";
 
 /* ==================================================================== */
 /* VACANTES                                                             */
@@ -45,18 +45,21 @@ export async function listarVacantes() {
  * El estado NO se toca aquí — nace "abierta" y de ahí en adelante lo mueve
  * `cambiarEstadoVacante`, para que "cerrar" y "reabrir" sean un solo camino en
  * vez de un caso especial dentro del formulario.
+ *
+ * `validarVacante()` (empleo.mjs) recorta y valida ANTES de escribir, no
+ * después: la vacante sale a /empleo, que es pública, y la columna es `text`
+ * sin tope en la base — sin este paso, un texto pegado por accidente al
+ * capturarla saldría tal cual a la página y reventaría la maqueta de las
+ * tarjetas y del <select> del formulario.
  */
 export async function guardarVacante(v) {
+  const validada = validarVacante(v);
+  if (!validada.ok) return validada;
+
   if (!haySupabaseNavegador()) return { ok: true, demo: true };
 
   const supabase = supabaseNavegador();
-  const datos = {
-    puesto: String(v?.puesto ?? "").trim(),
-    area: v?.area,
-    tipo: v?.tipo,
-    descripcion: String(v?.descripcion ?? "").trim(),
-    requisitos: Array.isArray(v?.requisitos) ? v.requisitos : [],
-  };
+  const datos = validada.limpia;
 
   if (v?.id) {
     const { data, error } = await supabase
