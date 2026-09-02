@@ -343,6 +343,7 @@ export const NAVEGACION_SECUNDARIA = [
   { texto: "Servicios", href: "/servicios" },
   { texto: "Nosotros", href: "/nosotros" },
   { texto: "Contacto", href: "/contacto" },
+  { texto: "Trabaja con nosotros", href: "/empleo" },
 ];
 
 export const FRECUENCIAS = [
