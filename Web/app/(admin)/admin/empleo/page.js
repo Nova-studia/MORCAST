@@ -163,8 +163,7 @@ export default function EmpleoAdmin() {
     setVacantes((l) => (form.id ? l.map((v) => (v.id === form.id ? limpia : v)) : [limpia, ...l]));
 
     await registrarAccionEmpleo({
-      accion: "empleo.vacante",
-      tabla: "vacantes",
+      evento: "vacante",
       registroId: limpia.id,
       detalle: { puesto: limpia.puesto, nuevo: !form.id },
     });
@@ -181,8 +180,7 @@ export default function EmpleoAdmin() {
     }
     setVacantes((l) => l.map((x) => (x.id === v.id ? { ...x, estado } : x)));
     await registrarAccionEmpleo({
-      accion: "empleo.vacante",
-      tabla: "vacantes",
+      evento: "vacante",
       registroId: v.id,
       detalle: { puesto: v.puesto, estado },
     });
@@ -199,8 +197,7 @@ export default function EmpleoAdmin() {
     setVacantes((l) => l.filter((x) => x.id !== id));
     if (form?.id === id) setForm(null);
     await registrarAccionEmpleo({
-      accion: "empleo.vacante",
-      tabla: "vacantes",
+      evento: "vacante",
       registroId: id,
       detalle: { puesto: v?.puesto, borrada: true },
     });
@@ -245,8 +242,7 @@ export default function EmpleoAdmin() {
     }
     setSolicitudes((l) => l.map((s) => (s.id === sel.id ? { ...s, estado, notas } : s)));
     await registrarAccionEmpleo({
-      accion: "empleo.estado",
-      tabla: "solicitudes_empleo",
+      evento: "estado",
       registroId: sel.id,
       detalle: { folio: sel.folio, estado, notas: notas || null },
     });

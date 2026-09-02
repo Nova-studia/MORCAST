@@ -6,6 +6,7 @@ import { AVISO_PRIVACIDAD } from "@/lib/datos";
 import { VACANTES_SEED } from "@/lib/empleo-datos";
 import { validarSolicitud, validarArchivo, folioEmpleo } from "@/lib/empleo.mjs";
 import { registrar } from "@/lib/bitacora";
+import { usuarioActual } from "@/lib/supabase-sesion";
 
 /**
  * LAS VACANTES DE LA PÁGINA PÚBLICA.
@@ -172,6 +173,31 @@ export async function enviarSolicitudEmpleo(formData) {
   };
 }
 
+const PERSONAL = ["dueno", "admin"];
+
+/** Calcado de `exigirPersonal()` en `acciones-auditadas.js` y
+ *  `acciones-alta-cliente.js`: no se comparte un helper porque cada acción
+ *  de servidor es su propio endpoint y tiene que exigir el permiso por su
+ *  cuenta, no heredarlo de que alguien más lo haya hecho bien. */
+async function exigirPersonal() {
+  const quien = await usuarioActual();
+  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
+  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
+  return { quien };
+}
+
+/**
+ * Los ÚNICOS dos eventos que el panel de empleo puede dejar en la bitácora,
+ * y a qué tabla apunta cada uno. Es una lista cerrada a propósito: el
+ * navegador manda `evento` ("vacante" | "estado"), nunca `accion` ni `tabla`
+ * sueltos — así nadie puede escribir en la bitácora un texto inventado ni
+ * apuntarlo a una tabla que no es.
+ */
+const EVENTOS = {
+  vacante: { accion: "empleo.vacante", tabla: "vacantes" },
+  estado: { accion: "empleo.estado", tabla: "solicitudes_empleo" },
+};
+
 /**
  * PUENTE de servidor para dejar constancia en la bitácora desde el panel
  * (Tarea 10: `app/(admin)/admin/empleo/page.js`).
@@ -182,7 +208,36 @@ export async function enviarSolicitudEmpleo(formData) {
  * lo importa. El cambio de verdad (guardar la vacante, mover el estado de la
  * solicitud) ya va con la sesión del usuario desde `lib/datos-empleo.js`, con
  * el RLS de por medio; esta función sólo audita, no repite la escritura.
+ *
+ * Pero una acción de servidor es, ella misma, un endpoint abierto al mundo:
+ * cualquiera puede invocarla desde el navegador con los argumentos que
+ * quiera, tenga sesión o no. El ACTOR ya es seguro —`registrar()` lo saca de
+ * la SESIÓN, nunca del argumento—, pero sin exigir personal aquí un
+ * desconocido podía insertar filas de bitácora a su antojo y llenarla de
+ * ruido, y la bitácora sólo sirve para responder "¿quién hizo esto?" si
+ * nadie más puede escribirle basura. De ahí los dos candados: primero el
+ * permiso, y luego que la `accion` que se guarda la componga ESTE archivo
+ * (vía `EVENTOS`) y no la que mande el navegador.
  */
-export async function registrarAccionEmpleo(detalle) {
-  await registrar(detalle);
+export async function registrarAccionEmpleo({ evento, registroId, detalle }) {
+  // Mismo orden que `activarCuentaCliente()`: en modo demostración no hay
+  // sesión de verdad que `exigirPersonal()` pueda leer (no hay Supabase
+  // detrás de `supabaseSesion()`), así que se sale primero por aquí — igual
+  // que `registrar()` ya hace por su cuenta — en vez de arriesgar una
+  // llamada de red contra un backend que no existe.
+  if (!haySupabase()) return;
+
+  const { error: sinPermiso } = await exigirPersonal();
+  if (sinPermiso) {
+    console.warn("[empleo] registrarAccionEmpleo sin permiso:", sinPermiso);
+    return;
+  }
+
+  const def = EVENTOS[evento];
+  if (!def) {
+    console.warn("[empleo] registrarAccionEmpleo: evento desconocido:", evento);
+    return;
+  }
+
+  await registrar({ accion: def.accion, tabla: def.tabla, registroId, detalle });
 }

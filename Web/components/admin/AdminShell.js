@@ -25,12 +25,15 @@ const NAV = [
   { href: "/admin/zonas-pedidas", texto: "Zonas pedidas", gif: "zonas-pedidas" },
   { href: "/admin/solicitudes", texto: "Solicitudes", gif: "solicitudes" },
   { href: "/admin/altas", texto: "Altas de clientes", gif: "altas-de-clientes" },
-  // "documentos" es PROVISIONAL: no existe un icono propio para esto. Si
-  // Luis entrega trabaja-con-nosotros.png/.webp en public/img/iconos-
-  // animados/, se cambia esa palabra y ya. No se reusa "usuarios-y-roles":
-  // en el rail recogido el icono es lo ÚNICO que se ve, y dos iguales se
-  // vuelven indistinguibles.
-  { href: "/admin/empleo", texto: "Trabaja con nosotros", gif: "documentos" },
+  // `trabaja-con-nosotros.png`/`.webp` son PROVISIONALES: hoy son una copia
+  // de `cotizar` (mismo icono, otro nombre), porque no existe un icono
+  // propio para esto todavía. Se reemplazan solos en cuanto Luis suelte los
+  // dos archivos con ese mismo nombre en public/img/iconos-animados/. No se
+  // reusa el nombre de OTRO renglón (p. ej. "documentos", que ya es de
+  // Bitácora, o "usuarios-y-roles"): en el rail recogido el icono es lo
+  // ÚNICO que se ve, y dos renglones con el mismo nombre de icono se vuelven
+  // indistinguibles.
+  { href: "/admin/empleo", texto: "Trabaja con nosotros", gif: "trabaja-con-nosotros" },
   { href: "/admin/clientes", texto: "Clientes", gif: "clientes" },
   { href: "/admin/saldos", texto: "Saldos de clientes", gif: "por-pagar" },
   { href: "/admin/servicios", texto: "Servicios", gif: "servicios" },
