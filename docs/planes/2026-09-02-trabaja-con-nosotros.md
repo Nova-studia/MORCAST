@@ -362,7 +362,7 @@ export function puedeBorrarseVacante(numeroDeSolicitudes) {
 - [ ] **Paso 4: Correr las pruebas y comprobar que pasan**
 
 Correr: `cd Web && npm test`
-Se espera: las 78 de antes + las 9 nuevas, todas en verde.
+Se espera: las 78 de antes + las 12 nuevas, todas en verde.
 
 - [ ] **Paso 5: Guardar**
 
