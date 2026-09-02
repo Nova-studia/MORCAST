@@ -5,6 +5,7 @@ import { correoAvisoEmpleo, correoAcuseEmpleo } from "@/lib/correo";
 import { AVISO_PRIVACIDAD } from "@/lib/datos";
 import { VACANTES_SEED } from "@/lib/empleo-datos";
 import { validarSolicitud, validarArchivo, folioEmpleo } from "@/lib/empleo.mjs";
+import { registrar } from "@/lib/bitacora";
 
 /**
  * LAS VACANTES DE LA PÁGINA PÚBLICA.
@@ -169,4 +170,19 @@ export async function enviarSolicitudEmpleo(formData) {
       ? "Ese puesto acaba de cerrarse, pero tu solicitud quedó registrada y la tomamos en cuenta para las próximas vacantes."
       : null,
   };
+}
+
+/**
+ * PUENTE de servidor para dejar constancia en la bitácora desde el panel
+ * (Tarea 10: `app/(admin)/admin/empleo/page.js`).
+ *
+ * `registrar()` no se puede llamar directo desde ese archivo: es "use
+ * client", y `lib/bitacora.js` arrastra `lib/supabase-sesion.js`, que usa
+ * `next/headers` — eso revienta el build en cuanto un componente de cliente
+ * lo importa. El cambio de verdad (guardar la vacante, mover el estado de la
+ * solicitud) ya va con la sesión del usuario desde `lib/datos-empleo.js`, con
+ * el RLS de por medio; esta función sólo audita, no repite la escritura.
+ */
+export async function registrarAccionEmpleo(detalle) {
+  await registrar(detalle);
 }
