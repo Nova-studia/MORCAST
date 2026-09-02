@@ -120,7 +120,7 @@ la Bitácora con quién lo hizo.
 | Columna | Tipo | Nota |
 |---|---|---|
 | `id` | uuid, pk | |
-| `folio` | text, unique, not null | `EMP-<año>-<consecutivo>`. El consecutivo **reinicia cada año**, como el de clientes. Lo pone la base |
+| `folio` | text, unique, not null | `EMP-2026-8F3K`. Lo pone el servidor, **no** la base (ver §6.3) |
 | `nombre` | text, not null | |
 | `telefono` | text, not null | |
 | `correo` | text | Puede ir vacío a propósito |
@@ -166,9 +166,14 @@ navegador porque están dentro del sistema. Aquí no hay nadie dentro.
   Nadie de fuera escribe ni lee en ella, ni adivinando la ruta. Sube el servidor
   con la llave de servicio; el panel la lee con un **enlace temporal firmado**,
   con la misma maquinaria de `enlaceTemporal()` que ya usan las evidencias.
-- **Folio**: lo pone un disparador de la base con `pg_advisory_xact_lock`,
-  calcado de `asignar_folio_cliente()` (db/014), que existe justo para que dos
-  solicitudes simultáneas no choquen.
+- **Folio**: `EMP-<año>-<cuatro caracteres al azar>`, puesto por el servidor.
+  **Corregido el 2-sep al planear**: el diseño decía copiar el disparador con
+  candado de `asignar_folio_cliente()` (db/014), pero ése existe para el padrón
+  de clientes, que es una lista consecutiva. El precedente correcto es
+  `solicitudes_alta`, que es lo mismo que esto —un formulario público— y usa un
+  sufijo al azar precisamente **para no tener que leer la tabla antes de
+  escribir**. Se lee igual por teléfono, se ahorra un disparador, un candado y
+  una carrera que no hay que resolver porque no se crea.
 
 ### 6.4 Correos
 
@@ -306,7 +311,9 @@ proyecto.
 | Entrada del rail | `Web/components/admin/AdminShell.js` (arreglo `ENLACES`) |
 | Enlace del pie | `Web/components/Footer.js` |
 | Datos de ejemplo (modo demostración) | `Web/lib/empleo-datos.js` |
-| Subida y enlace del currículum | `Web/lib/datos-archivos.js` (se le agregan `subirCurriculum` y `enlaceCurriculum`, junto a los que ya hay) |
+| **Subida** del currículum | `Web/app/acciones-empleo.js`. **Corregido el 2-sep al planear**: NO puede ir en `lib/datos-archivos.js`, porque ese archivo es `"use client"` y sube con la sesión del navegador. Quien aplica no tiene sesión: sube el servidor |
+| **Enlace** del currículum | `Web/lib/datos-archivos.js` (`enlaceCurriculum`, junto a los que ya hay). Éste sí va ahí: lo pide el panel, que sí tiene sesión |
+| Reglas puras y comprobables | `Web/lib/empleo.mjs`. Las pruebas del proyecto importan de módulos `.mjs` sin React ni Supabase (así es `estado-cliente.mjs`); la validación, el corte de los 12 meses y el tope de 3 por día viven ahí para poder probarse |
 | Ruta de la tarea programada | `Web/app/api/tareas/purgar-empleo/route.js` |
 | Declaración de la tarea | `Web/vercel.json` (nuevo) |
 | Texto del Aviso de Privacidad | `Web/app/(claro)/aviso-de-privacidad/page.js` |
