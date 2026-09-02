@@ -30,24 +30,32 @@ const CUALQUIER_PUESTO = "Cualquier puesto disponible";
 export default function FormularioEmpleo({ vacantes = [] }) {
   const searchParams = useSearchParams();
 
-  // Si la página trae ?vacante=<id>, se preselecciona por su TEXTO (el select
-  // manda `puesto` como texto, que es lo que guarda el registro); el id sólo
-  // viaja aparte, en el campo oculto, y se deriva de ese mismo texto más
-  // abajo — así nunca se desincronizan uno del otro.
+  // El `id` es único y el `puesto` NO —dos plazas de "Ayudante de
+  // recolección" son lo más normal del mundo—, así que el estado guarda el
+  // id elegido, nunca el texto. Si se guardara el texto, un `find` por texto
+  // devolvería SIEMPRE la primera vacante que lo tenga, amarrando la
+  // solicitud a la plaza equivocada.
+  //
+  // Eso hacía además que `?vacante=<id>` fallara EN SILENCIO con vacantes
+  // duplicadas: la preselección encontraba el id de la URL, pero al
+  // reconvertir su texto de vuelta a id devolvía el de la primera coincidencia
+  // — el candidato aplicaba a una plaza y quedaba registrado en otra. Al
+  // guardar el id no hay ida y vuelta: la URL ES el valor del <select>.
   const idPreseleccionado = searchParams.get("vacante") || "";
-  const vacantePreseleccionada = vacantes.find((v) => v.id === idPreseleccionado);
 
-  const [puesto, setPuesto] = useState(vacantePreseleccionada?.puesto || "");
+  const [vacanteId, setVacanteId] = useState(
+    vacantes.some((v) => v.id === idPreseleccionado) ? idPreseleccionado : ""
+  );
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [listo, setListo] = useState(null);
 
-  // El texto elegido puede o no corresponder a una vacante abierta real (la
-  // otra opción es "Cualquier puesto disponible", que no tiene id). Cuando sí
-  // corresponde, ahí sale el `vacanteId` que se manda oculto.
-  const vacanteElegida = vacantes.find((v) => v.puesto === puesto);
-  const vacanteId = vacanteElegida?.id || "";
+  // El texto que se manda como `puesto` (lo que guarda el registro) se
+  // deriva del id, nunca al revés. Sin id (la opción "Cualquier puesto
+  // disponible") es ese mismo texto fijo.
+  const vacanteElegida = vacantes.find((v) => v.id === vacanteId);
+  const puesto = vacanteElegida?.puesto || CUALQUIER_PUESTO;
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -76,7 +84,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
     setListo({ folio: r.folio, aviso: r.aviso });
     e.target.reset();
     setArchivo(null);
-    setPuesto("");
+    setVacanteId("");
   };
 
   if (listo) {
@@ -120,14 +128,18 @@ export default function FormularioEmpleo({ vacantes = [] }) {
       </p>
 
       {error && (
-        <div className="mc-alerta mc-alerta-error mb-4">
+        <div className="mc-alerta mc-alerta-error mb-4" role="alert">
           <WarningCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Oculto a propósito: lo llena el `puesto` elegido, no la persona. */}
+      {/* Ocultos a propósito: los llena el <select> de más abajo, no la
+          persona escribiéndolos directo. El `vacanteId` manda —es único—; el
+          texto que se guarda en el registro (`puesto`) se deriva de él, y
+          nunca al revés (ver el porqué en el comentario de arriba). */}
       <input type="hidden" name="vacanteId" value={vacanteId} />
+      <input type="hidden" name="puesto" value={puesto} />
 
       <div className="row g-3">
         <div className="col-md-6">
@@ -184,21 +196,17 @@ export default function FormularioEmpleo({ vacantes = [] }) {
           </label>
           <select
             id="puesto"
-            name="puesto"
             className="form-select"
-            value={puesto}
-            onChange={(e) => setPuesto(e.target.value)}
+            value={vacanteId}
+            onChange={(e) => setVacanteId(e.target.value)}
             required
           >
-            <option value="" disabled>
-              Selecciona una opción
-            </option>
             {vacantes.map((v) => (
-              <option key={v.id} value={v.puesto}>
+              <option key={v.id} value={v.id}>
                 {v.puesto}
               </option>
             ))}
-            <option value={CUALQUIER_PUESTO}>{CUALQUIER_PUESTO}</option>
+            <option value="">{CUALQUIER_PUESTO}</option>
           </select>
         </div>
 
