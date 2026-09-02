@@ -37,6 +37,17 @@ export async function vacantesAbiertas() {
 }
 
 /**
+ * Devuelve el intento del freno cuando la solicitud NO se llegó a guardar por
+ * culpa nuestra (Storage caído, insert que falla), no de la persona. Nunca
+ * lanza: si esto falla, lo que importa devolverle a quien aplicó es el error
+ * original, no éste.
+ */
+async function devolverIntento(sb, telefono) {
+  const { error } = await sb.rpc("devolver_intento_empleo", { p_telefono: telefono });
+  if (error) console.error("[empleo] no se pudo devolver el intento:", error.message);
+}
+
+/**
  * RECIBE UNA SOLICITUD.
  *
  * Llega como FormData porque trae un archivo. El orden importa y no es
@@ -77,8 +88,11 @@ export async function enviarSolicitudEmpleo(formData) {
 
   const sb = supabaseServidor();
 
-  // 2) El freno. Una sola sentencia en la base: dos solicitudes al mismo
-  //    tiempo no pueden saltarse el tope.
+  // 2) El freno. Se cobra por adelantado a propósito —si se cobrara al final,
+  //    quien quiera abusar sube archivos de 5 MB sin tope—, pero eso significa
+  //    que un fallo NUESTRO de aquí en adelante (Storage, el insert) ya le
+  //    quemó un intento a alguien que no mandó nada. Por eso los dos pasos que
+  //    siguen devuelven el intento con `devolverIntento` si fallan.
   const { data: cabe, error: errFreno } = await sb.rpc("puede_solicitar_empleo", {
     p_telefono: telefono,
   });
@@ -105,6 +119,7 @@ export async function enviarSolicitudEmpleo(formData) {
       .upload(cvRuta, archivo, { contentType: archivo.type, upsert: false });
     if (errSubida) {
       console.error("[empleo] no se pudo subir el curriculum:", errSubida.message);
+      await devolverIntento(sb, telefono);
       return { ok: false, motivo: "No se pudo subir tu currículum. Inténtalo de nuevo." };
     }
   }
@@ -135,6 +150,7 @@ export async function enviarSolicitudEmpleo(formData) {
   if (errFila) {
     if (cvRuta) await sb.storage.from("curriculums").remove([cvRuta]);
     console.error("[empleo] no se pudo guardar:", errFila.message);
+    await devolverIntento(sb, telefono);
     return { ok: false, motivo: "No se pudo guardar tu solicitud. Inténtalo de nuevo." };
   }
 

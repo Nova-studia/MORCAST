@@ -148,6 +148,21 @@ comment on function public.puede_solicitar_empleo(text) is
 revoke all on function public.puede_solicitar_empleo(text) from public, anon, authenticated;
 grant execute on function public.puede_solicitar_empleo(text) to service_role;
 
+-- Devuelve el intento cuando la solicitud NO se llego a guardar.
+-- El freno se cobra por adelantado a proposito: si se cobrara al final, quien
+-- quiera abusar sube archivos de 5 MB sin tope. Pero cobrarselo a alguien cuya
+-- solicitud fallo por culpa nuestra lo deja bloqueado 24 horas sin haber
+-- mandado nada. Se compensa, igual que se borra el archivo huerfano.
+create or replace function public.devolver_intento_empleo(p_telefono text)
+returns void language sql security definer set search_path = public as $$
+  update public.intentos_empleo
+     set intentos = greatest(intentos - 1, 0)
+   where telefono = p_telefono;
+$$;
+
+revoke all on function public.devolver_intento_empleo(text) from public, anon, authenticated;
+grant execute on function public.devolver_intento_empleo(text) to service_role;
+
 commit;
 
 -- =====================================================================
