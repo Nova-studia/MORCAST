@@ -24,10 +24,10 @@ export default function Footer() {
           {/* Marca */}
           <div className="col-lg-4">
             <Image
-              src="/img/logo-nuevo-blanco.png"
+              src="/img/logo-h-blanco.png"
               alt="Morcast del Norte"
-              width={805}
-              height={324}
+              width={688}
+              height={200}
               style={{ width: "auto", height: 58, marginBottom: "1.25rem" }}
             />
             <p style={{ lineHeight: 1.75, marginBottom: "1.5rem" }}>
