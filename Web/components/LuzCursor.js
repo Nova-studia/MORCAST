@@ -26,7 +26,7 @@ import { usePathname } from "next/navigation";
  */
 
 const IMAN_ALCANCE = 90;
-const IMAN_FUERZA = 0.28;
+const IMAN_FUERZA = 0.14;  // 🔴 3-sep-2026: Luis pidió la MITAD de movimiento en los botones (era 0.28)
 const INCLINACION_MAX = 9; // grados
 
 const CLICABLE = "a, button, .mc-tarjeta, .mc-sector, .mc-cliente, .mc-faq-pregunta, input, select, textarea";

@@ -263,7 +263,9 @@ section {
 .mc-btn-pri:hover {
   background: var(--mc-vidrio-pri-h);
   color: #fff;
-  transform: translateY(-1px);
+  /* 🔴 La mitad del brinco (era -1px) y la mitad del imán del cursor
+     (IMAN_FUERZA en LuzCursor.js, de 0.28 a 0.14). Lo pidió Luis. */
+  transform: translateY(-0.5px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40),
               0 9px 26px rgba(0, 0, 0, 0.40);
 }
@@ -280,7 +282,7 @@ section {
 .mc-btn-vidrio:hover {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
 }
 
 /* ACCIÓN DE MARCA — verde sólido. Lo usan el scrap de la web pública y el
@@ -296,7 +298,7 @@ section {
 .mc-btn-verde:hover {
   background: var(--mc-verde-prof);
   color: #fff;
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
 }
 
 /* 🔴 Naranja y teal: SOLO dentro de /admin y /portal. No en la web pública. */
@@ -2304,18 +2306,23 @@ section {
      pero medido con los ENLACES (no con las listas, que ocupan toda su columna
      del grid y siempre dan 0) a 1280px el enlace "Scrap" ya queda a 11px del
      logo de 46px. Asi que 52px solo donde sobra sitio. */
+  /* 🔴 3-sep-2026 (2ª pasada): +30% sobre 40/46/52 y bajado un 10% de su
+     propio alto, los dos a petición de Luis. Sigue siendo responsivo porque
+     a 52px fijos el enlace "Scrap" ya se encimaba (ver el bloque de 992–1279
+     más abajo). */
   .mc-nav .mc-nav-logo-centro img {
-    height: 40px;
+    height: 52px;
     width: auto;
+    transform: translateY(10%);
   }
 }
 
 @media (min-width: 1400px) {
-  .mc-nav .mc-nav-logo-centro img { height: 46px; }
+  .mc-nav .mc-nav-logo-centro img { height: 60px; }
 }
 
 @media (min-width: 1600px) {
-  .mc-nav .mc-nav-logo-centro img { height: 52px; }
+  .mc-nav .mc-nav-logo-centro img { height: 68px; }
 }
 
 /* En el teléfono el logo del centro no existe y los grupos se apilan. */
