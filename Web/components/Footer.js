@@ -26,8 +26,8 @@ export default function Footer() {
             <Image
               src="/img/logo-nuevo-blanco.png"
               alt="Morcast del Norte"
-              width={688}
-              height={200}
+              width={805}
+              height={324}
               style={{ width: "auto", height: 58, marginBottom: "1.25rem" }}
             />
             <p style={{ lineHeight: 1.75, marginBottom: "1.5rem" }}>

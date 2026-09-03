@@ -2310,19 +2310,23 @@ section {
      propio alto, los dos a petición de Luis. Sigue siendo responsivo porque
      a 52px fijos el enlace "Scrap" ya se encimaba (ver el bloque de 992–1279
      más abajo). */
+  /* 🔴 El PNG anterior traia 35% de relleno vacio: el fondo del JPEG no es
+     blanco puro, la cobertura salia en 1-5 en vez de 0 y getbbox() devolvia
+     el cuadro entero. Por eso el logo se veia chico aunque el alto fuera 68px.
+     Con el recorte bueno (797x228, 3.50:1) el contenido llena la caja. */
   .mc-nav .mc-nav-logo-centro img {
-    height: 52px;
+    height: 46px;
     width: auto;
-    transform: translateY(10%);
+    transform: translateY(8%);
   }
 }
 
 @media (min-width: 1400px) {
-  .mc-nav .mc-nav-logo-centro img { height: 60px; }
+  .mc-nav .mc-nav-logo-centro img { height: 52px; }
 }
 
 @media (min-width: 1600px) {
-  .mc-nav .mc-nav-logo-centro img { height: 68px; }
+  .mc-nav .mc-nav-logo-centro img { height: 58px; }
 }
 
 /* En el teléfono el logo del centro no existe y los grupos se apilan. */

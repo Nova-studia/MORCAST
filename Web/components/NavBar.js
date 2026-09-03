@@ -113,8 +113,8 @@ export default function NavBar() {
             <Image
               src="/img/logo-nuevo-barra.png"
               alt="Morcast del Norte — Manejo de Residuos"
-              width={1241}
-              height={434}
+              width={797}
+              height={228}
               priority
               style={{ width: "auto", height: 46 }}
             />
@@ -153,8 +153,8 @@ export default function NavBar() {
               <Image
                 src="/img/logo-nuevo-barra.png"
                 alt="Morcast del Norte — Manejo de Residuos"
-                width={1241}
-                height={434}
+                width={797}
+                height={228}
                 priority
               />
             </Link>
