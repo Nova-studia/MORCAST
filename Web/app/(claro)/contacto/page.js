@@ -94,7 +94,7 @@ export default function Contacto() {
                 href={enlaceWhatsApp()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mc-btn mc-btn-verde w-100"
+                className="mc-btn mc-btn-pri w-100"
               >
                 <FaWhatsapp size={19} aria-hidden="true" /> Escríbenos por WhatsApp
               </a>

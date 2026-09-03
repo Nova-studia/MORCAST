@@ -1,43 +1,80 @@
 /* ==========================================================================
    MORCAST DEL NORTE — Sistema de diseño
-   Colores muestreados del material oficial de la empresa (folleto v3).
+   🔴 La fuente de la verdad es ../DESIGN.md (raíz del repo). Léelo antes de
+   tocar cualquier valor de aquí: trae el porqué de cada decisión.
+   Rediseño del 3-sep-2026: un color de acción (azul) y uno de marca (verde).
    ========================================================================== */
 
 :root {
-  /* Marca */
-  --mc-verde: #4eb34a;
-  --mc-verde-osc: #2da529;
-  --mc-verde-prof: #11990c;
-  --mc-verde-claro: #7cc576;
+  /* ---------- Marca ----------
+     🔴 --mc-verde es SOLO relleno grande (botón de marca, barras).
+        Cuando el verde es TEXTO sobre oscuro va --mc-verde-claro:
+        #265421 da 2.07:1 contra el fondo y el ojo no lo separa. */
+  --mc-verde: #265421;         /* relleno de marca (tono elegido por Luis) */
+  --mc-verde-osc: #1a3d17;     /* hover del relleno */
+  --mc-verde-prof: #2f6829;    /* hover claro */
+  --mc-verde-claro: #6fa867;   /* EL VERDE CUANDO ES TEXTO — 6.53:1 ✓ */
+
+  /* Acción principal. 3.16:1 de separación contra el fondo, 5.80:1 el texto
+     blanco encima. Ambos pasan WCAG. NO usarlo dos veces en una pantalla. */
+  --mc-azul: #2a6a99;
+  --mc-azul-osc: #215579;
+
+  /* 🔴 Teal y naranja NO van en la web pública (ver DESIGN.md).
+     Sobreviven solo dentro de /portal y /admin como identidad de esas áreas. */
   --mc-teal: #144c4f;
   --mc-teal-2: #1e6b6f;
   --mc-teal-claro: #2d8a8f;
   --mc-naranja: #db652d;
   --mc-naranja-osc: #c05423;
 
-  /* Neutros — TEMA OSCURO
-     (para volver al claro: tinta #0f2427, gris #5b6b6d, gris-claro #8b9a9c,
-      linea #e3e9ea, hueso #f5f8f8, blanco #ffffff) */
-  --mc-tinta: #eef4f2;        /* texto principal (claro) */
-  --mc-gris: #a6b6b3;         /* texto secundario */
-  --mc-gris-claro: #7e908d;   /* placeholders / apagado */
-  --mc-linea: #27332f;        /* bordes sutiles */
-  --mc-hueso: #111b1a;        /* secciones alternas (oscuro) */
-  --mc-blanco: #0d1514;       /* fondo base de la página */
-  --mc-negro: #090f0e;        /* fondo profundo (footer / hero) */
-  --mc-superficie: #17211f;   /* tarjetas y superficies */
+  /* ---------- Neutros — TEMA OSCURO ---------- */
+  --mc-tinta: #ecedea;        /* texto principal */
+  --mc-gris: #9ba3a1;         /* texto secundario */
+  --mc-gris-claro: #6e7877;   /* pies de foto, placeholders */
+  --mc-linea: #2a2f30;        /* bordes y separadores (nunca sombras) */
+  --mc-hueso: #191d1e;        /* banda alterna entre secciones */
+  --mc-blanco: #121516;       /* fondo base de la página */
+  --mc-negro: #0b0e0f;        /* hero y pie */
+  --mc-superficie: #1b1f20;   /* tarjetas */
 
-  /* Sistema */
-  --mc-radio: 14px;
-  --mc-radio-sm: 9px;
-  --mc-sombra: 0 4px 20px rgba(15, 36, 39, 0.07);
-  --mc-sombra-md: 0 12px 34px rgba(15, 36, 39, 0.11);
-  --mc-sombra-lg: 0 24px 60px rgba(15, 36, 39, 0.16);
-  --mc-transicion: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  /* ---------- Estado (semántico, no es color de marca) ---------- */
+  --mc-ok: #6fa867;
+  --mc-alerta: #d6a44a;
+  --mc-error: #d9776b;
 
-  /* Bootstrap override */
-  --bs-primary: #4eb34a;
-  --bs-body-color: #eef4f2;
+  /* ---------- Sistema ----------
+     🔴 Nada de píldoras completas (999px): eso es lo que tenía la página antes
+        y se lee a app de celular. */
+  --mc-radio: 8px;            /* botones y tarjetas */
+  --mc-radio-sm: 4px;         /* píldoras y rótulos */
+  --mc-radio-lg: 10px;        /* fotos */
+  --mc-sombra: 0 4px 20px rgba(0, 0, 0, 0.22);
+  --mc-sombra-md: 0 12px 34px rgba(0, 0, 0, 0.30);
+  --mc-sombra-lg: 0 24px 60px rgba(0, 0, 0, 0.40);
+  --mc-transicion: 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- Tipografía ----------
+     Los titulares usan la MISMA familia que el cuerpo, a propósito: el sistema
+     es de dos tipografías (una para leer, otra para medir), no de tres. */
+  --fuente-titulo: var(--fuente-cuerpo);
+
+  /* ---------- Vidrio esmerilado ----------
+     🔴 Solo en tres sitios: rótulo del hero, acción principal y secundaria.
+        En ningún otro lado, o deja de significar algo. */
+  --mc-vidrio-pri: linear-gradient(180deg, rgba(78,152,205,.52) 0%, rgba(35,92,136,.40) 100%);
+  --mc-vidrio-pri-h: linear-gradient(180deg, rgba(98,172,225,.62) 0%, rgba(45,110,158,.50) 100%);
+  --mc-vidrio-borde: rgba(140, 200, 240, 0.40);
+  /* La luz de 1px arriba y la sombra abajo son lo que lo vuelven material.
+     Sin ellas queda un recuadro translúcido plano, y sobre fondo liso
+     (donde el desenfoque no tiene nada que desenfocar) se pierde del todo. */
+  --mc-vidrio-luz: inset 0 1px 0 rgba(255,255,255,.34),
+                   inset 0 -1px 0 rgba(0,0,0,.20),
+                   0 6px 20px rgba(0,0,0,.34);
+
+  /* ---------- Bootstrap override ---------- */
+  --bs-primary: #2a6a99;
+  --bs-body-color: #ecedea;
 }
 
 /* ---------- Base ---------- */
@@ -81,21 +118,26 @@ html {
    Igual el interlineado: apretado en lo grande, holgado en lo chico.
    Es de las cosas que no se saben nombrar pero se notan: es la diferencia
    entre "compuesto" y "puesto ahí". */
+/* Los titulares van en MAYÚSCULAS pero en peso normal y muy espaciados.
+   El titular anterior gritaba a 96px en condensada negra; a 52px con .07em
+   ocupa un ancho parecido y deja de gritar. 🔑 El aire entre letras es lo que
+   lo vuelve formal en vez de agresivo. Ver DESIGN.md → Tipografía. */
 h1, h2, h3, h4, h5, h6, .mc-display {
   font-family: var(--fuente-titulo), system-ui, sans-serif;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--mc-tinta);
+  text-transform: uppercase;
   font-optical-sizing: auto;
   /* Evita que la última palabra caiga sola en un renglón. */
   text-wrap: balance;
 }
 
-h1, .mc-display { letter-spacing: -0.035em; line-height: 1.02; }
-h2             { letter-spacing: -0.028em; line-height: 1.07; }
-h3             { letter-spacing: -0.022em; line-height: 1.14; }
-h4             { letter-spacing: -0.014em; line-height: 1.22; }
-h5             { letter-spacing: -0.006em; line-height: 1.3; }
-h6             { letter-spacing: 0;        line-height: 1.35; }
+h1, .mc-display { letter-spacing: 0.07em; line-height: 1.16; }
+h2             { letter-spacing: 0.08em; line-height: 1.24; }
+h3             { letter-spacing: 0.07em; line-height: 1.28; }
+h4             { letter-spacing: 0.06em; line-height: 1.32; }
+h5             { letter-spacing: 0.05em; line-height: 1.36; }
+h6             { letter-spacing: 0.05em; line-height: 1.4; }
 
 a {
   text-decoration: none;
@@ -107,41 +149,57 @@ section {
 }
 
 /* ---------- Utilidades de marca ---------- */
+/* Rótulo de sección. Monoespaciada porque acompaña a datos y medidas.
+   🔴 Antes era naranja; el naranja salió de la web pública (ver DESIGN.md). */
 .mc-eyebrow {
-  font-family: var(--fuente-titulo), sans-serif;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-family: var(--fuente-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  font-weight: 400;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--mc-naranja);
-  margin-bottom: 0.85rem;
+  color: var(--mc-verde-claro);
+  margin-bottom: 1.5rem;
   display: block;
 }
 
+/* Rótulo del HERO: vidrio esmerilado SIN borde, sobre la foto. Sin esto no se
+   lee, porque el texto cae encima de zonas claras de la fotografía. */
 .mc-eyebrow-claro {
-  color: var(--mc-verde-claro);
+  display: inline-block;
+  color: #fff;
+  padding: 8px 15px;
+  border-radius: var(--mc-radio-sm);
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  margin-bottom: 1.5rem;
 }
 
 .mc-titulo-seccion {
-  font-size: clamp(1.85rem, 4vw, 2.9rem);
-  margin-bottom: 1rem;
+  font-size: clamp(1.38rem, 2.7vw, 2.13rem);   /* 22–34px */
+  margin-bottom: 1.5rem;
+  max-width: 22ch;
 }
 
+/* 🔴 62 caracteres máximo. Hoy hay renglones de 90 y por eso el texto se lee
+   pesado aunque el tamaño esté bien. */
 .mc-lead {
-  font-size: 1.06rem;
-  line-height: 1.7;
+  font-size: 0.97rem;
+  line-height: 1.65;
   color: var(--mc-gris);
+  max-width: 62ch;
 }
 
+/* El aire es la mitad del trabajo: 120px arriba y abajo en escritorio. */
 .mc-seccion {
-  padding: clamp(4rem, 9vw, 7rem) 0;
+  padding: clamp(4rem, 9vw, 7.5rem) 0;
 }
 
 .mc-seccion-hueso {
   background: var(--mc-hueso);
 }
 
-.mc-texto-verde { color: var(--mc-verde); }
+.mc-texto-verde { color: var(--mc-verde-claro); }
 .mc-texto-teal  { color: var(--mc-teal); }
 .mc-texto-naranja { color: var(--mc-naranja); }
 
@@ -178,34 +236,74 @@ section {
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  font-family: var(--fuente-titulo), sans-serif;
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.01em;
-  padding: 0.9rem 1.75rem;
-  border-radius: 999px;
-  border: 2px solid transparent;
+  font-family: var(--fuente-cuerpo), sans-serif;
+  font-weight: 500;
+  font-size: 0.69rem;          /* 11px */
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.94rem 1.75rem;
+  border-radius: var(--mc-radio);
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all var(--mc-transicion);
   white-space: nowrap;
 }
 
-.mc-btn-verde {
-  background: var(--mc-verde);
+/* ACCIÓN PRINCIPAL — vidrio pulido tintado de azul.
+   🔴 Es el único botón de la página que lleva este acabado. Si aparece dos
+   veces en una pantalla, algo se hizo mal. Ver DESIGN.md → Vidrio esmerilado. */
+.mc-btn-pri {
+  background: var(--mc-vidrio-pri);
+  border-color: var(--mc-vidrio-borde);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(78, 179, 74, 0.34);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  box-shadow: var(--mc-vidrio-luz);
 }
-.mc-btn-verde:hover {
-  background: var(--mc-verde-osc);
+.mc-btn-pri:hover {
+  background: var(--mc-vidrio-pri-h);
   color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(78, 179, 74, 0.42);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40),
+              0 9px 26px rgba(0, 0, 0, 0.40);
 }
 
+/* ACCIÓN SECUNDARIA — vidrio neutro. Sustituye al botón de contorno delgado. */
+.mc-btn-vidrio {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+.mc-btn-vidrio:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* ACCIÓN DE MARCA — verde sólido. Lo usan el scrap de la web pública y el
+   portal del cliente, que conserva su identidad. Misma familia que el vidrio:
+   mismo radio y una luz interior de 1px arriba. */
+.mc-btn-verde {
+  background: var(--mc-verde);
+  border-color: rgba(120, 180, 110, 0.28);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+              0 6px 18px rgba(0, 0, 0, 0.30);
+}
+.mc-btn-verde:hover {
+  background: var(--mc-verde-prof);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* 🔴 Naranja y teal: SOLO dentro de /admin y /portal. No en la web pública. */
 .mc-btn-naranja {
   background: var(--mc-naranja);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(219, 101, 45, 0.34);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
 }
 .mc-btn-naranja:hover {
   background: var(--mc-naranja-osc);
@@ -229,8 +327,8 @@ section {
   border-color: var(--mc-linea);
 }
 .mc-btn-linea:hover {
-  border-color: var(--mc-verde);
-  color: var(--mc-verde);
+  border-color: var(--mc-verde-claro);
+  color: var(--mc-verde-claro);
   background: rgba(78, 179, 74, 0.05);
 }
 
@@ -284,9 +382,9 @@ section {
 }
 
 .mc-nav-link {
-  font-family: var(--fuente-titulo), sans-serif;
-  font-weight: 600;
-  font-size: 0.93rem;
+  font-family: var(--fuente-cuerpo), sans-serif;
+  font-weight: 400;
+  font-size: 0.82rem;
   color: var(--mc-tinta) !important;
   padding: 0.5rem 0.95rem !important;
   position: relative;
@@ -309,7 +407,7 @@ section {
   transform: scaleX(1);
 }
 .mc-nav-link.activo {
-  color: var(--mc-verde) !important;
+  color: var(--mc-verde-claro) !important;
 }
 
 /* ---------- Hero (minimalista, estilo cinematográfico) ---------- */
@@ -387,23 +485,28 @@ section {
 .mc-hero-titular {
   max-width: 100%;
 }
+/* 🔴 Rediseño 3-sep-2026. Antes: 102px, peso 800, letras pegadas (-0.052em) y
+   trazo engrosado. Gritaba. Ahora en peso normal y MUY espaciado: ocupa un
+   ancho parecido y se lee formal. Ver DESIGN.md → Tipografía. */
 .mc-hero h1 {
-  font-size: clamp(1.95rem, 9vw, 6.4rem);
-  line-height: 0.95;
+  font-size: clamp(1.75rem, 4.1vw, 3.25rem);
+  line-height: 1.16;
   text-transform: uppercase;
-  /* Letras más pegadas */
-  letter-spacing: -0.052em;
-  /* Grosor ~+15%: la fuente topa en 800, se engrosa el trazo */
-  font-weight: 800;
-  -webkit-text-stroke: 0.021em currentColor;
+  letter-spacing: 0.07em;
+  font-weight: 400;
+  -webkit-text-stroke: 0;
   color: #fff;
   margin: 0.5rem 0 0;
+  max-width: 19ch;
   text-shadow: 0 2px 34px rgba(0, 0, 0, 0.28);
 }
 /* Eyebrow del hero: blanco con sombra para no perderse sobre el cielo azul */
+/* El rótulo del hero ya trae vidrio esmerilado en .mc-eyebrow-claro; aquí sólo
+   se refuerza el texto. 🔴 No devolver el text-shadow suelto sin la caja: sobre
+   las zonas claras de la foto el rótulo dejaba de leerse (era el reporte de
+   Luis del 3-sep). */
 .mc-hero .mc-eyebrow-claro {
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.6);
 }
 
 /* Desktop: el bloque de texto del hero corre un poco a la izquierda */
@@ -504,13 +607,15 @@ section {
   box-shadow: var(--mc-sombra);
 }
 .mc-pildora svg {
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   flex-shrink: 0;
 }
 
 /* ---------- Barra de confianza ---------- */
+/* 🔴 Antes iba en teal. El teal salió de la web pública el 3-sep-2026 y
+   sobrevive sólo dentro de /portal y /admin. Ver DESIGN.md → Color. */
 .mc-confianza {
-  background: var(--mc-teal);
+  background: var(--mc-hueso);
   color: #fff;
   padding: 2.4rem 0;
   position: relative;
@@ -530,14 +635,15 @@ section {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: rgba(78, 179, 74, 0.22);
+  background: rgba(111, 168, 103, 0.16);
   color: var(--mc-verde-claro);
   font-size: 1.35rem;
 }
+/* Las cifras van en monoespaciada: es lo que dice "aquí se mide". */
 .mc-confianza-num {
-  font-family: var(--fuente-titulo), sans-serif;
-  font-size: 1.6rem;
-  font-weight: 800;
+  font-family: var(--fuente-mono), ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-weight: 500;
   line-height: 1;
   color: #fff;
 }
@@ -589,7 +695,7 @@ section {
   place-items: center;
   border-radius: 14px;
   background: rgba(78, 179, 74, 0.11);
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   font-size: 1.55rem;
   margin-bottom: 1.15rem;
   transition: all var(--mc-transicion);
@@ -816,12 +922,12 @@ section {
   height: 100%;
 }
 .mc-sector:hover {
-  border-color: var(--mc-verde);
+  border-color: var(--mc-verde-claro);
   transform: translateY(-3px);
   box-shadow: var(--mc-sombra);
 }
 .mc-sector svg {
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   flex-shrink: 0;
   font-size: 1.3rem;
 }
@@ -838,7 +944,7 @@ section {
   transition: all var(--mc-transicion);
 }
 .mc-cliente:hover {
-  border-color: var(--mc-verde);
+  border-color: var(--mc-verde-claro);
   box-shadow: var(--mc-sombra);
 }
 .mc-cliente-txt {
@@ -936,7 +1042,7 @@ section {
 }
 .mc-form .form-control:focus,
 .mc-form .form-select:focus {
-  border-color: var(--mc-verde);
+  border-color: var(--mc-verde-claro);
   box-shadow: 0 0 0 3.5px rgba(78, 179, 74, 0.14);
 }
 .mc-form .form-control::placeholder {
@@ -985,7 +1091,7 @@ section {
   place-items: center;
   border-radius: 11px;
   background: rgba(78, 179, 74, 0.11);
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   font-size: 1.15rem;
 }
 .mc-contacto-item h4 {
@@ -1008,7 +1114,7 @@ section {
   overflow-wrap: break-word;
 }
 .mc-contacto-item a:hover {
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
 }
 
 /* ---------- Footer ---------- */
@@ -1263,7 +1369,7 @@ section {
   background: var(--mc-hueso);
 }
 .mc-pendiente svg {
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   opacity: 0.55;
   font-size: 1.7rem;
 }
@@ -1312,7 +1418,7 @@ section {
 }
 .mc-faq-icono {
   flex-shrink: 0;
-  color: var(--mc-verde);
+  color: var(--mc-verde-claro);
   font-size: 1.3rem;
   transition: transform var(--mc-transicion);
 }
@@ -1613,7 +1719,6 @@ section {
 .mc-nav:not(.mc-nav-hero) {
   background-color: rgba(9, 15, 14, 0.72);
   backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
   /* Borde superior claro: es la luz pegando en el canto del material. */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
@@ -1628,7 +1733,6 @@ section {
   .mc-nav:not(.mc-nav-hero) {
     background-color: var(--mc-negro);
     backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }
 
@@ -2112,7 +2216,7 @@ section {
   }
   .mc-nav .navbar-collapse.show .mc-nav-link.activo,
   .mc-nav .navbar-collapse.collapsing .mc-nav-link.activo {
-    color: var(--mc-verde) !important;
+    color: var(--mc-verde-claro) !important;
   }
   /* Los dos botones a lo ancho: sueltos y de distinto tamaño se veían
      desalineados contra la columna de enlaces. */
@@ -2167,4 +2271,43 @@ section {
 }
 .mc-tabla-privacidad td {
   color: var(--mc-gris);
+}
+
+/* ==========================================================================
+   NAVBAR CON LOGO CENTRADO — rediseño 3-sep-2026 (ver DESIGN.md)
+   Abajo de 992px NO se toca nada: logo a la izquierda, botón de menú a la
+   derecha y los enlaces apilados en el desplegable, como siempre. El logo
+   centrado es sólo de lg para arriba.
+   ========================================================================== */
+@media (min-width: 992px) {
+  .mc-nav .mc-nav-fila {
+    display: grid !important;
+    /* minmax(0,…) o las columnas crecen con su contenido y el logo
+       deja de quedar centrado. */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+  }
+  .mc-nav .mc-nav-grupo {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.6rem;
+    margin: 0;
+  }
+  .mc-nav .mc-nav-grupo-der {
+    justify-content: flex-end;
+  }
+  /* El logo centrado es el enlace a la portada: por eso no hay "Inicio". */
+  .mc-nav .mc-nav-logo-centro {
+    justify-self: center;
+    margin: 0 1.5rem;
+  }
+}
+
+/* En el teléfono el logo del centro no existe y los grupos se apilan. */
+@media (max-width: 991.98px) {
+  .mc-nav .mc-nav-grupo {
+    gap: 0;
+  }
 }

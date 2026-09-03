@@ -43,7 +43,7 @@ export default function PaginaScrap() {
               </p>
 
               <div className="mc-hero-botones justify-content-center mt-4">
-                <Link href="/contacto" className="mc-btn mc-btn-verde">
+                <Link href="/contacto" className="mc-btn mc-btn-pri">
                   Déjanos tus datos <ArrowRight aria-hidden="true" />
                 </Link>
                 <a

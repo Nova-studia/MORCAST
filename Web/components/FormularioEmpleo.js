@@ -369,7 +369,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
         </div>
 
         <div className="col-12 mt-4">
-          <button type="submit" className="mc-btn mc-btn-verde w-100" disabled={enviando}>
+          <button type="submit" className="mc-btn mc-btn-pri w-100" disabled={enviando}>
             {enviando ? (
               "Enviando…"
             ) : (

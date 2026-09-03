@@ -212,7 +212,7 @@ export default function FormularioCotizacion() {
         <div className="col-12 mt-4">
           <button
             type="submit"
-            className="mc-btn mc-btn-verde w-100"
+            className="mc-btn mc-btn-pri w-100"
             disabled={pendiente}
           >
             {pendiente ? (

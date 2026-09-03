@@ -39,8 +39,13 @@ export default function Revelar({
 
     const obs = new IntersectionObserver(
       ([entrada]) => {
-        // Repetible: visible al entrar, oculto al salir (anima ida y vuelta)
-        setVisible(entrada.isIntersecting);
+        // 🔴 UNA SOLA VEZ (ver DESIGN.md → Movimiento). Antes era repetible y
+        // volvía a animar en cada scroll: una animación que se repite se
+        // siente inquieta y se lee barata. Al aparecer, se deja de observar.
+        if (entrada.isIntersecting) {
+          setVisible(true);
+          obs.unobserve(entrada.target);
+        }
       },
       // Dispara un poco antes de que llegue al borde inferior
       { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }

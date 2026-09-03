@@ -19,6 +19,14 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { EMPRESA, NAVEGACION, enlaceWhatsApp } from "@/lib/datos";
 
+// Ver DESIGN.md → Disposición. El logo va CENTRADO y hace de enlace a la
+// portada, por eso "Inicio" no aparece en el menú: sería un enlace repetido.
+// Los enlaces se reparten tres de cada lado del logo.
+const SIN_INICIO = NAVEGACION.filter((i) => i.href !== "/");
+const MITAD = Math.ceil(SIN_INICIO.length / 2);
+const ENLACES_IZQ = SIN_INICIO.slice(0, MITAD);
+const ENLACES_DER = [...SIN_INICIO.slice(MITAD), { texto: "Empleo", href: "/empleo" }];
+
 export default function NavBar() {
   const [abierto, setAbierto] = useState(false);
   const [scroll, setScroll] = useState(false);
@@ -99,14 +107,16 @@ export default function NavBar() {
         container={false}
       >
         <Container fluid className="mc-nav-cont px-3 px-lg-4">
-          <Link href="/" className="navbar-brand mc-nav-logo p-0 m-0">
+          {/* Logo del móvil: abajo de lg el logo va a la izquierda y el
+              botón de menú a la derecha, como siempre. */}
+          <Link href="/" className="navbar-brand mc-nav-logo p-0 m-0 d-lg-none">
             <Image
-              src={logoBlanco ? "/img/logo-h-blanco.png" : "/img/logo-h.png"}
+              src="/img/logo-h-blanco.png"
               alt="Morcast del Norte — Manejo de Residuos"
               width={688}
               height={200}
               priority
-              style={{ width: "auto", height: 64 }}
+              style={{ width: "auto", height: 46 }}
             />
           </Link>
 
@@ -115,12 +125,11 @@ export default function NavBar() {
             aria-label="Abrir menú de navegación"
           />
 
-          <Collapse isOpen={abierto} navbar className="justify-content-lg-between">
-            {/* Enlaces centrados */}
-            <Nav className="mx-auto align-items-lg-center" navbar>
-              {NAVEGACION.map((item) => {
-                const activo =
-                  item.href === "/" ? ruta === "/" : ruta.startsWith(item.href);
+          <Collapse isOpen={abierto} navbar className="mc-nav-fila">
+            {/* Izquierda del logo */}
+            <Nav className="mc-nav-grupo mc-nav-grupo-izq align-items-lg-center" navbar>
+              {ENLACES_IZQ.map((item) => {
+                const activo = ruta.startsWith(item.href);
                 return (
                   <NavItem key={item.href}>
                     <Link
@@ -134,24 +143,48 @@ export default function NavBar() {
                 );
               })}
             </Nav>
-            {/* Acciones: "Cotizar ahora" (resalta) + "Iniciar sesión" en la esquina */}
-            <Nav className="align-items-lg-center gap-2 gap-lg-2" navbar>
-              <NavItem className="mt-3 mt-lg-0">
-                <a
-                  href={enlaceWhatsApp()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mc-btn mc-btn-verde"
-                  style={{ padding: "0.65rem 1.4rem", fontSize: "0.88rem" }}
-                >
-                  Cotizar ahora
-                </a>
-              </NavItem>
+
+            {/* Logo CENTRADO (solo lg+). Hace de enlace a la portada, por eso
+                no hay "Inicio" en el menú. 40px por decisión de Luis. */}
+            <Link
+              href="/"
+              className="navbar-brand mc-nav-logo mc-nav-logo-centro p-0 m-0 d-none d-lg-block"
+            >
+              <Image
+                src="/img/logo-h-blanco.png"
+                alt="Morcast del Norte — Manejo de Residuos"
+                width={688}
+                height={200}
+                priority
+                style={{ width: "auto", height: 40 }}
+              />
+            </Link>
+
+            {/* Derecha del logo, más las acciones */}
+            <Nav className="mc-nav-grupo mc-nav-grupo-der align-items-lg-center" navbar>
+              {ENLACES_DER.map((item) => {
+                const activo = ruta.startsWith(item.href);
+                return (
+                  <NavItem key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={`nav-link mc-nav-link ${activo ? "activo" : ""}`}
+                      aria-current={activo ? "page" : undefined}
+                    >
+                      {item.texto}
+                    </Link>
+                  </NavItem>
+                );
+              })}
+              {/* 🔴 "Cotizar ahora" salió del navbar el 3-sep-2026: con los dos
+                  botones el logo centrado no cabe (el lado derecho medía 787px
+                  de 1280). El hero y todas las páginas ya llevan la llamada a
+                  cotizar, así que no se pierde la conversión. Ver DESIGN.md. */}
               <NavItem className="mt-2 mt-lg-0">
                 <Link
                   href="/portal/login"
-                  className="mc-btn mc-btn-linea-blanca"
-                  style={{ padding: "0.5rem 1.05rem", fontSize: "0.8rem" }}
+                  className="mc-btn mc-btn-vidrio"
+                  style={{ padding: "0.62rem 1.2rem" }}
                 >
                   Iniciar sesión
                 </Link>

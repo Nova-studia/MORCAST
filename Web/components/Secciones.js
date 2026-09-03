@@ -330,14 +330,14 @@ export function BandaCTA({
           </div>
           <div className="col-lg-4">
             <div className="d-flex flex-column gap-3 align-items-lg-end">
-              <Link href="/contacto" className="mc-btn mc-btn-verde">
+              <Link href="/contacto" className="mc-btn mc-btn-pri">
                 Solicitar cotización
               </Link>
               <a
                 href={enlaceWhatsApp()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mc-btn mc-btn-linea-blanca"
+                className="mc-btn mc-btn-vidrio"
               >
                 Escríbenos por WhatsApp
               </a>

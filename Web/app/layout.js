@@ -1,23 +1,28 @@
-import { Plus_Jakarta_Sans, Inter } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
 
 import { EMPRESA } from "@/lib/datos";
 import LuzCursor from "@/components/LuzCursor";
 
-// Plus Jakarta Sans: geometría cercana a la del logotipo, con más peso
-// editorial que Montserrat. Inter para cuerpo (excelente en tamaños chicos).
-const titulo = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--fuente-titulo",
-  display: "swap",
-});
-
-const cuerpo = Inter({
+// Ver DESIGN.md. Dos familias y dos oficios: una para leer, otra para medir.
+// Instrument Sans lleva titulares (en MAYUSCULAS espaciadas) y cuerpo; el
+// titular usa la misma familia a proposito, para que el sistema sea de dos
+// tipografias y no de tres.
+const cuerpo = Instrument_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--fuente-cuerpo",
+  display: "swap",
+});
+
+// JetBrains Mono SOLO para cifras, codigos de permiso, medidas y fechas.
+// Nunca para una frase completa: ahi la pagina se ve "tecnologica" y se
+// pierde lo formal.
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--fuente-mono",
   display: "swap",
 });
 
@@ -68,7 +73,7 @@ export default function RootLayout({ children }) {
     <html
       lang="es-MX"
       data-scroll-behavior="smooth"
-      className={`${titulo.variable} ${cuerpo.variable}`}
+      className={`${cuerpo.variable} ${mono.variable}`}
     >
       {/* El navbar/footer los pone cada route group: (claro) o (oscuro) */}
       {/* La transición al cambiar de página también: va dentro de cada marco,

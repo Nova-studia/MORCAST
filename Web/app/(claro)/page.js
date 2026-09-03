@@ -69,14 +69,14 @@ export default function Inicio() {
                 Matamoros. Flota propia y permisos vigentes.
               </p>
               <div className="mc-hero-botones">
-                <Link href="/contacto" className="mc-btn mc-btn-verde">
+                <Link href="/contacto" className="mc-btn mc-btn-pri">
                   Solicitar cotización <ArrowRight aria-hidden="true" />
                 </Link>
                 <a
                   href={enlaceWhatsApp()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mc-btn mc-btn-linea-blanca"
+                  className="mc-btn mc-btn-vidrio"
                 >
                   WhatsApp
                 </a>
@@ -136,7 +136,7 @@ export default function Inicio() {
                 <li>Roll off para movimiento de tolvas y compactadores</li>
                 <li>Instalación inmediata en su domicilio</li>
               </ul>
-              <Link href="/contenedores" className="mc-btn mc-btn-teal">
+              <Link href="/contenedores" className="mc-btn mc-btn-linea">
                 Ver contenedores y tolvas <ArrowRight aria-hidden="true" />
               </Link>
             </Revelar>
