@@ -118,17 +118,9 @@ export default function LuzCursor() {
           b.style.translate = `${dx * peso}px ${dy * peso}px`;
         }
 
-        // --- 3. Profundidad del hero ---
-        const hero = document.querySelector(".mc-hero");
-        if (hero) {
-          const r = hero.getBoundingClientRect();
-          if (r.bottom > 0 && r.top < window.innerHeight) {
-            const nx = (ev.clientX / window.innerWidth - 0.5) * 2;
-            const ny = (ev.clientY / window.innerHeight - 0.5) * 2;
-            hero.style.setProperty("--px", `${(-nx * 14).toFixed(2)}px`);
-            hero.style.setProperty("--py", `${(-ny * 10).toFixed(2)}px`);
-          }
-        }
+        // --- 3. Profundidad del hero — QUITADA el 3-sep-2026 ---
+        // Luis pidio que la foto del hero se quede quieta. Siguen vivas la luz
+        // de las tarjetas, los botones magneticos y la galeria que se inclina.
       });
     };
 

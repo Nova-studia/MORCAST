@@ -764,8 +764,11 @@ section {
   text-transform: uppercase;
   padding: 0.3rem 0.7rem;
   border-radius: 6px;
-  background: rgba(78, 179, 74, 0.12);
-  color: var(--mc-verde-osc);
+  background: rgba(111, 168, 103, 0.14);
+  /* 🔴 Antes: var(--mc-verde-osc). Con el verde nuevo (#1a3d17) esa etiqueta
+     daba 1.88:1 sobre la tarjeta oscura y "PERMISO MUNICIPAL ACTIVO" no se
+     leia. Con --mc-verde-claro da 5.91:1. Lo reporto Luis el 3-sep-2026. */
+  color: var(--mc-verde-claro);
 }
 .mc-tarjeta-etiqueta.gris {
   background: rgba(91, 107, 109, 0.1);
@@ -1620,12 +1623,9 @@ section {
    ===================================================================== */
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) {
-    .mc-hero-foto {
-      animation: mc-hero-parallax linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 92vh;
-      will-change: transform;
-    }
+    /* 🔴 3-sep-2026: Luis pidio quitarle el movimiento a la foto del hero.
+       Salieron los TRES: el parallax de scroll (aqui), la reaccion al cursor
+       y el "respirar" de 26s. La foto se queda quieta. */
 
     /* La escala de 1.12 no es decorativa: da el margen para poder mover
        la foto sin que se asome el fondo por arriba o por abajo. */
@@ -1893,13 +1893,13 @@ section {
 
 /* Profundidad del hero: la foto se recorre al contrario del cursor y el
    texto un poco menos. Al ir a distinta velocidad, el ojo lee distancia. */
+/* 🔴 La foto y el texto del hero ya NO se recorren con el cursor
+   (peticion de Luis, 3-sep-2026). */
 .mc-hero-foto {
-  translate: var(--px, 0) var(--py, 0);
-  transition: translate 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* sin translate */
 }
 .mc-hero-contenido {
-  translate: calc(var(--px, 0px) * -0.35) calc(var(--py, 0px) * -0.35);
-  transition: translate 620ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* sin translate */
 }
 
 /* ---------- Subrayado que se desliza en el menú ----------
@@ -1966,10 +1966,7 @@ section {
    ni se nota que es un ciclo, solo se siente que la imagen esta viva.
    ===================================================================== */
 @media (prefers-reduced-motion: no-preference) {
-  .mc-hero-foto img {
-    animation: mc-hero-respira 26s ease-in-out infinite;
-    transform-origin: center 40%;
-  }
+  /* 🔴 El "respirar" de la foto tambien salio el 3-sep-2026. */
   @keyframes mc-hero-respira {
     0%, 100% { scale: 1; }
     50%      { scale: 1.045; }
@@ -2070,9 +2067,9 @@ section {
   background: rgba(124, 197, 118, 0.14);
   border-color: rgba(124, 197, 118, 1);
 }
-@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
-  .mc-cursor { display: none; }
-}
+/* 🔴 El circulo verde del cursor esta APAGADO desde el 3-sep-2026 (lo pidio
+   Luis). Se deja el CSS por si algun dia se quiere recuperar. */
+.mc-cursor { display: none !important; }
 
 /* =====================================================================
    LOS NÚMEROS, CON JERARQUÍA
@@ -2303,6 +2300,22 @@ section {
     justify-self: center;
     margin: 0 1.5rem;
   }
+  /* 🔴 El alto del logo es RESPONSIVO a proposito. Luis lo queria mas grande,
+     pero medido con los ENLACES (no con las listas, que ocupan toda su columna
+     del grid y siempre dan 0) a 1280px el enlace "Scrap" ya queda a 11px del
+     logo de 46px. Asi que 52px solo donde sobra sitio. */
+  .mc-nav .mc-nav-logo-centro img {
+    height: 40px;
+    width: auto;
+  }
+}
+
+@media (min-width: 1400px) {
+  .mc-nav .mc-nav-logo-centro img { height: 46px; }
+}
+
+@media (min-width: 1600px) {
+  .mc-nav .mc-nav-logo-centro img { height: 52px; }
 }
 
 /* En el teléfono el logo del centro no existe y los grupos se apilan. */
@@ -2310,4 +2323,46 @@ section {
   .mc-nav .mc-nav-grupo {
     gap: 0;
   }
+}
+
+/* ==========================================================================
+   NAVBAR: DE 992 A 1279 EL LOGO VUELVE A LA IZQUIERDA
+   --------------------------------------------------------------------------
+   🔴 Medido con los ENLACES, no con las listas (las listas ocupan toda su
+   columna del grid y siempre dan 0 de separación, que engaña):
+     1440px → 73px de aire      ok
+     1280px → 4px               apretado
+     1100px → -86px             el enlace "Scrap" ENCIMA del logo
+      992px → -140px            encima de todo
+   En ese tramo no hay sitio para el logo al centro sin apretujar el menú, así
+   que el logo se va a la izquierda, que es donde sí cabe, y los enlaces se
+   reparten. El logo centrado manda de 1280px para arriba.
+   ========================================================================== */
+@media (min-width: 992px) and (max-width: 1279.98px) {
+  .mc-nav .mc-nav-logo-centro {
+    display: none !important;
+  }
+  .mc-nav .navbar-brand.mc-nav-logo:not(.mc-nav-logo-centro) {
+    display: block !important;
+  }
+  .mc-nav .mc-nav-fila {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .mc-nav .mc-nav-grupo {
+    gap: 1rem;
+  }
+  .mc-nav .mc-nav-link {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.6rem !important;
+  }
+}
+
+/* 1280–1399: el logo centrado cabe, pero justo (4px al enlace "Scrap").
+   Se le compra aire juntando un poco los enlaces y el margen del logo. */
+@media (min-width: 1280px) and (max-width: 1399.98px) {
+  .mc-nav .mc-nav-grupo { gap: 1.1rem; }
+  .mc-nav .mc-nav-logo-centro { margin: 0 1rem; }
 }
