@@ -2373,3 +2373,93 @@ section {
   .mc-nav .mc-nav-grupo { gap: 1.1rem; }
   .mc-nav .mc-nav-logo-centro { margin: 0 1rem; }
 }
+
+/* ==========================================================================
+   CAPA DE MOVIMIENTO DEL HERO — 3-sep-2026
+   --------------------------------------------------------------------------
+   El encargo del cliente fue "animada, pero seria". Medido antes de tocar
+   nada, la página YA tiene 10 animaciones, 29 elementos ligados al scroll y
+   34 que entran al aparecer: no faltaba movimiento en general. Lo que estaba
+   muerto era el HERO, que se quedó inmóvil al quitarle el parallax, el
+   respirar y la reacción al cursor. Y el hero es la primera pantalla.
+
+   🔴 La foto NO vuelve a moverse. Todo lo de aquí es coreografía de entrada
+   y una señal de scroll: movimiento que informa, no que decora.
+   ========================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Primer tiempo: el rótulo. Antes aparecía de golpe mientras el titular
+     emergía, y se leía como un error de sincronía. */
+  .mc-hero .mc-eyebrow-claro {
+    animation: mc-rotulo-entra 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+  }
+  @keyframes mc-rotulo-entra {
+    from { transform: translate3d(0, 10px, 0); opacity: 0; }
+    to   { transform: translate3d(0, 0, 0); opacity: 1; }
+  }
+
+  /* Cuarto tiempo: los botones, 90 ms después del párrafo. Entraban pegados
+     a él y el ojo no alcanzaba a separarlos. */
+  .mc-hero-botones .mc-btn {
+    animation: mc-boton-entra 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .mc-hero-botones .mc-btn:nth-child(1) { animation-delay: 0.52s; }
+  .mc-hero-botones .mc-btn:nth-child(2) { animation-delay: 0.61s; }
+  @keyframes mc-boton-entra {
+    from { transform: translate3d(0, 12px, 0); opacity: 0; }
+    to   { transform: translate3d(0, 0, 0); opacity: 1; }
+  }
+
+  /* La barra entra desde arriba. Sin esto la página empieza con el navbar ya
+     puesto y el hero animándose debajo: se ve desacoplado. */
+  .mc-nav-hero {
+    animation: mc-barra-entra 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes mc-barra-entra {
+    from { transform: translate3d(0, -14px, 0); opacity: 0; }
+    to   { transform: translate3d(0, 0, 0); opacity: 1; }
+  }
+}
+
+/* ---------- Señal de scroll ---------- */
+.mc-hero-baja {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  z-index: 6;
+  width: 1px;
+  height: 54px;
+  margin-left: -0.5px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  pointer-events: none;
+}
+.mc-hero-baja-riel {
+  display: block;
+  width: 100%;
+  height: 18px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.85));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mc-hero-baja {
+    animation: mc-rotulo-entra 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both;
+  }
+  /* Movimiento constante: va lineal. Y 2.6s a propósito, no 1s: a ritmo
+     rápido se vuelve un tic nervioso en la esquina del ojo. */
+  .mc-hero-baja-riel {
+    animation: mc-baja-corre 2.6s linear infinite;
+  }
+  @keyframes mc-baja-corre {
+    0%   { transform: translate3d(0, -18px, 0); }
+    100% { transform: translate3d(0, 54px, 0); }
+  }
+}
+/* Con movimiento reducido la señal se queda, quieta: sigue informando que
+   hay más abajo, que es su trabajo. */
+@media (prefers-reduced-motion: reduce) {
+  .mc-hero-baja-riel { transform: translate3d(0, 18px, 0); }
+}
+
+@media (max-width: 991.98px) {
+  .mc-hero-baja { display: none; }   /* en el teléfono estorba y no hace falta */
+}

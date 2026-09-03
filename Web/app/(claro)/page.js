@@ -48,6 +48,13 @@ export default function Inicio() {
         <div className="mc-hero-velo" aria-hidden="true" />
         <div className="mc-hero-chevron" aria-hidden="true" />
 
+        {/* Señal de que hay más abajo. No es adorno: el hero ocupa la pantalla
+            completa y sin esto no se lee que la página sigue. Una línea, no una
+            flecha rebotando: el registro tiene que ser formal. */}
+        <div className="mc-hero-baja" aria-hidden="true">
+          <span className="mc-hero-baja-riel" />
+        </div>
+
         <div className="container mc-hero-contenido">
           <div className="mc-hero-grid">
             <div className="mc-hero-titular">
