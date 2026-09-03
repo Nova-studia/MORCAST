@@ -111,10 +111,10 @@ export default function NavBar() {
               botón de menú a la derecha, como siempre. */}
           <Link href="/" className="navbar-brand mc-nav-logo p-0 m-0 d-lg-none">
             <Image
-              src="/img/logo-h-blanco.png"
+              src="/img/logo-nuevo-barra.png"
               alt="Morcast del Norte — Manejo de Residuos"
-              width={688}
-              height={200}
+              width={1241}
+              height={434}
               priority
               style={{ width: "auto", height: 46 }}
             />
@@ -151,10 +151,10 @@ export default function NavBar() {
               className="navbar-brand mc-nav-logo mc-nav-logo-centro p-0 m-0 d-none d-lg-block"
             >
               <Image
-                src="/img/logo-h-blanco.png"
+                src="/img/logo-nuevo-barra.png"
                 alt="Morcast del Norte — Manejo de Residuos"
-                width={688}
-                height={200}
+                width={1241}
+                height={434}
                 priority
               />
             </Link>

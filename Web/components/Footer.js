@@ -24,7 +24,7 @@ export default function Footer() {
           {/* Marca */}
           <div className="col-lg-4">
             <Image
-              src="/img/logo-h-blanco.png"
+              src="/img/logo-nuevo-blanco.png"
               alt="Morcast del Norte"
               width={688}
               height={200}

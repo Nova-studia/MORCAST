@@ -2463,3 +2463,29 @@ section {
 @media (max-width: 991.98px) {
   .mc-hero-baja { display: none; }   /* en el teléfono estorba y no hace falta */
 }
+
+/* ==========================================================================
+   EL LOGO SE DIBUJA AL ENTRAR — 3-sep-2026
+   --------------------------------------------------------------------------
+   El logotipo nuevo se entregó como VIDEO en el que se dibuja solo. No hay
+   archivo vectorial y no lo va a haber: la imagen la generó Gemini, no un
+   diseñador, así que no existe un .svg que animar con stroke-dasharray.
+   La versión blanca se sacó recoloreando por COBERTURA del trazo (no por el
+   color de cada píxel, que trae ruido de compresión y salía moteado).
+
+   El barrido con clip-path reproduce el dibujado: el logo está trazado de
+   izquierda a derecha (primero el camión, luego la hoja barriendo), que es
+   justo el orden del video.
+
+   🔴 clip-path es la cuarta propiedad barata junto con transform y opacity:
+   no dispara maquetación ni pintado.
+   ========================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-nav-hero .mc-nav-logo img {
+    animation: mc-logo-traza 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+  }
+  @keyframes mc-logo-traza {
+    from { clip-path: inset(0 100% 0 0); opacity: 0.35; }
+    to   { clip-path: inset(0 0 0 0);    opacity: 1; }
+  }
+}
