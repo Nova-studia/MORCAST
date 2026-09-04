@@ -2416,8 +2416,12 @@ section {
 
   /* La barra entra desde arriba. Sin esto la página empieza con el navbar ya
      puesto y el hero animándose debajo: se ve desacoplado. */
+  /* 🔴 'backwards', NO 'both'. Con 'both' el transform del último fotograma
+     se queda aplicado para siempre y le GANA a .mc-nav-oculto, así que la
+     barra dejaba de esconderse al bajar y los enlaces se encimaban con el
+     contenido. Lo reportó Luis; lo rompí yo al meter esta entrada. */
   .mc-nav-hero {
-    animation: mc-barra-entra 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: mc-barra-entra 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   @keyframes mc-barra-entra {
     from { transform: translate3d(0, -14px, 0); opacity: 0; }
@@ -2631,7 +2635,10 @@ section {
 
 /* La capa blanca del intro */
 .mc-hero-blanco {
-  position: absolute; inset: 0; z-index: 6; background: #fff;
+  /* 🔴 z-index 2: ARRIBA de los videos, DEBAJO del contenido (que va en 3).
+     Estaba en 6 y tapaba el titular y los botones, que es justo lo contrario
+     de lo que se buscaba: la interfaz debe verse desde el primer instante. */
+  position: absolute; inset: 0; z-index: 2; background: #fff;
   /* 2.5 s de cruce, lo pidio Luis: a ese ritmo el logo y el primer video
      conviven un momento y se siente entrega, no corte. */
   transition: opacity 2.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2731,4 +2738,114 @@ section {
   .mc-escena-camion-grupo { width: 160px; }
   .mc-escena-camion { width: 160px; }
   .mc-escena-carga { width: 26px; bottom: 46px; }
+}
+
+/* ==========================================================================
+   LA LUZ QUE RECORRE LOS BORDES  ·  3-sep-2026
+   --------------------------------------------------------------------------
+   Es el efecto que a Luis le gustó de la señal de scroll del hero, llevado a
+   los bordes del resto de la página, como pidió.
+
+   🔴 Corre UNA SOLA VEZ, cuando el borde entra en pantalla, y va ligada al
+   scroll (animation-timeline: view()). NO en bucle: con veinte bordes
+   latiendo a la vez la página se vuelve un árbol de navidad y deja de verse
+   seria. La vertical del hero sí sigue en bucle, porque ahí está informando
+   que hay más abajo.
+
+   Sin JavaScript y sin markup nuevo: va en pseudo-elementos.
+   ========================================================================== */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+
+    /* Borde superior de cada tarjeta */
+    .mc-tarjeta::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -26%;
+      width: 26%;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+      animation: mc-luz-borde linear both;
+      animation-timeline: view();
+      animation-range: entry 12% entry 78%;
+    }
+
+    /* Borde superior de la banda de confianza y de las secciones alternas */
+    .mc-confianza,
+    .mc-seccion-hueso { position: relative; }
+    .mc-confianza::before,
+    .mc-seccion-hueso::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -20%;
+      width: 20%;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+      animation: mc-luz-borde linear both;
+      animation-timeline: view();
+      animation-range: entry 8% entry 70%;
+    }
+
+    /* Borde superior del pie */
+    .mc-footer { position: relative; }
+    .mc-footer::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -18%;
+      width: 18%;
+      height: 1px;
+      z-index: 4;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+      animation: mc-luz-borde linear both;
+      animation-timeline: view();
+      animation-range: entry 6% entry 60%;
+    }
+
+    @keyframes mc-luz-borde {
+      from { left: -26%; }
+      to   { left: 100%; }
+    }
+  }
+}
+
+/* ==========================================================================
+   EL NAVBAR DURANTE EL INTRO BLANCO  ·  3-sep-2026
+   --------------------------------------------------------------------------
+   Mientras el hero está en blanco, el logo BLANCO y los enlaces blancos del
+   navbar desaparecen sobre el fondo. Por eso el navbar lleva las dos
+   versiones del logotipo y aquí se decide cuál se ve.
+   La marca la pone HeroMedia en <html>, porque el navbar vive fuera del hero.
+   ========================================================================== */
+.mc-logo-oscuro { display: none; }
+html.mc-intro-blanco .mc-nav-logo .mc-logo-claro { display: none; }
+html.mc-intro-blanco .mc-nav-logo .mc-logo-oscuro { display: block; }
+html.mc-intro-blanco .mc-nav-hero:not(.mc-nav-scroll) .mc-nav-link,
+html.mc-intro-blanco .mc-nav-hero:not(.mc-nav-scroll) .mc-nav-link.activo {
+  color: #15191a !important;
+}
+html.mc-intro-blanco .mc-nav .navbar-toggler { border-color: rgba(11, 14, 15, 0.35); }
+html.mc-intro-blanco .mc-nav .navbar-toggler-icon { filter: none; }
+/* Vuelven a blanco al mismo ritmo que el cruce del hero */
+.mc-nav-link,
+.mc-nav .navbar-toggler { transition: color 2.5s ease, border-color 2.5s ease; }
+
+/* Los botones del navbar tambien desaparecen sobre el blanco del intro:
+   "Iniciar sesion" es de vidrio con borde blanco. */
+html.mc-intro-blanco .mc-nav .mc-btn-vidrio,
+html.mc-intro-blanco .mc-nav .mc-nav-btn {
+  background: rgba(11, 14, 15, 0.05);
+  border-color: rgba(11, 14, 15, 0.22);
+  color: #15191a;
+}
+html.mc-intro-blanco .mc-nav .mc-btn-pri { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14); }
+.mc-nav .mc-btn-vidrio, .mc-nav .mc-nav-btn {
+  transition: background-color 2.5s ease, border-color 2.5s ease, color 2.5s ease;
 }

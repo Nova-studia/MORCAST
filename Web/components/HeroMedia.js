@@ -45,6 +45,8 @@ export default function HeroMedia() {
       c.dataset.fuera = "1";
       c.classList.add("mc-hero-blanco-fuera");
       seccion?.classList.remove("mc-hero-en-blanco");
+      // El navbar vive FUERA del hero, así que la marca va en <html>.
+      document.documentElement.classList.remove("mc-intro-blanco");
       try {
         sessionStorage.setItem("mc-intro", "1");
       } catch {}
@@ -58,11 +60,13 @@ export default function HeroMedia() {
     if (visto || quieto) {
       if (capa.current) capa.current.style.display = "none";
       seccion?.classList.remove("mc-hero-en-blanco");
+      document.documentElement.classList.remove("mc-intro-blanco");
       if (quieto) refs.current[0]?.classList.add("mc-hero-video-vivo");
       else ir(0);
       return;
     }
 
+    document.documentElement.classList.add("mc-intro-blanco");
     const v = vlogo.current;
     v?.addEventListener("ended", alVideo, { once: true });
     const p = v?.play();

@@ -111,11 +111,21 @@ export default function NavBar() {
               botón de menú a la derecha, como siempre. */}
           <Link href="/" className="navbar-brand mc-nav-logo p-0 m-0 d-lg-none">
             <Image
+              className="mc-logo-claro"
               src="/img/logo-h-blanco.png"
               alt="Morcast del Norte — Manejo de Residuos"
               width={688}
               height={200}
               priority
+              style={{ width: "auto", height: 46 }}
+            />
+            <Image
+              className="mc-logo-oscuro"
+              src="/img/logo-h.png"
+              alt=""
+              width={688}
+              height={200}
+              aria-hidden="true"
               style={{ width: "auto", height: 46 }}
             />
           </Link>
@@ -150,12 +160,23 @@ export default function NavBar() {
               href="/"
               className="navbar-brand mc-nav-logo mc-nav-logo-centro p-0 m-0 d-none d-lg-block"
             >
+              {/* Dos versiones: durante el intro el fondo es BLANCO y el
+                  logo blanco desaparecería. El CSS decide cuál se ve. */}
               <Image
+                className="mc-logo-claro"
                 src="/img/logo-h-blanco.png"
                 alt="Morcast del Norte — Manejo de Residuos"
                 width={688}
                 height={200}
                 priority
+              />
+              <Image
+                className="mc-logo-oscuro"
+                src="/img/logo-h.png"
+                alt=""
+                width={688}
+                height={200}
+                aria-hidden="true"
               />
             </Link>
 
