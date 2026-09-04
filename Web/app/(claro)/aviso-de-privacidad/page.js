@@ -80,7 +80,7 @@ export default function AvisoPrivacidad() {
                   currículum. Si quieres que los borremos antes, escríbenos a{" "}
                   <a
                     href={`mailto:${EMPRESA.correos[0]}`}
-                    style={{ color: "var(--mc-verde)", fontWeight: 600 }}
+                    style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}
                   >
                     <Correo correo={EMPRESA.correos[0]} />
                   </a>{" "}
@@ -126,7 +126,7 @@ export default function AvisoPrivacidad() {
                   correo{" "}
                   <a
                     href={`mailto:${EMPRESA.correos[0]}`}
-                    style={{ color: "var(--mc-verde)", fontWeight: 600 }}
+                    style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}
                   >
                     {EMPRESA.correos[0]}
                   </a>

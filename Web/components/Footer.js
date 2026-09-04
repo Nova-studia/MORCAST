@@ -38,11 +38,11 @@ export default function Footer() {
             </p>
             <div className="d-flex flex-column gap-2">
               <span className="d-inline-flex align-items-center gap-2">
-                <MapPin size={15} style={{ color: "var(--mc-verde)" }} />
+                <MapPin size={15} style={{ color: "var(--mc-verde-claro)" }} />
                 {EMPRESA.ciudad}, {EMPRESA.estado}, {EMPRESA.pais}
               </span>
               <span className="d-inline-flex align-items-center gap-2">
-                <Clock size={15} style={{ color: "var(--mc-verde)" }} />
+                <Clock size={15} style={{ color: "var(--mc-verde-claro)" }} />
                 {EMPRESA.horario}
               </span>
             </div>
@@ -74,7 +74,7 @@ export default function Footer() {
             {EMPRESA.telefonos.map((tel) => (
               <a key={tel} href={`tel:+52${tel.replace(/\s/g, "")}`}>
                 <span className="d-inline-flex align-items-center gap-2">
-                  <Phone size={14} style={{ color: "var(--mc-verde)" }} />
+                  <Phone size={14} style={{ color: "var(--mc-verde-claro)" }} />
                   {tel}
                 </span>
               </a>
@@ -92,7 +92,7 @@ export default function Footer() {
                 <span className="d-inline-flex align-items-start gap-2">
                   <Envelope
                     size={14}
-                    style={{ color: "var(--mc-verde)", marginTop: 4, flexShrink: 0 }}
+                    style={{ color: "var(--mc-verde-claro)", marginTop: 4, flexShrink: 0 }}
                   />
                   <span>
                     <Correo correo={correo} />

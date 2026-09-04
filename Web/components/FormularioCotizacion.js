@@ -31,7 +31,7 @@ export default function FormularioCotizacion() {
             height: 72,
             fontSize: "2rem",
             background: "rgba(78,179,74,0.13)",
-            color: "var(--mc-verde)",
+            color: "var(--mc-verde-claro)",
           }}
         >
           <CheckCircle />
@@ -233,7 +233,7 @@ export default function FormularioCotizacion() {
             }}
           >
             Al enviar aceptas nuestro{" "}
-            <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde)" }}>
+            <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde-claro)" }}>
               Aviso de Privacidad
             </a>
             .

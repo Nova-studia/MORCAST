@@ -174,7 +174,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
             height: 72,
             fontSize: "2rem",
             background: "rgba(78,179,74,0.13)",
-            color: "var(--mc-verde)",
+            color: "var(--mc-verde-claro)",
           }}
         >
           <CheckCircle />
@@ -360,7 +360,7 @@ export default function FormularioEmpleo({ vacantes = [] }) {
             />
             <label className="form-check-label" htmlFor="aviso" style={{ fontWeight: 400 }}>
               Acepto el{" "}
-              <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde)" }}>
+              <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde-claro)" }}>
                 Aviso de Privacidad
               </a>{" "}
               <span className="mc-requerido">*</span>
