@@ -2679,7 +2679,9 @@ section {
 
 @media (max-width: 991.98px) {
   .mc-hero-pasos { right: 20px; bottom: auto; top: 92px; }
-  .mc-hero-blanco video { right: auto; left: 50%; top: 16%; transform: translateX(-50%); width: min(74vw, 340px); }
+  /* Mas arriba y mas chico: a 16% se encimaba con el rotulo de
+     "MATAMOROS, TAMAULIPAS...". */
+  .mc-hero-blanco video { right: auto; left: 50%; top: 2.5%; transform: translateX(-50%); width: min(58vw, 260px); }
 }
 
 /* ==========================================================================

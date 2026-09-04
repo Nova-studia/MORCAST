@@ -70,11 +70,18 @@ export default function HeroMedia() {
     const v = vlogo.current;
     v?.addEventListener("ended", alVideo, { once: true });
     const p = v?.play();
-    // Si el navegador bloquea la reproducción automática, no nos quedamos
-    // atorados en blanco: se pasa al hero de inmediato.
-    if (p && p.catch) p.catch(alVideo);
+    // 🔴 En el TELÉFONO la reproducción automática se bloquea a menudo, y
+    // antes esto saltaba al hero de inmediato: el logo no se veía nunca en
+    // móvil (lo reportó Luis). Ahora, si el navegador la bloquea, se deja la
+    // imagen de arranque del logo unos segundos y DESPUÉS se cruza, así el
+    // logo se ve igual aunque el video no corra.
+    if (p && p.catch) {
+      p.catch(() => {
+        setTimeout(alVideo, 2400);
+      });
+    }
     // Red de seguridad por si el video nunca carga.
-    const red = setTimeout(alVideo, 8000);
+    const red = setTimeout(alVideo, 5000);   // el video dura 3s
 
     const saltar = () => alVideo();
     const eventos = ["click", "keydown", "wheel", "touchstart"];
