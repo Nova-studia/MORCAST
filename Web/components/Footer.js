@@ -13,6 +13,7 @@ import {
   SERVICIOS,
 } from "@/lib/datos";
 import Correo from "@/components/Correo";
+import EscenaTolvas from "@/components/EscenaTolvas";
 
 export default function Footer() {
   const anio = new Date().getFullYear();
@@ -120,6 +121,9 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {/* La escena va al final del pie, DEBAJO de la linea del copyright */}
+      <EscenaTolvas />
     </footer>
   );
 }

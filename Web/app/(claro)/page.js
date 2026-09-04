@@ -13,6 +13,7 @@ import {
 } from "@/components/Secciones";
 import Icono from "@/components/Iconos";
 import Revelar from "@/components/Revelar";
+import HeroMedia from "@/components/HeroMedia";
 import PreguntasFrecuentes from "@/components/PreguntasFrecuentes";
 import {
   EMPRESA,
@@ -33,18 +34,8 @@ export default function Inicio() {
   return (
     <>
       {/* ============ HERO ============ */}
-      <section className="mc-hero">
-        <div className="mc-hero-foto">
-          <Image
-            src="/img/hero-portada-hd.jpg"
-            alt="Operador de Morcast del Norte frente a contenedores en Matamoros"
-            fill
-            priority
-            quality={92}
-            sizes="100vw"
-            style={{ objectFit: "cover", objectPosition: "center 15%" }}
-          />
-        </div>
+      <section className="mc-hero mc-hero-en-blanco">
+        <HeroMedia />
         <div className="mc-hero-velo" aria-hidden="true" />
         <div className="mc-hero-chevron" aria-hidden="true" />
 

@@ -2589,3 +2589,146 @@ section {
     50%      { opacity: 0.55; box-shadow: 0 0 0 5px rgba(111, 168, 103, 0); }
   }
 }
+
+/* ==========================================================================
+   HERO CON VIDEO + INTRO DEL LOGO  ·  3-sep-2026
+   --------------------------------------------------------------------------
+   El hero deja de ser una foto fija y pasa a 4 videos de la operacion real,
+   de 5 s cada uno, encadenados. Antes de ellos corre el video del logotipo
+   formandose, sobre BLANCO y con la interfaz ya puesta: no es una pantalla
+   de carga que tape el sitio.
+   Ver components/HeroMedia.js para el porque de cada decision.
+   ========================================================================== */
+.mc-hero-foto video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.06);
+  /* El que esta al aire se acerca lentisimo durante sus 5 s. Cuando entra el
+     siguiente, ya venia habiendo movimiento y el corte no se siente seco. */
+  transition: opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1), transform 5.6s linear;
+}
+.mc-hero-foto video.mc-hero-video-vivo { opacity: 1; transform: scale(1); }
+
+/* Barrido de luz al cambiar de video: convierte el desvanecido en TRANSICION.
+   El ojo sigue la luz y no registra el corte. */
+.mc-hero-barrido { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.mc-hero-barrido i {
+  position: absolute; top: -20%; bottom: -20%; width: 38%; left: -40%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.10) 42%,
+    rgba(190,225,255,.22) 50%, rgba(255,255,255,.10) 58%, transparent);
+  transform: skewX(-12deg); opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mc-hero-barrido i { animation: mc-barrido 950ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes mc-barrido {
+    0% { left: -45%; opacity: 0; } 18% { opacity: 1; } 100% { left: 110%; opacity: 0; }
+  }
+}
+
+/* La capa blanca del intro */
+.mc-hero-blanco {
+  position: absolute; inset: 0; z-index: 6; background: #fff;
+  /* 2.5 s de cruce, lo pidio Luis: a ese ritmo el logo y el primer video
+     conviven un momento y se siente entrega, no corte. */
+  transition: opacity 2.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mc-hero-blanco.mc-hero-blanco-fuera { opacity: 0; pointer-events: none; }
+/* A la DERECHA, no al centro: centrado se montaba encima del titular. */
+.mc-hero-blanco video {
+  position: absolute; right: 6%; top: 50%; transform: translateY(-62%);
+  width: min(36vw, 470px); height: auto;
+}
+
+/* Con fondo blanco el texto va OSCURO o no se leeria. Todo cambia al MISMO
+   ritmo que el cruce: si el texto se pusiera blanco antes, se perderia
+   segundo y medio sobre el fondo todavia blanco. */
+.mc-hero-en-blanco .mc-eyebrow-claro { background: rgba(11,14,15,.07); color: #15191a; backdrop-filter: none; }
+.mc-hero-en-blanco h1,
+.mc-hero-en-blanco .mc-hero-lateral p { color: #15191a !important; }
+.mc-hero-en-blanco .mc-hero-velo,
+.mc-hero-en-blanco .mc-hero-chevron { opacity: 0; }
+.mc-hero-en-blanco .mc-btn-vidrio { background: rgba(11,14,15,.06); border-color: rgba(11,14,15,.18); color: #15191a; }
+.mc-hero .mc-eyebrow-claro, .mc-hero h1, .mc-hero .mc-hero-lateral p,
+.mc-hero .mc-btn-vidrio, .mc-hero-velo, .mc-hero-chevron {
+  transition: color 2.5s ease, background-color 2.5s ease, border-color 2.5s ease, opacity 2.5s ease;
+}
+
+/* Marcadores de que video va */
+.mc-hero-pasos { position: absolute; right: 40px; bottom: 34px; z-index: 12; display: flex; gap: 8px; }
+.mc-hero-paso {
+  width: 34px; height: 2px; background: rgba(255,255,255,.22);
+  border: 0; padding: 0; cursor: pointer; position: relative; overflow: hidden;
+}
+.mc-hero-paso i { position: absolute; inset: 0; background: #fff; transform: scaleX(0); transform-origin: left; display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .mc-hero-paso.activo i { animation: mc-paso-avanza 5s linear forwards; }
+  @keyframes mc-paso-avanza { to { transform: scaleX(1); } }
+}
+@media (prefers-reduced-motion: reduce) { .mc-hero-paso.activo i { transform: scaleX(1); } }
+
+@media (max-width: 991.98px) {
+  .mc-hero-pasos { right: 20px; bottom: auto; top: 92px; }
+  .mc-hero-blanco video { right: auto; left: 50%; top: 16%; transform: translateX(-50%); width: min(74vw, 340px); }
+}
+
+/* ==========================================================================
+   LA ESCENA DEL PIE: LAS TOLVAS  ·  idea de Luis, 3-sep-2026
+   Ver components/EscenaTolvas.js para el porque de cada decision.
+   ========================================================================== */
+.mc-escena { position: relative; height: 250px; margin: 24px 0 0; overflow: hidden; pointer-events: none; }
+.mc-escena-piso { position: absolute; left: 0; right: 0; bottom: 44px; height: 1px; background: var(--mc-linea); }
+.mc-escena img { position: absolute; }
+.mc-escena-tolva { width: 230px; bottom: 44px; }
+.mc-escena-tolva.izq { left: 6%; }
+.mc-escena-tolva.der { right: 6%; }
+/* Las bolsas caen ENCIMA de la tolva y se apilan: dentro no se veian. */
+.mc-escena-bolsa { width: 54px; bottom: 150px; opacity: 0; }
+/* El camion y su carga en un mismo bloque: la carga viaja con el sola. */
+.mc-escena-camion-grupo { position: absolute; right: -340px; bottom: 40px; width: 270px; height: 170px; }
+.mc-escena-camion { width: 270px; bottom: 0; left: 0; }
+.mc-escena-carga { width: 44px; opacity: 0; bottom: 78px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mc-escena .cae { animation: mc-bolsa-cae 15s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
+  @keyframes mc-bolsa-cae {
+    0%       { transform: translate(0, -330px) rotate(-6deg); opacity: 0; }
+    4%       { opacity: 1; }
+    15%      { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    17%      { transform: translate(0, -10px) rotate(2deg); }
+    19%, 56% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    62%      { transform: translate(calc(var(--haciaX) * .45), -46px) rotate(12deg); opacity: 1; }
+    67%      { transform: translate(var(--haciaX), -14px) rotate(24deg); opacity: 0; }
+    68%,100% { opacity: 0; }
+  }
+  .mc-escena-carga { animation: mc-carga 15s linear infinite; }
+  @keyframes mc-carga {
+    0%, 63%   { opacity: 0; transform: translateY(8px); }
+    67%, 100% { opacity: 1; transform: translateY(0); }
+  }
+  .mc-escena-camion-grupo { animation: mc-camion-pasa 15s cubic-bezier(0.42, 0, 0.58, 1) infinite; }
+  @keyframes mc-camion-pasa {
+    0%, 44%   { transform: translateX(0); }
+    58%, 72%  { transform: translateX(calc(-50vw + 60px)); }
+    92%, 100% { transform: translateX(calc(-100vw - 380px)); }
+  }
+}
+.mc-escena-quieta * { animation-play-state: paused !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-escena .cae { opacity: 1; transform: translate(0, 0); }
+  .mc-escena-carga { opacity: 1; }
+  .mc-escena-camion-grupo { transform: translateX(calc(-50vw + 60px)); }
+}
+
+@media (max-width: 991.98px) {
+  .mc-escena { height: 160px; }
+  .mc-escena-tolva { width: 130px; }
+  .mc-escena-bolsa { width: 30px; bottom: 86px; }
+  .mc-escena-camion-grupo { width: 160px; }
+  .mc-escena-camion { width: 160px; }
+  .mc-escena-carga { width: 26px; bottom: 46px; }
+}
