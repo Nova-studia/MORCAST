@@ -107,7 +107,7 @@ export default function Saldos() {
           </View>
         </View>
         <Pressable onPress={() => setSimularAux((v) => !v)} style={[s.toggle, simularAux && s.toggleOn]}>
-          <Text style={[s.toggleTxt, simularAux && { color: "#0d1211" }]}>{simularAux ? "Volver a mi vista de administrador" : "Ver como auxiliar sin permiso (demo)"}</Text>
+          <Text style={[s.toggleTxt, simularAux && { color: "#fff" }]}>{simularAux ? "Volver a mi vista de administrador" : "Ver como auxiliar sin permiso (demo)"}</Text>
         </Pressable>
         {!puedeVerificar && (
           <View style={s.candado}><Feather name="lock" size={13} color="#e0a94d" /><Text style={s.candadoTxt}>Esta vista puede ver las recargas pero no aplicar saldo.</Text></View>
@@ -206,7 +206,7 @@ export default function Saldos() {
 
                 {puedeVerificar ? (
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-                    <Boton onPress={() => aplicar(ver)} disabled={guardando} style={{ flex: 1 }}><Feather name="check-circle" size={15} color="#0d1211" /><Text style={{ color: "#0d1211", fontWeight: "700" }}>  Aplicar</Text></Boton>
+                    <Boton onPress={() => aplicar(ver)} disabled={guardando} style={{ flex: 1 }}><Feather name="check-circle" size={15} color="#fff" /><Text style={{ color: "#fff", fontWeight: "700" }}>  Aplicar</Text></Boton>
                     <Boton variante="linea" onPress={() => rechazar(ver)} disabled={guardando} style={{ flex: 1 }}>{guardando ? "Guardando…" : "Rechazar"}</Boton>
                   </View>
                 ) : (

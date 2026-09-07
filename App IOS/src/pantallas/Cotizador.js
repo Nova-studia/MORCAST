@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image, Linking } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
@@ -7,7 +7,8 @@ import { CATALOGO_COTIZADOR, IVA, pesos } from "../datos";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
 import { descargarCotizacion, descargarConstancia } from "../pdf";
-import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS } from "../cotizacion-datos";
+import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS, EMPRESA_COTIZACION } from "../cotizacion-datos";
+import { enHold, HOLD } from "../estado-sistema";
 
 export default function Cotizador() {
   const [cant, setCant] = useState({}); // { id: n }
@@ -33,12 +34,50 @@ export default function Cotizador() {
     catch (e) { Alert.alert("Error", String(e?.message || e)); }
     finally { setBajando(""); }
   };
+  // Sin precios que calcular, la cotizacion se pide por escrito. Se usa el
+  // primer telefono de los datos oficiales, no uno escrito a mano aqui.
+  const pedirCotizacion = () => {
+    const tel = (EMPRESA_COTIZACION.telefonos[0] || "").replace(/\D/g, "");
+    const texto = encodeURIComponent(
+      "Hola, me gustaria una cotizacion de sus servicios de manejo de residuos."
+    );
+    Linking.openURL(`https://wa.me/52${tel}?text=${texto}`).catch(() =>
+      Alert.alert("No se pudo abrir WhatsApp", `Escribenos al ${EMPRESA_COTIZACION.telefonos[0]}.`)
+    );
+  };
+
   const bajarConstancia = async () => {
     setBajando("csf");
     try { await descargarConstancia(); }
     catch (e) { Alert.alert("Error", String(e?.message || e)); }
     finally { setBajando(""); }
   };
+
+  // MODO HOLD. Los doce precios del catálogo son los que se inventaron en
+  // agosto para poder enseñar el flujo; el cuaderno de la empresa llegó sin
+  // ninguno. Mientras eso siga así, el cotizador NO habla de dinero: la web
+  // ya lo hacía desde el 1-sep y la app no, así que el mismo cliente veía
+  // "todavía no se generan cobros" en una pantalla y un total en la otra.
+  if (enHold()) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        <Text style={s.h1}>Cotizador</Text>
+        <Tarjeta style={{ alignItems: "center", paddingVertical: 34 }}>
+          <Feather name="file-text" size={34} color={T.grisClaro} />
+          <Text style={s.holdTit}>{HOLD.titulo.toUpperCase()}</Text>
+          <Text style={s.holdTxt}>
+            Estamos afinando nuestra lista de precios. Mientras tanto,
+            cotizamos por escrito: escríbenos y te contestamos con los montos
+            de tus servicios.
+          </Text>
+          <Boton onPress={pedirCotizacion} style={{ marginTop: 16 }}>
+            <Feather name="message-circle" size={16} color="#fff" />
+            <Text style={{ color: "#fff", fontWeight: "700" }}>  Pedir una cotización</Text>
+          </Boton>
+        </Tarjeta>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -63,7 +102,7 @@ export default function Cotizador() {
               <View style={s.stepper}>
                 <Pressable onPress={() => set(x.id, -1)} style={s.step}><Feather name="minus" size={16} color={n > 0 ? T.tinta : T.grisClaro} /></Pressable>
                 <Text style={s.cant}>{n}</Text>
-                <Pressable onPress={() => set(x.id, 1)} style={s.step}><Feather name="plus" size={16} color={T.verde} /></Pressable>
+                <Pressable onPress={() => set(x.id, 1)} style={s.step}><Feather name="plus" size={16} color={T.accionTxt} /></Pressable>
               </View>
             </View>
           );
@@ -89,8 +128,8 @@ export default function Cotizador() {
             <View style={s.totFila}><Text style={s.totKg}>Total</Text><Text style={s.totVg}>{pesos(total)}</Text></View>
 
             <Boton onPress={bajarCotizacion} disabled={bajando === "cot"} style={{ marginTop: 14 }}>
-              <Feather name="download" size={16} color="#0d1211" />
-              <Text style={{ color: "#0d1211", fontWeight: "700" }}>  {bajando === "cot" ? "Generando…" : "Descargar cotización PDF"}</Text>
+              <Feather name="download" size={16} color="#fff" />
+              <Text style={{ color: "#fff", fontWeight: "700" }}>  {bajando === "cot" ? "Generando…" : "Descargar cotización PDF"}</Text>
             </Boton>
           </>
         )}
@@ -118,6 +157,8 @@ export default function Cotizador() {
 }
 
 const s = StyleSheet.create({
+  holdTit: { color: T.tinta, fontSize: 18, fontWeight: "600", letterSpacing: 1.2, marginTop: 14, textAlign: "center" },
+  holdTxt: { color: T.gris, fontSize: 13.5, lineHeight: 20, textAlign: "center", marginTop: 8, paddingHorizontal: 6 },
   h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
   sub: { color: T.gris, fontSize: 13.5, marginTop: 3, marginBottom: 14 },
   item: { flexDirection: "row", alignItems: "center", paddingVertical: 11 },
@@ -135,7 +176,7 @@ const s = StyleSheet.create({
   resMonto: { color: T.tinta, fontSize: 13, fontWeight: "600" },
   sep: { height: 1, backgroundColor: T.linea, marginVertical: 8 },
   condFila: { flexDirection: "row", paddingVertical: 4 },
-  condPunto: { color: T.verde, fontSize: 13, width: 14 },
+  condPunto: { color: T.verdeTxt, fontSize: 13, width: 14 },
   condTxt: { color: T.gris, fontSize: 12.5, flex: 1, lineHeight: 18 },
   condPie: { color: T.gris, fontSize: 12.5, marginTop: 8, lineHeight: 18 },
   totFila: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },

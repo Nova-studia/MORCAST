@@ -74,7 +74,7 @@ function construirHtml({ zonas, pin, puntos, tocable }) {
   /* Las teselas de OSM son claras; se atenúan para que peguen con el tema oscuro. */
   .leaflet-tile-pane { filter: brightness(0.72) saturate(0.85) contrast(1.05); }
   .leaflet-control-attribution { background: rgba(13,21,20,.82); color:#93a5a1; font-size:9px; }
-  .leaflet-control-attribution a { color:#7cc576; }
+  .leaflet-control-attribution a { color:#6ba3cf; }
 </style>
 </head>
 <body>
@@ -94,7 +94,7 @@ function construirHtml({ zonas, pin, puntos, tocable }) {
   D.zonas.forEach(function (z) {
     if (!z.poligono || z.poligono.length < 3) return;
     var capa = L.polygon(z.poligono, {
-      color: z.color || '#4EB34A', weight: 2, fillOpacity: 0.18
+      color: z.color || '#479B57', weight: 2, fillOpacity: 0.18
     }).addTo(mapa);
     if (z.nombre) capa.bindTooltip(z.nombre);
     capas.push(capa);
@@ -102,7 +102,7 @@ function construirHtml({ zonas, pin, puntos, tocable }) {
 
   D.puntos.forEach(function (p) {
     var m = L.circleMarker([p.lat, p.lng], {
-      radius: 7, color: '#DB652D', fillColor: '#DB652D', fillOpacity: 0.9
+      radius: 7, color: '#B07A00', fillColor: '#B07A00', fillOpacity: 0.9
     }).addTo(mapa);
     if (p.titulo) m.bindTooltip(p.titulo);
     capas.push(m);
@@ -112,7 +112,7 @@ function construirHtml({ zonas, pin, puntos, tocable }) {
   function ponPin(lat, lng) {
     if (marcadorPin) marcadorPin.remove();
     marcadorPin = L.circleMarker([lat, lng], {
-      radius: 10, color: '#144C4F', fillColor: '#7cc576', fillOpacity: 1, weight: 3
+      radius: 10, color: '#2A6A99', fillColor: '#348DCF', fillOpacity: 1, weight: 3
     }).addTo(mapa).bindTooltip('Tu domicilio');
   }
 

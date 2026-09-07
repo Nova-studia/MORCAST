@@ -1,15 +1,18 @@
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T } from "../tema";
+import { T, SERIES } from "../tema";
 import { Tarjeta, Boton } from "../ui";
 import { useMiEmpresa } from "../mi-empresa";
 
+// Un color por entrada, para poder encontrarlas de un vistazo. Salen de la
+// paleta validada de `tema.js`, no de tonos sueltos: los que habia (dos
+// verdes casi iguales y un teal) no se distinguian entre si.
 const MENU = [
-  { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: "#7cc576" },
-  { pantalla: "Agendar", icono: "calendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta", color: "#4eb34a" },
-  { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Volumen y monto por periodo", color: "#4fc0c5" },
-  { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: "Constancia fiscal y manifiestos", color: "#6fce69" },
-  { pantalla: "Cotizador", icono: "file-plus", titulo: "Cotizador", sub: "Arma y descarga una cotización", color: "#f0895c" },
+  { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: SERIES[0] },
+  { pantalla: "Agendar", icono: "calendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta", color: SERIES[1] },
+  { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Volumen y monto por periodo", color: SERIES[2] },
+  { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: "Constancia fiscal y manifiestos", color: SERIES[3] },
+  { pantalla: "Cotizador", icono: "file-plus", titulo: "Cotizador", sub: "Arma y descarga una cotización", color: SERIES[4] },
 ];
 
 export default function Mas({ navigation, onLogout }) {
@@ -78,8 +81,9 @@ const s = StyleSheet.create({
   h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
   sub: { color: T.gris, fontSize: 13.5, marginTop: 3, marginBottom: 14 },
   perfil: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
-  avatar: { width: 46, height: 46, borderRadius: 12, backgroundColor: T.verde, alignItems: "center", justifyContent: "center" },
-  avatarTxt: { color: "#0d1211", fontWeight: "800", fontSize: 16 },
+  // El avatar es MARCA, no una accion: no se pulsa. Va el verde.
+  avatar: { width: 46, height: 46, borderRadius: 12, backgroundColor: T.verdeMarca, alignItems: "center", justifyContent: "center" },
+  avatarTxt: { color: "#fff", fontWeight: "800", fontSize: 16 },
   empresa: { color: T.tinta, fontSize: 15, fontWeight: "700" },
   dato: { color: T.gris, fontSize: 12.5, marginTop: 2 },
   infoFila: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },

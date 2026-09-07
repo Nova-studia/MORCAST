@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
-import { Tarjeta, TituloTarjeta, Boton } from "../ui";
+import { enHold } from "../estado-sistema";
+import { Tarjeta, TituloTarjeta, Boton, AvisoHold } from "../ui";
 import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, pesos } from "../datos";
 import { reportes } from "../datos-remoto";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
@@ -48,6 +49,7 @@ export default function Reportes() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.h1}>Reportes</Text>
+      <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Peso recolectado por periodo, tomado de cada servicio.</Text>
 
       <View style={s.seg}>
@@ -64,7 +66,7 @@ export default function Reportes() {
       </View>
 
       <Tarjeta>
-        <TituloTarjeta>Monto por periodo</TituloTarjeta>
+        <TituloTarjeta>{enHold() ? "Peso por periodo" : "Monto por periodo"}</TituloTarjeta>
         <View style={s.chart}>
           {data.map((d) => (
             <View key={d.periodo} style={s.col}>
@@ -105,7 +107,7 @@ const s = StyleSheet.create({
   segBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: "center" },
   segOn: { backgroundColor: T.verde },
   segTxt: { color: T.gris, fontSize: 13, fontWeight: "600" },
-  segTxtOn: { color: "#0d1211" },
+  segTxtOn: { color: "#fff" },
   kpis: { flexDirection: "row", gap: 10, marginBottom: 14 },
   kpi: { flex: 1, backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 14, padding: 14 },
   kpiEt: { color: T.gris, fontSize: 12 },

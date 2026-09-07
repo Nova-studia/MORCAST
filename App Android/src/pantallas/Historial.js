@@ -125,7 +125,7 @@ const s = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel },
   chipOn: { backgroundColor: T.verde, borderColor: T.verde },
   chipTxt: { color: T.gris, fontSize: 13, fontWeight: "600" },
-  chipTxtOn: { color: "#0d1211" },
+  chipTxtOn: { color: "#fff" },
   cab: { flexDirection: "row", alignItems: "center", padding: 16 },
   tipo: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   folio: { color: T.gris, fontSize: 12, marginTop: 3 },

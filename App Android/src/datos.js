@@ -3,6 +3,11 @@
  * En la Fase 4 se reemplazan por consultas a Supabase manteniendo la forma.
  */
 
+// La identidad fiscal y el domicilio NO se escriben aquí: viven en
+// `cotizacion-datos.js`, que es la fuente única (ver la nota de más abajo).
+import { EMPRESA_COTIZACION } from "./cotizacion-datos";
+import { COLOR_TIPO } from "./tema";
+
 export const CREDENCIALES_DEMO = { correo: "cliente@demo.com", password: "morcast" };
 
 export const CLIENTE = {
@@ -49,10 +54,10 @@ export const REPORTE_ANUAL = [
 ];
 
 export const COMPOSICION_RESIDUOS = [
-  { tipo: "Residuos Sólidos Urbanos", porcentaje: 46, color: "#4eb34a" },
-  { tipo: "Manejo Especial", porcentaje: 24, color: "#db652d" },
-  { tipo: "Aguas Oleosas", porcentaje: 18, color: "#2d8a8f" },
-  { tipo: "Reciclaje", porcentaje: 12, color: "#7cc576" },
+  { tipo: "Residuos Sólidos Urbanos", porcentaje: 46, color: COLOR_TIPO["Residuos Sólidos Urbanos"] },
+  { tipo: "Manejo Especial", porcentaje: 24, color: COLOR_TIPO["Manejo Especial"] },
+  { tipo: "Aguas Oleosas", porcentaje: 18, color: COLOR_TIPO["Aguas Oleosas"] },
+  { tipo: "Reciclaje", porcentaje: 12, color: COLOR_TIPO["Reciclaje"] },
 ];
 
 export const REPORTE_DIARIO = [
@@ -111,12 +116,37 @@ export const CATALOGO_COTIZADOR = [
 export const IVA = 0.16;
 
 // ---- Documentos ----
+/**
+ * 🔴 EL RFC Y EL DOMICILIO DE AQUÍ ERAN INVENTADOS (corregido 7-sep-2026).
+ *
+ * Este objeto traía un RFC inventado y un domicilio en "Av. Lauro Villar
+ * S/N, Col. Industrial". Ninguno de los dos es real:
+ *
+ * (El RFC no se transcribe aquí a propósito: este repositorio es PÚBLICO y
+ * una cadena con forma de RFC no tiene por qué quedar publicada, aunque sea
+ * falsa. Si hace falta rastrearlo, está en el historial de git.)
+ *
+ *   · La empresa NO ha entregado su constancia de situación fiscal. La web
+ *     ya lo reconocía — `EMPRESA_COTIZACION.rfc` vale `null` y lleva escrito
+ *     "PENDIENTE" desde agosto — pero las apps se quedaron con el inventado
+ *     y lo IMPRIMÍAN: en la Constancia de Situación Fiscal y, peor, en el
+ *     MANIFIESTO, que es el papel que el cliente archiva como comprobante
+ *     de disposición final de sus residuos.
+ *   · El domicilio contradecía a la fuente única (`cotizacion-datos.js`),
+ *     que trae el que sí dio el cliente el 6-ago: Calle 16 y González #1601.
+ *
+ * Ahora se apoya en esa fuente única y el RFC queda en `null`. Cuando llegue
+ * la constancia real, el RFC se pone en `EMPRESA_COTIZACION.rfc` — aquí no.
+ */
 export const CONSTANCIA_FISCAL = {
-  razonSocial: "MORCAST DEL NORTE, S.A. DE C.V.",
-  rfc: "MDN190320AB4",
+  razonSocial: EMPRESA_COTIZACION.razonSocial.toUpperCase(),
+  rfc: EMPRESA_COTIZACION.rfc, // null mientras no llegue la constancia
   regimen: "601 — General de Ley Personas Morales",
-  domicilio: "Av. Lauro Villar S/N, Col. Industrial, C.P. 87390, Matamoros, Tamaulipas",
+  domicilio: EMPRESA_COTIZACION.domicilioLinea,
 };
+
+/** ¿Se puede emitir un papel con datos fiscales? Sin RFC, no. */
+export const HAY_DATOS_FISCALES = Boolean(CONSTANCIA_FISCAL.rfc);
 
 // ---- Helpers ----
 export function pesos(n) {

@@ -101,7 +101,7 @@ export default function Solicitudes() {
                   <Pressable style={s.contacto} onPress={() => abrir(`mailto:${sel.correo}`)}><Feather name="mail" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.correo}</Text></Pressable>
                   <Pressable style={s.contacto} onPress={() => abrir(`tel:+52${sel.telefono.replace(/\s/g, "")}`)}><Feather name="phone" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.telefono}</Text></Pressable>
                   <Pressable style={[s.contacto, { backgroundColor: T.verde, borderColor: T.verde }]} onPress={() => abrir(`https://wa.me/52${sel.telefono.replace(/\s/g, "")}?text=${encodeURIComponent(`Hola ${sel.nombre}, le escribimos de Morcast del Norte sobre su solicitud ${sel.id}.`)}`)}>
-                    <Feather name="message-square" size={15} color="#0d1211" /><Text style={[s.contactoTxt, { color: "#0d1211", fontWeight: "700" }]}>Contactar por WhatsApp</Text>
+                    <Feather name="message-square" size={15} color="#fff" /><Text style={[s.contactoTxt, { color: "#fff", fontWeight: "700" }]}>Contactar por WhatsApp</Text>
                   </Pressable>
                 </View>
 

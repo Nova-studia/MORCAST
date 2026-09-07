@@ -180,7 +180,7 @@ const s = StyleSheet.create({
   },
   chipActivo: { backgroundColor: T.verde, borderColor: T.verde },
   chipTxt: { color: T.tinta, fontSize: 12.5, fontWeight: "600" },
-  chipTxtActivo: { color: "#0d1211" },
+  chipTxtActivo: { color: "#fff" },
   input: {
     backgroundColor: T.panel2,
     borderWidth: 1,
@@ -193,7 +193,7 @@ const s = StyleSheet.create({
     textAlignVertical: "top",
     marginBottom: 12,
   },
-  botonTxt: { color: "#0d1211", fontWeight: "800", fontSize: 14.5 },
+  botonTxt: { color: "#fff", fontWeight: "800", fontSize: 14.5 },
   error: { color: "#ef8080", fontSize: 12.5, marginTop: 10, lineHeight: 18 },
   exito: { color: T.verdeClaro, fontSize: 12.5, marginTop: 10, lineHeight: 18 },
   vacio: { color: T.gris, fontSize: 13 },

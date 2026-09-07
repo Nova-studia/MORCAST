@@ -7,34 +7,45 @@ import {
   DATOS_TRANSFERENCIA,
 } from "./cotizacion-datos";
 
+/**
+ * ESTILOS DEL PDF (puesto al dia el 7-sep-2026).
+ *
+ * Estos papeles se imprimen y se leen sobre BLANCO, asi que no heredan la
+ * paleta de la pantalla: se midio cada tono contra el papel.
+ *
+ * 🔴 El verde viejo `#4eb34a` daba 2.67:1 sobre blanco. Con el iban los
+ * titulos de columna ("GENERADOR", "PRESTADOR DE SERVICIO"), el nombre de la
+ * marca y los subtitulos: en el papel se leian como un gris palido. El verde
+ * de marca `#265421` da 8.85:1 y el azul de accion `#2a6a99`, 5.80:1.
+ */
 const CSS = `
   * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, Roboto, Arial, sans-serif; }
   body { color:#1a2221; font-size:12px; }
-  .cab { background:#144c4f; padding:20px 28px; position:relative; }
-  .cab::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background:#4eb34a; }
+  .cab { background:#265421; padding:20px 28px; position:relative; }
+  .cab::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background:#2a6a99; }
   .marca { font-size:20px; font-weight:800; color:#fff; }
-  .marca span { color:#4eb34a; }
-  .marca small { display:block; font-size:8px; color:#cfe0de; letter-spacing:0.15em; margin-top:2px; }
+  .marca span { color:#9ec89a; }
+  .marca small { display:block; font-size:8px; color:#cfe0cd; letter-spacing:0.15em; margin-top:2px; }
   .cont { padding:24px 28px; }
   .titulo { font-size:17px; font-weight:800; }
   .folio { color:#6e7a78; font-size:11px; margin-top:3px; }
   .p { color:#6e7a78; font-size:11px; margin:14px 0; }
   .cols { display:flex; gap:24px; margin:16px 0; }
   .col { flex:1; }
-  .col h3 { color:#4eb34a; font-size:10px; letter-spacing:0.04em; margin-bottom:8px; }
+  .col h3 { color:#265421; font-size:10px; letter-spacing:0.04em; margin-bottom:8px; }
   .row { display:flex; margin:4px 0; }
   .row .k { color:#6e7a78; width:80px; font-weight:600; font-size:10.5px; }
   .row .v { flex:1; font-size:11px; }
   table { width:100%; border-collapse:collapse; margin:14px 0; }
-  th { background:#144c4f; color:#fff; font-size:10px; padding:8px 6px; text-align:left; }
+  th { background:#265421; color:#fff; font-size:10px; padding:8px 6px; text-align:left; }
   td { padding:8px 6px; font-size:10.5px; border:1px solid #e1e6e5; }
   .tot { display:flex; justify-content:space-between; padding:4px 0; font-size:11px; }
   .tot.g { font-weight:800; font-size:14px; border-top:1px solid #e1e6e5; padding-top:8px; margin-top:4px; }
   .decl { color:#6e7a78; font-size:10px; margin:18px 0; line-height:1.5; }
   .firmas { display:flex; gap:40px; margin-top:40px; }
   .firma { flex:1; border-top:1px solid #99a; padding-top:6px; text-align:center; font-size:10px; }
-  .caja { background:#f4f9f7; border-left:3px solid #4eb34a; padding:10px 12px; font-size:10.5px; color:#3a4a48; margin-top:10px; }
-  .subtit { font-size:9.5px; font-weight:800; letter-spacing:0.06em; color:#4eb34a; }
+  .caja { background:#f4f9f7; border-left:3px solid #265421; padding:10px 12px; font-size:10.5px; color:#3a4a48; margin-top:10px; }
+  .subtit { font-size:9.5px; font-weight:800; letter-spacing:0.06em; color:#265421; }
   .pie { margin-top:24px; border-top:1px solid #e1e6e5; padding-top:10px; color:#9aa4a2; font-size:9px; }
 `;
 
@@ -69,7 +80,7 @@ export async function descargarManifiesto(s, cliente) {
         <div class="col">
           <h3>PRESTADOR DE SERVICIO</h3>
           <div class="row"><div class="k">Empresa</div><div class="v">Morcast del Norte, S.A. de C.V.</div></div>
-          <div class="row"><div class="k">RFC</div><div class="v">${CONSTANCIA_FISCAL.rfc}</div></div>
+          <div class="row"><div class="k">RFC</div><div class="v">${CONSTANCIA_FISCAL.rfc || "—"}</div></div>
           <div class="row"><div class="k">Operador</div><div class="v">${s.operador}</div></div>
         </div>
       </div>
@@ -86,6 +97,15 @@ export async function descargarManifiesto(s, cliente) {
 
 export async function descargarConstancia() {
   const c = CONSTANCIA_FISCAL;
+  // Sin RFC no hay constancia. Antes se generaba igual, con uno inventado:
+  // un papel titulado "Constancia de Situacion Fiscal" con un RFC que no
+  // existe no es un borrador, es un documento falso.
+  if (!c.rfc) {
+    throw new Error(
+      "Todavia no tenemos la constancia de situacion fiscal de Morcast. " +
+      "En cuanto la empresa la entregue, este documento se podra descargar."
+    );
+  }
   const html = `
     ${cabecera}
     <div class="cont">

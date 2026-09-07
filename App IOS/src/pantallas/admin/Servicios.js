@@ -42,7 +42,7 @@ export default function Servicios() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
         {FILTROS.map((f) => (
           <Pressable key={f.id} onPress={() => setFiltro(f.id)} style={[s.chip, filtro === f.id && s.chipOn]}>
-            <Text style={[s.chipTxt, filtro === f.id && { color: "#0d1211" }]}>{f.texto}</Text>
+            <Text style={[s.chipTxt, filtro === f.id && { color: "#fff" }]}>{f.texto}</Text>
           </Pressable>
         ))}
       </ScrollView>

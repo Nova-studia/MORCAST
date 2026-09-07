@@ -6,6 +6,28 @@ import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../../ui";
 import { CLIENTES_ADMIN, pesos } from "../../datos-admin";
 
+/**
+ * COMO SE LLAMA CADA ESTADO DE CLIENTE.
+ *
+ * 🔴 Antes esto era `estatus === "activo" ? "Activo" : "Moroso"`, o sea que
+ * TODO lo que no fuera activo salia acusado de moroso. Al cargar la operacion
+ * real (1-sep-2026) entraron 17 clientes en `pendiente-info` — que no deben
+ * nada, solo les falta un correo o un telefono — y los 17 habrian aparecido
+ * como morosos en el telefono del administrador. La web ya lo corrigio ese
+ * dia; la app se quedo con el bug hasta hoy.
+ *
+ * `pendiente-info` NO es una falta de pago: la vara es contacto + telefono +
+ * correo, y lo fiscal queda fuera a proposito (ver `Web/lib/estado-cliente.mjs`,
+ * que es donde vive la regla).
+ */
+const ESTADO = {
+  activo: { texto: "Activo", clase: "ok" },
+  "pendiente-info": { texto: "Pendiente por información", clase: "ruta" },
+  moroso: { texto: "Moroso", clase: "mal" },
+  suspendido: { texto: "Suspendido", clase: "mal" },
+  baja: { texto: "Baja", clase: "none" },
+};
+
 export default function Clientes() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -42,7 +64,7 @@ export default function Clientes() {
           <Text style={s.sub}>{lista.length} cuentas registradas.</Text>
         </View>
         <Pressable onPress={() => setAlta((v) => !v)} style={s.btnAlta}>
-          <Feather name={alta ? "x" : "user-plus"} size={16} color="#0d1211" />
+          <Feather name={alta ? "x" : "user-plus"} size={16} color="#fff" />
           <Text style={s.btnAltaTxt}>{alta ? "Cerrar" : "Alta"}</Text>
         </Pressable>
       </View>
@@ -67,7 +89,7 @@ export default function Clientes() {
                 <Text style={s.contacto}>{c.contacto} · {c.plan}</Text>
                 <Text style={s.saldos}>Saldo {pesos(c.saldo)} · Por pagar {c.porPagar ? pesos(c.porPagar) : "—"}</Text>
               </View>
-              <Badge clase={c.estatus === "activo" ? "ok" : "none"}>{c.estatus === "activo" ? "Activo" : "Moroso"}</Badge>
+              <Badge clase={ESTADO[c.estatus]?.clase || "none"}>{ESTADO[c.estatus]?.texto || "Sin estado"}</Badge>
             </View>
           </Tarjeta>
         ))}
@@ -89,7 +111,7 @@ const s = StyleSheet.create({
   h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
   sub: { color: T.gris, fontSize: 13.5, marginTop: 3 },
   btnAlta: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.verde, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  btnAltaTxt: { color: "#0d1211", fontWeight: "700", fontSize: 13.5 },
+  btnAltaTxt: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
   label: { color: T.tinta, fontSize: 12.5, fontWeight: "700", marginBottom: 6 },
   input: { backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, color: T.tinta, fontSize: 14 },
   empresa: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },

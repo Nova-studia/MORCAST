@@ -1,14 +1,15 @@
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T } from "../../tema";
+import { T, SERIES } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
 import { ADMIN_PERFIL } from "../../datos-admin";
 
+// Ver la nota del mismo menu del cliente (`pantallas/Mas.js`).
 const MENU = [
-  { pantalla: "Clientes", icono: "users", titulo: "Clientes", sub: "Cuentas, saldos y alta", color: "#6fce69" },
-  { pantalla: "Servicios", icono: "truck", titulo: "Servicios", sub: "Agenda y comprobante del chofer", color: "#4fc0c5" },
-  { pantalla: "ReportesAdmin", icono: "bar-chart-2", titulo: "Reportes del negocio", sub: "Ingresos y desempeño", color: "#f0895c" },
-  { pantalla: "Usuarios", icono: "shield", titulo: "Usuarios y roles", sub: "Equipo, auxiliares y choferes", color: "#db982d" },
+  { pantalla: "Clientes", icono: "users", titulo: "Clientes", sub: "Cuentas, saldos y alta", color: SERIES[0] },
+  { pantalla: "Servicios", icono: "truck", titulo: "Servicios", sub: "Agenda y comprobante del chofer", color: SERIES[1] },
+  { pantalla: "ReportesAdmin", icono: "bar-chart-2", titulo: "Reportes del negocio", sub: "Ingresos y desempeño", color: SERIES[2] },
+  { pantalla: "Usuarios", icono: "shield", titulo: "Usuarios y roles", sub: "Equipo, auxiliares y choferes", color: SERIES[3] },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {

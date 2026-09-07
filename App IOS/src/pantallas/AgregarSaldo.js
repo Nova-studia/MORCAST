@@ -4,7 +4,8 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import { T } from "../tema";
-import { Tarjeta, TituloTarjeta, Badge, Boton } from "../ui";
+import { enHold, SIN_CIFRA } from "../estado-sistema";
+import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
 import { CUENTA, DATOS_DEPOSITO, BANCOS, RECARGAS, CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, reportarDeposito, miEmpresa } from "../datos-remoto";
 
@@ -112,11 +113,12 @@ export default function AgregarSaldo() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={s.h1}>Agregar saldo</Text>
+      <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Deposita a la cuenta de Morcast y sube tu comprobante. Lo verificamos y aplicamos el saldo.</Text>
 
       <View style={s.saldoMini}>
         <Text style={s.saldoLbl}>Saldo a favor actual</Text>
-        <Text style={s.saldoVal}>{pesos((cuenta || CUENTA).saldoActual)}</Text>
+        <Text style={s.saldoVal}>{enHold() ? SIN_CIFRA : pesos((cuenta || CUENTA).saldoActual)}</Text>
       </View>
 
       {/* Datos de depósito */}
@@ -216,7 +218,7 @@ export default function AgregarSaldo() {
           return (
             <View key={r.id} style={[s.fila, i < recargas.length - 1 && s.filaBorde]}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filaTit}>{pesos(r.monto)}</Text>
+                <Text style={s.filaTit}>{enHold() ? SIN_CIFRA : pesos(r.monto)}</Text>
                 <Text style={s.filaSub}>{fechaLarga(r.fecha)} · {r.banco}</Text>
               </View>
               <Badge clase={est.clase}>{est.texto}</Badge>
@@ -262,7 +264,7 @@ const s = StyleSheet.create({
   chip: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel2 },
   chipOn: { backgroundColor: T.verde, borderColor: T.verde },
   chipTxt: { color: T.gris, fontSize: 12.5, fontWeight: "600" },
-  chipTxtOn: { color: "#0d1211" },
+  chipTxtOn: { color: "#fff" },
   drop: { borderWidth: 1.5, borderColor: T.linea, borderStyle: "dashed", borderRadius: 12, paddingVertical: 20, paddingHorizontal: 14, marginTop: 14 },
   dropTit: { color: T.tinta, fontSize: 14, fontWeight: "700", marginTop: 5 },
   dropSub: { color: T.gris, fontSize: 12, marginTop: 2 },

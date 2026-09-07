@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
-import { Tarjeta, TituloTarjeta, Badge, Boton } from "../ui";
+import { enHold, SIN_CIFRA } from "../estado-sistema";
+import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
 import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, misServicios } from "../datos-remoto";
 import { useMiEmpresa } from "../mi-empresa";
@@ -40,14 +41,24 @@ export default function Inicio({ navigation }) {
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.hola}>Hola{nombre ? `, ${nombre}` : ""} 👋</Text>
       <Text style={s.sub}>Resumen de {empresa.empresa}.</Text>
+      <AvisoHold />
 
       {/* Saldo */}
       <View style={s.saldo}>
         <Text style={s.saldoLbl}>Saldo a favor / crédito disponible</Text>
-        <Text style={s.saldoMonto}>{pesos(cuenta.saldoActual)}</Text>
+        {/* MODO HOLD: mientras Morcast no este cobrando, del lado del
+            CLIENTE no se enseña ninguna cifra. Un cero se leeria como "no
+            debes nada" y eso todavia no lo sabemos. */}
+        <Text style={s.saldoMonto}>{enHold() ? SIN_CIFRA : pesos(cuenta.saldoActual)}</Text>
         <View style={s.saldoFila}>
-          <Text style={s.saldoInfo}>Línea {pesos(cuenta.limiteCredito)}</Text>
-          <Text style={s.saldoInfo}>{cuenta.diasCredito} días</Text>
+          {enHold() ? (
+            <Text style={s.saldoInfo}>Sin cobros todavía</Text>
+          ) : (
+            <>
+              <Text style={s.saldoInfo}>Línea {pesos(cuenta.limiteCredito)}</Text>
+              <Text style={s.saldoInfo}>{cuenta.diasCredito} días</Text>
+            </>
+          )}
         </View>
         <Boton onPress={() => navigation.navigate("Saldo")} style={{ marginTop: 14, backgroundColor: "#ffffff" }}>
           <Feather name="plus-circle" size={17} color="#0d3b2e" />
@@ -57,9 +68,9 @@ export default function Inicio({ navigation }) {
 
       {/* KPIs */}
       <View style={s.kpis}>
-        <Kpi icono="dollar-sign" color={T.naranjaClaro} etiqueta="Por pagar" valor={pesos(cuenta.porPagar)} />
-        <Kpi icono="truck" color={T.verdeClaro} etiqueta="Servicios" valor={String(completados.length)} />
-        <Kpi icono="calendar" color={T.tealClaro} etiqueta="Próximos" valor={String(proximos.length)} />
+        <Kpi icono="dollar-sign" color={T.alerta} etiqueta="Por pagar" valor={enHold() ? SIN_CIFRA : pesos(cuenta.porPagar)} />
+        <Kpi icono="truck" color={T.ok} etiqueta="Servicios" valor={String(completados.length)} />
+        <Kpi icono="calendar" color={T.accionTxt} etiqueta="Próximos" valor={String(proximos.length)} />
       </View>
 
       {/* Próximos servicios */}
@@ -94,8 +105,11 @@ export default function Inicio({ navigation }) {
               <Text style={s.filaTit} numberOfLines={1}>{m.concepto}</Text>
               <Text style={s.filaSub}>{fechaLarga(m.fecha)}</Text>
             </View>
-            <Text style={[s.mov, { color: m.tipo === "abono" ? T.verdeClaro : T.naranjaClaro }]}>
-              {m.tipo === "abono" ? "+" : "−"}{pesos(m.monto)}
+            {/* El monto del movimiento tambien se apaga. Si arriba el saldo dice
+                "sin cobros todavia" y aqui abajo aparece "+$30,000.00", la
+                misma pantalla se contradice. */}
+            <Text style={[s.mov, { color: m.tipo === "abono" ? T.ok : T.error }]}>
+              {enHold() ? SIN_CIFRA : `${m.tipo === "abono" ? "+" : "−"}${pesos(m.monto)}`}
             </Text>
           </View>
         ))}

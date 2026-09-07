@@ -186,7 +186,7 @@ export default function Recoleccion({ route, navigation, completar }) {
         {PASOS.map((p, i) => (
           <View key={p} style={s.pasoItem}>
             <View style={[s.pasoDot, i < paso && s.pasoDone, i === paso && s.pasoActivo]}>
-              {i < paso ? <Feather name="check" size={12} color="#0d1211" /> : <Text style={[s.pasoNum, i === paso && { color: "#0d1211" }]}>{i + 1}</Text>}
+              {i < paso ? <Feather name="check" size={12} color="#fff" /> : <Text style={[s.pasoNum, i === paso && { color: "#0d1211" }]}>{i + 1}</Text>}
             </View>
             <Text style={[s.pasoLbl, i === paso && { color: T.tinta, fontWeight: "700" }]}>{p}</Text>
           </View>
@@ -217,7 +217,7 @@ export default function Recoleccion({ route, navigation, completar }) {
             disabled={!codigoManual.trim()}
             style={{ marginTop: 10 }}
           >
-            <Feather name="check" size={16} color="#0d1211" /><Text style={s.btnTxt}>  Continuar</Text>
+            <Feather name="check" size={16} color="#fff" /><Text style={s.btnTxt}>  Continuar</Text>
           </Boton>
         </Tarjeta>
       )}
@@ -320,14 +320,14 @@ const s = StyleSheet.create({
   pasoItem: { alignItems: "center", flex: 1 },
   pasoDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: T.linea, backgroundColor: T.panel, alignItems: "center", justifyContent: "center", marginBottom: 5 },
   pasoActivo: { backgroundColor: T.tealClaro, borderColor: T.tealClaro },
-  pasoDone: { backgroundColor: T.verde, borderColor: T.verde },
+  pasoDone: { backgroundColor: T.verdeMarca, borderColor: T.verdeMarca },
   pasoNum: { color: T.gris, fontSize: 12, fontWeight: "700" },
   pasoLbl: { color: T.gris, fontSize: 9.5, textAlign: "center" },
   pasoCab: { flexDirection: "row", alignItems: "center", gap: 9 },
   pasoIco: { width: 34, height: 34, borderRadius: 10, backgroundColor: "rgba(79,192,197,0.14)", alignItems: "center", justifyContent: "center" },
   pasoTit: { color: T.tinta, fontSize: 14.5, fontWeight: "700", flex: 1 },
   pasoTexto: { color: T.gris, fontSize: 12.5, marginTop: 6, lineHeight: 18 },
-  btnTxt: { color: "#0d1211", fontWeight: "700", fontSize: 14 },
+  btnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
   okFila: { flexDirection: "row", alignItems: "center", gap: 8 },
   okTxt: { color: T.gris, fontSize: 13, flex: 1 },
   ayuda: { color: T.gris, fontSize: 12, marginTop: 6 },
@@ -354,8 +354,8 @@ const s = StyleSheet.create({
   scanTop: { position: "absolute", top: 50, left: 0, right: 0, alignItems: "center", zIndex: 10 },
   scanCerrar: { position: "absolute", left: 18, top: -4, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   scanTitulo: { color: "#fff", fontSize: 15, fontWeight: "700", marginTop: 6 },
-  marco: { position: "absolute", alignSelf: "center", top: "32%", width: 240, height: 240, borderWidth: 3, borderColor: "#4fc0c5", borderRadius: 20 },
+  marco: { position: "absolute", alignSelf: "center", top: "32%", width: 240, height: 240, borderWidth: 3, borderColor: T.accionTxt, borderRadius: 20 },
   scanPie: { position: "absolute", bottom: 110, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.8)", fontSize: 13 },
-  scanDemo: { position: "absolute", bottom: 50, alignSelf: "center", flexDirection: "row", alignItems: "center", backgroundColor: "#4fc0c5", borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11 },
+  scanDemo: { position: "absolute", bottom: 50, alignSelf: "center", flexDirection: "row", alignItems: "center", backgroundColor: T.accionTxt, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 11 },
   scanDemoTxt: { color: "#0d1211", fontWeight: "700", fontSize: 13.5 },
 });
