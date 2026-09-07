@@ -77,9 +77,42 @@ las fotos).
 oscuro.** Da 2.07:1 y el ojo no lo separa del fondo. Para texto va `#6FA867`.
 El `#265421` es el tono que eligió Luis y se respeta tal cual donde sí funciona.
 
-🔴 **Fuera de la web pública:** `--mc-teal` (`#144c4f`) y `--mc-naranja`
-(`#db652d`) sobreviven **sólo dentro** de `/portal` y `/admin` como identidad de
-esas áreas. En la portada y en las páginas públicas no aparecen.
+🔵 **El azul cuando es texto:** `--mc-azul-txt` (`#6ba3cf`), 6.15:1 sobre una
+tarjeta. Misma historia que el verde: `#2a6a99` es **relleno**, y como texto da
+2.87:1. Botón y barra llevan el de arriba; enlace, icono y borde vivo, éste.
+
+### El portal, el panel y el modo chofer (actualizado 7-sep-2026)
+
+Hasta el 7-sep esta sección decía que `--mc-teal` (`#144c4f`) y `--mc-naranja`
+(`#db652d`) eran la identidad de `/portal` y `/admin`. **Ya no.** Decisión de
+Luis: esas áreas se alinean con la web pública, porque se veían como dos
+productos distintos y el cliente entra a las dos con la misma cuenta.
+
+Cómo quedó, y el criterio detrás:
+
+| Papel | Color | Dónde |
+|---|---|---|
+| **Acción** | `--mc-azul` con texto **blanco** | Botón principal, segmento elegido, chip de filtro puesto, foco del campo. En las **tres** áreas. |
+| **Marca** | `--mc-verde` como relleno grande | Avatar, barra de saldo, costado del login |
+| **Dato** | la paleta de `lib/paleta-datos.js` | Toda gráfica, dona y polígono del mapa |
+| **Estado** | `--mc-ok` · `--mc-alerta` · `--mc-error` | Insignias, montos, avisos |
+| **"En ruta"** | `--pt-ruta` (`#e0955f`) | Único naranja del portal. Es un **estado**, no marca |
+| **Seña de área** | `--pt-admin` (`#db652d`) | Sólo el chip "ADMINISTRACIÓN", el ítem activo del menú y el costado del login del panel |
+| **Campo** | `--mc-naranja` | El modo **chofer** conserva el naranja: se usa en la calle, con sol y con guantes, y ahí es señalización, no marca |
+
+🔴 **La acción es azul en las tres áreas, y eso no se negocia.** Antes el
+portal marcaba la acción en verde y el panel en naranja: el usuario tenía que
+reaprender qué color se pulsa al cambiar de zona. El naranja del panel se
+quedó **sólo como seña de área** — para decirte de un vistazo dónde estás —
+y se le quitó de los botones y de los errores.
+
+🔴 **Un error nunca va en naranja.** En este sistema el naranja significa "en
+ruta". El login del portal pintaba sus errores de naranja, o sea del mismo
+color que un servicio en camino: el mismo tono decía dos cosas.
+
+🔴 **Sobre un relleno de `--mc-verde` el texto va BLANCO** (8.85:1), nunca
+casi negro (2.19:1). Se rompió tres veces: el botón principal, el segmento
+de reportes y la bolita de paso cumplido del chofer.
 
 ### Estado (semántico, no es color de marca)
 | Token | Valor |
@@ -89,6 +122,29 @@ esas áreas. En la portada y en las páginas públicas no aparecen.
 | `--mc-error` | `#D9776B` |
 
 Sólo en formularios y avisos. No decoran nada.
+
+### Color de las gráficas
+
+**No se elige a ojo y no se escribe en la pantalla que lo usa.** Vive en
+`Web/lib/paleta-datos.js`, que es la fuente única, y son cinco tonos
+generados en OKLCH y validados con el validador de la guía de visualización
+(banda de luminosidad, piso de saturación, separación para daltonismo,
+separación para visión normal y contraste). Pasan las cinco comprobaciones
+en oscuro **y** en claro, porque los PDF van sobre blanco.
+
+`#479B57` · `#348DCF` · `#C36286` · `#B07A00` · `#009DA0`
+
+🔴 **El orden importa y no es decorativo.** El validador compara pares
+adyacentes, y con estos cinco tonos casi todos los órdenes fallan: verde
+junto a ámbar se confunden con visión normal, y cian junto a rosa con
+deuteranopia. Si se reordena o se mete un color en medio, **hay que volver a
+validar**; el comando está escrito en el propio archivo.
+
+🔴 **El color sigue a la entidad, nunca a su lugar en la tabla.**
+`datos-reportes.js` hacía lo contrario — ordenaba los tipos de residuo por
+volumen y les daba color según la posición, así que un tipo cambiaba de
+color al subir de renglón y dos informes de meses distintos dejaban de ser
+comparables. Para eso está `colorDe()`.
 
 ## Tipografía
 

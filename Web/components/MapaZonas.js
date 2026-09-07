@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import { MATAMOROS_CENTRO } from "@/lib/rutas-datos";
+import { ZONA } from "@/lib/paleta-datos";
 
 /**
  * Mapa de zonas con Leaflet sobre teselas de OpenStreetMap.
@@ -87,7 +88,7 @@ export default function MapaZonas({
       zonas.forEach((z) => {
         if (!z.poligono || z.poligono.length < 3) return;
         const capa = L.polygon(z.poligono, {
-          color: z.color || "#4EB34A",
+          color: z.color || ZONA,
           weight: 2,
           fillOpacity: 0.18,
         }).addTo(mapa.current);

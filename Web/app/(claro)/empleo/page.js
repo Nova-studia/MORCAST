@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { Encabezado } from "@/components/Secciones";
 import FormularioEmpleo from "@/components/FormularioEmpleo";
+import Image from "next/image";
 import { vacantesAbiertas } from "@/app/acciones-empleo";
 import { fichaDeVacante, nombreDeVacante } from "@/lib/empleo.mjs";
 
@@ -48,6 +49,8 @@ export default async function Empleo() {
         miga="Trabaja con nosotros"
         titulo="Trabaja con nosotros"
         descripcion="Somos una empresa en crecimiento, con flota propia y operación en toda la ciudad de Matamoros. Conoce las vacantes abiertas o déjanos tu solicitud aunque no haya una para tu perfil."
+        imagen="/img/empleo-hero.jpg"
+        imagenAlt="Dos operadores de Morcast junto a un camión roll off en una calle industrial de Matamoros"
       />
 
       {/* Vacantes abiertas */}
@@ -98,6 +101,53 @@ export default async function Empleo() {
               y te buscamos cuando se abra una.
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Cómo es el trabajo.
+          Va ENTRE las vacantes y el formulario a propósito: es el último
+          empujón antes de pedirle a alguien sus datos, y hasta aquí la página
+          no había enseñado ni una vez en qué consiste el trabajo. La foto es
+          vertical porque así salió y así rinde: una persona de cuerpo entero
+          pide formato de pie, y recortarla a apaisada la habría dejado en un
+          torso sin contexto. */}
+      <section className="mc-seccion">
+        <div className="container">
+          <div className="row g-5 align-items-center justify-content-center">
+            <div className="col-10 col-sm-7 col-md-5 col-lg-4">
+              <Image
+                src="/img/empleo-operacion.jpg"
+                alt="Operador de Morcast accionando los controles hidráulicos de un camión roll off"
+                width={760}
+                height={1362}
+                sizes="(max-width: 767px) 80vw, 33vw"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "var(--mc-radio-lg)",
+                  display: "block",
+                }}
+              />
+            </div>
+            <div className="col-12 col-md-7 col-lg-6">
+              <span className="mc-eyebrow">Cómo se trabaja aquí</span>
+              <h2 className="mc-titulo-seccion">
+                Trabajo de <span className="mc-marcado">verdad</span>
+              </h2>
+              <p className="mc-lead">
+                Aquí se sale a la calle. La operación es en Matamoros, con
+                unidades propias y rutas fijas, y el turno se cumple llueva o
+                truene: el cliente industrial no puede quedarse con sus
+                residuos dentro.
+              </p>
+              <ul className="mc-lista">
+                <li>Equipo y uniforme por cuenta de la empresa</li>
+                <li>Rutas dentro de la ciudad: se duerme en casa</li>
+                <li>Se paga puntual, y las horas extra se pagan</li>
+                <li>Si entras de ayudante, puedes llegar a chofer</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 

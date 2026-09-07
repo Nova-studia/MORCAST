@@ -360,7 +360,15 @@ export default function FormularioEmpleo({ vacantes = [] }) {
             />
             <label className="form-check-label" htmlFor="aviso" style={{ fontWeight: 400 }}>
               Acepto el{" "}
-              <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde-claro)" }}>
+{/* Pestaña nueva: ver la nota del mismo enlace en
+                  FormularioCotizacion.js. Aquí pesa más todavía, porque al
+                  volver se pierde también el currículum adjunto. */}
+              <a
+                href="/aviso-de-privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--mc-verde-claro)" }}
+              >
                 Aviso de Privacidad
               </a>{" "}
               <span className="mc-requerido">*</span>

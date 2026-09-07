@@ -287,7 +287,7 @@ export default function RecoleccionesAdmin() {
                 )}
 
                 {s.fechaConfirmada && (
-                  <div style={{ fontSize: "0.84rem", color: "#8fd18c", marginTop: 5 }}>
+                  <div style={{ fontSize: "0.84rem", color: "var(--mc-ok)", marginTop: 5 }}>
                     Acordado: {fechaConDia(s.fechaConfirmada)}
                     {s.horaConfirmada ? ` a las ${String(s.horaConfirmada).slice(0, 5)}` : " (sin hora)"}
                     {" · "}

@@ -58,7 +58,7 @@ export default function PanelAdmin() {
           <div className="pt-stat-icono"><CurrencyDollar /></div>
           <div className="pt-stat-etiqueta">Ingresos del mes</div>
           <div className="pt-stat-valor">{pesos(kpis.ingresosMes)}</div>
-          <div className="pt-stat-sub" style={{ color: delta >= 0 ? "#6fce69" : "#f0895c" }}>
+          <div className="pt-stat-sub" style={{ color: delta >= 0 ? "var(--mc-ok)" : "var(--mc-error)" }}>
             {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}% vs mes anterior
           </div>
         </div>
@@ -120,7 +120,7 @@ export default function PanelAdmin() {
                 <strong>{e.total}</strong>
               </div>
               <div className="pt-saldo-barra" style={{ margin: 0, background: "rgba(255,255,255,0.06)" }}>
-                <span style={{ width: `${(e.total / maxEmbudo) * 100}%`, background: "var(--mc-teal-claro)" }} />
+                <span style={{ width: `${(e.total / maxEmbudo) * 100}%`, background: "#479B57" }} />
               </div>
             </div>
           ))}

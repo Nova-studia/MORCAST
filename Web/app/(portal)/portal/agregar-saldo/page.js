@@ -167,7 +167,7 @@ export default function AgregarSaldo() {
                   <strong>{v}</strong>
                   {(k === "CLABE" || k === "No. de cuenta") && (
                     <button type="button" className="pt-btn" style={{ padding: "0.25rem 0.5rem" }} onClick={() => copiar(v.replace(/\s/g, ""), k)}>
-                      {copiado === k ? <CheckCircle color="#4eb34a" /> : <Copy />}
+                      {copiado === k ? <CheckCircle color="var(--mc-ok)" /> : <Copy />}
                     </button>
                   )}
                 </div>

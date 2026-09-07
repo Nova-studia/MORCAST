@@ -1,6 +1,7 @@
 "use client";
 
 import IconoAnimado from "@/components/IconoAnimado";
+import { SERIES } from "@/lib/paleta-datos";
 
 import { useEffect, useState } from "react";
 
@@ -31,7 +32,7 @@ import { enHold } from "@/lib/estado-sistema";
 /** Estados que el cliente ve como "todavía va a pasar". */
 const PENDIENTES = ["solicitada", "confirmada", "en-ruta"];
 
-const COLORES = ["#4EB34A", "#2DA529", "#144C4F", "#DB652D", "#7a8f8c"];
+const COLORES = SERIES;
 
 export default function PanelPortal() {
   const [resumen, setResumen] = useState(null);

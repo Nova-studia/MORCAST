@@ -118,7 +118,7 @@ export default function RutaChofer() {
           {hechas.map((p) => (
             <div key={p.id} className="ch-parada hecha">
               <div className="ch-parada-cliente">
-                <CheckCircle aria-hidden="true" color="#7cc576" /> {p.cliente}
+                <CheckCircle aria-hidden="true" color="var(--mc-ok)" /> {p.cliente}
               </div>
               <div className="ch-parada-dato">
                 {p.folio}

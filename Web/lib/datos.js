@@ -37,6 +37,21 @@ export const EMPRESA = {
   correos: ["gutmartmexico@gmail.com", "morcastdelnorte.sa.de.cv@gmail.com"],
   // Confirmado por el cliente el 6-ago-2026.
   direccion: EMPRESA_COTIZACION.domicilioLinea,
+  /**
+   * El buzón para los derechos ARCO y todo lo del Aviso de Privacidad.
+   *
+   * A PROPÓSITO NO es `correos[0]`. Ése es el Gmail personal del dueño —
+   * el propio comentario de arriba lo marca como temporal— y era el que
+   * el Aviso publicaba como canal legal: la persona que quiere que le
+   * borren sus datos escribía a una cuenta personal. `contacto@morcast.mx`
+   * es institucional, ya existe y ya es el `RESPONDER_A` de todos los
+   * correos que manda el sitio (`lib/correo.js`), así que es el mismo
+   * buzón que la gente ya ve cuando Morcast le escribe.
+   *
+   * El Aviso de la app móvil (`/privacidad`) siempre usó éste; el del
+   * sitio se quedó atrás. Ahora los dos dicen lo mismo.
+   */
+  correoPrivacidad: "contacto@morcast.mx",
   horario: HORARIOS.resumen,
   sitio: "https://morcast.mx",
 };

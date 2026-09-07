@@ -13,10 +13,35 @@ import {
 } from "@/lib/datos";
 
 /* ---------- Encabezado de páginas internas ---------- */
-export function Encabezado({ titulo, descripcion, miga }) {
+/**
+ * `imagen` es OPCIONAL y por eso este componente sirve igual a las 10 páginas
+ * que no la pasan: sin ella se comporta exactamente como antes.
+ *
+ * Cuando sí viene, la foto va de fondo con dos velos encima —uno lateral y
+ * uno inferior— porque el titular es BLANCO y una foto clara detrás lo borra.
+ * No es decoración del velo: es lo único que garantiza que el texto se lea
+ * sobre una imagen que no controlamos pixel a pixel.
+ *
+ * `priority` va puesto a propósito: esta imagen es lo primero que se ve al
+ * abrir la página, así que no debe cargar en diferido.
+ */
+export function Encabezado({ titulo, descripcion, miga, imagen, imagenAlt }) {
   return (
-    <section className="mc-encabezado">
-      <div className="mc-encabezado-chevron" aria-hidden="true" />
+    <section className={`mc-encabezado${imagen ? " mc-encabezado-foto" : ""}`}>
+      {imagen ? (
+        <div className="mc-encabezado-fondo" aria-hidden="true">
+          <Image
+            src={imagen}
+            alt={imagenAlt || ""}
+            fill
+            priority
+            sizes="100vw"
+            style={{ objectFit: "cover", objectPosition: "center 42%" }}
+          />
+        </div>
+      ) : (
+        <div className="mc-encabezado-chevron" aria-hidden="true" />
+      )}
       <div className="container">
         {miga && (
           <nav className="mc-miga" aria-label="Ruta de navegación">

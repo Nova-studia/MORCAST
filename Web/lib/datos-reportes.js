@@ -1,5 +1,7 @@
 "use client";
 
+import { colorDe } from "@/lib/paleta-datos";
+
 /**
  * Reportes: se arman sumando lo que de verdad se recolectó.
  *
@@ -127,14 +129,15 @@ export async function reportes() {
     compactador: "Compactador trasero",
     otro: "Sin clasificar",
   };
-  const COLORES = ["#4eb34a", "#2d8a8f", "#db652d", "#7e908d"];
-
+  // El color va por NOMBRE del tipo, no por su lugar en la lista. Antes se
+  // asignaba despues del `sort`, asi que un tipo cambiaba de color en cuanto
+  // subia o bajaba de renglon y dos informes dejaban de ser comparables.
   const composicion = Object.entries(porTipo)
     .sort((a, b) => b[1] - a[1])
     .map(([tipo, t], i) => ({
       nombre: NOMBRES[tipo] || tipo,
       porcentaje: total ? Math.round((t / total) * 100) : 0,
-      color: COLORES[i % COLORES.length],
+      color: colorDe(NOMBRES[tipo] || tipo, i),
     }));
 
   return {

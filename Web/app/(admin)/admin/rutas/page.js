@@ -9,6 +9,11 @@ import {
   Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import { TIPOS_RUTA, DIAS_SEMANA, nombreTipoRuta } from "@/lib/rutas-datos";
+import { SERIES } from "@/lib/paleta-datos";
+
+// Leaflet pinta sobre <canvas>: no entiende var(--mc-*), necesita el hex.
+const ACCION = "#2A6A99";
+const ALERTA = "#D6A44A";
 import {
   listarRutas,
   guardarRuta,
@@ -23,7 +28,7 @@ const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
   loading: () => <div className="mc-mapa" style={{ height: 420 }} />,
 });
 
-const COLORES = ["#4EB34A", "#DB652D", "#3FA9C9", "#B37ACB"];
+const COLORES = SERIES;
 
 const SIN_PUNTOS = [];
 
@@ -59,10 +64,12 @@ export default function RutasAdmin() {
       id: r.id,
       nombre: r.nombre,
       poligono: r.zona,
-      color: r.id === seleccion ? "#7cc576" : COLORES[i % COLORES.length],
+      // La ruta SELECCIONADA se marca con el color de accion, no con un verde
+      // suelto: es "esta es la que estas viendo", no un estado.
+      color: r.id === seleccion ? ACCION : COLORES[i % COLORES.length],
     }));
     if (dibujando && trazo.length >= 3) {
-      base.push({ id: "__nueva", nombre: "Zona nueva", poligono: trazo, color: "#DB652D" });
+      base.push({ id: "__nueva", nombre: "Zona nueva", poligono: trazo, color: ALERTA });
     }
     return base;
   }, [rutas, seleccion, dibujando, trazo]);

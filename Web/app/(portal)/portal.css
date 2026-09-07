@@ -2,6 +2,64 @@
    PORTAL DE CLIENTES — estilos (tema oscuro, reutiliza las variables --mc-*)
    ========================================================================= */
 
+/* -------------------------------------------------------------------------
+   TOKENS DEL ÁREA (7-sep-2026)
+
+   Antes esta hoja pintaba con el sistema VIEJO a mano: verde #4eb34a, teal
+   #144c4f y naranja #db652d escritos en crudo, renglón por renglón. La web
+   pública cambió de sistema el 3-sep y el portal se quedó atrás; se veían
+   como dos productos distintos.
+
+   Decisión de Luis (7-sep-2026): el portal se alinea con la web.
+     · La ACCIÓN principal es AZUL. Antes todo botón era verde, así que
+       nada destacaba: si todo grita, nada grita.
+     · El VERDE es marca y estado "bien", nunca la acción.
+     · El teal y el naranja salen como identidad. Sobreviven SOLO donde
+       significan algo: "en proceso" y "en ruta" son estados de un servicio,
+       no decoración. Y el modo CHOFER (clases `ch-`) conserva el naranja a
+       propósito: se usa en la calle, con sol y con guantes, y ahí el
+       naranja es señalización, no marca.
+
+   🔴 Regla que ya se rompió dos veces en este archivo: los rellenos
+   (--mc-verde, --mc-azul) NO se usan como color de TEXTO sobre fondo
+   oscuro. Para texto van los tokens `-txt`. Y sobre un relleno de
+   --mc-verde el texto va BLANCO (8.85:1), nunca casi negro (2.19:1).
+   ------------------------------------------------------------------------- */
+.pt-body,
+.pt-shell {
+  /* Acción: relleno del botón principal y su hover. */
+  --pt-accion: var(--mc-azul);
+  --pt-accion-h: var(--mc-azul-osc);
+  /* Acción cuando es TINTA (enlace, icono, borde vivo). 6.15:1. */
+  --pt-accion-txt: var(--mc-azul-txt);
+  --pt-accion-tinte: rgba(42, 106, 153, 0.15);
+  --pt-accion-linea: rgba(107, 163, 207, 0.38);
+
+  /* Estados. Semánticos: no decoran, informan. */
+  --pt-ok: var(--mc-ok);                        /* #6fa867 — 5.91:1 */
+  --pt-ok-tinte: rgba(111, 168, 103, 0.15);
+  --pt-alerta: var(--mc-alerta);                /* #d6a44a — 7.34:1 */
+  --pt-alerta-tinte: rgba(214, 164, 74, 0.14);
+  --pt-error: var(--mc-error);                  /* #d9776b — 5.38:1 */
+  --pt-error-tinte: rgba(217, 119, 107, 0.14);
+
+  /* "En ruta": el servicio ya va en camino. Es el único naranja que queda
+     en el portal, y queda porque es un estado, no un color de marca. */
+  --pt-ruta: #e0955f;
+  --pt-ruta-tinte: rgba(224, 149, 95, 0.15);
+
+  /* SEÑA DE ÁREA del panel de administración. No es una acción: es lo que
+     te dice de un vistazo que estás en el panel de Morcast y no en el
+     portal del cliente, y por eso vale la pena conservarlo. Lo que SÍ se
+     le quitó es todo lo demás que pintaba de naranja sin ser el área:
+     los botones (la acción es azul en las dos zonas, o el color deja de
+     significar "haz clic aquí") y los errores (iban naranja, que es
+     justo el color de "en ruta" — el mismo tono decía dos cosas). */
+  --pt-admin: var(--mc-naranja);
+  --pt-admin-txt: #f0895c;
+  --pt-admin-tinte: rgba(219, 101, 45, 0.18);
+}
+
 .pt-body {
   background: var(--mc-blanco);
   color: var(--mc-tinta);
@@ -89,7 +147,7 @@
   color: var(--mc-tinta);
 }
 .pt-nav-item.activo {
-  background: linear-gradient(90deg, rgba(78, 179, 74, 0.18), transparent);
+  background: linear-gradient(90deg, rgba(42, 106, 153, 0.20), transparent);
   color: var(--mc-verde-claro);
   box-shadow: inset 3px 0 0 var(--mc-verde);
 }
@@ -145,7 +203,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--mc-verde), var(--mc-teal-claro));
+  background: var(--mc-verde);
   color: #fff;
   display: grid;
   place-items: center;
@@ -281,12 +339,15 @@
   display: grid;
   place-items: center;
   font-size: 1.25rem;
-  background: rgba(78, 179, 74, 0.14);
-  color: var(--mc-verde-claro);
+  background: var(--pt-ok-tinte);
+  color: var(--pt-ok);
   margin-bottom: 0.9rem;
 }
-.pt-stat-icono.naranja { background: rgba(219, 101, 45, 0.16); color: #f0895c; }
-.pt-stat-icono.teal { background: rgba(45, 138, 143, 0.16); color: #45b3b8; }
+/* Los nombres `naranja` y `teal` se conservan porque los usan las páginas;
+   lo que cambió es a QUÉ apuntan. `naranja` es la cifra de dinero y `teal`
+   la de actividad, y hoy las pinta el sistema nuevo. */
+.pt-stat-icono.naranja { background: var(--pt-alerta-tinte); color: var(--pt-alerta); }
+.pt-stat-icono.teal { background: var(--pt-accion-tinte); color: var(--pt-accion-txt); }
 .pt-stat-etiqueta {
   color: var(--mc-gris);
   font-size: 0.82rem;
@@ -294,13 +355,19 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* CIFRA. Va en la monoespaciada, como manda DESIGN.md para numeros,
+   medidas y fechas. El peso 800 que tenia no existe en la familia
+   cargada (400/500/600): el navegador lo fingia engordando el trazo. */
 .pt-stat-valor {
-  font-family: var(--fuente-titulo), sans-serif;
-  font-weight: 800;
-  font-size: 1.4rem;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-weight: 500;
+  font-size: 1.35rem;
   line-height: 1.1;
   margin-top: 0.2rem;
-  letter-spacing: -0.03em;
+  /* La monoespaciada ya viene holgada; el tracking negativo que pedia la
+     sans aqui la apretaria de mas. */
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .pt-stat-sub {
@@ -309,11 +376,15 @@
   margin-top: 0.35rem;
 }
 
-/* Tarjeta de saldo destacada */
+/* Tarjeta de saldo destacada.
+   Antes era un degradado teal→#0c3538. DESIGN.md prohíbe los degradados de
+   dos colores, y además el degradado era lo único que la destacaba: se leía
+   como adorno, no como jerarquía. Ahora destaca por lo que sí es formal —
+   una superficie lisa con un borde vivo del color de acción. */
 .pt-saldo {
-  background: linear-gradient(135deg, var(--mc-teal), #0c3538);
-  border: 1px solid var(--mc-teal-2);
-  color: #fff;
+  background: var(--mc-superficie);
+  border: 1px solid var(--pt-accion-linea);
+  color: var(--mc-tinta);
   border-radius: var(--mc-radio);
   padding: 1.6rem 1.7rem;
   position: relative;
@@ -326,26 +397,28 @@
   bottom: -50px;
   width: 190px;
   height: 190px;
-  background: var(--mc-verde);
-  opacity: 0.14;
+  background: var(--pt-accion);
+  opacity: 0.10;
   clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%);
 }
 .pt-saldo-etiqueta {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--mc-gris);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .pt-saldo-monto {
-  font-family: var(--fuente-titulo), sans-serif;
-  font-weight: 800;
-  font-size: 2.5rem;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-weight: 500;
+  font-size: 2.2rem;
   line-height: 1.05;
   margin: 0.35rem 0 0.2rem;
   /* A este tamano el texto pide tracking NEGATIVO: las letras crecen y el
      espacio entre ellas crece con ellas, asi que hay que quitarselo. Es el
      mismo criterio que ya siguen `.pt-stat-valor` (-0.03em, 1.4rem) y los
      encabezados de globals.css; este se habia quedado en cero. */
-  letter-spacing: -0.035em;
+  letter-spacing: -0.01em;
   /* El saldo se actualiza en pantalla. Sin cifras de ancho fijo el monto
      "baila" de ancho al cambiar un digito. */
   font-variant-numeric: tabular-nums;
@@ -353,7 +426,7 @@
 .pt-saldo-barra {
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.10);
   overflow: hidden;
   margin: 0.9rem 0 0.5rem;
 }
@@ -367,7 +440,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--mc-gris);
 }
 
 /* ---------- Tablas ---------- */
@@ -421,9 +494,9 @@
   font-variant-numeric: tabular-nums;
 }
 .pt-tabla .folio {
-  font-family: var(--fuente-cuerpo);
-  font-weight: 600;
-  color: var(--mc-verde-claro);
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-weight: 500;
+  color: var(--mc-tinta);
   /* Sin esto "REC-2026-0144" se parte en tres renglones y la fila crece al
      triple de alto. Es un identificador: o se lee entero o no sirve. */
   white-space: nowrap;
@@ -487,7 +560,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.4rem 0.7rem;
-  color: #6fce69;
+  color: var(--pt-ok);
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
@@ -518,16 +591,21 @@
   border-radius: 50%;
   background: currentColor;
 }
-.pt-badge.ok { background: rgba(78, 179, 74, 0.16); color: #6fce69; }
-.pt-badge.prog { background: rgba(45, 138, 143, 0.18); color: #4fc0c5; }
-.pt-badge.ruta { background: rgba(219, 101, 45, 0.18); color: #f0895c; }
+.pt-badge.ok { background: var(--pt-ok-tinte); color: var(--pt-ok); }
+.pt-badge.prog { background: var(--pt-accion-tinte); color: var(--pt-accion-txt); }
+.pt-badge.ruta { background: var(--pt-ruta-tinte); color: var(--pt-ruta); }
 /* Rechazada / cancelada. La usan las solicitudes de recolección. */
-.pt-badge.mal { background: rgba(198, 63, 63, 0.18); color: #ef8080; }
+.pt-badge.mal { background: var(--pt-error-tinte); color: var(--pt-error); }
 
 /* Movimiento de cuenta (abono/cargo) */
-.pt-mov { font-weight: 700; }
-.pt-mov.abono { color: #6fce69; }
-.pt-mov.cargo { color: #f0895c; }
+/* Monto. Mono y ancho fijo para que la columna cuadre por la derecha. */
+.pt-mov {
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.pt-mov.abono { color: var(--pt-ok); }
+.pt-mov.cargo { color: var(--pt-error); }
 
 /* ---------- Botones pequeños ---------- */
 .pt-btn {
@@ -550,16 +628,20 @@
   white-space: nowrap;
 }
 .pt-btn:hover {
-  border-color: var(--mc-verde);
-  color: var(--mc-verde-claro);
+  border-color: var(--pt-accion-linea);
+  color: var(--pt-accion-txt);
 }
+/* Se llama `verde` por las paginas que ya lo usan, pero es la ACCION
+   principal y hoy la accion es AZUL. El texto va blanco: 5.80:1. Antes
+   iba #08120a sobre el verde de marca, que da 2.19:1 y no se leia. */
 .pt-btn-verde {
-  background: var(--mc-verde);
-  border-color: var(--mc-verde);
-  color: #08120a;
+  background: var(--pt-accion);
+  border-color: var(--pt-accion);
+  color: #fff;
 }
 .pt-btn-verde:hover {
-  background: var(--mc-verde-osc);
+  background: var(--pt-accion-h);
+  border-color: var(--pt-accion-h);
   color: #fff;
 }
 .pt-btn:disabled {
@@ -589,9 +671,12 @@
               color 200ms ease,
               transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+/* El segmento activo marcaba con verde de marca y texto casi negro:
+   2.19:1, la palabra "Peso" desaparecia. Es una eleccion, o sea una
+   accion, asi que va en azul con texto blanco. */
 .pt-segmento button.activo {
-  background: var(--mc-verde);
-  color: #08120a;
+  background: var(--pt-accion);
+  color: #fff;
 }
 
 /* ---------- Gráfica de barras (CSS puro) ---------- */
@@ -619,9 +704,12 @@
   background: rgba(255, 255, 255, 0.03);
   border-radius: 6px 6px 0 0;
 }
+/* Barra de datos. Una sola serie, un solo color. Va el verde de la paleta
+   de datos (lib/paleta-datos.js) y no el azul, porque el azul en este
+   sistema significa "esto se puede pulsar" y una barra no se pulsa. */
 .pt-bar {
   width: 100%;
-  background: linear-gradient(180deg, var(--mc-verde-claro), var(--mc-verde));
+  background: #479B57;
   border-radius: 6px 6px 0 0;
   min-height: 3px;
   transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -703,7 +791,7 @@
 .pt-login-lado {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(160deg, var(--mc-teal), var(--mc-negro));
+  background: linear-gradient(160deg, var(--mc-verde-osc), var(--mc-negro));
   padding: 3rem;
   display: flex;
   flex-direction: column;
@@ -793,15 +881,18 @@
   font-family: var(--fuente-cuerpo);
 }
 .pt-campo input:focus,
+/* El borde iba verde y el halo azul: dos colores para un solo gesto. */
 .pt-input:focus {
   outline: none;
-  border-color: var(--mc-verde);
-  box-shadow: 0 0 0 3px rgba(78, 179, 74, 0.18);
+  border-color: var(--pt-accion-txt);
+  box-shadow: 0 0 0 3px rgba(42, 106, 153, 0.24);
 }
+/* Iba en naranja, que en este mismo sistema significa "en ruta". Un
+   error tiene su propio color. */
 .pt-login-error {
-  background: rgba(219, 101, 45, 0.15);
-  border: 1px solid rgba(219, 101, 45, 0.4);
-  color: #f0895c;
+  background: var(--pt-error-tinte);
+  border: 1px solid rgba(217, 119, 107, 0.45);
+  color: var(--pt-error);
   border-radius: 9px;
   padding: 0.6rem 0.85rem;
   font-size: 0.85rem;
@@ -819,19 +910,25 @@
 .pt-login-demo code { color: var(--mc-verde-claro); font-weight: 600; }
 
 /* ---------- Panel de administración (acento naranja) ---------- */
+/* Se llama `naranja` por las paginas del admin que ya lo usan, pero la
+   accion principal es AZUL en las dos areas: si en el portal el azul
+   quiere decir "haz clic aqui" y en el admin lo dice el naranja, el
+   usuario tiene que reaprender el sistema al cambiar de zona. */
 .pt-btn-naranja {
-  background: var(--mc-naranja);
-  border-color: var(--mc-naranja);
+  background: var(--pt-accion);
+  border-color: var(--pt-accion);
   color: #fff;
 }
 .pt-btn-naranja:hover {
-  background: var(--mc-naranja-osc);
-  border-color: var(--mc-naranja-osc);
+  background: var(--pt-accion-h);
+  border-color: var(--pt-accion-h);
   color: #fff;
 }
 .pt-avatar-admin {
   background: linear-gradient(135deg, var(--mc-naranja), var(--mc-naranja-osc));
 }
+/* Iba en --mc-naranja liso (#db652d): 3.31:1 como texto chico sobre el
+   negro de la barra, por debajo del minimo. Va el tono de tinta. */
 .pt-admin-tag {
   display: block;
   margin-top: 0.5rem;
@@ -839,13 +936,13 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--mc-naranja);
+  color: var(--pt-admin-txt);
 }
 .pt-admin-chip {
   display: inline-block;
-  background: rgba(219, 101, 45, 0.2);
+  background: var(--pt-admin-tinte);
   border: 1px solid rgba(219, 101, 45, 0.5);
-  color: #f0895c;
+  color: var(--pt-admin-txt);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -856,9 +953,9 @@
 }
 /* En el admin, el ítem activo del menú va en naranja */
 .pt-admin .pt-nav-item.activo {
-  background: linear-gradient(90deg, rgba(219, 101, 45, 0.18), transparent);
-  color: #f0895c;
-  box-shadow: inset 3px 0 0 var(--mc-naranja);
+  background: linear-gradient(90deg, var(--pt-admin-tinte), transparent);
+  color: var(--pt-admin-txt);
+  box-shadow: inset 3px 0 0 var(--pt-admin);
 }
 .pt-login-lado-admin {
   background: linear-gradient(160deg, #3a2415, var(--mc-negro));
@@ -868,7 +965,7 @@
 }
 /* Barra naranja para gráficas del admin */
 .pt-bar.naranja {
-  background: linear-gradient(180deg, #f0895c, var(--mc-naranja));
+  background: linear-gradient(180deg, var(--pt-admin-txt), var(--pt-admin));
 }
 
 /* ---------- Utilidades ---------- */
@@ -1132,8 +1229,8 @@
   font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 0.2rem 0.5rem; border-radius: 999px; color: #fff;
 }
-.pt-evi-foto.antes .pt-evi-tag { background: rgba(219, 152, 45, 0.92); }
-.pt-evi-foto.despues .pt-evi-tag { background: rgba(78, 179, 74, 0.92); }
+.pt-evi-foto.antes .pt-evi-tag { background: rgba(214, 164, 74, 0.92); }
+.pt-evi-foto.despues .pt-evi-tag { background: rgba(38, 84, 33, 0.92); }
 .pt-evi-lente { text-align: center; color: rgba(255,255,255,0.72); padding: 0 0.5rem; }
 .pt-evi-lente > svg { font-size: 1.8rem; margin-bottom: 0.3rem; }
 .pt-evi-lente small { display: block; font-size: 0.72rem; }
@@ -1170,7 +1267,7 @@
    su flujo. */
 .pt-nota-demo {
   margin: 0.8rem 0 0; padding: 0.5rem 0.7rem; border-radius: 8px;
-  background: rgba(219, 152, 45, 0.12); color: #e0a94d; font-size: 0.8rem;
+  background: var(--pt-alerta-tinte); color: var(--pt-alerta); font-size: 0.8rem;
   line-height: 1.55;
 }
 .pt-nota-demo svg {
@@ -1188,7 +1285,7 @@
               background-color 200ms ease,
               transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-.pt-dropzone:hover { border-color: var(--mc-verde); background: rgba(78, 179, 74, 0.04); }
+.pt-dropzone:hover { border-color: var(--pt-accion-linea); background: var(--pt-accion-tinte); }
 .pt-dropzone > svg { font-size: 1.7rem; color: var(--mc-verde-claro); }
 .pt-dropzone > strong { font-size: 0.92rem; }
 .pt-dropzone > span { color: var(--mc-gris); font-size: 0.8rem; }
@@ -1199,7 +1296,7 @@
 }
 .pt-dropzone-pdf {
   width: 58px; height: 74px; border-radius: 6px; flex-shrink: 0;
-  display: grid; place-items: center; background: rgba(219, 101, 45, 0.14); color: #f0895c; font-size: 1.5rem;
+  display: grid; place-items: center; background: rgba(255, 255, 255, 0.06); color: var(--mc-gris); font-size: 1.5rem;
 }
 .pt-dropzone-archivo > div { text-align: left; overflow: hidden; }
 .pt-dropzone-archivo strong { display: block; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1208,7 +1305,7 @@
 .pt-exito {
   display: flex; align-items: flex-start; gap: 0.7rem;
   padding: 0.85rem 1rem; margin-bottom: 1rem; border-radius: 10px;
-  background: rgba(78, 179, 74, 0.12); border: 1px solid rgba(78, 179, 74, 0.35);
+  background: var(--pt-ok-tinte); border: 1px solid rgba(111, 168, 103, 0.35);
 }
 .pt-exito > svg { color: var(--mc-verde-claro); font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
 .pt-exito strong { display: block; font-size: 0.95rem; }
@@ -1239,7 +1336,7 @@
 }
 .pt-modal-comprobante img { width: 100%; height: auto; display: block; }
 .pt-modal-sinimg { text-align: center; color: var(--mc-gris); padding: 2rem; }
-.pt-modal-sinimg svg { font-size: 2.4rem; color: #f0895c; margin-bottom: 0.5rem; }
+.pt-modal-sinimg svg { font-size: 2.4rem; color: var(--mc-gris-claro); margin-bottom: 0.5rem; }
 .pt-modal-sinimg span { display: block; font-size: 0.84rem; word-break: break-all; }
 .pt-modal-datos { display: flex; flex-direction: column; gap: 0.7rem; }
 .pt-modal-monto { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
@@ -1255,7 +1352,7 @@
 /* Activar cuenta de cliente (solicitudes ganadas) */
 .pt-activar {
   margin-top: 0.9rem; padding: 0.9rem; border-radius: 10px;
-  background: rgba(78, 179, 74, 0.08); border: 1px solid rgba(78, 179, 74, 0.3);
+  background: rgba(111, 168, 103, 0.10); border: 1px solid rgba(111, 168, 103, 0.3);
 }
 .pt-activar-tit, .pt-activar-ok {
   display: flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 0.92rem;
@@ -1269,7 +1366,12 @@
   border: 1px solid var(--mc-linea); margin-bottom: 0.4rem;
 }
 .pt-cred span { color: var(--mc-gris); font-size: 0.78rem; }
-.pt-cred strong { font-family: "Consolas", monospace; font-size: 0.9rem; }
+/* Iba en Consolas, que solo existe en Windows: en el telefono y en Mac
+   caia a la monoespaciada que hubiera. Va la del sistema. */
+.pt-cred strong {
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-size: 0.88rem;
+}
 
 /* ---------- Rejilla de mapa + panel ---------- */
 /* Mapa ancho a la izquierda y panel angosto a la derecha, que colapsa a una
@@ -1381,7 +1483,7 @@
   border: 1px solid var(--mc-linea);
 }
 .ch-paso.activo .ch-paso-bola { background: var(--mc-naranja); color: #0d1211; border-color: var(--mc-naranja); }
-.ch-paso.hecho .ch-paso-bola { background: var(--mc-verde); color: #0d1211; border-color: var(--mc-verde); }
+.ch-paso.hecho .ch-paso-bola { background: var(--mc-verde); color: #fff; border-color: var(--mc-verde); }
 .ch-paso-txt { font-size: 0.68rem; color: var(--mc-gris); }
 .ch-paso.activo .ch-paso-txt { color: var(--mc-tinta); font-weight: 700; }
 
@@ -1701,8 +1803,8 @@
   align-items: stretch;
 }
 .ch-resumen-principal {
-  background: linear-gradient(135deg, var(--mc-teal), #0c3538);
-  border: 1px solid var(--mc-teal-2);
+  background: var(--mc-superficie);
+  border: 1px solid var(--pt-accion-linea);
   border-radius: var(--mc-radio);
   padding: 0.95rem 1rem;
   display: flex;
@@ -2092,12 +2194,14 @@
   transform: scale(0.97);
   transition-duration: 100ms;
 }
-/* El filtro puesto va en el naranja del admin, que es su color de acento
-   (el verde es del portal del cliente). */
+/* El filtro puesto es una ELECCION, o sea una accion, y la accion es azul.
+   Antes iba en el naranja "de acento del admin", que chocaba con el naranja
+   de estado "en ruta" que sale en la misma pantalla: el mismo color decia
+   dos cosas distintas. */
 .pt-chip.activo {
-  background: var(--mc-naranja);
-  border-color: var(--mc-naranja);
-  color: #0d1211;
+  background: var(--pt-accion);
+  border-color: var(--pt-accion);
+  color: #fff;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2262,6 +2366,8 @@
 }
 .pt-fila-embudo > strong {
   flex-shrink: 0;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2279,7 +2385,7 @@
 
 /* Rojo de la casa, el mismo de `.pt-badge.mal`. */
 :root {
-  --mc-rojo: #ef8080;
+  --mc-rojo: var(--mc-error);
   --mc-rojo-fondo: rgba(198, 63, 63, 0.13);
   --mc-rojo-linea: rgba(198, 63, 63, 0.55);
 }
@@ -2377,7 +2483,7 @@
 /* Al cliente se le habla distinto: no se le informa de la falla operativa,
    se le dice qué está pasando con SU servicio. */
 .pt-solicitud-aviso {
-  color: #f3a0a0;
+  color: var(--pt-error);
   max-width: 52ch;
 }
 
@@ -2642,9 +2748,9 @@
    enseña el margen y se marca que no alcanza) y sin lectura. Un sello que
    a veces miente vale menos que no tener sello.
    ===================================================================== */
-.pt-evi-sello .ok { color: #7cc576; }
+.pt-evi-sello .ok { color: var(--pt-ok); }
 /* Ámbar, no rojo: no es un error del servicio, es una lectura imprecisa. */
-.pt-evi-sello .flojo { color: #e0a94a; }
+.pt-evi-sello .flojo { color: var(--pt-alerta); }
 .pt-evi-sello .sin { color: var(--mc-gris-claro); }
 
 .pt-evi-mapa {
@@ -2690,11 +2796,11 @@
   color: #c3d0cd;
 }
 .ch-gps > svg { flex-shrink: 0; font-size: 1.1rem; }
-.ch-gps.ok { border-color: rgba(78, 179, 74, 0.4); color: #8fd18c; }
+.ch-gps.ok { border-color: rgba(111, 168, 103, 0.45); color: var(--pt-ok); }
 .ch-gps.ok > svg { color: var(--mc-verde-claro); }
 .ch-gps.buscando > svg { color: var(--mc-gris-claro); }
 .ch-gps.sin { border-color: rgba(224, 169, 74, 0.4); }
-.ch-gps.sin > svg { color: #e0a94a; }
+.ch-gps.sin > svg { color: var(--pt-alerta); }
 
 @media (prefers-contrast: more) {
   .ch-gps { border-color: #5d6f6b; color: #dce6e4; }

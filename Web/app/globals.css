@@ -19,6 +19,10 @@
      blanco encima. Ambos pasan WCAG. NO usarlo dos veces en una pantalla. */
   --mc-azul: #2a6a99;
   --mc-azul-osc: #215579;
+  /* EL AZUL CUANDO ES TEXTO O ICONO sobre oscuro. Misma historia que el
+     verde: #2a6a99 da 2.87:1 sobre una tarjeta y no se lee. Este da 6.15:1.
+     El de arriba es RELLENO (botón, barra); éste es TINTA. */
+  --mc-azul-txt: #6ba3cf;
 
   /* 🔴 Teal y naranja NO van en la web pública (ver DESIGN.md).
      Sobreviven solo dentro de /portal y /admin como identidad de esas áreas. */
@@ -1045,16 +1049,49 @@ section {
   background: var(--mc-superficie);
   color: var(--mc-tinta);
 }
+/* El foco iba en verde, y encima con el tono VIEJO (#4eb34a) escrito a mano.
+   El foco es la acción en curso: va en azul, como el resto del sistema. */
 .mc-form .form-control:focus,
 .mc-form .form-select:focus {
-  border-color: var(--mc-verde-claro);
-  box-shadow: 0 0 0 3.5px rgba(78, 179, 74, 0.14);
+  border-color: var(--mc-azul-txt);
+  box-shadow: 0 0 0 3.5px rgba(42, 106, 153, 0.22);
 }
 .mc-form .form-control::placeholder {
   color: var(--mc-gris-claro);
 }
+
+/* EL BOTON DE "Seleccionar archivo" (currículum, en /empleo).
+   🔴 Era ILEGIBLE: 1.11:1. Nadie lo había escrito, así que lo pintaba el
+   navegador con su botón claro de fábrica —fondo #F8F9FA— mientras el TEXTO
+   heredaba del input la tinta clara del tema oscuro, #ECEDEA. Texto casi
+   blanco sobre fondo casi blanco.
+   Es una acción SECUNDARIA (la principal es "Enviar solicitud"), así que va
+   como superficie con borde, no como relleno azul: dos botones azules en el
+   mismo formulario compiten. */
+.mc-form .form-control::file-selector-button {
+  background: var(--mc-superficie);
+  color: var(--mc-tinta);          /* 14.14:1 */
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio-sm);
+  padding: 0.42rem 0.9rem;
+  margin: -0.72rem 0.9rem -0.72rem -0.95rem;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--mc-transicion),
+              border-color var(--mc-transicion),
+              color var(--mc-transicion);
+}
+.mc-form .form-control:hover::file-selector-button,
+.mc-form .form-control::file-selector-button:hover {
+  background: var(--mc-hueso);
+  border-color: var(--mc-azul-txt);
+  color: var(--mc-azul-txt);
+}
+/* Iba en --mc-naranja liso: 3.31:1, por debajo del mínimo, y encima naranja
+   significa "en ruta" en este sistema. Un campo obligatorio es un aviso. */
 .mc-requerido {
-  color: var(--mc-naranja);
+  color: var(--mc-alerta);
 }
 
 .mc-alerta {
@@ -1205,6 +1242,69 @@ section {
   position: relative;
   z-index: 2;
   line-height: 1.65;
+}
+
+/* ---------- Encabezado CON FOTO (hoy sólo /empleo) ----------
+   La foto va detrás del titular blanco, así que el trabajo de estas reglas
+   es garantizar que el texto se siga leyendo encima de una imagen que no
+   controlamos. Dos velos, cada uno con su oficio:
+
+     · el LATERAL oscurece la izquierda, que es por donde entra el texto;
+     · el INFERIOR cose la foto con la sección que viene abajo, para que el
+       corte no se vea como una raya.
+
+   Medido sobre la foto real: el blanco queda en 9.6:1 en la zona del
+   titular. Si algún día se cambia la imagen, hay que volver a medirlo — un
+   velo que funciona con una foto oscura no funciona con una clara. */
+.mc-encabezado-foto {
+  background: var(--mc-negro);
+  padding-top: clamp(4.5rem, 9vw, 7rem);
+  padding-bottom: clamp(4rem, 8vw, 6rem);
+}
+.mc-encabezado-fondo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* Los dos velos. Van en un pseudo-elemento y no en el <div> de la imagen
+   para no pelearse con el `fill` de next/image, que le pone sus propios
+   estilos en línea al contenedor. */
+.mc-encabezado-foto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(11, 14, 15, 0.94) 0%,
+      rgba(11, 14, 15, 0.86) 32%,
+      rgba(11, 14, 15, 0.52) 62%,
+      rgba(11, 14, 15, 0.34) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 55%,
+      rgba(18, 21, 22, 0.85) 100%
+    );
+}
+/* En el teléfono el texto ocupa todo el ancho, así que el velo lateral ya no
+   alcanza: el degradado pasa a ser de arriba abajo y más cerrado. */
+@media (max-width: 767.98px) {
+  .mc-encabezado-foto::after {
+    /* Se aflojó respecto del primer intento (0.88/0.78/0.92): con aquellos
+       valores el hero se veía casi negro y la foto no se distinguía, o sea
+       que en el teléfono —por donde entra la mayoría de los candidatos— la
+       imagen no estaba haciendo ningún trabajo. Estos dejan ver la foto y
+       el titular sigue por encima de 4.5:1 (medido: 6.9:1). */
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(11, 14, 15, 0.80) 0%,
+        rgba(11, 14, 15, 0.58) 50%,
+        rgba(18, 21, 22, 0.88) 100%
+      );
+  }
 }
 .mc-encabezado-chevron {
   position: absolute;

@@ -10,6 +10,8 @@
  * =========================================================================
  */
 
+import { colorDe } from "@/lib/paleta-datos";
+
 /** Credenciales del acceso de demostración (se muestran en la pantalla de login). */
 export const CREDENCIALES_DEMO = {
   correo: "cliente@demo.com",
@@ -114,10 +116,10 @@ export const REPORTE_ANUAL = [
 
 /** Reparto de volumen por tipo de residuo (para gráfica de composición). */
 export const COMPOSICION_RESIDUOS = [
-  { tipo: "Residuos Sólidos Urbanos", porcentaje: 46, color: "#4eb34a" },
-  { tipo: "Manejo Especial", porcentaje: 24, color: "#db652d" },
-  { tipo: "Aguas Oleosas", porcentaje: 18, color: "#2d8a8f" },
-  { tipo: "Reciclaje", porcentaje: 12, color: "#7cc576" },
+  { tipo: "Residuos Sólidos Urbanos", porcentaje: 46, color: colorDe("Residuos Sólidos Urbanos") },
+  { tipo: "Manejo Especial", porcentaje: 24, color: colorDe("Manejo Especial") },
+  { tipo: "Aguas Oleosas", porcentaje: 18, color: colorDe("Aguas Oleosas") },
+  { tipo: "Reciclaje", porcentaje: 12, color: colorDe("Reciclaje") },
 ];
 
 /** Documentos fiscales disponibles para descargar. */

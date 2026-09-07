@@ -233,7 +233,17 @@ export default function FormularioCotizacion() {
             }}
           >
             Al enviar aceptas nuestro{" "}
-            <a href="/aviso-de-privacidad" style={{ color: "var(--mc-verde-claro)" }}>
+{/* PESTAÑA NUEVA a propósito: este enlace vive DENTRO del formulario.
+                Abriéndolo en la misma pestaña, quien ya llenó medio formulario
+                y quiere leer lo que está aceptando pierde todo lo escrito al
+                volver — y en el de empleo eso incluye el archivo adjunto, que
+                el navegador NO puede volver a poner por seguridad. */}
+            <a
+              href="/aviso-de-privacidad"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--mc-verde-claro)" }}
+            >
               Aviso de Privacidad
             </a>
             .
