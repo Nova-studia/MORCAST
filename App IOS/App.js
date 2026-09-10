@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -82,13 +82,18 @@ function AuthFlow({ onCliente, onAdmin, onChofer }) {
 /* ---------- Chofer ---------- */
 function AppChofer({ onLogout }) {
   const [ruta, setRuta] = useState(haySupabase() ? [] : RUTA_HOY);
+  // Mientras se lee la ruta, la pantalla no puede decir "no tienes ruta":
+  // todavía no lo sabe.
+  const [cargandoRuta, setCargandoRuta] = useState(haySupabase());
 
   const recargarRuta = () =>
-    rutaDelDia().then((paradas) => {
-      // Si no hay base configurada se queda la ruta de ejemplo, para que la
-      // pantalla no salga vacia en modo demostracion.
-      if (haySupabase()) setRuta(paradas);
-    });
+    rutaDelDia()
+      .then((paradas) => {
+        // Si no hay base configurada se queda la ruta de ejemplo, para que la
+        // pantalla no salga vacia en modo demostracion.
+        if (haySupabase()) setRuta(paradas);
+      })
+      .finally(() => setCargandoRuta(false));
 
   useEffect(() => {
     let vivo = true;
@@ -122,7 +127,7 @@ function AppChofer({ onLogout }) {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
-        {(props) => <RutaChofer {...props} ruta={ruta} onLogout={onLogout} />}
+        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} />}
       </Stack.Screen>
       <Stack.Screen name="Recoleccion" options={{ title: "Recolección" }}>
         {(props) => <Recoleccion {...props} completar={completar} />}
@@ -214,17 +219,40 @@ export default function App() {
    */
   useEffect(() => {
     let vivo = true;
+
+    /**
+     * RED DE SEGURIDAD DEL ARRANQUE.
+     *
+     * Buscar la sesión guardada es una comodidad, no un requisito: si tarda o
+     * falla, lo peor que puede pasar es que el usuario escriba su contraseña.
+     * Quedarse en la pantalla de carga, en cambio, deja la app inservible sin
+     * explicar por qué — que es exactamente lo que pasaba.
+     *
+     * Así que a los 5 segundos se abre el login pase lo que pase. Si la
+     * sesión aparece después, ya no se usa: `vivo` corta el paso.
+     */
+    const salvavidas = setTimeout(() => {
+      if (vivo) setRevisando(false);
+    }, 5000);
+
     (async () => {
-      for (const modo of ["admin", "chofer", "cliente"]) {
-        const p = await sesionActiva(modo);
-        if (p) {
-          if (vivo) setSesion(modo);
-          break;
+      try {
+        for (const modo of ["admin", "chofer", "cliente"]) {
+          const p = await sesionActiva(modo);
+          if (p) {
+            if (vivo) setSesion(modo);
+            break;
+          }
         }
+      } catch (e) {
+        // Un fallo buscando la sesión no puede dejar la app sin abrir.
+        console.warn("No se pudo recuperar la sesión guardada:", e?.message || e);
       }
+      clearTimeout(salvavidas);
       if (vivo) setRevisando(false);
     })();
-    return () => { vivo = false; };
+
+    return () => { vivo = false; clearTimeout(salvavidas); };
   }, []);
 
   const salir = async () => {
@@ -238,7 +266,10 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <View style={{ flex: 1, backgroundColor: T.fondo }} />
+        <View style={{ flex: 1, backgroundColor: T.fondo, alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <ActivityIndicator size="large" color={T.verde} />
+          <Text style={{ color: T.tinta, marginTop: 20, fontSize: 16, fontWeight: "700" }}>Morcast</Text>
+        </View>
       </SafeAreaProvider>
     );
   }

@@ -7,6 +7,7 @@ import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
 import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, misServicios } from "../datos-remoto";
 import { useMiEmpresa } from "../mi-empresa";
+import { haySupabase } from "../supabase";
 
 export default function Inicio({ navigation }) {
   const [saldo, setSaldo] = useState(null);
@@ -27,11 +28,16 @@ export default function Inicio({ navigation }) {
     };
   }, []);
 
-  // Mientras carga (o si no hay conexión a la base) se muestran los datos de
-  // ejemplo, para que la pantalla nunca aparezca en blanco.
-  const cuenta = saldo || CUENTA;
-  const movimientos = movs && movs.length ? movs : MOVIMIENTOS;
-  const listaServicios = servicios && servicios.length ? servicios : SERVICIOS_CLIENTE;
+  // Con base conectada TODO es real, aunque esté vacío. Antes, un cliente sin
+  // movimientos veía los de ejemplo ("Pago recibido — transferencia SPEI",
+  // facturas FAC-2026-11xx) y sin servicios veía recolecciones que nunca le
+  // hicieron. Los datos de ejemplo sólo valen sin base.
+  const conBase = haySupabase();
+  const cuenta = saldo || (conBase ? { saldoActual: 0, porPagar: 0, limiteCredito: 0, diasCredito: 0 } : CUENTA);
+  const cargandoMovs = conBase && movs === null;
+  const movimientos = movs || (conBase ? [] : MOVIMIENTOS);
+  const cargandoServicios = conBase && servicios === null;
+  const listaServicios = servicios || (conBase ? [] : SERVICIOS_CLIENTE);
 
   const completados = listaServicios.filter((x) => x.estatus === "completado");
   const proximos = listaServicios.filter((x) => x.estatus !== "completado");
@@ -69,8 +75,8 @@ export default function Inicio({ navigation }) {
       {/* KPIs */}
       <View style={s.kpis}>
         <Kpi icono="dollar-sign" color={T.alerta} etiqueta="Por pagar" valor={enHold() ? SIN_CIFRA : pesos(cuenta.porPagar)} />
-        <Kpi icono="truck" color={T.ok} etiqueta="Servicios" valor={String(completados.length)} />
-        <Kpi icono="calendar" color={T.accionTxt} etiqueta="Próximos" valor={String(proximos.length)} />
+        <Kpi icono="truck" color={T.ok} etiqueta="Servicios" valor={cargandoServicios ? "…" : String(completados.length)} />
+        <Kpi icono="calendar" color={T.accionTxt} etiqueta="Próximos" valor={cargandoServicios ? "…" : String(proximos.length)} />
       </View>
 
       {/* Próximos servicios */}
@@ -79,7 +85,7 @@ export default function Inicio({ navigation }) {
           Próximos servicios
         </TituloTarjeta>
         {proximos.length === 0 ? (
-          <Text style={s.vacio}>No hay servicios programados.</Text>
+          <Text style={s.vacio}>{cargandoServicios ? "Leyendo tus servicios…" : "No hay servicios programados."}</Text>
         ) : (
           proximos.map((x, i) => {
             const est = estatusInfo(x.estatus);
@@ -99,6 +105,9 @@ export default function Inicio({ navigation }) {
       {/* Movimientos */}
       <Tarjeta>
         <TituloTarjeta>Movimientos recientes</TituloTarjeta>
+        {movimientos.length === 0 && (
+          <Text style={s.vacio}>{cargandoMovs ? "Leyendo tus movimientos…" : "Todavía no hay movimientos en tu cuenta."}</Text>
+        )}
         {movimientos.slice(0, 5).map((m, i) => (
           <View key={m.folio} style={[s.fila, i < 4 && s.filaBorde]}>
             <View style={{ flex: 1, paddingRight: 10 }}>

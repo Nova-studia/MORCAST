@@ -5,6 +5,7 @@ import { T } from "../tema";
 import { Tarjeta, TituloTarjeta } from "../ui";
 import { SERVICIOS_CLIENTE, fechaLarga } from "../datos";
 import { misServicios } from "../datos-remoto";
+import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto, descargarConstancia } from "../pdf";
 
@@ -19,8 +20,12 @@ export default function Documentos() {
     return () => { vivo = false; };
   }, []);
 
-  // Mientras carga se ven los de ejemplo, para que la pantalla no salga vacia.
-  const lista = servicios && servicios.length ? servicios : SERVICIOS_CLIENTE;
+  // Con base conectada la lista es la REAL aunque venga vacía. Antes, si el
+  // cliente no tenía servicios, se le enseñaban los de ejemplo (folios
+  // SRV-2026-07xx, chofer "J. Medina"): una empresa recién dada de alta veía
+  // recolecciones que nunca le hicieron. Los de ejemplo sólo valen sin base.
+  const cargandoLista = haySupabase() && servicios === null;
+  const lista = servicios || (haySupabase() ? [] : SERVICIOS_CLIENTE);
   const manifiestos = lista.filter((x) => x.manifiesto);
 
   const conConstancia = async () => {
@@ -58,7 +63,14 @@ export default function Documentos() {
       </Tarjeta>
 
       <Tarjeta>
-        <TituloTarjeta>Manifiestos ({manifiestos.length})</TituloTarjeta>
+        <TituloTarjeta>Manifiestos{cargandoLista ? "" : ` (${manifiestos.length})`}</TituloTarjeta>
+        {manifiestos.length === 0 && (
+          <Text style={s.vacio}>
+            {cargandoLista
+              ? "Leyendo tus servicios…"
+              : "Todavía no hay manifiestos. Se genera uno por cada recolección completada."}
+          </Text>
+        )}
         {manifiestos.map((x, i) => (
           <Fila
             key={x.folio}
@@ -96,4 +108,5 @@ const s = StyleSheet.create({
   ico: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   filaTit: { color: T.tinta, fontSize: 14, fontWeight: "700" },
   filaSub: { color: T.gris, fontSize: 12, marginTop: 2 },
+  vacio: { color: T.gris, fontSize: 13, lineHeight: 19, paddingVertical: 6 },
 });

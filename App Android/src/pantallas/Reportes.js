@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T } from "../tema";
+import { T, COLOR_TIPO } from "../tema";
 import { enHold } from "../estado-sistema";
 import { Tarjeta, TituloTarjeta, Boton, AvisoHold } from "../ui";
 import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, pesos } from "../datos";
 import { reportes } from "../datos-remoto";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
+import { haySupabase } from "../supabase";
 import { descargarReporte } from "../pdf";
 
 const PERIODOS = [
@@ -29,6 +30,17 @@ export default function Reportes() {
 
   const cfg = PERIODOS.find((p) => p.id === sel);
   const data = rep ? rep[sel] : cfg.data;
+  // La composición sale de los servicios reales del cliente. Los cuatro
+  // porcentajes de ejemplo (46/24/18/12) sólo valen sin base conectada.
+  const composicion = rep
+    ? rep.composicion.map((c) => ({ ...c, color: COLOR_TIPO[c.tipo] || T.gris }))
+    : haySupabase() ? [] : COMPOSICION_RESIDUOS;
+  const cargandoRep = haySupabase() && rep === null;
+  // Con 14 columnas (diario) las etiquetas no caben: se rotula una sí y una
+  // no, sólo con el día ("28 Ago" → "28"; el mes lo dice la propia serie), y
+  // ninguna se parte en dos renglones. El PDF sigue llevando la fecha entera.
+  const rotula = (i) => data.length <= 12 || i % 2 === 0;
+  const etiqueta = (d) => (sel === "diario" ? String(d.periodo).split(" ")[0] : d.periodo);
   // La grafica va por PESO, no por monto: el peso lo registra el chofer, la
   // facturacion todavia no vive en el sistema y una barra de ceros no dice nada.
   const maxM = Math.max(...data.map((d) => d.volumen), 1);
@@ -68,10 +80,10 @@ export default function Reportes() {
       <Tarjeta>
         <TituloTarjeta>{enHold() ? "Peso por periodo" : "Monto por periodo"}</TituloTarjeta>
         <View style={s.chart}>
-          {data.map((d) => (
-            <View key={d.periodo} style={s.col}>
+          {data.map((d, i) => (
+            <View key={d.periodo + i} style={s.col}>
               <View style={s.track}><View style={[s.bar, { height: `${Math.round((d.volumen / maxM) * 100)}%` }]} /></View>
-              <Text style={s.colLbl}>{d.periodo}</Text>
+              <Text style={s.colLbl} numberOfLines={1}>{rotula(i) ? etiqueta(d) : ""}</Text>
             </View>
           ))}
         </View>
@@ -83,18 +95,25 @@ export default function Reportes() {
 
       <Tarjeta>
         <TituloTarjeta>Composición de residuos (12 meses)</TituloTarjeta>
-        {COMPOSICION_RESIDUOS.map((c) => (
+        {composicion.length === 0 && (
+          <Text style={s.vacio}>
+            {cargandoRep ? "Leyendo tus servicios…" : "Se llena con el tipo de residuo de cada servicio completado."}
+          </Text>
+        )}
+        {composicion.map((c) => (
           <View key={c.tipo} style={s.compFila}>
             <View style={[s.punto, { backgroundColor: c.color }]} />
             <Text style={s.compTipo}>{c.tipo}</Text>
             <Text style={s.compPct}>{c.porcentaje}%</Text>
           </View>
         ))}
-        <View style={s.barra}>
-          {COMPOSICION_RESIDUOS.map((c) => (
-            <View key={c.tipo} style={{ width: `${c.porcentaje}%`, backgroundColor: c.color, height: 10 }} />
-          ))}
-        </View>
+        {composicion.length > 0 && (
+          <View style={s.barra}>
+            {composicion.map((c) => (
+              <View key={c.tipo} style={{ width: `${c.porcentaje}%`, backgroundColor: c.color, height: 10 }} />
+            ))}
+          </View>
+        )}
       </Tarjeta>
     </ScrollView>
   );
@@ -112,11 +131,12 @@ const s = StyleSheet.create({
   kpi: { flex: 1, backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 14, padding: 14 },
   kpiEt: { color: T.gris, fontSize: 12 },
   kpiVal: { color: T.tinta, fontSize: 18, fontWeight: "800", marginTop: 4 },
-  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 140, gap: 6 },
+  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 140, gap: 4 },
   col: { flex: 1, alignItems: "center" },
   track: { width: "100%", height: 116, backgroundColor: T.panel2, borderRadius: 6, justifyContent: "flex-end", overflow: "hidden" },
   bar: { width: "100%", backgroundColor: T.verde, borderRadius: 6 },
-  colLbl: { color: T.gris, fontSize: 10, marginTop: 6 },
+  colLbl: { color: T.gris, fontSize: 9.5, marginTop: 6 },
+  vacio: { color: T.gris, fontSize: 13, lineHeight: 19, paddingVertical: 6 },
   compFila: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 10 },
   punto: { width: 11, height: 11, borderRadius: 6 },
   compTipo: { color: T.tinta, fontSize: 13.5, flex: 1 },

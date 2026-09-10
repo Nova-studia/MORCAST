@@ -107,14 +107,32 @@ async function perfilDe(usuario, modo) {
   };
 }
 
-/** Sesión activa del modo indicado, o null. Sirve para no volver a pedir clave. */
+/**
+ * Sesión activa del modo indicado, o null. Sirve para no volver a pedir clave.
+ *
+ * ⚠️ USA `getSession()`, NO `getUser()`.
+ *
+ * `getUser()` PREGUNTA AL SERVIDOR por la red. Como el arranque de la app
+ * llama a esto tres veces seguidas (admin, chofer, cliente) y espera cada una,
+ * bastaba con que la red fuera lenta o no contestara para que la app se
+ * quedara para siempre en la pantalla de carga, sin login y sin error: no
+ * llegaba a pintar nada.
+ *
+ * `getSession()` lee la sesión que ya está guardada en el teléfono. Es
+ * instantáneo y no depende de la red. El rol viene dentro del propio token,
+ * que es lo único que hace falta para decidir qué pantalla abrir; lo que el
+ * usuario pueda ver o no lo sigue mandando el RLS de la base en cada
+ * consulta, igual que antes.
+ */
 export async function sesionActiva(modo) {
   if (!haySupabase()) return null;
 
   const cfg = ROLES[modo];
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user;
   if (!user) return null;
   if (!cfg.acepta.includes(user.app_metadata?.rol)) return null;
 

@@ -2,7 +2,8 @@ import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T, SERIES } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
-import { ADMIN_PERFIL } from "../../datos-admin";
+import { usePerfilSesion, iniciales } from "../../mi-perfil";
+import { haySupabase } from "../../supabase";
 
 // Ver la nota del mismo menu del cliente (`pantallas/Mas.js`).
 const MENU = [
@@ -13,6 +14,12 @@ const MENU = [
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {
+  // Quien entró, no un perfil de ejemplo. Esta tarjeta saludaba a
+  // "Ing. Ramón Cázares · admin@morcast.mx" entrara quien entrara.
+  const { perfil, cargando } = usePerfilSesion("admin");
+  const nombre = perfil?.nombre || (cargando ? "Leyendo tu sesión…" : "Sin sesión");
+  const linea = perfil ? [perfil.rol, perfil.correo].filter(Boolean).join(" · ") : " ";
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.h1}>Más</Text>
@@ -20,10 +27,10 @@ export default function MasAdmin({ navigation, onLogout }) {
 
       <Tarjeta>
         <View style={s.perfil}>
-          <View style={s.avatar}><Text style={s.avatarTxt}>RC</Text></View>
+          <View style={s.avatar}><Text style={s.avatarTxt}>{perfil ? iniciales(perfil.nombre) : "·"}</Text></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.nombre}>{ADMIN_PERFIL.nombre}</Text>
-            <Text style={s.rol}>{ADMIN_PERFIL.rol} · {ADMIN_PERFIL.correo}</Text>
+            <Text style={s.nombre} numberOfLines={1}>{nombre}</Text>
+            <Text style={s.rol} numberOfLines={1}>{linea}</Text>
           </View>
         </View>
       </Tarjeta>
@@ -43,7 +50,7 @@ export default function MasAdmin({ navigation, onLogout }) {
         <Text style={{ color: T.tinta, fontWeight: "700" }}>  Cerrar sesión</Text>
       </Boton>
 
-      <Text style={s.version}>Morcast del Norte · Admin v1.0 (demo)</Text>
+      <Text style={s.version}>Morcast del Norte · Admin v1.0{haySupabase() ? "" : " (demo)"}</Text>
     </ScrollView>
   );
 }

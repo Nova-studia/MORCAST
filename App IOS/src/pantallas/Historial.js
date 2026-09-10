@@ -5,6 +5,7 @@ import { T } from "../tema";
 import { Tarjeta, Badge } from "../ui";
 import { SERVICIOS_CLIENTE, fechaLarga, estatusInfo } from "../datos";
 import { misServicios } from "../datos-remoto";
+import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto } from "../pdf";
 
@@ -51,8 +52,12 @@ export default function Historial() {
     };
   }, []);
 
-  // Mientras carga, o si todavía no hay base conectada, se ven los de ejemplo.
-  const lista = servicios && servicios.length ? servicios : SERVICIOS_CLIENTE;
+  // Con base conectada la lista es la REAL aunque venga vacía. Antes, si el
+  // cliente no tenía servicios, se le enseñaban los de ejemplo (folios
+  // SRV-2026-07xx, chofer "J. Medina"): una empresa recién dada de alta veía
+  // recolecciones que nunca le hicieron. Los de ejemplo sólo valen sin base.
+  const cargandoLista = haySupabase() && servicios === null;
+  const lista = servicios || (haySupabase() ? [] : SERVICIOS_CLIENTE);
 
   const filas = lista
     .filter((x) => filtro === "todos" || x.estatus === filtro)
@@ -71,7 +76,15 @@ export default function Historial() {
         ))}
       </ScrollView>
 
-      {filas.length === 0 && <Text style={s.vacio}>Sin servicios en este filtro.</Text>}
+      {filas.length === 0 && (
+        <Text style={s.vacio}>
+          {cargandoLista
+            ? "Leyendo tus servicios…"
+            : lista.length === 0
+              ? "Todavía no tienes servicios registrados. Cuando Morcast programe tu primera recolección aparecerá aquí."
+              : "Sin servicios en este filtro."}
+        </Text>
+      )}
 
       {filas.map((x) => {
         const est = estatusInfo(x.estatus);

@@ -1,23 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, Badge } from "../../ui";
 import { CHOFER_PERFIL } from "../../datos-chofer";
+import { usePerfilSesion } from "../../mi-perfil";
+import { miRutaDeChofer } from "../../datos-remoto";
+import { haySupabase } from "../../supabase";
 
-export default function RutaChofer({ navigation, ruta, onLogout }) {
+export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout }) {
   const [verComp, setVerComp] = useState(null);
   const pendientes = ruta.filter((s) => s.estatus === "pendiente");
   const completados = ruta.filter((s) => s.estatus === "completado");
+
+  // Quién es y qué maneja, de la sesión y de SU ruta en la base. La barra
+  // decía "Hola, José · Unidad Roll off 04" —el chofer de demostración— a
+  // cualquiera que entrara.
+  const { perfil, cargando: cargandoPerfil } = usePerfilSesion("chofer");
+  const [asignacion, setAsignacion] = useState(haySupabase() ? null : { unidad: CHOFER_PERFIL.unidad, ruta: "" });
+  useEffect(() => {
+    if (!haySupabase()) return;
+    let vivo = true;
+    miRutaDeChofer().then((r) => { if (vivo) setAsignacion(r || { unidad: "", ruta: "" }); });
+    return () => { vivo = false; };
+  }, []);
+  const saludo = perfil ? `Hola, ${String(perfil.nombre || "").split(" ")[0]}` : cargandoPerfil ? "Hola" : "Sin sesión";
+  const lineaUnidad = asignacion === null ? " " : asignacion.unidad ? `Unidad ${asignacion.unidad}` : "Sin unidad asignada";
+
+  // Tres situaciones distintas que antes salían igual, con confeti: todavía
+  // se está leyendo la ruta, no hay ruta para hoy, o sí la hubo y ya se
+  // terminó. Sólo la última se festeja.
+  const sinParadas = cargandoRuta
+    ? "Leyendo tu ruta de hoy…"
+    : ruta.length === 0
+      ? "Hoy no tienes ruta asignada. Cuando Morcast te programe servicios aparecerán aquí."
+      : "¡Ruta completada! No quedan servicios pendientes. 🎉";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
       {/* Barra superior */}
       <View style={s.topbar}>
         <View style={{ flex: 1 }}>
-          <Text style={s.hola}>Hola, {CHOFER_PERFIL.nombre.split(" ")[0]}</Text>
-          <Text style={s.unidad}>Unidad {CHOFER_PERFIL.unidad}</Text>
+          <Text style={s.hola} numberOfLines={1}>{saludo}</Text>
+          <Text style={s.unidad} numberOfLines={1}>{lineaUnidad}</Text>
         </View>
         <Pressable onPress={onLogout} hitSlop={10} style={s.salir}><Feather name="log-out" size={18} color={T.gris} /></Pressable>
       </View>
@@ -34,7 +60,7 @@ export default function RutaChofer({ navigation, ruta, onLogout }) {
 
         <Text style={s.seccion}>Por recolectar</Text>
         {pendientes.length === 0 ? (
-          <Tarjeta><Text style={s.vacio}>¡Ruta completada! No quedan servicios pendientes. 🎉</Text></Tarjeta>
+          <Tarjeta><Text style={s.vacio}>{sinParadas}</Text></Tarjeta>
         ) : pendientes.map((sv) => (
           <Pressable key={sv.folio} onPress={() => navigation.navigate("Recoleccion", { servicio: sv })}>
             <Tarjeta style={{ padding: 14 }}>

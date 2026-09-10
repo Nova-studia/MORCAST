@@ -66,7 +66,7 @@ export default function PanelAdmin() {
           {cobranza.serie.map((x, i) => (
             <View key={x.periodo + i} style={s.col}>
               <View style={s.track}><View style={[s.bar, { height: `${Math.round((x.monto / maxM) * 100)}%` }]} /></View>
-              <Text style={s.colLbl}>{x.periodo}</Text>
+              <Text style={s.colLbl} numberOfLines={1}>{x.periodo}</Text>
             </View>
           ))}
         </View>
@@ -117,11 +117,13 @@ const s = StyleSheet.create({
   kpiEt: { color: T.gris, fontSize: 11.5 },
   kpiVal: { color: T.tinta, fontSize: 17, fontWeight: "800", marginTop: 2 },
   kpiPie: { color: T.grisClaro, fontSize: 10.5, marginTop: 3 },
-  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 130, gap: 8 },
+  // 12 columnas en un teléfono: con gap 8 y letra de 10.5 a "May" y "Ago"
+  // no les cabía la tercera letra y se partían en dos renglones.
+  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 130, gap: 4 },
   col: { flex: 1, alignItems: "center" },
   track: { width: "100%", height: 106, backgroundColor: T.panel2, borderRadius: 6, justifyContent: "flex-end", overflow: "hidden" },
   bar: { width: "100%", backgroundColor: T.naranja, borderRadius: 6 },
-  colLbl: { color: T.gris, fontSize: 10.5, marginTop: 6 },
+  colLbl: { color: T.gris, fontSize: 9.5, marginTop: 6 },
   embFila: { flexDirection: "row", alignItems: "center", paddingVertical: 7, gap: 10 },
   embTxt: { color: T.tinta, fontSize: 13, width: 84 },
   embTrack: { flex: 1, height: 10, backgroundColor: T.panel2, borderRadius: 5, overflow: "hidden" },

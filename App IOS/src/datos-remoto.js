@@ -464,7 +464,11 @@ export async function misServicios() {
         // El estado sale de la base, no fijo: si no, todo se pintaría como
         // completado aunque apenas estuviera programado.
         estatus: ESTATUS_PANTALLA[s.estado] || s.estado,
-        manifiesto: `MAN-${s.folio.replace("REC-", "")}`,
+        // El manifiesto se firma con la recolección hecha. Antes se ofrecía
+        // para TODOS los servicios, también los programados: el cliente podía
+        // bajar un manifiesto de algo que todavía no pasaba. La pantalla ya
+        // sabía decir "Manifiesto pendiente"; sólo faltaba que aquí fuera null.
+        manifiesto: s.estado === "completada" ? `MAN-${s.folio.replace("REC-", "")}` : null,
         evidencia: ev
           ? {
               contenedor: ev.qr ? `Contenedor ${ev.qr}` : "—",
@@ -521,6 +525,29 @@ export async function rutaDelDia(fecha = hoyISO()) {
       evidencia: ev,
     };
   });
+}
+
+/**
+ * La ruta (o rutas) del chofer con sesión: nombre y unidad.
+ *
+ * Desde db/014 la tabla `rutas` le enseña al operador sólo las suyas
+ * (`chofer_id = auth.uid()`), así que no hace falta filtrar aquí. Devuelve
+ * `{ unidad, ruta }` o null si no tiene ninguna asignada.
+ */
+export async function miRutaDeChofer() {
+  if (!haySupabase()) return null;
+
+  const { data, error } = await supabase
+    .from("rutas")
+    .select("nombre, unidad, activa")
+    .eq("activa", true)
+    .order("clave");
+
+  if (error || !data || !data.length) return null;
+  return {
+    ruta: data.map((r) => r.nombre).filter(Boolean).join(" · "),
+    unidad: data.map((r) => r.unidad).filter(Boolean).join(" · "),
+  };
 }
 
 /**
@@ -913,8 +940,34 @@ export async function reportes() {
     diario: serie(filas, 14, "dia"),
     mensual: serie(filas, 12, "mes"),
     anual: serie(filas, 4, "anio"),
+    composicion: composicion(filas),
     hayFacturacion: false,
   };
+}
+
+/**
+ * Qué parte del total es cada tipo de residuo, para la tarjeta de
+ * "Composición". Va por PESO cuando el chofer lo anotó; si ningún servicio
+ * trae peso, por número de servicios, que es lo único que hay.
+ *
+ * Antes la tarjeta pintaba cuatro porcentajes escritos a mano (46/24/18/12),
+ * los mismos para cualquier cliente que entrara.
+ */
+function composicion(filas) {
+  const ultimoAnio = new Date();
+  ultimoAnio.setFullYear(ultimoAnio.getFullYear() - 1);
+  const recientes = filas.filter((f) => aFecha(f.fecha) >= ultimoAnio);
+  const hayPeso = recientes.some((f) => f.toneladas > 0);
+  const porTipo = {};
+  for (const f of recientes) {
+    const nombre = nombreTipoRuta(f.tipo) || "Otros";
+    porTipo[nombre] = (porTipo[nombre] || 0) + (hayPeso ? f.toneladas : 1);
+  }
+  const total = Object.values(porTipo).reduce((a, b) => a + b, 0);
+  if (!total) return [];
+  return Object.entries(porTipo)
+    .map(([tipo, v]) => ({ tipo, porcentaje: Math.round((v / total) * 100) }))
+    .sort((a, b) => b.porcentaje - a.porcentaje);
 }
 
 /* ==================================================================== */

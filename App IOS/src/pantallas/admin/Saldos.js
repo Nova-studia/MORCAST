@@ -4,7 +4,9 @@ import { Feather } from "@expo/vector-icons";
 import { listarMovimientos, listarClientes, resolverDeposito, enlaceComprobante, folioCorto } from "../../datos-remoto";
 import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../../ui";
-import { RECARGAS_SEED, RESPONSABLE_RECARGAS, CLIENTES_ADMIN, ADMIN_PERFIL, estadoRecarga, pesos, fechaLarga } from "../../datos-admin";
+import { RECARGAS_SEED, RESPONSABLE_RECARGAS, CLIENTES_ADMIN, estadoRecarga, pesos, fechaLarga } from "../../datos-admin";
+import { usePerfilSesion } from "../../mi-perfil";
+import { haySupabase } from "../../supabase";
 
 const SCREEN_W = Dimensions.get("window").width;
 
@@ -42,7 +44,17 @@ export default function Saldos() {
     return () => { vivo = false; };
   }, [ver?.id]);
 
-  const puedeVerificar = !simularAux && ADMIN_PERFIL.rol === "Administrador";
+  // Verifica el dueño o un administrador: los dos roles de Morcast que la
+  // base deja entrar al panel. Antes se comparaba contra el perfil de
+  // demostración, que siempre decía "Administrador" fuera quien fuera.
+  // Mientras la sesión no se ha leído no se estorba: la última palabra la
+  // tiene el RLS al guardar, y `resolverDeposito` ya avisa si lo rechaza.
+  const { perfil } = usePerfilSesion("admin");
+  const rolPuede = perfil ? ["Dueño", "Administrador"].includes(perfil.rol) : true;
+  const puedeVerificar = !simularAux && rolPuede;
+  const responsable = haySupabase()
+    ? { nombre: perfil?.nombre || "Leyendo tu sesión…", rol: perfil?.rol || " " }
+    : RESPONSABLE_RECARGAS;
   const porVerificar = recargas.filter((r) => r.estado === "por-verificar");
 
   // Dos depósitos del mismo cliente por el mismo monto y la misma referencia
@@ -102,13 +114,20 @@ export default function Saldos() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View style={s.respIco}><Feather name="shield" size={18} color={T.tealClaro} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.respNom}>{RESPONSABLE_RECARGAS.nombre}</Text>
-            <Text style={s.respRol}>{RESPONSABLE_RECARGAS.rol} · asignada</Text>
+            {/* Con base conectada el responsable es quien tiene la sesión: la
+                base no guarda una "asignación" y esta tarjeta enseñaba a
+                "Karla Montes · Facturación", una persona de la demostración. */}
+            <Text style={s.respNom}>{responsable.nombre}</Text>
+            <Text style={s.respRol}>{responsable.rol}{haySupabase() ? " · tu sesión" : " · asignada"}</Text>
           </View>
         </View>
-        <Pressable onPress={() => setSimularAux((v) => !v)} style={[s.toggle, simularAux && s.toggleOn]}>
-          <Text style={[s.toggleTxt, simularAux && { color: "#fff" }]}>{simularAux ? "Volver a mi vista de administrador" : "Ver como auxiliar sin permiso (demo)"}</Text>
-        </Pressable>
+        {/* Juguete de la demostración: en la app conectada a la base no hay
+            "auxiliares", el rol lo trae la sesión. */}
+        {!haySupabase() && (
+          <Pressable onPress={() => setSimularAux((v) => !v)} style={[s.toggle, simularAux && s.toggleOn]}>
+            <Text style={[s.toggleTxt, simularAux && { color: "#fff" }]}>{simularAux ? "Volver a mi vista de administrador" : "Ver como auxiliar sin permiso (demo)"}</Text>
+          </Pressable>
+        )}
         {!puedeVerificar && (
           <View style={s.candado}><Feather name="lock" size={13} color="#e0a94d" /><Text style={s.candadoTxt}>Esta vista puede ver las recargas pero no aplicar saldo.</Text></View>
         )}
@@ -210,7 +229,7 @@ export default function Saldos() {
                     <Boton variante="linea" onPress={() => rechazar(ver)} disabled={guardando} style={{ flex: 1 }}>{guardando ? "Guardando…" : "Rechazar"}</Boton>
                   </View>
                 ) : (
-                  <View style={s.candado}><Feather name="lock" size={13} color="#e0a94d" /><Text style={s.candadoTxt}>Solo {RESPONSABLE_RECARGAS.nombre} puede aplicar esta recarga.</Text></View>
+                  <View style={s.candado}><Feather name="lock" size={13} color="#e0a94d" /><Text style={s.candadoTxt}>Solo {haySupabase() ? "el dueño o un administrador" : RESPONSABLE_RECARGAS.nombre} puede aplicar esta recarga.</Text></View>
                 )}
               </ScrollView>
             )}
