@@ -704,6 +704,9 @@ export async function listarCotizaciones() {
   if (error) return [];
   return (data || []).map((c) => ({
     id: c.id,
+    // El id es un UUID y la tarjeta lo enseñaba entero. Mismo folio corto
+    // que la web (`folioCorto(s.id)`): SOL-D8F54AC7.
+    folio: folioCorto(c.id),
     fecha: (c.creado_en || "").slice(0, 10),
     empresa: c.empresa || c.nombre || "Sin empresa",
     contacto: c.nombre || "",

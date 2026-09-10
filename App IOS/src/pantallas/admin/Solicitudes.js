@@ -5,6 +5,7 @@ import { listarCotizaciones, cambiarEstadoCotizacion } from "../../datos-remoto"
 import { T } from "../../tema";
 import { Tarjeta, Badge, Boton } from "../../ui";
 import { SOLICITUDES, ESTADOS_SOLICITUD, infoEstado, fechaLarga } from "../../datos-admin";
+import { abrirWhatsApp } from "../../whatsapp";
 
 export default function Solicitudes() {
   const [lista, setLista] = useState([]);
@@ -81,7 +82,7 @@ export default function Solicitudes() {
             <Tarjeta style={{ padding: 14 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.folio}>{x.id} · {fechaLarga(x.fecha)}</Text>
+                  <Text style={s.folio}>{x.folio || x.id} · {fechaLarga(x.fecha)}</Text>
                   <Text style={s.empresa}>{x.empresa}</Text>
                   <Text style={s.serv}>{x.servicio}</Text>
                 </View>
@@ -99,7 +100,7 @@ export default function Solicitudes() {
             {sel && (
               <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
                 <View style={s.modalCab}>
-                  <Text style={s.modalFolio}>{sel.id}</Text>
+                  <Text style={s.modalFolio}>{sel.folio || sel.id}</Text>
                   <Pressable onPress={() => setSel(null)} hitSlop={10}><Feather name="x" size={22} color={T.gris} /></Pressable>
                 </View>
                 <Text style={s.modalEmpresa}>{sel.empresa}</Text>
@@ -108,7 +109,7 @@ export default function Solicitudes() {
                 <View style={{ gap: 8, marginTop: 12 }}>
                   <Pressable style={s.contacto} onPress={() => abrir(`mailto:${sel.correo}`)}><Feather name="mail" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.correo}</Text></Pressable>
                   <Pressable style={s.contacto} onPress={() => abrir(`tel:+52${sel.telefono.replace(/\s/g, "")}`)}><Feather name="phone" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.telefono}</Text></Pressable>
-                  <Pressable style={[s.contacto, { backgroundColor: T.verde, borderColor: T.verde }]} onPress={() => abrir(`https://wa.me/52${sel.telefono.replace(/\s/g, "")}?text=${encodeURIComponent(`Hola ${sel.nombre}, le escribimos de Morcast del Norte sobre su solicitud ${sel.id}.`)}`)}>
+                  <Pressable style={[s.contacto, { backgroundColor: T.verde, borderColor: T.verde }]} onPress={() => abrirWhatsApp(sel.telefono, `Hola ${sel.nombre}, le escribimos de Morcast del Norte sobre su solicitud ${sel.folio || sel.id}.`)}>
                     <Feather name="message-square" size={15} color="#fff" /><Text style={[s.contactoTxt, { color: "#fff", fontWeight: "700" }]}>Contactar por WhatsApp</Text>
                   </Pressable>
                 </View>

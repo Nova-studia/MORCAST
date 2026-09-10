@@ -5,6 +5,7 @@ import { listarClientes } from "../../datos-remoto";
 import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton } from "../../ui";
 import { CLIENTES_ADMIN, pesos } from "../../datos-admin";
+import { haySupabase } from "../../supabase";
 
 /**
  * COMO SE LLAMA CADA ESTADO DE CLIENTE.
@@ -44,6 +45,13 @@ export default function Clientes() {
   const [alta, setAlta] = useState(false);
   const [form, setForm] = useState({ empresa: "", contacto: "", correo: "", telefono: "" });
 
+  // 🔴 El alta de aquí NUNCA ha escrito en la base: `crear()` sólo mete la
+  // fila en la lista del teléfono con un folio inventado, y al salir y volver
+  // el cliente no existe. Dar de alta a un cliente real (folio, cuenta de
+  // acceso, correo de bienvenida) vive en el panel web. Con base conectada
+  // el botón no se enseña; queda para la demostración sin base.
+  const puedeDarAlta = !haySupabase();
+
   const crear = () => {
     if (!form.empresa) return;
     const nuevo = {
@@ -63,13 +71,19 @@ export default function Clientes() {
           <Text style={s.h1}>Clientes</Text>
           <Text style={s.sub}>{lista.length} cuentas registradas.</Text>
         </View>
-        <Pressable onPress={() => setAlta((v) => !v)} style={s.btnAlta}>
-          <Feather name={alta ? "x" : "user-plus"} size={16} color="#fff" />
-          <Text style={s.btnAltaTxt}>{alta ? "Cerrar" : "Alta"}</Text>
-        </Pressable>
+        {puedeDarAlta && (
+          <Pressable onPress={() => setAlta((v) => !v)} style={s.btnAlta}>
+            <Feather name={alta ? "x" : "user-plus"} size={16} color="#fff" />
+            <Text style={s.btnAltaTxt}>{alta ? "Cerrar" : "Alta"}</Text>
+          </Pressable>
+        )}
       </View>
 
-      {alta && (
+      {!puedeDarAlta && (
+        <Text style={s.nota}>Las altas de clientes se hacen desde el panel web (morcast.mx/admin).</Text>
+      )}
+
+      {puedeDarAlta && alta && (
         <Tarjeta style={{ marginTop: 14 }}>
           <TituloTarjeta>Alta de cliente</TituloTarjeta>
           <Campo label="Empresa" v={form.empresa} on={(v) => setForm({ ...form, empresa: v })} />
@@ -110,6 +124,7 @@ function Campo({ label, v, on, kb }) {
 const s = StyleSheet.create({
   h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
   sub: { color: T.gris, fontSize: 13.5, marginTop: 3 },
+  nota: { color: T.grisClaro, fontSize: 12, marginTop: 10, lineHeight: 17 },
   btnAlta: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.verde, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   btnAltaTxt: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
   label: { color: T.tinta, fontSize: 12.5, fontWeight: "700", marginBottom: 6 },

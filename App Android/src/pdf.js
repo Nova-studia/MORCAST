@@ -1,6 +1,9 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { File, Paths } from "expo-file-system";
 import { pesos, fechaLarga, CONSTANCIA_FISCAL, IVA } from "./datos";
+import { haySupabase } from "./supabase";
+import { enHold } from "./estado-sistema";
 import {
   EMPRESA_COTIZACION,
   CONDICIONES_COMERCIALES,
@@ -54,9 +57,37 @@ const cabecera = `
     <div class="marca">MORCAST <span>DEL NORTE</span><small>MANEJO INTEGRAL DE RESIDUOS</small></div>
   </div>`;
 
+/**
+ * Pie de página. Con base conectada el documento es del cliente real y no
+ * puede decir "de demostración"; sin base, sí lo es y hay que decirlo.
+ */
+function pie(tipo) {
+  return haySupabase()
+    ? `${tipo} generado por la app de Morcast del Norte.`
+    : `${tipo} de demostración generado por la app de Morcast del Norte.`;
+}
+
+/** "Manifiesto MAN-2026-0714" → "Manifiesto-MAN-2026-0714.pdf" */
+function nombreArchivo(nombre) {
+  const limpio = String(nombre)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${limpio || "Documento"}.pdf`;
+}
+
 async function generar(html, nombre) {
   const full = `<html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${html}</body></html>`;
-  const { uri } = await Print.printToFileAsync({ html: full });
+  let { uri } = await Print.printToFileAsync({ html: full });
+  // expo-print nombra el archivo con un UUID (ff373551-….pdf) y así llegaba
+  // al correo o al WhatsApp del cliente. Se renombra antes de compartirlo;
+  // si el sistema de archivos se niega, se comparte con el nombre feo, pero
+  // se comparte.
+  try {
+    const destino = new File(Paths.cache, nombreArchivo(nombre));
+    if (destino.exists) destino.delete();
+    new File(uri).move(destino);
+    uri = destino.uri;
+  } catch {}
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: nombre, UTI: "com.adobe.pdf" });
   }
@@ -86,11 +117,11 @@ export async function descargarManifiesto(s, cliente) {
       </div>
       <table>
         <tr><th>Fecha</th><th>Tipo de residuo</th><th>Contenedor</th><th>Volumen</th><th>Peso</th></tr>
-        <tr><td>${fechaLarga(s.fecha)}</td><td>${s.tipo}</td><td>${s.contenedor}</td><td>${s.volumen}</td><td>${s.peso}</td></tr>
+        <tr><td>${fechaLarga(s.fecha)}</td><td>${s.tipo}</td><td>${s.contenedor}</td><td>${s.volumen || "—"}</td><td>${s.peso || "—"}</td></tr>
       </table>
       <div class="decl">El generador declara que los residuos entregados corresponden a la descripción anterior. El prestador de servicio confirma su recolección, transporte y disposición final conforme a la normatividad ambiental aplicable.</div>
       <div class="firmas"><div class="firma">Firma del generador</div><div class="firma">Firma del prestador de servicio</div></div>
-      <div class="pie">Manifiesto de demostración generado por la app de Morcast del Norte.</div>
+      <div class="pie">${pie("Manifiesto")}</div>
     </div>`;
   return generar(html, `Manifiesto ${s.manifiesto}`);
 }
@@ -116,30 +147,37 @@ export async function descargarConstancia() {
       <div class="row"><div class="k">RFC</div><div class="v">${c.rfc}</div></div>
       <div class="row"><div class="k">Régimen</div><div class="v">${c.regimen}</div></div>
       <div class="row"><div class="k">Domicilio</div><div class="v">${c.domicilio}</div></div>
-      <div class="caja">Documento de demostración. Para trámites oficiales, solicite la Constancia de Situación Fiscal emitida por el SAT.</div>
-      <div class="pie">Constancia de demostración generada por la app de Morcast del Norte.</div>
+      <div class="caja">${haySupabase() ? "" : "Documento de demostración. "}Para trámites oficiales, solicite la Constancia de Situación Fiscal emitida por el SAT.</div>
+      <div class="pie">${haySupabase() ? "Resumen fiscal generado por la app de Morcast del Norte." : "Constancia de demostración generada por la app de Morcast del Norte."}</div>
     </div>`;
   return generar(html, "Constancia fiscal");
 }
 
 export async function descargarReporte(titulo, filas, cliente) {
+  // MODO HOLD: el papel dice lo mismo que la pantalla. Antes imprimía
+  // "$0.00" en cada renglón y "Total $0.00", que es justo lo que SIN_CIFRA
+  // evita en pantalla: un cero se lee como "no debes nada". Y la columna
+  // decía "Volumen … m³" cuando lo que se mide son toneladas.
+  const conMonto = !enHold();
   const totalVol = filas.reduce((a, f) => a + f.volumen, 0);
   const totalMonto = filas.reduce((a, f) => a + f.monto, 0);
+  const num = (n) => n.toLocaleString("es-MX");
   const cuerpo = filas.map((f) => `
-    <tr><td>${f.periodo}</td><td>${f.volumen.toLocaleString("es-MX")} m³</td><td>${pesos(f.monto)}</td></tr>`).join("");
+    <tr><td>${f.periodo}</td><td>${num(f.volumen)} ton</td>${conMonto ? `<td>${pesos(f.monto)}</td>` : ""}</tr>`).join("");
   const html = `
     ${cabecera}
     <div class="cont">
       <div class="titulo">${titulo}</div>
       <div class="folio">${cliente.empresa} · ${cliente.id}</div>
       <table>
-        <tr><th>Periodo</th><th>Volumen</th><th>Monto</th></tr>
+        <tr><th>Periodo</th><th>Peso recolectado</th>${conMonto ? "<th>Monto</th>" : ""}</tr>
         ${cuerpo}
-        <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${totalVol.toLocaleString("es-MX")} m³</td><td style="font-weight:800">${pesos(totalMonto)}</td></tr>
+        <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${num(totalVol)} ton</td>${conMonto ? `<td style="font-weight:800">${pesos(totalMonto)}</td>` : ""}</tr>
       </table>
-      <div class="pie">Reporte de demostración generado por la app de Morcast del Norte.</div>
+      ${conMonto ? "" : `<div class="caja">Sistema en preparación: todavía no se generan cobros, por eso este reporte no lleva montos.</div>`}
+      <div class="pie">${pie("Reporte")}</div>
     </div>`;
-  return generar(html, titulo);
+  return generar(html, `${titulo} ${cliente.id}`);
 }
 
 export async function descargarReporteNegocio(titulo, filas) {
@@ -155,7 +193,7 @@ export async function descargarReporteNegocio(titulo, filas) {
         ${cuerpo}
         <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${pesos(total)}</td></tr>
       </table>
-      <div class="pie">Reporte de demostración generado por la app de Morcast del Norte.</div>
+      <div class="pie">${pie("Reporte")}</div>
     </div>`;
   return generar(html, titulo);
 }
@@ -176,7 +214,7 @@ export async function descargarCotizacion(items, cliente) {
     ${cabecera}
     <div class="cont">
       <div class="titulo">Cotización de servicios</div>
-      <div class="folio">${cliente.empresa} · ${fechaLarga("2026-07-18")}</div>
+      <div class="folio">${cliente.empresa} · ${fechaLarga(new Date().toISOString().slice(0, 10))}</div>
       <table>
         <tr><th>Concepto</th><th>Unidad</th><th>Cant.</th><th>P. unitario</th><th>Importe</th></tr>
         ${filas}

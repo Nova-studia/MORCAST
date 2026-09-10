@@ -68,7 +68,7 @@ export default function ReportesAdmin() {
           {cobranza.serie.map((x, i) => (
             <View key={x.periodo + i} style={s.col}>
               <View style={s.track}><View style={[s.bar, { height: `${Math.round((x.monto / maxM) * 100)}%` }]} /></View>
-              <Text style={s.colLbl}>{x.periodo}</Text>
+              <Text style={s.colLbl} numberOfLines={1}>{x.periodo}</Text>
             </View>
           ))}
         </View>
@@ -90,11 +90,13 @@ const s = StyleSheet.create({
   kpi: { flex: 1, backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 14, padding: 14 },
   kpiEt: { color: T.gris, fontSize: 12 },
   kpiVal: { color: T.tinta, fontSize: 18, fontWeight: "800", marginTop: 4 },
-  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 130, gap: 8 },
+  // Mismo arreglo que PanelAdmin: con gap 8 y letra 10.5 "May" y "Ago" se
+  // partían en dos renglones.
+  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 130, gap: 4 },
   col: { flex: 1, alignItems: "center" },
   track: { width: "100%", height: 106, backgroundColor: T.panel2, borderRadius: 6, justifyContent: "flex-end", overflow: "hidden" },
   bar: { width: "100%", backgroundColor: T.naranja, borderRadius: 6 },
-  colLbl: { color: T.gris, fontSize: 10.5, marginTop: 6 },
+  colLbl: { color: T.gris, fontSize: 9.5, marginTop: 6 },
   totFila: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: T.linea },
   totK: { color: T.gris, fontSize: 13.5 },
   totV: { color: T.tinta, fontSize: 15, fontWeight: "800" },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
@@ -7,6 +7,7 @@ import { CATALOGO_COTIZADOR, IVA, pesos } from "../datos";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
 import { descargarCotizacion, descargarConstancia } from "../pdf";
+import { abrirWhatsApp } from "../whatsapp";
 import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS, EMPRESA_COTIZACION } from "../cotizacion-datos";
 import { enHold, HOLD } from "../estado-sistema";
 
@@ -36,15 +37,11 @@ export default function Cotizador() {
   };
   // Sin precios que calcular, la cotizacion se pide por escrito. Se usa el
   // primer telefono de los datos oficiales, no uno escrito a mano aqui.
-  const pedirCotizacion = () => {
-    const tel = (EMPRESA_COTIZACION.telefonos[0] || "").replace(/\D/g, "");
-    const texto = encodeURIComponent(
-      "Hola, me gustaria una cotizacion de sus servicios de manejo de residuos."
+  const pedirCotizacion = () =>
+    abrirWhatsApp(
+      EMPRESA_COTIZACION.telefonos[0],
+      "Hola, me gustaría una cotización de sus servicios de manejo de residuos."
     );
-    Linking.openURL(`https://wa.me/52${tel}?text=${texto}`).catch(() =>
-      Alert.alert("No se pudo abrir WhatsApp", `Escribenos al ${EMPRESA_COTIZACION.telefonos[0]}.`)
-    );
-  };
 
   const bajarConstancia = async () => {
     setBajando("csf");
