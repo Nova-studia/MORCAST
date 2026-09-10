@@ -51,11 +51,11 @@ export default function Login({ onLogin, navigation }) {
           autoCapitalize="none"
           keyboardType="email-address"
           value={correo}
-          onChangeText={setCorreo}
+          onChangeText={(v) => { setCorreo(v); setError(""); }}
         />
 
         <Text style={s.label}>Contraseña</Text>
-        <CampoClave style={s.input} value={password} onChangeText={setPassword} onSubmitEditing={entrar} />
+        <CampoClave style={s.input} value={password} onChangeText={(v) => { setPassword(v); setError(""); }} onSubmitEditing={entrar} />
 
         <Boton onPress={entrar} style={{ marginTop: 20 }}>
           Entrar al portal

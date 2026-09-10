@@ -105,7 +105,7 @@ export async function miSuscripcion() {
 
   const { data } = await supabase
     .from("suscripciones")
-    .select("id, frecuencia, estado, domicilios ( alias, colonia ), rutas ( clave, nombre, tipo, dias )")
+    .select("id, frecuencia, estado, domicilio_id, domicilios ( alias, colonia ), rutas ( clave, nombre, tipo, dias )")
     .eq("estado", "activa")
     .limit(1)
     .maybeSingle();
@@ -113,6 +113,9 @@ export async function miSuscripcion() {
   if (!data) return null;
   return {
     frecuencia: data.frecuencia,
+    // El domicilio de LA suscripción: es donde pasa la ruta y donde debe
+    // caer la recolección que se pida desde aquí.
+    domicilioId: data.domicilio_id || null,
     domicilio: data.domicilios
       ? `${data.domicilios.alias} · ${data.domicilios.colonia || ""}`.trim()
       : "",
@@ -149,7 +152,7 @@ export async function misSolicitudes() {
  * empresa sale de su sesión y el estado nace en "solicitada". El RLS lo
  * obliga aunque se manipule la llamada.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta" }) {
+export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null }) {
   if (!haySupabase()) return { ok: true, demo: true };
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -159,8 +162,16 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     .from("perfiles").select("cliente_id").eq("id", user.id).single();
   if (!perfil?.cliente_id) return { ok: false, motivo: "Tu cuenta no tiene empresa asignada." };
 
-  const { data: dom } = await supabase
-    .from("domicilios").select("id").eq("cliente_id", perfil.cliente_id).limit(1).maybeSingle();
+  // El domicilio es el de la suscripción cuando se conoce. Antes se tomaba
+  // el PRIMERO del cliente: con varios puntos (23 de 70 en la operación
+  // real) la recolección se registraba en un domicilio cualquiera y el
+  // chofer recibía esa dirección.
+  let domId = domicilioId;
+  if (!domId) {
+    const { data: dom } = await supabase
+      .from("domicilios").select("id").eq("cliente_id", perfil.cliente_id).limit(1).maybeSingle();
+    domId = dom?.id || null;
+  }
 
   let rutaId = null;
   if (rutaClave) {
@@ -181,7 +192,7 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
   const { error } = await supabase.from("solicitudes_recoleccion").insert({
     folio,
     cliente_id: perfil.cliente_id,
-    domicilio_id: dom?.id || null,
+    domicilio_id: domId,
     ruta_id: rutaId,
     origen,
     fecha_pedida: fecha,
@@ -192,11 +203,19 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
   if (error) {
     // La politica de la base (db/013) rechaza fechas del pasado y las
     // disparatadas. Ese rechazo llega como un error de permisos, que no le
-    // dice nada a quien solo se equivoco de dia.
-    const esFecha = /row-level security|violates|policy/i.test(error.message || "");
+    // dice nada a quien solo se equivoco de dia. Solo "row-level security":
+    // el patron viejo (|violates|policy) tambien atrapaba "duplicate key
+    // value violates unique constraint" y lo vendia como error de fecha.
+    const msg = error.message || "";
+    const esFecha = /row-level security/i.test(msg);
+    const esFolio = /duplicate key/i.test(msg);
     return {
       ok: false,
-      motivo: esFecha ? "Esa fecha no se puede: elige un dia de hoy en adelante." : error.message,
+      motivo: esFecha
+        ? "Esa fecha no se puede: elige un dia de hoy en adelante."
+        : esFolio
+          ? "Se cruzó con otra solicitud al mismo tiempo. Inténtalo de nuevo."
+          : msg,
     };
   }
   return { ok: true, folio };
@@ -472,7 +491,9 @@ export async function misServicios() {
         evidencia: ev
           ? {
               contenedor: ev.qr ? `Contenedor ${ev.qr}` : "—",
-              gps: "Registrado en la recolección",
+              // La app todavía no manda `ubicacion` al cerrar la parada;
+              // decir "Registrado" era mentira.
+              gps: "Sin ubicación registrada",
               antes: { hora: soloHora(ev.hora_antes), etiqueta: "Contenedor lleno", url: urlAntes },
               despues: {
                 hora: soloHora(ev.hora_despues),
@@ -863,8 +884,9 @@ export async function listarUsuarios() {
     id: `U-${String(i + 1).padStart(3, "0")}`,
     nombre: p.nombre || "Sin nombre",
     // El correo vive en auth.users, que no se puede consultar desde la app
-    // por seguridad. Se muestra el teléfono, que sí es del perfil.
-    correo: p.telefono || "—",
+    // por seguridad. Lo que hay es el teléfono, y se rotula como tal.
+    correo: "",
+    telefono: p.telefono || "",
     rol: ROLES_LEGIBLES[p.rol] || p.rol,
     estatus: p.activo ? "activo" : "inactivo",
     ultimo: (p.creado || "").slice(0, 10),

@@ -37,6 +37,13 @@ export async function entrar(modo, correo, password) {
   const cfg = ROLES[modo];
   if (!cfg) return { ok: false, mensaje: "Modo desconocido." };
 
+  // Sin correo o sin contraseña no hay nada que preguntarle al servidor:
+  // antes se mandaba igual y volvía "Correo o contraseña incorrectos", que
+  // suena a que la cuenta no existe.
+  if (!String(correo || "").trim() || !password) {
+    return { ok: false, mensaje: "Escribe tu correo y tu contraseña." };
+  }
+
   if (!haySupabase()) {
     const ok =
       correo.trim().toLowerCase() === cfg.demo.correo && password === cfg.demo.password;

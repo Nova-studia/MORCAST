@@ -52,7 +52,7 @@ export default function ReportesAdmin() {
       <Text style={s.sub}>Cobranza por periodo y servicios.</Text>
 
       <View style={s.kpis}>
-        <View style={s.kpi}><Text style={s.kpiEt}>Cobrado este mes</Text><Text style={s.kpiVal} numberOfLines={1} adjustsFontSizeToFit>{pesos(kpis.ingresosMes)}</Text></View>
+        <View style={s.kpi}><Text style={s.kpiEt}>Cobrado este mes</Text><Text style={s.kpiVal} numberOfLines={1} adjustsFontSizeToFit>{pesos(cobranza.serie[cobranza.serie.length - 1]?.monto ?? 0)}</Text></View>
         <View style={s.kpi}><Text style={s.kpiEt}>Servicios del mes</Text><Text style={s.kpiVal}>{kpis.serviciosMes}</Text></View>
       </View>
 

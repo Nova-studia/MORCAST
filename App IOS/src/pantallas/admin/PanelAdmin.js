@@ -49,7 +49,10 @@ export default function PanelAdmin() {
       <Text style={s.sub}>Resumen del negocio.</Text>
 
       <View style={s.kpis}>
-        <Kpi icono="dollar-sign" etiqueta="Cobrado este mes" valor={pesos(kpis.ingresosMes)} pie="La facturacion aun no vive aqui" color={T.naranjaClaro} />
+        {/* Sale de la misma serie que la gráfica (depósitos aplicados del mes
+            en curso). `kpisAdmin` lo dejaba fijo en 0 y se contradecía con
+            la última barra. */}
+        <Kpi icono="dollar-sign" etiqueta="Cobrado este mes" valor={pesos(cobranza.serie[cobranza.serie.length - 1]?.monto ?? 0)} pie="Depósitos aplicados" color={T.naranjaClaro} />
         <Kpi icono="inbox" etiqueta="Solicitudes nuevas" valor={String(kpis.solicitudesNuevas)} pie="Sin contactar" color={T.tealClaro} />
         <Kpi icono="users" etiqueta="Clientes activos" valor={String(kpis.clientesActivos)} pie="Con contrato" color={T.verdeClaro} />
         <Kpi icono="alert-circle" etiqueta="Por cobrar" valor={pesos(kpis.porCobrar)} pie="Cargos sin saldar" color={T.naranjaClaro} />

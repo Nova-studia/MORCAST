@@ -109,7 +109,7 @@ export default function Inicio({ navigation }) {
           <Text style={s.vacio}>{cargandoMovs ? "Leyendo tus movimientos…" : "Todavía no hay movimientos en tu cuenta."}</Text>
         )}
         {movimientos.slice(0, 5).map((m, i) => (
-          <View key={m.folio} style={[s.fila, i < 4 && s.filaBorde]}>
+          <View key={m.id || m.folio || i} style={[s.fila, i < 4 && s.filaBorde]}>
             <View style={{ flex: 1, paddingRight: 10 }}>
               <Text style={s.filaTit} numberOfLines={1}>{m.concepto}</Text>
               <Text style={s.filaSub}>{fechaLarga(m.fecha)}</Text>

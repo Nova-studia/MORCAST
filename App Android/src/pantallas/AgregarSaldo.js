@@ -8,6 +8,7 @@ import { enHold, SIN_CIFRA } from "../estado-sistema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
 import { CUENTA, DATOS_DEPOSITO, BANCOS, RECARGAS, CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, reportarDeposito, miEmpresa } from "../datos-remoto";
+import { haySupabase } from "../supabase";
 
 export default function AgregarSaldo() {
   const [monto, setMonto] = useState("");
@@ -17,25 +18,29 @@ export default function AgregarSaldo() {
   const [referencia, setReferencia] = useState("");
   useEffect(() => {
     let vivo = true;
-    miEmpresa().then((c) => {
-      if (vivo && c) setReferencia((r) => r || c.rfc || c.id || "");
-    });
+    miEmpresa()
+      .then((c) => {
+        if (vivo && c) setReferencia((r) => r || c.rfc || c.id || "");
+      })
+      .catch(() => {});
     return () => { vivo = false; };
   }, []);
   const [comprobante, setComprobante] = useState(null);
   const [enviada, setEnviada] = useState(false);
   const [copiado, setCopiado] = useState("");
-  const [recargas, setRecargas] = useState([]);
+  const [recargas, setRecargas] = useState(null);
   const [cuenta, setCuenta] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
 
   // El RLS ya dejó fuera lo de otras empresas: no hace falta filtrar aquí.
   const recargar = () =>
-    Promise.all([misMovimientos(), miSaldo()]).then(([movs, saldo]) => {
-      setRecargas(movs.filter((m) => m.tipo === "abono"));
-      setCuenta(saldo);
-    });
+    Promise.all([misMovimientos(), miSaldo()])
+      .then(([movs, saldo]) => {
+        setRecargas((movs || []).filter((m) => m.tipo === "abono"));
+        setCuenta(saldo);
+      })
+      .catch(() => setRecargas([]));
 
   useEffect(() => {
     let vivo = true;
@@ -110,7 +115,9 @@ export default function AgregarSaldo() {
 
       <View style={s.saldoMini}>
         <Text style={s.saldoLbl}>Saldo a favor actual</Text>
-        <Text style={s.saldoVal}>{enHold() ? SIN_CIFRA : pesos((cuenta || CUENTA).saldoActual)}</Text>
+        {/* Con base, si el saldo no llega se enseña 0, nunca el $18,450 de
+            ejemplo (Inicio ya hacía esto; aquí faltaba). */}
+        <Text style={s.saldoVal}>{enHold() ? SIN_CIFRA : pesos((cuenta || (haySupabase() ? { saldoActual: 0 } : CUENTA)).saldoActual)}</Text>
       </View>
 
       {/* Datos de depósito */}
@@ -205,7 +212,11 @@ export default function AgregarSaldo() {
       {/* Mis recargas */}
       <Tarjeta>
         <TituloTarjeta>Mis recargas</TituloTarjeta>
-        {recargas.map((r, i) => {
+        {recargas === null && <Text style={s.vacio}>Leyendo tus recargas…</Text>}
+        {recargas && recargas.length === 0 && (
+          <Text style={s.vacio}>Todavía no has reportado ningún depósito. Cuando subas un comprobante aparecerá aquí con su estado.</Text>
+        )}
+        {(recargas || []).map((r, i) => {
           const est = estatusInfo(r.estado);
           return (
             <View key={r.id} style={[s.fila, i < recargas.length - 1 && s.filaBorde]}>

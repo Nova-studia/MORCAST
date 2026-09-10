@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T, COLOR_TIPO } from "../tema";
+import { T, COLOR_TIPO, SERIES } from "../tema";
 import { enHold } from "../estado-sistema";
 import { Tarjeta, TituloTarjeta, Boton, AvisoHold } from "../ui";
 import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, pesos } from "../datos";
@@ -33,7 +33,10 @@ export default function Reportes() {
   // La composición sale de los servicios reales del cliente. Los cuatro
   // porcentajes de ejemplo (46/24/18/12) sólo valen sin base conectada.
   const composicion = rep
-    ? rep.composicion.map((c) => ({ ...c, color: COLOR_TIPO[c.tipo] || T.gris }))
+    // Los tipos reales son de RUTA ("Manual", "Industrial (Roll Off)"…), no
+    // los de residuo de COLOR_TIPO: sin esto todo salía gris y la barra
+    // apilada no distinguía segmentos.
+    ? rep.composicion.map((c, i) => ({ ...c, color: COLOR_TIPO[c.tipo] || SERIES[i % SERIES.length] }))
     : haySupabase() ? [] : COMPOSICION_RESIDUOS;
   const cargandoRep = haySupabase() && rep === null;
   // Con 14 columnas (diario) las etiquetas no caben: se rotula una sí y una

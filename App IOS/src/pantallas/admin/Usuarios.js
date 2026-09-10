@@ -97,7 +97,7 @@ export default function Usuarios() {
           <View key={u.id} style={[s.uFila, i < lista.length - 1 && s.borde]}>
             <View style={{ flex: 1 }}>
               <Text style={s.uNom}>{u.nombre}</Text>
-              <Text style={s.uCorreo}>{u.correo}</Text>
+              <Text style={s.uCorreo}>{u.correo || u.telefono || "Sin teléfono registrado"}</Text>
               <View style={{ flexDirection: "row", gap: 6, marginTop: 5 }}>
                 <Badge clase={rolClase(u.rol)}>{u.rol}</Badge>
                 <Badge clase={ESTATUS[u.estatus]?.clase || "none"}>{ESTATUS[u.estatus]?.texto || u.estatus}</Badge>

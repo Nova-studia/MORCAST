@@ -39,16 +39,22 @@ export default function Agendar() {
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+  // Mientras no vuelve `miSuscripcion()` no se sabe si hay ruta: antes
+  // decía "Aún no tienes una ruta asignada" y un segundo después cambiaba.
+  const [cargando, setCargando] = useState(true);
 
   const ruta = suscripcion?.ruta || null;
 
   // Las solicitudes que llegan ya son solo las de esta empresa: el RLS las
   // filtró en la base, no hace falta filtrarlas aquí.
   const recargar = () =>
-    Promise.all([miSuscripcion(), misSolicitudes()]).then(([su, li]) => {
-      setSuscripcion(su);
-      setMias(li);
-    });
+    Promise.all([miSuscripcion(), misSolicitudes()])
+      .then(([su, li]) => {
+        setSuscripcion(su);
+        setMias(li);
+      })
+      .catch(() => {})
+      .finally(() => setCargando(false));
 
   useEffect(() => {
     let vivo = true;
@@ -65,10 +71,18 @@ export default function Agendar() {
 
     // En la app solo se piden días de la ruta; el servicio extra se pide por
     // teléfono, que es como opera hoy el negocio.
-    const r = await pedirRecoleccion({ rutaClave: ruta?.clave || null, fecha, nota, origen: "ruta" });
+    const r = await pedirRecoleccion({
+      rutaClave: ruta?.clave || null,
+      domicilioId: suscripcion?.domicilioId || null,
+      fecha,
+      nota,
+      origen: "ruta",
+    });
 
     if (!r.ok) {
-      setError("No se pudo enviar tu solicitud. Revisa tu señal e intenta otra vez.");
+      // El motivo real cuando lo hay ("Esa fecha no se puede…", "Tu cuenta
+      // no tiene empresa asignada"); "revisa tu señal" sólo si no se sabe.
+      setError(r.motivo || "No se pudo enviar tu solicitud. Revisa tu señal e intenta otra vez.");
       setEnviando(false);
       return;
     }
@@ -107,8 +121,12 @@ export default function Agendar() {
             Estás dado de alta en <Text style={s.fuerte}>{ruta.nombre}</Text> ·{" "}
             {nombreTipoRuta(ruta.tipo)}. Pasa {ruta.dias.join(", ")}.
           </Text>
+        ) : cargando ? (
+          <Text style={s.intro}>Leyendo tu ruta…</Text>
         ) : (
-          <Text style={s.intro}>Aún no tienes una ruta asignada.</Text>
+          <Text style={s.intro}>
+            Aún no tienes una ruta asignada. Morcast te la asigna al activar tu servicio; mientras, pide tu recolección por WhatsApp al 868 384 9478.
+          </Text>
         )}
 
         <View style={s.fechas}>
@@ -149,7 +167,7 @@ export default function Agendar() {
       <Tarjeta>
         <TituloTarjeta>Mis solicitudes</TituloTarjeta>
         {mias.length === 0 ? (
-          <Text style={s.vacio}>Todavía no has pedido ninguna recolección.</Text>
+          <Text style={s.vacio}>{cargando ? "Leyendo tus solicitudes…" : "Todavía no has pedido ninguna recolección."}</Text>
         ) : (
           mias.map((sol, i) => {
             const b = badge(sol.estado);

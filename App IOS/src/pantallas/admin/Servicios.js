@@ -139,7 +139,8 @@ function Foto({ tipo, dato }) {
       <View style={[s.fotoTag, { backgroundColor: antes ? "rgba(219,152,45,0.92)" : "rgba(78,179,74,0.92)" }]}>
         <Text style={s.fotoTagTxt}>{antes ? "Antes" : "Después"}</Text>
       </View>
-      <View style={s.fotoSello}><Feather name="clock" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>{dato?.hora || "—"}</Text><Feather name="map-pin" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>GPS</Text></View>
+      {/* Sin sello "GPS": la app no captura ubicación todavía. */}
+      <View style={s.fotoSello}><Feather name="clock" size={11} color="#fff" /><Text style={s.fotoSelloTxt}>{dato?.hora || "—"}</Text></View>
     </View>
   );
 }

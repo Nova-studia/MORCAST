@@ -42,10 +42,10 @@ export default function LoginAdmin({ navigation, onLogin }) {
         ) : null}
 
         <Text style={s.label}>Correo electrónico</Text>
-        <TextInput style={s.input} placeholder="Tu correo de administración" placeholderTextColor={T.grisClaro} autoCapitalize="none" keyboardType="email-address" value={correo} onChangeText={setCorreo} />
+        <TextInput style={s.input} placeholder="Tu correo de administración" placeholderTextColor={T.grisClaro} autoCapitalize="none" keyboardType="email-address" value={correo} onChangeText={(v) => { setCorreo(v); setError(""); }} />
 
         <Text style={s.label}>Contraseña</Text>
-        <CampoClave style={s.input} value={password} onChangeText={setPassword} onSubmitEditing={entrar} />
+        <CampoClave style={s.input} value={password} onChangeText={(v) => { setPassword(v); setError(""); }} onSubmitEditing={entrar} />
 
         <Boton variante="naranja" onPress={entrar} style={{ marginTop: 20 }}>Entrar al panel</Boton>
 
