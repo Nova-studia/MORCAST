@@ -1431,9 +1431,11 @@ section {
   box-shadow: 0 6px 22px rgba(37, 211, 102, 0.45);
   transition: all var(--mc-transicion);
 }
+/* Sin scale(1.1): DESIGN.md → Movimiento, "nada de escalas ni rotaciones".
+   Solo sube, como el resto de los botones. */
 .mc-wa:hover {
   color: #fff;
-  transform: scale(1.1) translateY(-2px);
+  transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(37, 211, 102, 0.6);
 }
 
