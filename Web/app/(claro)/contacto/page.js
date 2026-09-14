@@ -91,8 +91,10 @@ export default function Contacto() {
                 </div>
               </div>
 
-              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
-              <Link href="/cotizar" className="mc-btn mc-btn-pri w-100">
+              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar).
+                  Vidrio y no azul: "Enviar solicitud" queda a la misma altura
+                  de pantalla y DESIGN.md pide UNA sola acción principal. */}
+              <Link href="/cotizar" className="mc-btn mc-btn-vidrio w-100">
                 <FaWhatsapp size={19} aria-hidden="true" /> Cotiza por WhatsApp
               </Link>
             </div>
