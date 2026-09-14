@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  Phone,
 } from "@phosphor-icons/react/dist/ssr";
+import { FaWhatsapp } from "react-icons/fa";
 import {
   Encabezado,
   RejillaServicios,
@@ -227,9 +227,12 @@ export default function PaginaPortafolio() {
                 Los precios se determinan según volumen, frecuencia y
                 condiciones del sitio.
               </p>
-              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
-              <Link href="/cotizar" className="mc-btn mc-btn-teal">
-                <Phone aria-hidden="true" /> Cotiza por WhatsApp
+              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar).
+                  Vidrio con el icono de WhatsApp, igual que en la franja de
+                  abajo: el teal está fuera de la web pública (DESIGN.md) y el
+                  teléfono prometía una llamada. */}
+              <Link href="/cotizar" className="mc-btn mc-btn-vidrio">
+                <FaWhatsapp aria-hidden="true" /> Cotiza por WhatsApp
               </Link>
             </Revelar>
 
