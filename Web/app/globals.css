@@ -1222,9 +1222,11 @@ section {
   font-size: 0.88rem;
   margin: 1.25rem 0 0;
 }
+/* --mc-gris y no --mc-gris-claro: esta nota explica qué pasa al apretar el
+   botón, y en gris claro daba 3.65:1 sobre la tarjeta (el mínimo es 4.5). */
 .mc-cotizar-nota {
   font-size: 0.78rem;
-  color: var(--mc-gris-claro);
+  color: var(--mc-gris);
   margin: 0.9rem 0 0;
 }
 .mc-cotizar-nota a {
