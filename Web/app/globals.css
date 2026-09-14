@@ -1174,10 +1174,15 @@ section {
   text-transform: uppercase;
   color: var(--mc-gris);
 }
+/* 44px de área de toque (medía 37). Los márgenes negativos la agrandan sin
+   mover el renglón: en pantalla ocupa lo mismo que antes. */
 .mc-cotizar-quitar {
   background: none;
   border: 0;
-  padding: 0.35rem 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.5rem;
+  margin: -8px -0.5rem -8px 0;
   color: var(--mc-gris);
   font-size: 0.82rem;
   text-decoration: underline;
@@ -1315,12 +1320,16 @@ section {
   font-size: 0.92rem;
   max-width: 62ch;
 }
+/* Medía 26px de alto en el teléfono. El relleno vertical con margen negativo
+   lleva el área de toque a 44px sin abrir el renglón. */
 .mc-cotizar-directo a {
   color: var(--mc-azul-txt);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   white-space: nowrap;
+  padding-block: 9px;
+  margin-block: -9px;
 }
 
 /* ---------- Contacto ---------- */
