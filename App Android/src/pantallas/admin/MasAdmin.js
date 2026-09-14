@@ -4,13 +4,16 @@ import { T, SERIES } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
 import { usePerfilSesion, iniciales } from "../../mi-perfil";
 import { haySupabase } from "../../supabase";
+import { VERSION_APP } from "../../version";
 
 // Ver la nota del mismo menu del cliente (`pantallas/Mas.js`).
+// Los subtitulos dicen lo que la pantalla hace CON la base: el alta de
+// clientes y los auxiliares solo existen en el modo de demostracion.
 const MENU = [
-  { pantalla: "Clientes", icono: "users", titulo: "Clientes", sub: "Cuentas, saldos y alta", color: SERIES[0] },
+  { pantalla: "Clientes", icono: "users", titulo: "Clientes", sub: "Cuentas y saldos", color: SERIES[0] },
   { pantalla: "Servicios", icono: "truck", titulo: "Servicios", sub: "Agenda y comprobante del chofer", color: SERIES[1] },
   { pantalla: "ReportesAdmin", icono: "bar-chart-2", titulo: "Reportes del negocio", sub: "Ingresos y desempeño", color: SERIES[2] },
-  { pantalla: "Usuarios", icono: "shield", titulo: "Usuarios y roles", sub: "Equipo, auxiliares y choferes", color: SERIES[3] },
+  { pantalla: "Usuarios", icono: "shield", titulo: "Usuarios y roles", sub: "Administradores y choferes", color: SERIES[3] },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {
@@ -50,7 +53,7 @@ export default function MasAdmin({ navigation, onLogout }) {
         <Text style={{ color: T.tinta, fontWeight: "700" }}>  Cerrar sesión</Text>
       </Boton>
 
-      <Text style={s.version}>Morcast del Norte · Admin v1.0{haySupabase() ? "" : " (demo)"}</Text>
+      <Text style={s.version}>Morcast del Norte · Admin v{VERSION_APP}{haySupabase() ? "" : " (demo)"}</Text>
     </ScrollView>
   );
 }

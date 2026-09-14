@@ -27,13 +27,16 @@ export default function PanelAdmin() {
 
   useEffect(() => {
     let vivo = true;
-    Promise.all([kpisAdmin(), cobranza12Meses(), listarCotizaciones()]).then(([k, co, c]) => {
-      if (!vivo) return;
-      setKpis(k || KPIS_VACIOS);
-      setCobranza(co);
-      setSolicitudes(c);
-      setCargando(false);
-    });
+    Promise.all([kpisAdmin(), cobranza12Meses(), listarCotizaciones()])
+      .then(([k, co, c]) => {
+        if (!vivo) return;
+        setKpis(k || KPIS_VACIOS);
+        setCobranza(co);
+        // `null` = no se pudieron leer. El embudo cuenta sobre un arreglo.
+        setSolicitudes(c || []);
+        setCargando(false);
+      })
+      .catch(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, []);
 

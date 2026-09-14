@@ -714,6 +714,13 @@ export async function listarClientes() {
   }));
 }
 
+/**
+ * Las solicitudes del formulario del sitio.
+ *
+ * Devuelve `null` si la base no contesta, y `[]` solo cuando de verdad no ha
+ * llegado ninguna. Antes las dos cosas eran `[]`: una bandeja vacía por falta
+ * de señal se leía como "no hay prospectos".
+ */
 export async function listarCotizaciones() {
   if (!haySupabase()) return [];
 
@@ -722,7 +729,7 @@ export async function listarCotizaciones() {
     .select("id, creado_en, nombre, empresa, telefono, correo, tipo_servicio, frecuencia, direccion, mensaje, estado")
     .order("creado_en", { ascending: false });
 
-  if (error) return [];
+  if (error) return null;
   return (data || []).map((c) => ({
     id: c.id,
     // El id es un UUID y la tarjeta lo enseñaba entero. Mismo folio corto
@@ -730,6 +737,9 @@ export async function listarCotizaciones() {
     folio: folioCorto(c.id),
     fecha: (c.creado_en || "").slice(0, 10),
     empresa: c.empresa || c.nombre || "Sin empresa",
+    // La ficha lee `nombre`, igual que la web. Solo venía como `contacto`, así
+    // que el nombre salía en blanco y el WhatsApp empezaba "Hola undefined".
+    nombre: c.nombre || "",
     contacto: c.nombre || "",
     telefono: c.telefono || "",
     correo: c.correo || "",

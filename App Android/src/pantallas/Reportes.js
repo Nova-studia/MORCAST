@@ -48,6 +48,10 @@ export default function Reportes() {
   // facturacion todavia no vive en el sistema y una barra de ceros no dice nada.
   const maxM = Math.max(...data.map((d) => d.volumen), 1);
   const totalVol = data.reduce((a, d) => a + d.volumen, 0);
+  // Los montos van al PDF solo cuando existen de verdad. Con base, `reportes()`
+  // todavía no trae facturación (`hayFacturacion: false`, monto 0 en cada
+  // periodo): al apagar el Hold el papel habría salido con "$0.00" en todo.
+  const conMonto = !enHold() && (rep ? rep.hayFacturacion : !haySupabase());
 
   const exportar = async () => {
     if (!puedeImprimir) {
@@ -56,7 +60,7 @@ export default function Reportes() {
       return;
     }
     setBajando(true);
-    try { await descargarReporte(cfg.titulo, data, empresa); }
+    try { await descargarReporte(cfg.titulo, data, empresa, { conMonto }); }
     catch (e) { Alert.alert("No se pudo generar el PDF", String(e?.message || e)); }
     finally { setBajando(false); }
   };
@@ -81,7 +85,9 @@ export default function Reportes() {
       </View>
 
       <Tarjeta>
-        <TituloTarjeta>{enHold() ? "Peso por periodo" : "Monto por periodo"}</TituloTarjeta>
+        {/* Las barras son SIEMPRE peso (`d.volumen`). Sin el Hold este título
+            decía "Monto por periodo" encima de toneladas. */}
+        <TituloTarjeta>Peso por periodo</TituloTarjeta>
         <View style={s.chart}>
           {data.map((d, i) => (
             <View key={d.periodo + i} style={s.col}>

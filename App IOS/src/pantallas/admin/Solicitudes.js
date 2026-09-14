@@ -10,16 +10,26 @@ import { abrirWhatsApp } from "../../whatsapp";
 export default function Solicitudes() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
+  // La pestaña se monta una sola vez por sesión: si esa primera lectura
+  // fallaba, la bandeja se quedaba en blanco hasta cerrar la app. `intento`
+  // vuelve a pedirla desde el botón "Reintentar".
+  const [errorCarga, setErrorCarga] = useState(false);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let vivo = true;
-    listarCotizaciones().then((l) => {
-      if (!vivo) return;
-      setLista(l);
-      setCargando(false);
-    });
+    setCargando(true);
+    setErrorCarga(false);
+    listarCotizaciones()
+      .then((l) => {
+        if (!vivo) return;
+        if (l === null) setErrorCarga(true);
+        else setLista(l);
+      })
+      .catch(() => { if (vivo) setErrorCarga(true); })
+      .finally(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
-  }, []);
+  }, [intento]);
   const [filtro, setFiltro] = useState("todas");
   const [sel, setSel] = useState(null);
   const [error, setError] = useState("");
@@ -75,6 +85,30 @@ export default function Solicitudes() {
         ))}
       </ScrollView>
 
+      {/* Tres situaciones que antes se veían igual (en blanco): leyendo, no se
+          pudo leer, o de verdad no hay ninguna. */}
+      {cargando && <Text style={s.vacio}>Leyendo las solicitudes…</Text>}
+
+      {!cargando && errorCarga && (
+        <View style={[s.errorCaja, { marginTop: 0 }]}>
+          <Feather name="alert-circle" size={14} color="#e07d7d" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.errorLista}>No se pudieron leer las solicitudes. Revisa tu señal e intenta otra vez.</Text>
+            <Boton variante="linea" onPress={() => setIntento((n) => n + 1)} style={{ marginTop: 10 }}>
+              Reintentar
+            </Boton>
+          </View>
+        </View>
+      )}
+
+      {!cargando && !errorCarga && filas.length === 0 && (
+        <Text style={s.vacio}>
+          {filtro === "todas"
+            ? "Todavía no llega ninguna solicitud. Aquí aparecen las que dejan en el formulario de cotización del sitio."
+            : "Sin solicitudes en este filtro."}
+        </Text>
+      )}
+
       {filas.map((x) => {
         const est = infoEstado(x.estado);
         return (
@@ -104,12 +138,12 @@ export default function Solicitudes() {
                   <Pressable onPress={() => setSel(null)} hitSlop={10}><Feather name="x" size={22} color={T.gris} /></Pressable>
                 </View>
                 <Text style={s.modalEmpresa}>{sel.empresa}</Text>
-                <Text style={s.modalNombre}>{sel.nombre}</Text>
+                {!!sel.nombre && <Text style={s.modalNombre}>{sel.nombre}</Text>}
 
                 <View style={{ gap: 8, marginTop: 12 }}>
                   <Pressable style={s.contacto} onPress={() => abrir(`mailto:${sel.correo}`)}><Feather name="mail" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.correo}</Text></Pressable>
                   <Pressable style={s.contacto} onPress={() => abrir(`tel:+52${sel.telefono.replace(/\s/g, "")}`)}><Feather name="phone" size={15} color={T.tinta} /><Text style={s.contactoTxt}>{sel.telefono}</Text></Pressable>
-                  <Pressable style={[s.contacto, { backgroundColor: T.verde, borderColor: T.verde }]} onPress={() => abrirWhatsApp(sel.telefono, `Hola ${sel.nombre}, le escribimos de Morcast del Norte sobre su solicitud ${sel.folio || sel.id}.`)}>
+                  <Pressable style={[s.contacto, { backgroundColor: T.verde, borderColor: T.verde }]} onPress={() => abrirWhatsApp(sel.telefono, `Hola${sel.nombre ? " " + sel.nombre : ""}, le escribimos de Morcast del Norte sobre su solicitud ${sel.folio || sel.id}.`)}>
                     <Feather name="message-square" size={15} color="#fff" /><Text style={[s.contactoTxt, { color: "#fff", fontWeight: "700" }]}>Contactar por WhatsApp</Text>
                   </Pressable>
                 </View>
@@ -194,6 +228,8 @@ const s = StyleSheet.create({
   folio: { color: T.gris, fontSize: 11.5 },
   empresa: { color: T.tinta, fontSize: 15, fontWeight: "700", marginTop: 3 },
   serv: { color: T.gris, fontSize: 12.5, marginTop: 2 },
+  vacio: { color: T.gris, fontSize: 13, lineHeight: 19, paddingVertical: 6 },
+  errorLista: { color: "#e07d7d", fontSize: 12.5, lineHeight: 17 },
   modalFondo: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modal: { backgroundColor: T.fondo, borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "92%", borderWidth: 1, borderColor: T.linea },
   modalCab: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

@@ -153,12 +153,14 @@ export async function descargarConstancia() {
   return generar(html, "Constancia fiscal");
 }
 
-export async function descargarReporte(titulo, filas, cliente) {
+export async function descargarReporte(titulo, filas, cliente, { conMonto = !enHold() } = {}) {
   // MODO HOLD: el papel dice lo mismo que la pantalla. Antes imprimía
   // "$0.00" en cada renglón y "Total $0.00", que es justo lo que SIN_CIFRA
   // evita en pantalla: un cero se lee como "no debes nada". Y la columna
   // decía "Volumen … m³" cuando lo que se mide son toneladas.
-  const conMonto = !enHold();
+  //
+  // `conMonto` lo decide la pantalla: sin Hold tampoco hay montos mientras la
+  // facturación no viva en el sistema, y el "$0.00" volvería a salir.
   const totalVol = filas.reduce((a, f) => a + f.volumen, 0);
   const totalMonto = filas.reduce((a, f) => a + f.monto, 0);
   const num = (n) => n.toLocaleString("es-MX");
@@ -174,7 +176,7 @@ export async function descargarReporte(titulo, filas, cliente) {
         ${cuerpo}
         <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${num(totalVol)} ton</td>${conMonto ? `<td style="font-weight:800">${pesos(totalMonto)}</td>` : ""}</tr>
       </table>
-      ${conMonto ? "" : `<div class="caja">Sistema en preparación: todavía no se generan cobros, por eso este reporte no lleva montos.</div>`}
+      ${conMonto ? "" : `<div class="caja">${enHold() ? "Sistema en preparación: todavía no se generan cobros, por eso este reporte no lleva montos." : "Este reporte lleva solo el peso: los montos de cada servicio todavía no se registran en el sistema."}</div>`}
       <div class="pie">${pie("Reporte")}</div>
     </div>`;
   return generar(html, `${titulo} ${cliente.id}`);

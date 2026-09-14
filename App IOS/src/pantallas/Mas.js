@@ -3,6 +3,8 @@ import { Feather } from "@expo/vector-icons";
 import { T, SERIES } from "../tema";
 import { Tarjeta, Boton } from "../ui";
 import { useMiEmpresa } from "../mi-empresa";
+import { haySupabase } from "../supabase";
+import { VERSION_APP } from "../version";
 
 // Un color por entrada, para poder encontrarlas de un vistazo. Salen de la
 // paleta validada de `tema.js`, no de tonos sueltos: los que habia (dos
@@ -10,7 +12,7 @@ import { useMiEmpresa } from "../mi-empresa";
 const MENU = [
   { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: SERIES[0] },
   { pantalla: "Agendar", icono: "calendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta", color: SERIES[1] },
-  { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Volumen y monto por periodo", color: SERIES[2] },
+  { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Peso recolectado por periodo", color: SERIES[2] },
   { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: "Constancia fiscal y manifiestos", color: SERIES[3] },
   { pantalla: "Cotizador", icono: "file-plus", titulo: "Cotizador", sub: "Arma y descarga una cotización", color: SERIES[4] },
 ];
@@ -59,7 +61,9 @@ export default function Mas({ navigation, onLogout }) {
         <Text style={{ color: T.tinta, fontWeight: "700" }}>  Cerrar sesión</Text>
       </Boton>
 
-      <Text style={s.version}>Morcast del Norte · App v1.0 (demo)</Text>
+      {/* "(demo)" solo sin base. Con la base real lo decía igual, y le hacía
+          creer al cliente que nada de lo que veía era de verdad. */}
+      <Text style={s.version}>Morcast del Norte · App v{VERSION_APP}{haySupabase() ? "" : " (demo)"}</Text>
     </ScrollView>
   );
 }
