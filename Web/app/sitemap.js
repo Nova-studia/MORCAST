@@ -49,6 +49,12 @@ export default function sitemap() {
       priority: 0.9,
     },
     {
+      url: `${base}/cotizar`,
+      lastModified: ahora,
+      changeFrequency: "yearly",
+      priority: 0.9,
+    },
+    {
       url: `${base}/aviso-de-privacidad`,
       lastModified: ahora,
       changeFrequency: "yearly",

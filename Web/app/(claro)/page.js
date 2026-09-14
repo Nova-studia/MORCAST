@@ -20,7 +20,6 @@ import {
   GALERIA,
   MATERIALES_RECICLABLES,
   SERVICIOS_ADICIONALES,
-  enlaceWhatsApp,
 } from "@/lib/datos";
 
 export const metadata = {
@@ -70,14 +69,10 @@ export default function Inicio() {
                 <Link href="/contacto" className="mc-btn mc-btn-pri">
                   Solicitar cotización <ArrowRight aria-hidden="true" />
                 </Link>
-                <a
-                  href={enlaceWhatsApp()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mc-btn mc-btn-vidrio"
-                >
+                {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
+                <Link href="/cotizar" className="mc-btn mc-btn-vidrio">
                   WhatsApp
-                </a>
+                </Link>
               </div>
             </div>
           </div>

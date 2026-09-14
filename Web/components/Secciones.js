@@ -9,7 +9,6 @@ import {
   CLIENTES,
   PERMISOS,
   EMPRESA,
-  enlaceWhatsApp,
 } from "@/lib/datos";
 
 /* ---------- Encabezado de páginas internas ---------- */
@@ -358,14 +357,10 @@ export function BandaCTA({
               <Link href="/contacto" className="mc-btn mc-btn-pri">
                 Solicitar cotización
               </Link>
-              <a
-                href={enlaceWhatsApp()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mc-btn mc-btn-vidrio"
-              >
-                Escríbenos por WhatsApp
-              </a>
+              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
+              <Link href="/cotizar" className="mc-btn mc-btn-vidrio">
+                Cotiza por WhatsApp
+              </Link>
             </div>
           </div>
         </div>

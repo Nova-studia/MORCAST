@@ -1114,6 +1114,213 @@ section {
   color: #9c3f16;
 }
 
+/* ---------- Cotizar por WhatsApp (/cotizar) ----------
+   Monta sobre `.mc-form`: mismos campos y etiquetas que el formulario de
+   Contacto, para que las dos pantallas se lean como la misma empresa. */
+.mc-cotizar-titulo {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+.mc-cotizar-sub {
+  font-size: 0.92rem;
+  color: var(--mc-gris);
+  margin-bottom: 1.75rem;
+}
+.mc-cotizar fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+/* Bootstrap le da al <legend> float y letra de título grande. */
+.mc-cotizar-legend {
+  float: none;
+  width: auto;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--mc-tinta);
+  margin-bottom: 1rem;
+}
+.mc-cotizar-residuo {
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  padding: 1rem 1rem 1.15rem;
+  margin-bottom: 1rem;
+}
+/* En el teléfono esta caja va DENTRO de la tarjeta del formulario: con los
+   dos rellenos completos se come el ancho de los campos. */
+@media (max-width: 575.98px) {
+  .mc-cotizar-residuo {
+    padding: 0.85rem 0.75rem 1rem;
+  }
+}
+/* La unidad pegada a la cantidad: ancho fijo para "litros" y el resto al número. */
+.mc-cotizar-cantidad > .form-select {
+  flex: 0 0 7.25rem;
+  width: 7.25rem;
+}
+.mc-cotizar-residuo-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin-bottom: 0.5rem;
+}
+/* Rótulo: monoespaciada, como todo rótulo del sistema (DESIGN.md). */
+.mc-cotizar-num {
+  font-family: var(--fuente-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-gris);
+}
+.mc-cotizar-quitar {
+  background: none;
+  border: 0;
+  padding: 0.35rem 0.4rem;
+  color: var(--mc-gris);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.mc-cotizar-quitar:hover {
+  color: var(--mc-tinta);
+}
+/* Los botones de aquí pueden llevar textos largos ("Abrir WhatsApp en esta
+   computadora") en columnas angostas: sin esto se salían de la tarjeta. */
+.mc-cotizar .mc-btn {
+  white-space: normal;
+  text-align: center;
+}
+/* 🔴 El rojo de Bootstrap (#dc3545) da 3.9:1 sobre la tarjeta y trae su
+   propio icono rojo. Los avisos van en el --mc-error del sistema. */
+.mc-cotizar .invalid-feedback {
+  color: var(--mc-error);
+  font-size: 0.8rem;
+}
+.mc-cotizar .form-control.is-invalid,
+.mc-cotizar .form-select.is-invalid:not([multiple]):not([size]) {
+  border-color: var(--mc-error);
+}
+.mc-cotizar .form-control.is-invalid {
+  background-image: none;
+  padding-right: 0.95rem;
+}
+.mc-cotizar .form-select.is-invalid:not([multiple]):not([size]) {
+  padding-right: 2.6rem;
+  background-position: right 0.95rem center;
+  background-size: 15px 11px;
+}
+.mc-cotizar .form-control.is-invalid:focus,
+.mc-cotizar .form-select.is-invalid:focus {
+  border-color: var(--mc-error);
+  box-shadow: 0 0 0 3.5px rgba(217, 119, 107, 0.22);
+}
+.mc-cotizar-aviso {
+  color: var(--mc-error);
+  font-size: 0.88rem;
+  margin: 1.25rem 0 0;
+}
+.mc-cotizar-nota {
+  font-size: 0.78rem;
+  color: var(--mc-gris-claro);
+  margin: 0.9rem 0 0;
+}
+.mc-cotizar-nota a {
+  color: var(--mc-azul-txt);
+}
+/* Pantalla final en computadora: el QR a la izquierda, las instrucciones a
+   la derecha. En angosto, uno debajo del otro. */
+.mc-cotizar-listo {
+  display: grid;
+  /* 320px: con 3 residuos el código llega a 97 módulos; más chico, en una
+     pantalla sin escalado cada módulo baja de 3px y cuesta más leerlo. */
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: center;
+}
+@media (max-width: 767.98px) {
+  .mc-cotizar-listo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Negro sobre BLANCO a propósito: muchos lectores de QR no leen un código
+   invertido. El margen blanco es la "zona de silencio" que piden. */
+.mc-cotizar-qr {
+  background: #fff;
+  border-radius: var(--mc-radio);
+  padding: 6px;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.mc-cotizar-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mc-cotizar-qr-aviso {
+  color: #4a5352;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem;
+}
+.mc-cotizar-vista-tit {
+  font-family: var(--fuente-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-gris);
+  margin: 2rem 0 0.75rem;
+}
+.mc-cotizar-vista {
+  background: var(--mc-blanco);
+  border: 1px solid var(--mc-linea);
+  border-radius: var(--mc-radio);
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--mc-tinta);
+  overflow-wrap: anywhere;
+}
+.mc-cotizar-pasos {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2.5rem;
+  display: grid;
+  gap: 0.9rem;
+}
+.mc-cotizar-pasos li {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+  color: var(--mc-tinta);
+  font-size: 0.97rem;
+}
+.mc-cotizar-pasos span {
+  font-family: var(--fuente-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--mc-verde-claro);
+}
+.mc-cotizar-directo {
+  border-top: 1px solid var(--mc-linea);
+  padding-top: 1.25rem;
+  color: var(--mc-gris);
+  font-size: 0.92rem;
+  max-width: 62ch;
+}
+.mc-cotizar-directo a {
+  color: var(--mc-azul-txt);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
 /* ---------- Contacto ---------- */
 .mc-contacto-item {
   display: flex;

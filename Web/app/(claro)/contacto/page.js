@@ -7,7 +7,8 @@ import {
 import { FaWhatsapp } from "react-icons/fa";
 import { Encabezado } from "@/components/Secciones";
 import FormularioCotizacion from "@/components/FormularioCotizacion";
-import { EMPRESA, enlaceWhatsApp } from "@/lib/datos";
+import Link from "next/link";
+import { EMPRESA } from "@/lib/datos";
 import Correo from "@/components/Correo";
 
 export const metadata = {
@@ -90,14 +91,10 @@ export default function Contacto() {
                 </div>
               </div>
 
-              <a
-                href={enlaceWhatsApp()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mc-btn mc-btn-pri w-100"
-              >
-                <FaWhatsapp size={19} aria-hidden="true" /> Escríbenos por WhatsApp
-              </a>
+              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
+              <Link href="/cotizar" className="mc-btn mc-btn-pri w-100">
+                <FaWhatsapp size={19} aria-hidden="true" /> Cotiza por WhatsApp
+              </Link>
             </div>
 
             {/* Formulario */}

@@ -12,7 +12,7 @@ import {
   BandaCTA,
 } from "@/components/Secciones";
 import Revelar from "@/components/Revelar";
-import { GALERIA, enlaceWhatsApp } from "@/lib/datos";
+import { GALERIA } from "@/lib/datos";
 import {
   EMPRESA_COTIZACION,
   UNIDADES,
@@ -227,16 +227,10 @@ export default function PaginaPortafolio() {
                 Los precios se determinan según volumen, frecuencia y
                 condiciones del sitio.
               </p>
-              <a
-                href={enlaceWhatsApp(
-                  "Hola, vi el portafolio de Morcast y quiero cotizar un servicio."
-                )}
-                className="mc-btn mc-btn-teal"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Phone aria-hidden="true" /> Hablar por WhatsApp
-              </a>
+              {/* Al cuestionario, no al chat vacío (ver app/(claro)/cotizar). */}
+              <Link href="/cotizar" className="mc-btn mc-btn-teal">
+                <Phone aria-hidden="true" /> Cotiza por WhatsApp
+              </Link>
             </Revelar>
 
             <Revelar as="div" className="col-lg-7" desde="abajo">

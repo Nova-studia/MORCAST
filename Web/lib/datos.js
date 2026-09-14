@@ -420,7 +420,7 @@ export const PREGUNTAS = [
   },
   {
     q: "¿Cómo solicito una cotización?",
-    a: "Puedes llenar el formulario de contacto del sitio o escribirnos directo por WhatsApp. Cuéntanos tu volumen, frecuencia y espacio disponible y te respondemos el mismo día.",
+    a: "Contesta nuestro cuestionario de un minuto y envíalo por WhatsApp desde morcast.mx/cotizar, o llena el formulario de contacto. Así nos llegan de una vez el tipo de residuo, la cantidad y cómo lo tienen, y te respondemos el mismo día.",
   },
 ];
 
