@@ -7,7 +7,8 @@
  *
  * A propósito NO se guarda nada en la base ni se manda correo (decisión de
  * Luis): el propio cliente envía el mensaje desde su WhatsApp, y su número
- * llega con él. Por eso tampoco se pide teléfono.
+ * llega con él. Aun así, el 18-sep-2026 Luis pidió también un teléfono y un
+ * correo de contacto: van escritos en el mismo mensaje.
  *
  * Todo lo de este archivo es lógica pura, sin React, para poder probarla sola.
  */
@@ -50,7 +51,7 @@ export const OTRO = "Otro";
 export const MAX_RESIDUOS = 5;
 
 /** Topes de largo: mantienen el enlace (y su código QR) en un tamaño que se lea. */
-export const LARGO = { empresa: 80, nombre: 60, puesto: 60, ciudad: 80, otro: 40, cantidad: 12 };
+export const LARGO = { empresa: 80, nombre: 60, puesto: 60, ciudad: 80, telefono: 20, correo: 80, otro: 40, cantidad: 12 };
 
 /**
  * Un renglón de residuo en blanco. El `id` es la `key` de React (el índice
@@ -87,6 +88,30 @@ export function leerCantidad(valor) {
   return n > 0 ? n : NaN;
 }
 
+/**
+ * El teléfono como lo escribe la gente: "868 123 4567", "(868) 123-4567" o
+ * "+52 868 123 4567". Se cuentan los dígitos: 10 del número y hasta 13 con la
+ * clave de país (+52 1, o +1 si es de Estados Unidos).
+ */
+export function telefonoValido(valor) {
+  const s = limpiar(valor);
+  if (!/^\+?[\d\s().-]+$/.test(s)) return false;
+  const digitos = s.replace(/\D/g, "").length;
+  return digitos >= 10 && digitos <= 13;
+}
+
+/** La misma regla que el formulario de Contacto (`app/actions.js`). */
+const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * El correo NO pasa por `limpiar`: le quitaría el "_" a "juan_perez@…" y el
+ * dueño le escribiría a otra dirección. Un "_" a media palabra no le da
+ * formato a nada en WhatsApp.
+ */
+export function limpiarCorreo(valor) {
+  return String(valor ?? "").trim();
+}
+
 function formatoCantidad(n) {
   return n.toLocaleString("es-MX", { maximumFractionDigits: 2 });
 }
@@ -107,7 +132,7 @@ function fraseEmbalaje(r) {
  * Revisa el cuestionario. Las llaves de `errores` son los `id` de los campos,
  * para poder llevar el foco al primero que falte.
  */
-export function validar({ residuos, empresa, nombre, puesto, ciudad }) {
+export function validar({ residuos, empresa, nombre, puesto, ciudad, telefono, correo }) {
   const errores = {};
 
   residuos.forEach((r) => {
@@ -124,6 +149,10 @@ export function validar({ residuos, empresa, nombre, puesto, ciudad }) {
   if (!limpiar(ciudad)) errores.ciudad = "Escribe la ciudad o la colonia.";
   if (!limpiar(nombre)) errores.nombre = "Escribe tu nombre.";
   if (!limpiar(puesto)) errores.puesto = "Escribe tu puesto.";
+  if (!limpiar(telefono)) errores.telefono = "Escribe tu teléfono.";
+  else if (!telefonoValido(telefono)) errores.telefono = "Escribe el teléfono a 10 dígitos, por ejemplo 868 123 4567.";
+  if (!limpiarCorreo(correo)) errores.correo = "Escribe tu correo.";
+  else if (!CORREO_RE.test(limpiarCorreo(correo))) errores.correo = "Escribe un correo válido, por ejemplo nombre@empresa.com.";
 
   return { ok: Object.keys(errores).length === 0, errores };
 }
@@ -132,7 +161,7 @@ export function validar({ residuos, empresa, nombre, puesto, ciudad }) {
  * El mensaje tal como le llega a Morcast. Las etiquetas van en *negrita* para
  * que el dueño encuentre cada dato de un vistazo.
  */
-export function armarMensaje({ residuos, empresa, nombre, puesto, ciudad }) {
+export function armarMensaje({ residuos, empresa, nombre, puesto, ciudad, telefono, correo }) {
   const lineas = residuos.map((r, i) => {
     const tipo = r.tipo === OTRO ? limpiar(r.tipoOtro) : r.tipo;
     const n = leerCantidad(r.cantidad);
@@ -144,6 +173,8 @@ export function armarMensaje({ residuos, empresa, nombre, puesto, ciudad }) {
     "",
     `*Empresa:* ${limpiar(empresa)}`,
     `*Solicita:* ${limpiar(nombre)}, ${limpiar(puesto)}`,
+    `*Teléfono:* ${limpiar(telefono)}`,
+    `*Correo:* ${limpiarCorreo(correo)}`,
     `*Ciudad o colonia:* ${limpiar(ciudad)}`,
     "",
     "*Residuos:*",

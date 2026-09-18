@@ -17,7 +17,7 @@ import {
   trazoQR,
 } from "@/lib/cotizar-whatsapp";
 
-const CONTACTO_VACIO = { empresa: "", ciudad: "", nombre: "", puesto: "" };
+const CONTACTO_VACIO = { empresa: "", ciudad: "", nombre: "", puesto: "", telefono: "", correo: "" };
 
 function movimiento() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
@@ -350,6 +350,10 @@ export default function CuestionarioWhatsApp() {
             errores={errores} maxLength={LARGO.nombre} autoComplete="name" placeholder="Nombre y apellido" />
           <CampoTexto id="puesto" texto="Puesto" valor={contacto.puesto} alCambiar={cambiarContacto("puesto")}
             errores={errores} maxLength={LARGO.puesto} autoComplete="organization-title" placeholder="Ej. Gerente de planta" />
+          <CampoTexto id="telefono" texto="Teléfono de contacto" valor={contacto.telefono} alCambiar={cambiarContacto("telefono")}
+            errores={errores} maxLength={LARGO.telefono} type="tel" autoComplete="tel" placeholder="Ej. 868 123 4567" />
+          <CampoTexto id="correo" texto="Correo electrónico" valor={contacto.correo} alCambiar={cambiarContacto("correo")}
+            errores={errores} maxLength={LARGO.correo} type="email" autoComplete="email" placeholder="tucorreo@empresa.com" />
         </div>
       </fieldset>
 
