@@ -1,6 +1,14 @@
 import { File } from "expo-file-system";
 import { supabase, haySupabase } from "./supabase";
 import { RUTAS_SEED, nombreTipoRuta } from "./rutas-datos";
+import {
+  esCuentaDeMuestra,
+  saldoDeMuestra,
+  movimientosDeMuestra,
+  reportarDepositoDeMuestra,
+  pedirRecoleccionDeMuestra,
+  solicitudesDeMuestra,
+} from "./cuenta-muestra";
 
 /**
  * Consultas de la app contra Supabase.
@@ -133,8 +141,12 @@ export async function misSolicitudes() {
     .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, rutas ( nombre )")
     .order("fecha_pedida", { ascending: false });
 
-  if (error) return [];
-  return (data || []).map((s) => ({
+  // Cuenta de muestra: lo que el revisor pidió en esta sesión va arriba (no
+  // se guardó en la base, ver pedirRecoleccion).
+  const pedidasAqui = esCuentaDeMuestra() ? solicitudesDeMuestra() : [];
+
+  if (error) return pedidasAqui;
+  return pedidasAqui.concat((data || []).map((s) => ({
     id: s.id,
     folio: s.folio,
     origen: s.origen,
@@ -144,7 +156,7 @@ export async function misSolicitudes() {
     nota: s.nota || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
-  }));
+  })));
 }
 
 /**
@@ -154,6 +166,13 @@ export async function misSolicitudes() {
  */
 export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null }) {
   if (!haySupabase()) return { ok: true, demo: true };
+
+  // La cuenta de muestra del revisor NO escribe en la base: su solicitud le
+  // llegaría a la bandeja de Morcast como si fuera de un cliente.
+  if (esCuentaDeMuestra()) {
+    const su = await miSuscripcion();
+    return pedirRecoleccionDeMuestra({ fecha, nota, origen }, su?.ruta?.nombre);
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, motivo: "No hay sesión." };
@@ -227,6 +246,9 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
 
 export async function miSaldo() {
   if (!haySupabase()) return null;
+  // Montos de muestra: la cuenta del revisor no tiene dinero en la base (ver
+  // cuenta-muestra.js, "El DINERO sale de aquí").
+  if (esCuentaDeMuestra()) return saldoDeMuestra();
 
   const { data } = await supabase
     .from("saldos_clientes").select("saldo, cargos, por_verificar").limit(1).maybeSingle();
@@ -241,6 +263,7 @@ export async function miSaldo() {
 
 export async function misMovimientos() {
   if (!haySupabase()) return [];
+  if (esCuentaDeMuestra()) return movimientosDeMuestra();
 
   const { data, error } = await supabase
     .from("movimientos_saldo")
@@ -312,6 +335,9 @@ export async function enlaceComprobante(ruta) {
  */
 export async function reportarDeposito({ monto, banco, referencia, comprobante, notas }) {
   if (!haySupabase()) return { ok: true, demo: true };
+  // El depósito del revisor no sube comprobante ni entra a la bandeja de
+  // depósitos por verificar de Morcast: se queda en la memoria de la sesión.
+  if (esCuentaDeMuestra()) return reportarDepositoDeMuestra({ monto, banco, referencia, comprobante });
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, motivo: "No hay sesion." };

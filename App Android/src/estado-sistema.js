@@ -20,6 +20,8 @@
  * Por eso vive en un archivo y no en un botón del panel — el botón daría una
  * libertad que en realidad no existe.
  */
+import { esCuentaDeMuestra } from "./cuenta-muestra";
+
 export const HOLD = {
   activo: true,
   titulo: "Sistema en preparación",
@@ -29,9 +31,16 @@ export const HOLD = {
   desde: "2026-09-01",
 };
 
-/** ¿Está el sistema en espera? Usar esto, no `HOLD.activo` suelto. */
+/**
+ * ¿Está el sistema en espera PARA ESTA SESIÓN? Usar esto, no `HOLD.activo`
+ * suelto.
+ *
+ * La única excepción es la cuenta de muestra del revisor de la App Store
+ * (ver `cuenta-muestra.js`): para ella el Hold no aplica y ve montos de
+ * muestra. `HOLD.activo` NO se toca — para todos los demás sigue igual.
+ */
 export function enHold() {
-  return HOLD.activo === true;
+  return HOLD.activo === true && !esCuentaDeMuestra();
 }
 
 /**

@@ -2,6 +2,7 @@ import { supabase, haySupabase } from "./supabase";
 import { CREDENCIALES_DEMO, CLIENTE } from "./datos";
 import { ADMIN_DEMO, ADMIN_PERFIL } from "./datos-admin";
 import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
+import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
 
 /**
  * Sesión de la app, para los tres modos.
@@ -88,7 +89,11 @@ async function perfilDe(usuario, modo) {
     rol: NOMBRE_ROL[usuario.app_metadata?.rol] || usuario.app_metadata?.rol,
   };
 
-  if (modo !== "cliente") return base;
+  if (modo !== "cliente") {
+    // Personal de Morcast y choferes nunca son la cuenta de muestra.
+    olvidarCuentaDeMuestra();
+    return base;
+  }
 
   // El cliente necesita saber de qué empresa es: de ahí cuelga todo lo suyo.
   const { data } = await supabase
@@ -98,6 +103,13 @@ async function perfilDe(usuario, modo) {
     .single();
 
   const c = data?.clientes;
+
+  // La cuenta del revisor de la App Store (ver cuenta-muestra.js). Se decide
+  // AQUÍ, antes de que se pinte la primera pantalla del cliente, porque
+  // `enHold()` se consulta al pintar. Pasa tanto al entrar con contraseña
+  // como al recuperar la sesión guardada: las dos vienen por `perfilDe`.
+  marcarCuentaDeMuestra(usuario, c?.folio);
+
   return {
     ...base,
     id: c?.folio || base.id,
@@ -147,5 +159,6 @@ export async function sesionActiva(modo) {
 }
 
 export async function salir() {
+  olvidarCuentaDeMuestra();
   if (haySupabase()) await supabase.auth.signOut();
 }
