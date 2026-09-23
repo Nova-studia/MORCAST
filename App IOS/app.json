@@ -8,8 +8,11 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0f1615",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "mx.morcast.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "mx.morcast.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "mx.morcast.app",
@@ -28,17 +31,29 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Morcast usa tus fotos para subir el comprobante de pago.",
-          "cameraPermission": "Morcast usa la cámara para tomar la foto del comprobante de pago."
+          "photosPermission": "Morcast abre tus fotos solo para que elijas la imagen de tu comprobante de pago y la adjuntes a tu cuenta. No se sube ninguna otra foto.",
+          "cameraPermission": "Morcast usa la cámara para escanear el código QR del contenedor y tomar las fotos de evidencia de cada recolección (choferes), y para fotografiar tu comprobante de pago y adjuntarlo a tu cuenta (clientes).",
+          "microphonePermission": false
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Morcast usa la cámara para escanear el QR del contenedor y tomar la foto de la recolección."
+          "cameraPermission": "Morcast usa la cámara para escanear el código QR del contenedor y tomar las fotos de evidencia de cada recolección (choferes), y para fotografiar tu comprobante de pago y adjuntarlo a tu cuenta (clientes).",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#17211f"
+        }
+      ]
     ]
   }
 }
