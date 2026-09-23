@@ -51,7 +51,7 @@ export default function PrivacidadApp() {
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <p style={{ color: "var(--mc-gris)" }}>
-                Última actualización: 12 de agosto de 2026
+                Última actualización: 23 de septiembre de 2026
               </p>
 
               <p>
@@ -143,7 +143,10 @@ export default function PrivacidadApp() {
                 datos o la <strong>Oposición</strong> a su tratamiento, así como la
                 eliminación de su cuenta, escribiendo a{" "}
                 <a href="mailto:contacto@morcast.mx">contacto@morcast.mx</a>. Le
-                responderemos en los plazos que marca la LFPDPPP. Tenga en cuenta que
+                responderemos en los plazos que marca la LFPDPPP. Si es cliente, también
+                puede eliminar su cuenta usted mismo desde la app de Morcast, en{" "}
+                <strong>Más → Eliminar mi cuenta</strong>: se borra su acceso (usuario,
+                contraseña y perfil) en ese momento. Tenga en cuenta que
                 cierta información debe conservarse por obligación fiscal y ambiental
                 aunque usted cancele su cuenta.
               </p>
