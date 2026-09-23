@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta } from "../ui";
-import { SERVICIOS_CLIENTE, fechaLarga } from "../datos";
+import { SERVICIOS_CLIENTE, fechaLarga, HAY_DATOS_FISCALES } from "../datos";
 import { misServicios } from "../datos-remoto";
 import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
@@ -49,18 +49,29 @@ export default function Documentos() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.h1}>Documentos</Text>
-      <Text style={s.sub}>Descarga tu constancia fiscal y los manifiestos de cada servicio.</Text>
+      <Text style={s.sub}>
+        {HAY_DATOS_FISCALES
+          ? "Descarga tu constancia fiscal y los manifiestos de cada servicio."
+          : "Descarga el manifiesto de cada servicio en PDF."}
+      </Text>
 
-      <Tarjeta>
-        <TituloTarjeta>Fiscales</TituloTarjeta>
-        <Fila
-          icono="file-text" color={T.tealClaro}
-          titulo="Constancia de Situación Fiscal"
-          sub="Datos fiscales de Morcast del Norte"
-          cargando={bajando === "csf"}
-          onPress={conConstancia}
-        />
-      </Tarjeta>
+      {/* La constancia sólo se ofrece con el RFC real de Morcast cargado
+          (`EMPRESA_COTIZACION.rfc`). Sin él, el botón SIEMPRE fallaba con
+          "Todavía no tenemos la constancia…": un botón que nunca funciona es
+          justo lo que la revisión de Apple rechaza (guía 2.1). Al cargar el
+          RFC la tarjeta vuelve sola. */}
+      {HAY_DATOS_FISCALES && (
+        <Tarjeta>
+          <TituloTarjeta>Fiscales</TituloTarjeta>
+          <Fila
+            icono="file-text" color={T.tealClaro}
+            titulo="Constancia de Situación Fiscal"
+            sub="Datos fiscales de Morcast del Norte"
+            cargando={bajando === "csf"}
+            onPress={conConstancia}
+          />
+        </Tarjeta>
+      )}
 
       <Tarjeta>
         <TituloTarjeta>Manifiestos{cargandoLista ? "" : ` (${manifiestos.length})`}</TituloTarjeta>

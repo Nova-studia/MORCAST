@@ -5,6 +5,7 @@ import { Tarjeta, Boton } from "../ui";
 import { useMiEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
 import { VERSION_APP } from "../version";
+import { HAY_DATOS_FISCALES } from "../datos";
 
 // Un color por entrada, para poder encontrarlas de un vistazo. Salen de la
 // paleta validada de `tema.js`, no de tonos sueltos: los que habia (dos
@@ -13,7 +14,8 @@ const MENU = [
   { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: SERIES[0] },
   { pantalla: "Agendar", icono: "calendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta", color: SERIES[1] },
   { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Peso recolectado por periodo", color: SERIES[2] },
-  { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: "Constancia fiscal y manifiestos", color: SERIES[3] },
+  // Sin el RFC real de Morcast no hay constancia que ofrecer (ver Documentos.js).
+  { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: HAY_DATOS_FISCALES ? "Constancia fiscal y manifiestos" : "Manifiestos de tus servicios", color: SERIES[3] },
   { pantalla: "Cotizador", icono: "file-plus", titulo: "Cotizador", sub: "Arma y descarga una cotización", color: SERIES[4] },
 ];
 
