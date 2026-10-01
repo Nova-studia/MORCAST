@@ -85,7 +85,9 @@ async function generar(html, nombre) {
   try {
     const destino = new File(Paths.cache, nombreArchivo(nombre));
     if (destino.exists) destino.delete();
-    new File(uri).move(destino);
+    // Desde el SDK 56 `move()` es asíncrono: sin el `await` se compartía el
+    // archivo antes de que terminara de renombrarse.
+    await new File(uri).move(destino);
     uri = destino.uri;
   } catch {}
   if (await Sharing.isAvailableAsync()) {
