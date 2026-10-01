@@ -12,13 +12,17 @@
 #   $env:EAS_NO_VCS=1; $env:EAS_PROJECT_ROOT=$PSScriptRoot
 #   eas build:inspect -p ios --profile production --stage archive --output ..\revisar
 
-param([string]$Perfil = "production")
+# Con -Enviar, al terminar el build lo manda solo a App Store Connect
+# (TestFlight) con la llave de API que ya guardó EAS: no pide el código de
+# Guillermo.
+param([string]$Perfil = "production", [switch]$Enviar)
 
 $env:EAS_NO_VCS = "1"
 $env:EAS_PROJECT_ROOT = $PSScriptRoot
 try {
   Set-Location $PSScriptRoot
-  eas build --platform ios --profile $Perfil
+  if ($Enviar) { eas build --platform ios --profile $Perfil --auto-submit }
+  else { eas build --platform ios --profile $Perfil }
 } finally {
   Remove-Item Env:EAS_NO_VCS, Env:EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
 }
