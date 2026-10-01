@@ -71,10 +71,16 @@ export default function AgregarSaldo() {
     if (!r.canceled) { setComprobante(r.assets[0]); setEnviada(false); }
   };
 
+  // En iPhone la cámara (o la galería) no se puede abrir mientras la alerta
+  // todavía se está cerrando: iOS la presenta encima de una vista que ya se
+  // va, y queda CONGELADA — no dispara ni deja salir (probado en un iPhone
+  // 16 Pro Max el 1-oct-2026). Se espera a que la alerta termine de irse.
+  const trasCerrarAlerta = (fn) => () => setTimeout(fn, Platform.OS === "ios" ? 600 : 0);
+
   const elegirComprobante = () => {
     Alert.alert("Subir comprobante", "¿Cómo quieres agregar tu comprobante?", [
-      { text: "Tomar foto", onPress: desdeCamara },
-      { text: "Elegir de galería", onPress: desdeGaleria },
+      { text: "Tomar foto", onPress: trasCerrarAlerta(desdeCamara) },
+      { text: "Elegir de galería", onPress: trasCerrarAlerta(desdeGaleria) },
       { text: "Cancelar", style: "cancel" },
     ]);
   };
