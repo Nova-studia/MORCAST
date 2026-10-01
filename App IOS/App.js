@@ -47,6 +47,9 @@ const AdminTab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 
+// En iPhone el botón de regresar lleva el título de la pantalla anterior, y
+// las pestañas (TabsCliente, TabsAdmin, Ruta) no tienen uno visible: salía su
+// nombre interno, "TabsCliente". Por eso las tres pilas fijan `headerBackTitle`.
 const temaNav = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: T.fondo, card: T.panel, text: T.tinta, border: T.linea, primary: T.verde },
@@ -133,7 +136,7 @@ function AppChofer({ onLogout }) {
     return r;
   };
   return (
-    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, contentStyle: { backgroundColor: T.fondo } }}>
+    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
         {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} />}
       </Stack.Screen>
@@ -165,7 +168,7 @@ function TabsCliente({ onLogout }) {
 
 function AppCliente({ onLogout }) {
   return (
-    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tinta, headerTitleStyle: { fontWeight: "700" }, headerShadowVisible: false, contentStyle: { backgroundColor: T.fondo } }}>
+    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tinta, headerTitleStyle: { fontWeight: "700" }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="TabsCliente" options={{ headerShown: false }}>
         {(props) => <TabsCliente {...props} onLogout={onLogout} />}
       </Stack.Screen>
@@ -199,7 +202,7 @@ function TabsAdmin({ onLogout }) {
 
 function AppAdmin({ onLogout }) {
   return (
-    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.naranjaClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, contentStyle: { backgroundColor: T.fondo } }}>
+    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.naranjaClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="TabsAdmin" options={{ headerShown: false }}>
         {(props) => <TabsAdmin {...props} onLogout={onLogout} />}
       </Stack.Screen>
