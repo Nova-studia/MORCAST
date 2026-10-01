@@ -1,0 +1,26 @@
+# Qué NO subir a EAS Build — SOLO cuenta al compilar con `compilar-ios.ps1`.
+#
+# Ese script sube esta carpeta como raíz del proyecto (EAS_NO_VCS +
+# EAS_PROJECT_ROOT); sólo así EAS lee este archivo. Con un `eas build` normal
+# manda el `.easignore` de la raíz del repositorio.
+#
+# 🔑 Este archivo existe sobre todo para que SÍ suba el `.env`. Sin un
+# `.easignore`, EAS usa el `.gitignore`, deja fuera el `.env` y la app sale
+# compilada SIN las llaves de Supabase: abre en "modo demostración" con datos
+# de ejemplo (`haySupabase()` = false). Las llaves de `.env` son las
+# EXPO_PUBLIC_ (la anónima es pública por diseño; manda el RLS).
+#
+# Lo demás son artefactos que EAS no necesita: compila desde cero.
+
+node_modules/
+.expo/
+dist/
+dist-check/
+
+ios/build/
+ios/Pods/
+
+*.log
+*.ipa
+.DS_Store
+Thumbs.db

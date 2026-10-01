@@ -10,7 +10,8 @@
 Web/
 
 # OJO: NO excluir ni "App IOS/" ni "App Android/". EAS SOLO lee este archivo
-# (el de la raíz; un .easignore dentro de la carpeta de la app no cuenta), así
+# (el de la raíz; el .easignore de la carpeta de la app solo cuenta con
+# App IOS/compilar-ios.ps1), así
 # que excluir una de las dos deja vacía su carpeta cuando es ella la que se
 # compila. El 1-oct-2026 el primer build de iPhone falló así, sin mensaje, en
 # PRE_INSTALL_HOOK. Sin node_modules cada app pesa unos pocos MB.
