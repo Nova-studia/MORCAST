@@ -19,6 +19,10 @@ import Documentos from "./src/pantallas/Documentos";
 import Cotizador from "./src/pantallas/Cotizador";
 import Cobertura from "./src/pantallas/Cobertura";
 import Agendar from "./src/pantallas/Agendar";
+// Explorar sin cuenta
+import Explorar from "./src/pantallas/explorar/Explorar";
+import CotizarWhatsApp from "./src/pantallas/explorar/CotizarWhatsApp";
+import CoberturaPublica from "./src/pantallas/explorar/CoberturaPublica";
 // Chofer
 import LoginChofer from "./src/pantallas/chofer/LoginChofer";
 import RutaChofer from "./src/pantallas/chofer/RutaChofer";
@@ -75,6 +79,10 @@ function AuthFlow({ onCliente, onAdmin, onChofer }) {
       <AuthStack.Screen name="LoginChofer">
         {(props) => <LoginChofer {...props} onLogin={onChofer} />}
       </AuthStack.Screen>
+      {/* Explorar sin cuenta: lo que ve quien todavía no es cliente. */}
+      <AuthStack.Screen name="Explorar" component={Explorar} />
+      <AuthStack.Screen name="ExplorarCotizar" component={CotizarWhatsApp} />
+      <AuthStack.Screen name="ExplorarCobertura" component={CoberturaPublica} />
     </AuthStack.Navigator>
   );
 }

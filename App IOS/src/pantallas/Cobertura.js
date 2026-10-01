@@ -8,7 +8,11 @@ import { nombreTipoRuta } from "../rutas-datos";
 import { zonasDeCobertura } from "../datos-remoto";
 import { rutasQueCubren } from "../punto-en-zona";
 
-export default function Cobertura() {
+/**
+ * `pie` (opcional): lo que va debajo del resultado. El modo "Explorar sin
+ * cuenta" lo usa para poner el botón de contratar; el cliente no lo necesita.
+ */
+export default function Cobertura({ pie = null }) {
   const [pin, setPin] = useState(null);
   const [rutas, setRutas] = useState([]);
 
@@ -28,7 +32,7 @@ export default function Cobertura() {
     () =>
       rutas.filter((r) => r.activa).map((r) => ({
         id: r.id,
-        nombre: `${r.nombre} · ${nombreTipoRuta(r.tipo)}`,
+        nombre: [r.nombre, r.tipo && nombreTipoRuta(r.tipo)].filter(Boolean).join(" · "),
         poligono: r.zona,
       })),
     [rutas]
@@ -73,8 +77,10 @@ export default function Cobertura() {
             {cubren.map((r) => (
               <View key={r.id} style={s.ruta}>
                 <Text style={s.rutaNombre}>{r.nombre}</Text>
-                <Text style={s.rutaDato}>{nombreTipoRuta(r.tipo)}</Text>
-                <Text style={s.rutaDato}>Pasa: {r.dias.join(", ")}</Text>
+                {r.tipo ? <Text style={s.rutaDato}>{nombreTipoRuta(r.tipo)}</Text> : null}
+                <Text style={s.rutaDato}>
+                  {r.dias.length ? `Pasa: ${r.dias.join(", ")}` : "Los días de recolección se acuerdan al contratar."}
+                </Text>
               </View>
             ))}
           </>
@@ -93,6 +99,8 @@ export default function Cobertura() {
           </>
         )}
       </Tarjeta>
+
+      {pie}
     </ScrollView>
   );
 }
