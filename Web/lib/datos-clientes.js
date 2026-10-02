@@ -346,6 +346,10 @@ export async function listarUsuarios() {
 
   return (data || []).map((p, i) => ({
     id: `U-${String(i + 1).padStart(3, "0")}`,
+    // El id de verdad (auth.users / perfiles), para desactivar o reactivar
+    // desde /admin/usuarios. `id` se queda como folio corto para la tabla.
+    uid: p.id,
+    rolId: p.rol,
     nombre: p.nombre || "Sin nombre",
     // El correo vive en auth.users, que no es consultable desde el navegador
     // por seguridad. Se muestra el teléfono, que sí es del perfil.

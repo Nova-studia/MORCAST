@@ -83,5 +83,8 @@ export const TEXTO_ACCION = {
   cambiar_rol: "Cambió el rol de un usuario",
   alta_cliente: "Dio de alta un cliente",
   invitar_cliente: "Invitó a un cliente al portal",
+  invitar_equipo: "Invitó a alguien al equipo",
+  desactivar_usuario: "Desactivó la cuenta de alguien del equipo",
+  reactivar_usuario: "Reactivó la cuenta de alguien del equipo",
   cambiar_estado_cotizacion: "Cambió el estado de una cotización",
 };

@@ -439,6 +439,43 @@ export async function correoAccesoCliente({ correo, contacto, empresa, folio, en
 }
 
 /**
+ * Invitación al EQUIPO de Morcast (administrador o chofer), desde
+ * /admin/usuarios. Igual que el acceso de cliente: nadie ve la contraseña,
+ * la persona la elige con el enlace. Al terminar, el sistema la manda sola a
+ * su área (/admin o /chofer) según su rol.
+ */
+export async function correoInvitacionEquipo({ correo, nombre, rolLegible, enlace, invitadoPor }) {
+  const esChofer = rolLegible.startsWith("Chofer");
+  const entrada = esChofer ? "morcast.mx/chofer/login" : "morcast.mx/admin/login";
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: "Te invitaron al equipo de Morcast del Norte",
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Bienvenido al equipo</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(nombre)}, ${invitadoPor ? `${esc(invitadoPor)} te dio` : "te dieron"} acceso al sistema
+        de Morcast del Norte como <strong>${esc(rolLegible)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Pulsa el botón y elige la contraseña con la que vas a entrar:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#144C4F;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Crear mi contraseña</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en una hora</strong> y sólo se puede usar una vez. Si se te
+        pasa, pide que te vuelvan a invitar o usa "¿Olvidaste tu contraseña?".</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Después vas a entrar en
+        <a href="https://${entrada}" style="color:#144C4F">${entrada}</a>${esChofer ? ", o desde la app de Morcast en tu teléfono" : ""}.</p>`),
+  });
+}
+
+/**
  * Enlace para crear una contraseña nueva.
  *
  * Lo manda Resend y no Supabase a propósito: el correo de Supabase sale con su
