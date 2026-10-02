@@ -143,10 +143,17 @@ export default function Recoleccion({ route, navigation, completar }) {
         </View>
         <View style={s.marco} />
         <Text style={s.scanPie}>Apunta al código QR pegado en el contenedor</Text>
-        <Pressable style={s.scanDemo} onPress={() => alEscanear({ data: servicio.qr })}>
-          <Feather name="zap" size={14} color="#0d1211" />
-          <Text style={s.scanDemoTxt}>  Simular escaneo (demo)</Text>
-        </Pressable>
+        {/* Atajo SOLO para desarrollo (`__DEV__` es false en los builds de
+            la tienda). En producción dejaba al chofer "escanear" sin QR, y un
+            botón "(demo)" en la App Store es motivo de rechazo (guía 2.2).
+            Si la calcomanía no se lee, el primer paso ("O escribe el
+            código") ya deja capturarlo a mano. */}
+        {__DEV__ && (
+          <Pressable style={s.scanDemo} onPress={() => alEscanear({ data: servicio.qr })}>
+            <Feather name="zap" size={14} color="#0d1211" />
+            <Text style={s.scanDemoTxt}>  Simular escaneo (demo)</Text>
+          </Pressable>
+        )}
       </View>
     );
   }

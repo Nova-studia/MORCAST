@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "rea
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
-import { CATALOGO_COTIZADOR, IVA, pesos } from "../datos";
+import { CATALOGO_COTIZADOR, IVA, pesos, HAY_DATOS_FISCALES } from "../datos";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
 import { descargarCotizacion, descargarConstancia } from "../pdf";
@@ -130,10 +130,15 @@ export default function Cotizador() {
             </Boton>
           </>
         )}
-        <Boton variante="linea" onPress={bajarConstancia} disabled={bajando === "csf"} style={{ marginTop: 10 }}>
-          <Feather name="file-text" size={15} color={T.tinta} />
-          <Text style={{ color: T.tinta, fontWeight: "700" }}>  {bajando === "csf" ? "Generando…" : "Constancia fiscal PDF"}</Text>
-        </Boton>
+        {/* Sin el RFC real de Morcast la constancia no se puede emitir y el
+            botón sólo daba error: se esconde hasta que se cargue (ver
+            Documentos.js). */}
+        {HAY_DATOS_FISCALES && (
+          <Boton variante="linea" onPress={bajarConstancia} disabled={bajando === "csf"} style={{ marginTop: 10 }}>
+            <Feather name="file-text" size={15} color={T.tinta} />
+            <Text style={{ color: T.tinta, fontWeight: "700" }}>  {bajando === "csf" ? "Generando…" : "Constancia fiscal PDF"}</Text>
+          </Boton>
+        )}
       </Tarjeta>
 
       {/* Condiciones comerciales (mismas que imprime el PDF) */}

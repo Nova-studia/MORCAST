@@ -1,6 +1,7 @@
 import { File } from "expo-file-system";
 import { supabase, haySupabase } from "./supabase";
 import { RUTAS_SEED, nombreTipoRuta } from "./rutas-datos";
+import { ZONA_MATAMOROS } from "./zona-matamoros";
 import {
   esCuentaDeMuestra,
   saldoDeMuestra,
@@ -81,11 +82,45 @@ export async function listarRutas() {
  * db/015 crea `zonas_cobertura()`, que devuelve solo lo que el mapa dibuja.
  * Si la funcion todavia no esta aplicada en la base, se cae de vuelta a
  * `listarRutas()`: se vera la cobertura corta, pero la pantalla no se rompe.
+ *
+ * Y si al final no hay NINGUNA zona dibujable, va el contorno de Matamoros
+ * (`zona-matamoros.js`), igual que en la web. Pasa en dos casos:
+ *  · las 5 rutas reales no traen poligono, asi que `zonas_cobertura()`
+ *    contesta una lista vacia y el mapa le decia "todavia no llegamos ahi"
+ *    a TODOS los clientes;
+ *  · en "Explorar sin cuenta" no hay sesion, y la funcion solo se le
+ *    entrega a usuarios con sesion (`grant ... to authenticated`).
  */
 export async function zonasDeCobertura() {
   if (!haySupabase()) return RUTAS_SEED;
 
-  const { data, error } = await supabase.rpc("zonas_cobertura");
+  const zonas = await zonasDeLaBase();
+  const dibujables = zonas.filter((r) => r.activa && r.zona.length >= 3);
+  if (dibujables.length) return dibujables;
+
+  return [{
+    id: ZONA_MATAMOROS.clave,
+    nombre: ZONA_MATAMOROS.nombre,
+    // Sin tipo ni dias: es la cobertura de la EMPRESA, no una ruta. La
+    // pantalla no pinta esos renglones cuando vienen vacios.
+    tipo: "",
+    dias: [],
+    zona: ZONA_MATAMOROS.zona,
+    activa: true,
+    unidad: "",
+    chofer: "",
+    cupo: null,
+  }];
+}
+
+async function zonasDeLaBase() {
+  let respuesta;
+  try {
+    respuesta = await supabase.rpc("zonas_cobertura");
+  } catch {
+    return [];
+  }
+  const { data, error } = respuesta;
 
   if (error || !data) return listarRutas();
 

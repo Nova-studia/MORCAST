@@ -61,6 +61,18 @@ export default function Login({ onLogin, navigation }) {
           Entrar al portal
         </Boton>
 
+        {/* Para quien todavía no es cliente: cotizar y ver la cobertura sin
+            cuenta (ver pantallas/explorar/Explorar.js). */}
+        <Text style={s.noCliente}>¿Todavía no eres cliente?</Text>
+        <Pressable
+          onPress={() => navigation.navigate("Explorar")}
+          style={({ pressed }) => [s.explorar, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+        >
+          <Feather name="compass" size={17} color={T.accionTxt} />
+          <Text style={s.explorarTxt}>Explorar sin cuenta</Text>
+        </Pressable>
+
         <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
           <Pressable onPress={() => navigation.navigate("LoginAdmin")} style={s.acceso}>
             <Feather name="shield" size={15} color={T.gris} />
@@ -91,6 +103,13 @@ const s = StyleSheet.create({
   },
   error: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(219,101,45,0.14)", borderRadius: 10, padding: 11, marginBottom: 6 },
   errorTxt: { color: "#f0895c", fontSize: 13, flex: 1 },
+  noCliente: { color: T.gris, fontSize: 13, textAlign: "center", marginTop: 18, marginBottom: 8 },
+  explorar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderWidth: 1, borderColor: T.accion, backgroundColor: T.accionTinte,
+    borderRadius: 11, paddingVertical: 13, marginBottom: 6,
+  },
+  explorarTxt: { color: T.accionTxt, fontSize: 14.5, fontWeight: "700" },
   acceso: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingVertical: 11 },
   accesoTxt: { color: T.gris, fontSize: 13.5, fontWeight: "600" },
   pie: { color: T.grisClaro, fontSize: 12, textAlign: "center", marginTop: 24 },

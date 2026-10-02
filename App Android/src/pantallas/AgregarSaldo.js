@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, TextInput, Image, Alert } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, TextInput, Image, Alert, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
@@ -52,8 +52,14 @@ export default function AgregarSaldo() {
   const puede = montoNum > 0 && comprobante;
 
   const desdeGaleria = async () => {
-    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permiso.granted) return Alert.alert("Permiso necesario", "Activa el acceso a tus fotos.");
+    // En iOS la galería abre con el selector del sistema (PHPicker), que NO
+    // necesita permiso: el usuario sólo le entrega a la app la foto que
+    // elige. Pedirlo igual le preguntaba por TODA su fototeca sin necesidad
+    // (guía 5.1.1 de Apple: pedir sólo lo indispensable).
+    if (Platform.OS !== "ios") {
+      const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permiso.granted) return Alert.alert("Permiso necesario", "Activa el acceso a tus fotos.");
+    }
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6 });
     if (!r.canceled) { setComprobante(r.assets[0]); setEnviada(false); }
   };
@@ -65,10 +71,16 @@ export default function AgregarSaldo() {
     if (!r.canceled) { setComprobante(r.assets[0]); setEnviada(false); }
   };
 
+  // En iPhone la cámara (o la galería) no se puede abrir mientras la alerta
+  // todavía se está cerrando: iOS la presenta encima de una vista que ya se
+  // va, y queda CONGELADA — no dispara ni deja salir (probado en un iPhone
+  // 16 Pro Max el 1-oct-2026). Se espera a que la alerta termine de irse.
+  const trasCerrarAlerta = (fn) => () => setTimeout(fn, Platform.OS === "ios" ? 600 : 0);
+
   const elegirComprobante = () => {
     Alert.alert("Subir comprobante", "¿Cómo quieres agregar tu comprobante?", [
-      { text: "Tomar foto", onPress: desdeCamara },
-      { text: "Elegir de galería", onPress: desdeGaleria },
+      { text: "Tomar foto", onPress: trasCerrarAlerta(desdeCamara) },
+      { text: "Elegir de galería", onPress: trasCerrarAlerta(desdeGaleria) },
       { text: "Cancelar", style: "cancel" },
     ]);
   };
@@ -135,9 +147,9 @@ export default function AgregarSaldo() {
             <View style={s.nota}>
               <Feather name="info" size={14} color="#e0a94d" />
               <Text style={s.notaTxt}>
-                Todavía no publicamos la cuenta aquí. Pídenos los datos para transferir
-                por WhatsApp al 868 384 9478 o al correo contacto@morcast.mx, y sube tu
-                comprobante en esta misma pantalla.
+                Pídenos la CLABE por WhatsApp al 868 384 9478 o en contacto@morcast.mx y
+                te la enviamos. Después de transferir, sube tu comprobante en esta misma
+                pantalla.
               </Text>
             </View>
           </>
