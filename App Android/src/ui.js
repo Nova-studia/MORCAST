@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { T, BADGE, radio } from "./tema";
 import { Feather } from "@expo/vector-icons";
 import { enHold, HOLD } from "./estado-sistema";
+import { TEXTO_AVISO_PRECIOS, TEXTO_AVISO_PRECIOS_CORTO } from "./aviso-precios.js";
 
 export function Tarjeta({ children, style }) {
   return <View style={[s.tarjeta, style]}>{children}</View>;
@@ -88,6 +89,30 @@ export function AvisoHold({ style }) {
   );
 }
 
+/**
+ * AVISO DE QUE LOS PRECIOS PUEDEN CAMBIAR.
+ *
+ * Pedido de los dueños (4-oct-2026): junto a CUALQUIER precio o cotización,
+ * un aviso importante y claramente visible de que el precio final puede ser
+ * otro. El texto sale de `aviso-precios.js`, copia literal de la web, para
+ * que la app, el portal y los PDF digan exactamente lo mismo.
+ *
+ * `compacto` (la versión de una línea) es para junto a una cifra; el normal
+ * encabeza una pantalla de precios. Va en azul de información, no en ámbar:
+ * no es un error ni una alerta, es una condición del servicio.
+ */
+export function AvisoPrecios({ compacto = false, style }) {
+  return (
+    <View style={[s.precios, compacto && s.preciosCompacto, style]} accessibilityRole="text">
+      <Feather name="info" size={compacto ? 14 : 17} color={T.accionTxt} style={{ marginTop: 1 }} />
+      <Text style={[s.preciosTxt, compacto && { fontSize: 12, lineHeight: 17 }]}>
+        <Text style={{ fontWeight: "800" }}>Importante: </Text>
+        {compacto ? TEXTO_AVISO_PRECIOS_CORTO : TEXTO_AVISO_PRECIOS}
+      </Text>
+    </View>
+  );
+}
+
 export function EncabezadoPantalla({ titulo, sub }) {
   return (
     <View style={{ marginBottom: 14 }}>
@@ -98,6 +123,14 @@ export function EncabezadoPantalla({ titulo, sub }) {
 }
 
 const s = StyleSheet.create({
+  precios: {
+    flexDirection: "row", alignItems: "flex-start", gap: 9,
+    backgroundColor: T.accionTinte,
+    borderWidth: 1, borderColor: "rgba(42,106,153,0.55)", borderLeftWidth: 4, borderLeftColor: T.accion,
+    borderRadius: 10, padding: 12, marginBottom: 14,
+  },
+  preciosCompacto: { paddingVertical: 8, paddingHorizontal: 10, marginBottom: 10 },
+  preciosTxt: { flex: 1, color: T.tinta, fontSize: 13, lineHeight: 19 },
   hold: {
     flexDirection: "row", alignItems: "flex-start", gap: 8,
     backgroundColor: "rgba(214,164,74,0.12)",

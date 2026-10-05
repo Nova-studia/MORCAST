@@ -204,7 +204,7 @@ export function reportarDepositoDeMuestra({ monto, banco, referencia, comprobant
 }
 
 /** El revisor pide una recolección: se queda en memoria, no va a la base. */
-export function pedirRecoleccionDeMuestra({ fecha, nota, origen = "ruta" }, rutaNombre) {
+export function pedirRecoleccionDeMuestra({ fecha, nota, origen = "ruta", tipoResiduo = "" }, rutaNombre) {
   const folio = `REC-DEMO-S${String(solicitudesPedidas.length + 1).padStart(2, "0")}`;
   solicitudesPedidas.unshift({
     id: `muestra-sol-${solicitudesPedidas.length + 1}`,
@@ -214,6 +214,7 @@ export function pedirRecoleccionDeMuestra({ fecha, nota, origen = "ruta" }, ruta
     fechaConfirmada: null,
     estado: "solicitada",
     nota: nota || "",
+    tipoResiduo: tipoResiduo || "",
     rutaNombre: rutaNombre || "Sin ruta",
     unidad: "",
   });

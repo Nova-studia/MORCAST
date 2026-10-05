@@ -20,8 +20,13 @@ export const TIPOS_RUTA = [
   { id: "compactador", nombre: "Compactador trasero", detalle: "Carga trasera compactada, para alto volumen de RSU." },
 ];
 
-/** Se opera de lunes a sábado. Nunca domingo. */
-export const DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+/**
+ * Los días en que puede pasar una unidad. Con domingo: el cuaderno real de la
+ * empresa (27-ago-2026) trae rutas de "LUNES A DOMINGO" (ver la web).
+ */
+export const DIAS_SEMANA = [
+  "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo",
+];
 
 export const ESTADOS_SOLICITUD_REC = [
   { id: "solicitada", texto: "Solicitada", clase: "prog" },
@@ -29,6 +34,18 @@ export const ESTADOS_SOLICITUD_REC = [
   { id: "en-ruta", texto: "En ruta", clase: "ruta" },
   { id: "completada", texto: "Completada", clase: "ok" },
   { id: "rechazada", texto: "Rechazada", clase: "mal" },
+  // El chofer llegó y no se pudo recoger (otro residuo, cerrado…). Lleva
+  // motivo obligatorio y NO se cobra (db/023).
+  { id: "no-procedio", texto: "No procedió", clase: "mal" },
+];
+
+/** Motivos de "No procedió" que elige el chofer (más "Otro", con detalle). */
+export const MOTIVOS_NO_PROCEDIO = [
+  "El residuo no es el que se agendó",
+  "Cerrado o sin acceso",
+  "El contenedor no estaba",
+  "El cliente canceló en el lugar",
+  "Otro",
 ];
 
 export const USOS_CFDI = [

@@ -165,6 +165,8 @@ export function estatusInfo(estatus) {
     case "completado": return { texto: "Completado", clase: "ok" };
     case "programado": return { texto: "Programado", clase: "prog" };
     case "en-ruta": return { texto: "En ruta", clase: "ruta" };
+    // El chofer llegó y no se pudo recoger (db/023). No se cobra.
+    case "no-procedio": return { texto: "No procedió", clase: "mal" };
     case "aplicada": return { texto: "Aplicada", clase: "ok" };
     case "por-verificar": return { texto: "Por verificar", clase: "prog" };
     default: return { texto: estatus, clase: "none" };

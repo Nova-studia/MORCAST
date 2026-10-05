@@ -9,6 +9,7 @@ import {
   CONDICIONES_COMERCIALES,
   DATOS_TRANSFERENCIA,
 } from "./cotizacion-datos";
+import { TEXTO_AVISO_PRECIOS } from "./aviso-precios.js";
 
 /**
  * ESTILOS DEL PDF (puesto al dia el 7-sep-2026).
@@ -49,8 +50,18 @@ const CSS = `
   .firma { flex:1; border-top:1px solid #99a; padding-top:6px; text-align:center; font-size:10px; }
   .caja { background:#f4f9f7; border-left:3px solid #265421; padding:10px 12px; font-size:10.5px; color:#3a4a48; margin-top:10px; }
   .subtit { font-size:9.5px; font-weight:800; letter-spacing:0.06em; color:#265421; }
+  .aviso-precios { background:#eef4fa; border:1px solid #2a6a99; border-left-width:4px; border-radius:6px; padding:10px 12px; font-size:10.5px; color:#163a55; line-height:1.45; margin-top:12px; }
   .pie { margin-top:24px; border-top:1px solid #e1e6e5; padding-top:10px; color:#9aa4a2; font-size:9px; }
 `;
+
+/**
+ * Recuadro "Importante: los precios pueden cambiar" (pedido de los dueños,
+ * 4-oct-2026). El texto es el MISMO de la pantalla y de los PDF de la web
+ * (`TEXTO_AVISO_PRECIOS`). Va en recuadro de color y no como nota gris al
+ * pie: estos PDF andan sueltos, se reenvían y se imprimen. Azul sobre blanco
+ * (#163a55 sobre #eef4fa) para que se lea igual impreso.
+ */
+const avisoPrecios = `<div class="aviso-precios"><strong>Importante:</strong> ${TEXTO_AVISO_PRECIOS}</div>`;
 
 const cabecera = `
   <div class="cab">
@@ -177,6 +188,7 @@ export async function descargarReporte(titulo, filas, cliente, { conMonto = !enH
         <tr><td style="font-weight:800">Total</td><td style="font-weight:800">${num(totalVol)} ton</td>${conMonto ? `<td style="font-weight:800">${pesos(totalMonto)}</td>` : ""}</tr>
       </table>
       ${conMonto ? "" : `<div class="caja">${enHold() ? "Sistema en preparación: todavía no se generan cobros, por eso este reporte no lleva montos." : "Este reporte lleva solo el peso: los montos de cada servicio todavía no se registran en el sistema."}</div>`}
+      ${avisoPrecios}
       <div class="pie">${pie("Reporte")}</div>
     </div>`;
   return generar(html, `${titulo} ${cliente.id}`);
@@ -226,7 +238,7 @@ export async function descargarCotizacion(items, cliente) {
         <div class="tot"><span>IVA (16%)</span><span>${pesos(iva)}</span></div>
         <div class="tot g"><span>Total</span><span>${pesos(total)}</span></div>
       </div>
-      <div class="caja">Precios de referencia sujetos a confirmación según volumen, frecuencia y condiciones del sitio.</div>
+      ${avisoPrecios}
       <div style="display:flex; gap:18px; margin-top:14px">
         <div style="flex:1">
           <div class="subtit">CONDICIONES COMERCIALES</div>

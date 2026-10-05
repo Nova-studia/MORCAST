@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -27,10 +27,16 @@ import CoberturaPublica from "./src/pantallas/explorar/CoberturaPublica";
 import LoginChofer from "./src/pantallas/chofer/LoginChofer";
 import RutaChofer from "./src/pantallas/chofer/RutaChofer";
 import Recoleccion from "./src/pantallas/chofer/Recoleccion";
+import NoProcedio from "./src/pantallas/chofer/NoProcedio";
+import ReportarProblema from "./src/pantallas/chofer/ReportarProblema";
 import { RUTA_HOY } from "./src/datos-chofer";
 import { rutaDelDia, cerrarRecoleccion } from "./src/datos-remoto";
 import { sesionActiva, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
+// Notificaciones push (1.1)
+import { prepararNotificaciones, escucharToques } from "./src/push";
+import { destinoDeNotificacion } from "./src/push-destino.js";
+import PermisoPush from "./src/pantallas/PermisoPush";
 // Admin
 import LoginAdmin from "./src/pantallas/admin/LoginAdmin";
 import PanelAdmin from "./src/pantallas/admin/PanelAdmin";
@@ -41,11 +47,16 @@ import Clientes from "./src/pantallas/admin/Clientes";
 import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
+import VerificacionAdmin from "./src/pantallas/admin/VerificacionAdmin";
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
+
+// Para navegar desde FUERA de las pantallas: al tocar una notificación, la
+// app todavía no está dentro de ninguna pantalla que tenga `navigation`.
+const navegacion = createNavigationContainerRef();
 
 // En iPhone el botón de regresar lleva el título de la pantalla anterior, y
 // las pestañas (TabsCliente, TabsAdmin, Ruta) no tienen uno visible: salía su
@@ -97,6 +108,8 @@ function AppChofer({ onLogout }) {
   // todavía no lo sabe.
   const [cargandoRuta, setCargandoRuta] = useState(haySupabase());
 
+  // Devuelve la promesa: "No procedió" y jalar-para-refrescar esperan a que
+  // la lista ya esté al día antes de seguir.
   const recargarRuta = () =>
     rutaDelDia()
       .then((paradas) => {
@@ -138,10 +151,18 @@ function AppChofer({ onLogout }) {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
-        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} />}
+        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} />}
       </Stack.Screen>
       <Stack.Screen name="Recoleccion" options={{ title: "Recolección" }}>
         {(props) => <Recoleccion {...props} completar={completar} />}
+      </Stack.Screen>
+      {/* Lo que pidieron los dueños el 4-oct-2026 para la calle: cerrar una
+          parada sin cobro y avisar a la oficina de cualquier problema. */}
+      <Stack.Screen name="NoProcedio" options={{ title: "No procedió" }}>
+        {(props) => <NoProcedio {...props} recargarRuta={recargarRuta} />}
+      </Stack.Screen>
+      <Stack.Screen name="ReportarProblema" options={{ title: "Reportar un problema" }}>
+        {(props) => <ReportarProblema {...props} ruta={ruta} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -168,6 +189,10 @@ function TabsCliente({ onLogout }) {
 
 function AppCliente({ onLogout }) {
   return (
+    <>
+    {/* Explica para qué son las notificaciones ANTES de que Android pida el
+        permiso, y registra este teléfono para la cuenta (ver PermisoPush). */}
+    <PermisoPush modo="cliente" />
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tinta, headerTitleStyle: { fontWeight: "700" }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="TabsCliente" options={{ headerShown: false }}>
         {(props) => <TabsCliente {...props} onLogout={onLogout} />}
@@ -178,6 +203,7 @@ function AppCliente({ onLogout }) {
       <Stack.Screen name="Cobertura" component={Cobertura} options={{ title: "Cobertura" }} />
       <Stack.Screen name="Agendar" component={Agendar} options={{ title: "Agendar" }} />
     </Stack.Navigator>
+    </>
   );
 }
 
@@ -200,6 +226,30 @@ function TabsAdmin({ onLogout }) {
   );
 }
 
+/**
+ * El panel SOLO detrás del código por correo (pedido de los dueños,
+ * 4-oct-2026; ver VerificacionAdmin y segundo-paso.js). `alPasar` avisa a
+ * App que el panel ya existe, para que una notificación de incidente que se
+ * tocó antes de escribir el código lo abra hasta entonces.
+ */
+function AdminConCandado({ onLogout, alPasar }) {
+  const [paso, setPaso] = useState(false);
+  if (!paso) {
+    return (
+      <VerificacionAdmin
+        onLogout={onLogout}
+        alPasar={() => { setPaso(true); alPasar?.(); }}
+      />
+    );
+  }
+  return (
+    <>
+      <PermisoPush modo="admin" />
+      <AppAdmin onLogout={onLogout} />
+    </>
+  );
+}
+
 function AppAdmin({ onLogout }) {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.naranjaClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
@@ -217,6 +267,42 @@ function AppAdmin({ onLogout }) {
 export default function App() {
   const [sesion, setSesion] = useState(null); // null | "cliente" | "admin" | "chofer"
   const [revisando, setRevisando] = useState(true);
+  // El admin ya pasó el código por correo (solo entonces existe su panel).
+  const [adminListo, setAdminListo] = useState(false);
+  // La notificación que se tocó y todavía no se atiende: puede llegar antes
+  // de que la sesión se haya recuperado o de que el admin pase su código.
+  const [toque, setToque] = useState(null);
+
+  /**
+   * Notificaciones: el canal de Android y quién escucha los toques. Se monta
+   * una sola vez, ANTES de saber quién entra, porque la notificación que abrió
+   * la app desde cerrada solo se puede leer al arrancar.
+   */
+  useEffect(() => {
+    prepararNotificaciones();
+    return escucharToques((data) => setToque({ data, cuando: Date.now() }));
+  }, []);
+
+  /**
+   * Lleva a la pantalla de la notificación en cuanto exista: Inicio del
+   * cliente para un aviso, el Panel para un incidente (ver push-destino.js).
+   * Sin sesión todavía, se espera; con una sesión que no le corresponde (un
+   * aviso tocado donde ahora entró el admin), solo se descarta.
+   */
+  const atenderToque = useCallback(() => {
+    if (!toque || !sesion) return;
+    if (sesion === "admin" && !adminListo) return;
+    const destino = destinoDeNotificacion(toque.data, sesion);
+    setToque(null);
+    if (!destino) return;
+    // Un respiro para que el navegador de esa sesión termine de montarse.
+    setTimeout(() => {
+      if (navegacion.isReady()) {
+        navegacion.navigate(destino.pila, { screen: destino.pestana, params: destino.params });
+      }
+    }, 300);
+  }, [toque, sesion, adminListo]);
+  useEffect(() => { atenderToque(); }, [atenderToque]);
 
   /**
    * Al abrir la app se busca una sesión guardada y se entra directo.
@@ -268,6 +354,7 @@ export default function App() {
 
   const salir = async () => {
     await salirDeSesion();
+    setAdminListo(false);
     setSesion(null);
   };
 
@@ -288,9 +375,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <NavigationContainer theme={temaNav}>
+      <NavigationContainer theme={temaNav} ref={navegacion} onReady={atenderToque}>
         {sesion === "admin" ? (
-          <AppAdmin onLogout={salir} />
+          <AdminConCandado onLogout={salir} alPasar={() => setAdminListo(true)} />
         ) : sesion === "chofer" ? (
           <AppChofer onLogout={salir} />
         ) : sesion === "cliente" ? (

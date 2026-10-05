@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
-import { Tarjeta, TituloTarjeta, Boton } from "../ui";
+import { Tarjeta, TituloTarjeta, Boton, AvisoPrecios } from "../ui";
 import { CATALOGO_COTIZADOR, IVA, pesos, HAY_DATOS_FISCALES } from "../datos";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
@@ -67,6 +67,7 @@ export default function Cotizador() {
             cotizamos por escrito: escríbenos y te contestamos con los montos
             de tus servicios.
           </Text>
+          <AvisoPrecios compacto style={{ marginTop: 14, marginBottom: 0, alignSelf: "stretch" }} />
           <Boton onPress={pedirCotizacion} style={{ marginTop: 16 }}>
             <Feather name="message-circle" size={16} color="#fff" />
             <Text style={{ color: "#fff", fontWeight: "700" }}>  Pedir una cotización</Text>
@@ -80,6 +81,9 @@ export default function Cotizador() {
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.h1}>Cotizador</Text>
       <Text style={s.sub}>Arma tu cotización y descárgala en PDF. Precios de referencia.</Text>
+      {/* Pedido de los dueños (4-oct-2026): el aviso va ARRIBA, antes de
+          cualquier cifra, no en letra chica al final. */}
+      <AvisoPrecios />
 
       <Tarjeta>
         <TituloTarjeta>Servicios</TituloTarjeta>
@@ -123,6 +127,8 @@ export default function Cotizador() {
             <View style={s.totFila}><Text style={s.totK}>Subtotal</Text><Text style={s.totV}>{pesos(subtotal)}</Text></View>
             <View style={s.totFila}><Text style={s.totK}>IVA (16%)</Text><Text style={s.totV}>{pesos(iva)}</Text></View>
             <View style={s.totFila}><Text style={s.totKg}>Total</Text><Text style={s.totVg}>{pesos(total)}</Text></View>
+            {/* Y otra vez junto al total: es la cifra que se va a copiar. */}
+            <AvisoPrecios compacto style={{ marginTop: 10, marginBottom: 0 }} />
 
             <Boton onPress={bajarCotizacion} disabled={bajando === "cot"} style={{ marginTop: 14 }}>
               <Feather name="download" size={16} color="#fff" />

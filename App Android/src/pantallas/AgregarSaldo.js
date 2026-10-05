@@ -5,7 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
 import { T } from "../tema";
 import { enHold, SIN_CIFRA } from "../estado-sistema";
-import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
+import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold, AvisoPrecios } from "../ui";
 import { CUENTA, DATOS_DEPOSITO, BANCOS, RECARGAS, CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, reportarDeposito, miEmpresa } from "../datos-remoto";
 import { haySupabase } from "../supabase";
@@ -124,6 +124,9 @@ export default function AgregarSaldo() {
       <Text style={s.h1}>Agregar saldo</Text>
       <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Deposita a la cuenta de Morcast y sube tu comprobante. Lo verificamos y aplicamos el saldo.</Text>
+      {/* El saldo se gasta en servicios cuyo precio puede cambiar: el aviso va
+          ANTES de depositar, no después (pedido de los dueños, 4-oct-2026). */}
+      <AvisoPrecios />
 
       <View style={s.saldoMini}>
         <Text style={s.saldoLbl}>Saldo a favor actual</Text>

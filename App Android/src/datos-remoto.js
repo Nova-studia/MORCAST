@@ -1,6 +1,11 @@
 import { File } from "expo-file-system";
 import { supabase, haySupabase } from "./supabase";
+import { postApp } from "./api-web";
 import { RUTAS_SEED, nombreTipoRuta } from "./rutas-datos";
+import { direccionDe } from "./mapas.js";
+import { validarSolicitud } from "./solicitudes.js";
+import { validarNoProcedio, validarReporte } from "./chofer-reportes.js";
+import { DIAS_EN_PORTAL, avisosPorMostrar, esDuplicado } from "./avisos.js";
 import { ZONA_MATAMOROS } from "./zona-matamoros";
 import {
   esCuentaDeMuestra,
@@ -173,7 +178,7 @@ export async function misSolicitudes() {
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
-    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, rutas ( nombre )")
+    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, tipo_residuo, motivo_no_procedio, detalle_no_procedio, rutas ( nombre )")
     .order("fecha_pedida", { ascending: false });
 
   // Cuenta de muestra: lo que el revisor pidió en esta sesión va arriba (no
@@ -189,6 +194,13 @@ export async function misSolicitudes() {
     fechaConfirmada: s.fecha_confirmada,
     estado: s.estado,
     nota: s.nota || "",
+    // Las solicitudes viejas (antes de db/023) no lo traen: la pantalla dice
+    // "Residuo sin especificar", no se adivina.
+    tipoResiduo: s.tipo_residuo || "",
+    // Si el chofer la marcó "No procedió", el porqué: es lo que el cliente
+    // necesita leer para entender que no se le cobra y qué corregir.
+    motivoNoProcedio: s.motivo_no_procedio || "",
+    detalleNoProcedio: s.detalle_no_procedio || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
   })));
@@ -198,15 +210,23 @@ export async function misSolicitudes() {
  * El cliente pide recolección. No manda ni su empresa ni el estado: la
  * empresa sale de su sesión y el estado nace en "solicitada". El RLS lo
  * obliga aunque se manipule la llamada.
+ *
+ * El tipo de residuo es OBLIGATORIO (pedido de los dueños, 4-oct-2026, igual
+ * que en la web): con él el chofer sabe qué va a recoger, y si al llegar es
+ * otra cosa lo marca "No procedió" y no se cobra. Se valida aquí también y
+ * no solo en la pantalla, para que ningún camino lo mande vacío.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null }) {
+export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo }) {
+  const v = validarSolicitud({ fecha, tipoResiduo, nota });
+  if (!v.ok) return { ok: false, motivo: v.mensaje };
+
   if (!haySupabase()) return { ok: true, demo: true };
 
   // La cuenta de muestra del revisor NO escribe en la base: su solicitud le
   // llegaría a la bandeja de Morcast como si fuera de un cliente.
   if (esCuentaDeMuestra()) {
     const su = await miSuscripcion();
-    return pedirRecoleccionDeMuestra({ fecha, nota, origen }, su?.ruta?.nombre);
+    return pedirRecoleccionDeMuestra({ fecha, nota, origen, tipoResiduo }, su?.ruta?.nombre);
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -252,6 +272,7 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     fecha_pedida: fecha,
     estado: "solicitada",
     nota: nota || "",
+    tipo_residuo: tipoResiduo,
   });
 
   if (error) {
@@ -503,6 +524,9 @@ const ESTATUS_PANTALLA = {
   confirmada: "programado",
   "en-ruta": "en-ruta",
   completada: "completado",
+  // El chofer llegó y no se pudo recoger. NO es "programado": antes caía en
+  // "Próximos servicios" como si el camión todavía fuera a pasar.
+  "no-procedio": "no-procedio",
 };
 
 export async function misServicios() {
@@ -512,6 +536,7 @@ export async function misServicios() {
     .from("solicitudes_recoleccion")
     .select(`
       id, folio, fecha_pedida, fecha_confirmada, origen, estado,
+      tipo_residuo, motivo_no_procedio, detalle_no_procedio,
       rutas ( nombre, tipo, unidad, chofer ),
       recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues )
     `)
@@ -536,7 +561,10 @@ export async function misServicios() {
         folio: s.folio,
         fecha: s.fecha_confirmada || s.fecha_pedida,
         tipo: nombreTipoRuta(s.rutas?.tipo) || "Recolección",
-        residuo: s.origen === "extra" ? "Recolección extra" : "Residuos de ruta",
+        // El residuo que pidió al agendar (db/023); las viejas no lo traen.
+        residuo: s.tipo_residuo || (s.origen === "extra" ? "Recolección extra" : "Residuos de ruta"),
+        motivoNoProcedio: s.motivo_no_procedio || "",
+        detalleNoProcedio: s.detalle_no_procedio || "",
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "—",
         peso: ev?.peso_kg ? `${ev.peso_kg} kg` : "—",
         unidad: s.rutas?.unidad || "—",
@@ -574,19 +602,31 @@ export async function misServicios() {
 /* MODO CHOFER                                                          */
 /* ==================================================================== */
 
+/**
+ * Las paradas del chofer para una fecha.
+ *
+ * Se traen las confirmadas, las que van en ruta y las ya resueltas
+ * (completadas o "No procedió"). Una "solicitada" no aparece a propósito: si
+ * Morcast no la ha confirmado, el chofer no debería ir por ella.
+ *
+ * Trae el punto COMPLETO (calle, colonia, C.P., lat/lng y referencias) para
+ * "Cómo llegar" y para guardar la ubicación, y el tipo de residuo que pidió
+ * el cliente, que es contra lo que el chofer compara al llegar. Misma forma
+ * que la web (`Web/lib/datos-chofer.js`, `aParada`).
+ */
 export async function rutaDelDia(fecha = hoyISO()) {
   if (!haySupabase()) return [];
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
     .select(`
-      id, folio, estado, fecha_pedida, fecha_confirmada, nota,
+      id, folio, estado, fecha_pedida, fecha_confirmada, hora_confirmada, nota, tipo_residuo, motivo_no_procedio,
       clientes ( empresa ),
-      domicilios ( alias, calle, colonia ),
-      rutas ( nombre, unidad ),
+      domicilios ( id, alias, calle, colonia, cp, lat, lng, referencias ),
+      rutas ( nombre, unidad, unidades ( numero_economico ) ),
       recolecciones ( id, qr, peso_kg )
     `)
-    .in("estado", ["confirmada", "en-ruta", "completada"])
+    .in("estado", ["confirmada", "en-ruta", "completada", "no-procedio"])
     .or(`fecha_confirmada.eq.${fecha},and(fecha_confirmada.is.null,fecha_pedida.eq.${fecha})`)
     .order("folio");
 
@@ -594,19 +634,286 @@ export async function rutaDelDia(fecha = hoyISO()) {
 
   return (data || []).map((s) => {
     const ev = s.recolecciones?.[0] || null;
+    const d = s.domicilios || null;
     return {
       id: s.id,
       folio: s.folio,
+      estado: s.estado,
       cliente: s.clientes?.empresa || "—",
-      direccion: s.domicilios
-        ? [s.domicilios.alias, s.domicilios.calle, s.domicilios.colonia].filter(Boolean).join(" · ")
+      direccion: d
+        ? [d.alias, d.calle, d.colonia].filter(Boolean).join(" · ")
         : "Sin domicilio registrado",
-      unidad: s.rutas?.unidad || "Sin unidad",
+      punto: d
+        ? { id: d.id, alias: d.alias, calle: d.calle, colonia: d.colonia, cp: d.cp, lat: d.lat, lng: d.lng }
+        : null,
+      direccionCompleta: d ? direccionDe(d) : "",
+      referencias: d?.referencias || "",
+      // Lo que pidió el cliente al agendar. Las viejas no lo traen: se dice
+      // "sin especificar", no se adivina.
+      tipoResiduo: s.tipo_residuo || "",
+      // Lo que las tarjetas del chofer enseñan como "tipo" (la demo traía el
+      // servicio; con la base es el residuo que pidió el cliente).
+      tipo: s.tipo_residuo || "Residuo sin especificar",
+      // La hora que confirmó la oficina (db/013), para el cuadrito de la
+      // tarjeta. Antes salía vacío con datos reales.
+      hora: s.hora_confirmada ? String(s.hora_confirmada).slice(0, 5) : "—",
+      // La unidad del inventario (db/023) si la ruta ya la tiene; si no, el
+      // texto viejo de la ruta.
+      unidad: s.rutas?.unidades?.numero_economico || s.rutas?.unidad || "Sin unidad",
       nota: s.nota || "",
-      estatus: s.estado === "completada" && ev ? "completado" : "pendiente",
+      motivoNoProcedio: s.motivo_no_procedio || "",
+      // "No procedió" también sale de los pendientes: ya quedó resuelta.
+      estatus:
+        s.estado === "no-procedio"
+          ? "no-procedio"
+          : s.estado === "completada" && ev
+            ? "completado"
+            : "pendiente",
       evidencia: ev,
     };
   });
+}
+
+/**
+ * Guarda la ubicación del punto con el GPS del chofer, parado en la entrada.
+ *
+ * Va por la función `fijar_ubicacion_punto` (db/023) y no por un UPDATE: el
+ * chofer no edita domicilios. La función solo acepta puntos de SUS paradas,
+ * coordenadas dentro de Matamoros, y nunca pisa una ubicación que puso la
+ * oficina; en ese caso devuelve `false` y se le dice al chofer que su
+ * lectura no se usó.
+ */
+export async function fijarUbicacionPunto(solicitudId, lectura) {
+  if (!lectura || typeof lectura.lat !== "number") {
+    return { ok: false, motivo: "Todavía no hay una lectura de GPS." };
+  }
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { data, error } = await supabase.rpc("fijar_ubicacion_punto", {
+    p_solicitud: solicitudId,
+    p_lat: lectura.lat,
+    p_lng: lectura.lng,
+  });
+  // La función responde en español ("Esa ubicación no está en Matamoros."):
+  // se le pasa tal cual al chofer.
+  if (error) return { ok: false, motivo: error.message };
+  if (data !== true) {
+    return { ok: false, motivo: "Este punto ya tiene la ubicación que puso la oficina; no se cambió." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Los contenedores registrados en un punto (db/023). El RLS solo le deja ver
+ * al chofer los de los puntos de sus paradas.
+ *
+ * Devuelve `null` (no `[]`) si no se pudo leer: "no tiene contenedores" y
+ * "no hay señal" son cosas distintas para quien compara el QR.
+ */
+export async function contenedoresDelPunto(domicilioId) {
+  if (!domicilioId) return [];
+  if (!haySupabase()) return [];
+  try {
+    const { data, error } = await supabase
+      .from("contenedores")
+      .select("id, codigo, tipo, medida, estado")
+      .eq("domicilio_id", domicilioId)
+      .order("codigo");
+    if (error) return null;
+    return data || [];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * "No procedió": el chofer llegó y no se pudo recoger (otro residuo,
+ * cerrado, el contenedor no estaba…). La parada se cierra SIN cobro.
+ *
+ * Solo desde 'confirmada' o 'en-ruta' (lo mismo que exige la política
+ * `solicitudes_cierra_operador` de db/023). La foto, si la hay, ya se subió
+ * a `evidencias/<solicitud>/no-procedio-<hora>.jpg`: la tabla no tiene
+ * columna para ella y la oficina la encuentra por ese nombre, junto a las
+ * demás fotos de la parada.
+ */
+export async function marcarNoProcedio(solicitudId, { motivo, detalle } = {}) {
+  const v = validarNoProcedio({ motivo, detalle });
+  if (!v.ok) return { ok: false, motivo: v.mensaje, campo: v.campo };
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { data, error } = await supabase
+    .from("solicitudes_recoleccion")
+    .update({ estado: "no-procedio", ...v.datos })
+    .eq("id", solicitudId)
+    .in("estado", ["confirmada", "en-ruta"])
+    .select("id");
+
+  // El trigger de db/023 contesta en español ("hay que decir el motivo").
+  if (error) return { ok: false, motivo: error.message };
+  // Un UPDATE que el RLS bloquea no da error: cambia cero filas.
+  if (!data?.length) {
+    return {
+      ok: false,
+      motivo: "No se cambió nada: esa parada ya no está abierta o no es de tu ruta. Avisa a la oficina.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sube la foto de un incidente a `incidentes/<uid del chofer>/…`. La carpeta
+ * no es decorativa: la política de la cubeta (db/023) solo deja subir a la
+ * que se llama como quien sube. Mismo cuidado que la evidencia: los bytes se
+ * leen con `File(...).bytes()` o se sube un archivo vacío sin error.
+ */
+export async function subirFotoIncidente(uri, tipoMime = "image/jpeg") {
+  if (!haySupabase()) return { ok: true, demo: true, ruta: null };
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+
+  let binario;
+  try {
+    binario = await new File(uri).bytes();
+  } catch {
+    return { ok: false, motivo: "No se pudo leer la foto del teléfono." };
+  }
+  if (!binario || binario.length === 0) return { ok: false, motivo: "La foto salió vacía. Tómala de nuevo." };
+
+  const extension = (tipoMime.split("/")[1] || "jpg").replace("jpeg", "jpg");
+  const ruta = `${user.id}/${Date.now()}.${extension}`;
+  const { error } = await supabase.storage
+    .from("incidentes")
+    .upload(ruta, binario, { contentType: tipoMime, upsert: false });
+  return error ? { ok: false, motivo: error.message } : { ok: true, ruta };
+}
+
+/**
+ * El chofer reporta un incidente. Se GUARDA primero (insert directo con su
+ * sesión: la política `incidentes_reporta_operador` es el guardia) y después
+ * se le pide a la web que avise a la oficina (`/api/app/incidente-avisado`).
+ * Si ese aviso falla, el reporte NO se pierde: ya está en la base y la
+ * oficina lo ve en el panel.
+ *
+ * La unidad y la ruta no las escribe el chofer: salen de la parada (si el
+ * reporte va amarrado a una) o de la ruta que él maneja, igual que la web.
+ */
+export async function reportarIncidente(entrada = {}) {
+  const v = validarReporte(entrada);
+  if (!v.ok) return { ok: false, motivo: v.mensaje, campo: v.campo };
+  const datos = v.datos;
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+
+  // La foto llega ya subida; solo se acepta si está en SU carpeta.
+  const foto = entrada.foto ? String(entrada.foto) : null;
+  if (foto && (!foto.startsWith(`${user.id}/`) || foto.includes(".."))) {
+    return { ok: false, motivo: "La foto no se subió a tu carpeta. Tómala otra vez." };
+  }
+
+  let ruta = null;
+  if (datos.solicitud_id) {
+    const { data } = await supabase
+      .from("solicitudes_recoleccion")
+      .select("id, rutas ( id, unidad_id )")
+      .eq("id", datos.solicitud_id)
+      .maybeSingle();
+    if (!data) return { ok: false, motivo: "Esa parada no está en tu ruta." };
+    ruta = data.rutas || null;
+  }
+  if (!ruta) {
+    // Sin parada: la ruta activa que maneja; si tiene varias, primero la que
+    // ya tiene unidad asignada.
+    const { data } = await supabase
+      .from("rutas")
+      .select("id, unidad_id")
+      .eq("chofer_id", user.id)
+      .eq("activa", true)
+      .order("unidad_id", { ascending: true, nullsFirst: false })
+      .limit(1);
+    ruta = data?.[0] || null;
+  }
+
+  const { data: filas, error } = await supabase
+    .from("incidentes")
+    .insert({
+      ...datos,
+      foto,
+      operador_id: user.id,
+      unidad_id: ruta?.unidad_id || null,
+      ruta_id: ruta?.id || null,
+    })
+    .select("id");
+
+  if (error) return { ok: false, motivo: "No se pudo guardar el reporte. Revisa tu señal e intenta otra vez." };
+  if (!filas?.length) return { ok: false, motivo: "No se guardó el reporte: la base no te dejó. Llama a la oficina." };
+
+  const id = filas[0].id;
+  const aviso = await postApp("incidente-avisado", { incidente_id: id });
+  return { ok: true, id, avisado: Boolean(aviso.ok) };
+}
+
+/* ==================================================================== */
+/* AVISOS DE MORCAST AL CLIENTE                                         */
+/* ==================================================================== */
+
+/**
+ * Los avisos que el cliente tiene que ver en Inicio: los de los últimos 30
+ * días, vigentes y que todavía no marcó "Enterado". Cuáles le tocan lo decide
+ * la base (RLS `avisos_lee_cliente`); aquí solo se quitan los vencidos y los
+ * leídos. Si algo falla devuelve `[]`: los avisos son un extra de Inicio y
+ * no pueden tumbar la pantalla.
+ */
+export async function avisosDelCliente() {
+  if (!haySupabase()) return [];
+  try {
+    const desde = new Date(Date.now() - DIAS_EN_PORTAL * 864e5).toISOString();
+    const [avisos, leidos] = await Promise.all([
+      supabase
+        .from("avisos")
+        .select("id, titulo, mensaje, motivo, vigente_hasta, creado")
+        .gte("creado", desde)
+        .order("creado", { ascending: false })
+        .limit(20),
+      misAvisosLeidos(),
+    ]);
+    if (avisos.error) return [];
+    return avisosPorMostrar(avisos.data, leidos);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Los ids que este usuario ya marcó "Enterado" (`avisos_lecturas`, db/026).
+ * Si la tabla todavía no existe en la base, es como no haber leído ninguno:
+ * el aviso se vuelve a ver, que es mejor que perderlo.
+ */
+async function misAvisosLeidos() {
+  try {
+    const { data, error } = await supabase.from("avisos_lecturas").select("aviso_id");
+    if (error) return [];
+    return (data || []).map((l) => l.aviso_id);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * "Enterado": queda guardado en la base para que no vuelva a salir en este
+ * ni en otro teléfono. Si ya estaba (23505: dos toques, o dos teléfonos) es
+ * lo mismo que guardarlo.
+ */
+export async function marcarAvisoEnterado(avisoId) {
+  if (!haySupabase()) return { ok: true, demo: true };
+  try {
+    const { error } = await supabase.from("avisos_lecturas").insert({ aviso_id: avisoId });
+    if (error && !esDuplicado(error)) return { ok: false, motivo: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, motivo: e?.message || String(e) };
+  }
 }
 
 /**

@@ -3,14 +3,25 @@ import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { enHold, SIN_CIFRA } from "../estado-sistema";
-import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold } from "../ui";
+import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold, AvisoPrecios } from "../ui";
 import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, misServicios } from "../datos-remoto";
 import { useMiEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
+import { esProximo } from "../solicitudes.js";
+import AvisosCliente from "./AvisosCliente";
 
-export default function Inicio({ navigation }) {
+export default function Inicio({ navigation, route }) {
   const [saldo, setSaldo] = useState(null);
+  // Cada vez que cambia se vuelven a leer los avisos: al regresar a esta
+  // pestaña y al tocar una notificación de aviso (llega `route.params.aviso`).
+  // Sin esto, un aviso que llega con la app abierta no aparecía hasta
+  // cerrarla y volver a abrirla.
+  const [recargaAvisos, setRecargaAvisos] = useState(0);
+  useEffect(() => navigation.addListener("focus", () => setRecargaAvisos((n) => n + 1)), [navigation]);
+  useEffect(() => {
+    if (route?.params?.aviso) setRecargaAvisos((n) => n + 1);
+  }, [route?.params?.aviso]);
   const [movs, setMovs] = useState(null);
   const [servicios, setServicios] = useState(null);
   const { empresa } = useMiEmpresa();
@@ -40,13 +51,18 @@ export default function Inicio({ navigation }) {
   const listaServicios = servicios || (conBase ? [] : SERVICIOS_CLIENTE);
 
   const completados = listaServicios.filter((x) => x.estatus === "completado");
-  const proximos = listaServicios.filter((x) => x.estatus !== "completado");
+  // Solo lo que todavía va a pasar. Un "No procedió" ya pasó (el chofer fue y
+  // no se pudo): no es un próximo servicio, aunque tampoco esté completado.
+  const proximos = listaServicios.filter(esProximo);
   const nombre = (empresa.contacto || empresa.empresa || "").split(" ").slice(-1)[0];
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
       <Text style={s.hola}>Hola{nombre ? `, ${nombre}` : ""} 👋</Text>
       <Text style={s.sub}>Resumen de {empresa.empresa}.</Text>
+      {/* Lo primero que se ve: si la ruta va tarde o se cambió el día, el
+          cliente tiene que enterarse antes que de su saldo. */}
+      <AvisosCliente recarga={recargaAvisos} />
       <AvisoHold />
 
       {/* Saldo */}
@@ -78,6 +94,11 @@ export default function Inicio({ navigation }) {
         <Kpi icono="truck" color={T.ok} etiqueta="Servicios" valor={cargandoServicios ? "…" : String(completados.length)} />
         <Kpi icono="calendar" color={T.accionTxt} etiqueta="Próximos" valor={cargandoServicios ? "…" : String(proximos.length)} />
       </View>
+
+      {/* Pedido de los dueños (4-oct-2026): junto a toda cifra de dinero, el
+          aviso de que el precio puede cambiar. En Hold no hay cifras (todo
+          dice "—"), así que no hay nada que matizar. Igual que el portal. */}
+      {!enHold() && <AvisoPrecios compacto />}
 
       {/* Próximos servicios */}
       <Tarjeta>

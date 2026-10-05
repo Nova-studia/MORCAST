@@ -92,8 +92,8 @@ android {
         applicationId 'mx.morcast.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.1"
+        versionCode 5
+        versionName "1.1.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -179,4 +179,20 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+// FIREBASE / NOTIFICACIONES PUSH — solo si está google-services.json.
+//
+// Sin ese archivo el plugin de Google truena el build ("File
+// google-services.json is missing"). El archivo no se versiona (el repo es
+// público) y todavía no existe: así la app compila igual y simplemente no
+// registra push. Cuando exista, lo copia aquí `scripts/copiar-google-services.js`
+// (en EAS, con el gancho eas-build-post-install) o se pone a mano en
+// android/app/. Ver README, «Notificaciones push».
+//
+// ⚠️ `expo prebuild` reconoce esta línea y no agrega otra al final.
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+} else {
+    println "[morcast] Sin android/app/google-services.json: se compila SIN notificaciones push."
 }
