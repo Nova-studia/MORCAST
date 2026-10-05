@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { mfaPanelActivo, necesitaVerificar } from "./mfa.mjs";
 
 /**
  * Cliente de Supabase para el SERVIDOR, con la sesión del usuario.
@@ -60,6 +61,16 @@ export async function usuarioActual() {
     .single();
 
   if (!perfil || !perfil.activo) return null;
+
+  // Personal sin el segundo paso: se le trata como si no tuviera rol. Así una
+  // acción del servidor no se puede llamar a mano con solo la contraseña,
+  // aunque proxy.js ya lo hubiera mandado a verificar (ver lib/mfa.mjs).
+  if (mfaPanelActivo() && (perfil.rol === "dueno" || perfil.rol === "admin")) {
+    const { data: nivel } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (necesitaVerificar({ rol: perfil.rol, aal: nivel?.currentLevel })) {
+      return { correo: user.email, ...perfil, rol: "sin-verificar", rolReal: perfil.rol };
+    }
+  }
 
   return { correo: user.email, ...perfil };
 }

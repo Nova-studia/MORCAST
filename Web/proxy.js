@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
+import { RUTA_VERIFICACION, mfaPanelActivo, necesitaVerificar } from "@/lib/mfa.mjs";
 
 /**
  * GUARDIA DE RUTAS — se ejecuta en el servidor ANTES de entregar la página.
@@ -139,6 +140,27 @@ export async function proxy(request) {
   // Cada quien en su área. Un cliente no entra al panel, un chofer no entra al
   // portal, y el personal no anda en el modo chofer.
   if (zonaAdmin && !esPersonal) return aSuCasa();
+
+  // Segundo paso del panel (lib/mfa.mjs). La pantalla de verificación es la
+  // única del panel que se ve con solo la contraseña.
+  if (zonaAdmin && mfaPanelActivo()) {
+    const enVerificacion = esArea(ruta, RUTA_VERIFICACION);
+    const { data: nivel } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const falta = necesitaVerificar({ rol, aal: nivel?.currentLevel });
+    if (falta && !enVerificacion) {
+      const url = request.nextUrl.clone();
+      url.pathname = RUTA_VERIFICACION;
+      url.search = "";
+      url.searchParams.set("volver", ruta);
+      return NextResponse.redirect(url);
+    }
+    if (!falta && enVerificacion) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
   if (zonaChofer && rol !== "operador") return aSuCasa();
   if (esArea(ruta, "/portal") && rol !== "cliente") return aSuCasa();
 

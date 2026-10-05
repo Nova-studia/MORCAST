@@ -11,6 +11,7 @@ import {
   ROLES_INVITABLES,
   validarInvitacion,
   puedeInvitar,
+  puedeDarRol,
   puedeCambiarActivo,
 } from "@/lib/equipo.mjs";
 
@@ -51,6 +52,9 @@ export async function invitarUsuarioEquipo({ nombre, correo, rol }) {
   const v = validarInvitacion({ nombre, correo, rol });
   if (!v.ok) return { ok: false, motivo: v.motivo };
   const { limpio } = v;
+  if (!puedeDarRol(quien, limpio.rol)) {
+    return { ok: false, motivo: "Solo el dueño puede dar acceso de administrador." };
+  }
   const sb = supabaseServidor();
 
   // 1) ¿Ya existe ese correo? `generateLink({type:"recovery"})` NO crea al

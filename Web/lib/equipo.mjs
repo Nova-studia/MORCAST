@@ -45,6 +45,22 @@ export function puedeInvitar(quien) {
 }
 
 /**
+ * ¿Puede `quien` dar este rol?
+ *
+ * El acceso administrativo lo da y lo quita SOLO el dueño (pedido de los
+ * dueños, 4-oct-2026: "seguridad para roles administrativos"). Si un admin
+ * pudiera crear otros admins, una sola cuenta robada bastaría para abrir
+ * puertas nuevas que sobreviven al cambio de su contraseña. El admin sí puede
+ * invitar choferes: es su trabajo diario. La base aplica la misma regla
+ * (db/022), así que no se brinca llamando a Supabase directo.
+ */
+export function puedeDarRol(quien, rol) {
+  if (!ES_PERSONAL(quien?.rol)) return false;
+  if (rol === "admin") return quien.rol === "dueno";
+  return rol === "operador";
+}
+
+/**
  * ¿Puede `quien` desactivar o reactivar a `objetivo`?
  *
  * Nunca al dueño (es la cuenta que no se puede perder) ni a sí mismo (se
@@ -58,6 +74,9 @@ export function puedeCambiarActivo({ quien, objetivo } = {}) {
   if (objetivo.id === quien.id) return { puede: false, motivo: "No puedes desactivar tu propia cuenta." };
   if (objetivo.rol !== "admin" && objetivo.rol !== "operador") {
     return { puede: false, motivo: "Desde aquí solo se administra al personal de Morcast." };
+  }
+  if (objetivo.rol === "admin" && quien.rol !== "dueno") {
+    return { puede: false, motivo: "Solo el dueño puede desactivar o reactivar a un administrador." };
   }
   return { puede: true };
 }

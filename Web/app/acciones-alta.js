@@ -4,6 +4,7 @@ import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { correoAvisoAlta, correoAcuseAlta } from "@/lib/correo";
 import { registrar } from "@/lib/bitacora";
 import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
+import { pasarFreno } from "@/lib/freno";
 
 /**
  * Alta de cliente desde la pantalla pública.
@@ -122,6 +123,12 @@ export async function registrarAlta(entrada) {
 
   // Sin base configurada la pantalla sigue siendo navegable (modo prototipo).
   if (!haySupabase()) return { ok: true, demo: true, folio: fila.folio };
+
+  // Cada alta manda un acuse al correo que escribieron: sin freno, la
+  // pantalla servía para mandarle correos de Morcast a cualquiera.
+  if (!(await pasarFreno("alta", { maximo: 5, minutos: 60 }))) {
+    return { ok: false, motivo: "Recibimos varias solicitudes desde este equipo. Espera un rato o llámanos directo." };
+  }
 
   const { error } = await supabaseServidor().from("solicitudes_alta").insert(fila);
   if (error) {

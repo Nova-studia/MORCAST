@@ -4,6 +4,7 @@ import {
   ROLES_INVITABLES,
   validarInvitacion,
   puedeInvitar,
+  puedeDarRol,
   puedeCambiarActivo,
 } from "../lib/equipo.mjs";
 
@@ -42,7 +43,23 @@ test("nadie desactiva al dueño ni a sí mismo", () => {
   assert.equal(puedeCambiarActivo({ quien: admin, objetivo: admin }).puede, false);
 });
 
-test("el personal puede desactivar a otro admin o a un chofer, pero no a un cliente", () => {
+test("solo el dueño da acceso de administrador; el admin solo invita choferes", () => {
+  assert.equal(puedeDarRol({ rol: "dueno" }, "admin"), true);
+  assert.equal(puedeDarRol({ rol: "dueno" }, "operador"), true);
+  assert.equal(puedeDarRol({ rol: "admin" }, "admin"), false);
+  assert.equal(puedeDarRol({ rol: "admin" }, "operador"), true);
+  assert.equal(puedeDarRol({ rol: "admin" }, "dueno"), false);
+  assert.equal(puedeDarRol({ rol: "operador" }, "operador"), false);
+  assert.equal(puedeDarRol(null, "operador"), false);
+});
+
+test("un admin no desactiva a otro admin; el dueño sí", () => {
+  const admin = { id: "a", rol: "admin" };
+  assert.equal(puedeCambiarActivo({ quien: admin, objetivo: { id: "x", rol: "admin" } }).puede, false);
+  assert.equal(puedeCambiarActivo({ quien: { id: "d", rol: "dueno" }, objetivo: { id: "x", rol: "admin" } }).puede, true);
+});
+
+test("el dueño desactiva admins y el personal choferes, pero nadie a un cliente", () => {
   const dueno = { id: "d", rol: "dueno" };
   assert.equal(puedeCambiarActivo({ quien: dueno, objetivo: { id: "x", rol: "admin" } }).puede, true);
   assert.equal(puedeCambiarActivo({ quien: { id: "a", rol: "admin" }, objetivo: { id: "x", rol: "operador" } }).puede, true);

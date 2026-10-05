@@ -87,4 +87,26 @@ export const TEXTO_ACCION = {
   desactivar_usuario: "Desactivó la cuenta de alguien del equipo",
   reactivar_usuario: "Reactivó la cuenta de alguien del equipo",
   cambiar_estado_cotizacion: "Cambió el estado de una cotización",
+  // Las anota la propia base (db/022), venga el cambio de la web, de la app
+  // o de una llamada directa a la API.
+  db_insert: "Alta",
+  db_update: "Cambio",
+  db_delete: "Borrado",
 };
+
+/** Cómo se llama cada tabla en la bitácora, para las filas que anota la base. */
+export const TEXTO_TABLA = {
+  movimientos_saldo: "movimiento de saldo",
+  perfiles: "cuenta de acceso",
+  clientes: "cliente",
+  rutas: "ruta",
+  solicitudes_recoleccion: "solicitud de recolección",
+  domicilios: "punto de recolección",
+};
+
+/** El texto de la columna «Acción» de una fila de la bitácora. */
+export function textoDeAccion(fila) {
+  const base = TEXTO_ACCION[fila.accion] || fila.accion;
+  if (!String(fila.accion).startsWith("db_")) return base;
+  return `${base} de ${TEXTO_TABLA[fila.tabla] || fila.tabla || "registro"}`;
+}

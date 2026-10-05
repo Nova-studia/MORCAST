@@ -1,4 +1,4 @@
-import { listarBitacora, TEXTO_ACCION } from "@/lib/bitacora";
+import { listarBitacora, textoDeAccion } from "@/lib/bitacora";
 
 export const metadata = { title: "Bitácora · Morcast" };
 
@@ -29,6 +29,8 @@ function resumen(fila) {
   if (d.rol_nuevo) partes.push(`rol: ${d.rol_nuevo}`);
   if (d.estado) partes.push(d.estado);
   if (d.notas) partes.push(`«${d.notas}»`);
+  // Las filas que anota la base (db/022) traen qué columnas cambiaron.
+  if (d.cambios) partes.push(`cambió: ${Object.keys(d.cambios).join(", ")}`);
   return partes.join(" · ") || "—";
 }
 
@@ -72,7 +74,7 @@ export default async function Bitacora() {
                   <tr key={f.id}>
                     <td style={{ whiteSpace: "nowrap" }}>{cuando(f.creado)}</td>
                     <td>{f.actor_correo || "—"}</td>
-                    <td>{TEXTO_ACCION[f.accion] || f.accion}</td>
+                    <td>{textoDeAccion(f)}</td>
                     <td>{resumen(f)}</td>
                   </tr>
                 ))}
