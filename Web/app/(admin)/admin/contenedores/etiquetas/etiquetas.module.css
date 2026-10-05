@@ -1,0 +1,166 @@
+/*
+ * HOJA DE ETIQUETAS QR — tamaño carta.
+ *
+ * En pantalla se ve como una hoja blanca dentro del panel (vista previa); al
+ * imprimir se esconde TODO el panel (menú, barra de arriba, avisos) y solo
+ * salen las hojas. Las reglas que esconden el panel van atadas a
+ * `body:has(.raiz)`: la hoja de estilos se queda cargada al navegar a otra
+ * pantalla (así funciona Next), y sin ese candado imprimir cualquier otra
+ * página del panel también saldría sin menú.
+ *
+ * Medidas en pulgadas porque la hoja carta se mide así (8.5 × 11 in) y la
+ * impresora respeta las unidades físicas al imprimir al 100 %.
+ */
+
+@page {
+  size: letter;
+  margin: 0.4in;
+}
+
+.raiz {
+  /* El área útil: carta menos los márgenes de arriba. */
+  --ancho-util: 7.7in;
+  --alto-util: 10.15in;
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.nota {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--mc-gris);
+  max-width: 62ch;
+}
+
+.hojas {
+  display: grid;
+  gap: 1.5rem;
+  justify-content: start;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.hoja {
+  box-sizing: content-box;
+  width: var(--ancho-util);
+  height: var(--alto-util);
+  padding: 0.4in; /* en pantalla imita el margen que pone la impresora */
+  background: #fff;
+  color: #000;
+  border-radius: 4px;
+  display: grid;
+  /* minmax(0, 1fr) y no 1fr a secas: `1fr` deja crecer el renglón al alto
+     de su contenido, y con que cada uno creciera centésimas la hoja ya no
+     cabía en la página: el último renglón brincaba a la hoja siguiente y
+     quedaba ENCIMA del primero de ésa (se vio en el PDF de prueba). */
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--filas), minmax(0, 1fr));
+}
+
+.etiqueta,
+.vacia {
+  /* Línea de corte punteada, gris claro: guía la tijera si se imprime en
+     papel normal y casi no se nota sobre una hoja adhesiva precortada. */
+  outline: 0.5pt dashed #c4c4c4;
+  outline-offset: -0.25pt;
+}
+
+.etiqueta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.08in;
+  overflow: hidden;
+  break-inside: avoid;
+}
+
+.qr {
+  display: block;
+  width: 1.55in;
+  height: 1.55in;
+}
+
+/* El código, grande: si el QR se raya, el chofer lo teclea. */
+.codigo {
+  margin-top: 0.04in;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 500;
+  font-size: 19pt;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.marca {
+  margin-top: 0.05in;
+  font-size: 7.5pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.telefono {
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9pt;
+  letter-spacing: 0.04em;
+}
+
+/* 6 por hoja: para tolvas y compactadores, que se ven de más lejos. */
+.grande .qr { width: 2.4in; height: 2.4in; }
+.grande .codigo { font-size: 28pt; }
+.grande .marca { font-size: 9.5pt; }
+.grande .telefono { font-size: 12pt; }
+
+/* En el teléfono la hoja no cabe: se ve reducida (la impresión no cambia). */
+@media screen and (max-width: 1100px) {
+  .hoja { zoom: 0.75; }
+}
+@media screen and (max-width: 760px) {
+  .hoja { zoom: 0.42; }
+}
+
+@media print {
+  /* Fuera todo lo del panel; solo quedan las hojas. */
+  :global(body):has(.raiz) :global(.pt-sidebar),
+  :global(body):has(.raiz) :global(.pt-topbar),
+  :global(body):has(.raiz) :global(.pt-overlay),
+  :global(body):has(.raiz) :global(.mc-avance),
+  :global(body):has(.raiz) :global(.pt-content > :not(.mc-pagina)) {
+    display: none !important;
+  }
+  :global(html):has(.raiz),
+  :global(body):has(.raiz),
+  :global(body):has(.raiz) :global(.pt-body),
+  :global(body):has(.raiz) :global(.pt-shell),
+  :global(body):has(.raiz) :global(.pt-main),
+  :global(body):has(.raiz) :global(.pt-content),
+  :global(body):has(.raiz) :global(.mc-pagina) {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .barra { display: none; }
+  .hojas { display: block; overflow: visible; padding: 0; }
+  .hoja {
+    padding: 0;
+    border-radius: 0;
+    zoom: 1;
+    break-after: page;
+  }
+  .hoja:last-child { break-after: auto; }
+}
