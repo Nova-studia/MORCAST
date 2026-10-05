@@ -315,11 +315,81 @@ await debePasar("con su suscripción pausada, el cliente sigue viendo su ruta", 
 await debePasar("pero ya no los avisos de esa ruta (todos + sector = 2)", "cliente", `select titulo from public.avisos`, [], 2);
 await db.query(`update public.suscripciones set estado='activa' where cliente_id=$1`, [cli1.id]);
 
+console.log("\n17 · 025: alta con firma electrónica");
+// El servidor (llave de servicio = sin sesión) guarda un alta firmada con su evidencia.
+const H = (c) => c.repeat(64);
+const { rows: [altaF] } = await db.query(
+  `insert into public.solicitudes_alta
+     (folio, empresa, contacto, telefono, correo, servicios_por_mes,
+      firmado_en, firmante_nombre, terminos_version, contenido_firmado, contenido_huella,
+      pdf_ruta, pdf_huella, confirmacion_huella, confirmacion_vence)
+   values ('ALTA-T-1','Golfo','Ana','8680000000','ana@golfo.mx', 4,
+      now(), 'Ana Pérez', '2026-10-v1-borrador', '{"folio":"ALTA-T-1"}', $1,
+      'x/solicitud.pdf', $2, $3, now() + interval '7 days') returning id`, [H("a"), H("b"), H("c")]);
+await debeFallar("un anónimo NO lee las altas", "anon", `select id from public.solicitudes_alta`);
+await debeFallar("un cliente NO lee las altas", "cliente", `select id from public.solicitudes_alta`);
+await debeFallar("un chofer NO lee las altas", "chofer", `select id from public.solicitudes_alta`);
+await debePasar("el admin SÍ las lee", "admin", `select id from public.solicitudes_alta where id=$1`, [altaF.id], 1);
+await debeFallar("un anónimo NO mete altas directo a la tabla", "anon",
+  `insert into public.solicitudes_alta (folio, empresa, contacto, telefono, correo) values ('ALTA-X','x','x','x','x@x.mx')`);
+await debePasar("el admin cambia el estado y las notas", "admin",
+  `update public.solicitudes_alta set estado='contactada', notas='llamar el lunes' where id=$1`, [altaF.id], 1);
+await debeFallar("el admin NO marca el correo como confirmado", "admin",
+  `update public.solicitudes_alta set correo_confirmado=true, correo_confirmado_en=now(), correo_confirmado_por='enlace', confirmacion_huella=null where id=$1`, [altaF.id]);
+await debeFallar("el admin NO cambia la huella de lo firmado", "admin",
+  `update public.solicitudes_alta set contenido_huella=$2 where id=$1`, [altaF.id, H("d")]);
+await debeFallar("el admin NO cambia los datos firmados (la empresa)", "admin",
+  `update public.solicitudes_alta set empresa='Otra' where id=$1`, [altaF.id]);
+await debeFallar("el admin NO cambia quién firmó", "admin",
+  `update public.solicitudes_alta set firmante_nombre='Otro' where id=$1`, [altaF.id]);
+await debeFallar("el admin NO borra un alta firmada", "admin", `delete from public.solicitudes_alta where id=$1`, [altaF.id]);
+// La confirmación la hace el servidor: borra la huella del token (un solo uso).
+try {
+  await db.query(`update public.solicitudes_alta set correo_confirmado=true, correo_confirmado_en=now(),
+    correo_confirmado_por='enlace', confirmacion_huella=null, confirmacion_vence=null where id=$1`, [altaF.id]);
+  console.log("  ✓ el servidor confirma el correo");
+} catch (e) { fallas++; console.log("  ✖ el servidor no pudo confirmar el correo —", e.message); }
+const sinCandado = async (titulo, sql, params) => {
+  try { await db.query(sql, params); fallas++; console.log(`  ✖ ${titulo} — PASÓ y no debía`); }
+  catch (e) { console.log(`  ✓ ${titulo} → ${e.message}`); }
+};
+await sinCandado("NI el servidor guarda un token en claro (no tiene forma de huella)",
+  `insert into public.solicitudes_alta (folio, empresa, contacto, telefono, correo, confirmacion_huella, confirmacion_vence)
+   values ('ALTA-T-3','x','x','x','x@x.mx','AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdE', now())`);
+await sinCandado("un correo confirmado no conserva un token vivo",
+  `update public.solicitudes_alta set confirmacion_huella=$2 where id=$1`, [altaF.id, H("e")]);
+await sinCandado("una firma sin huella no entra",
+  `insert into public.solicitudes_alta (folio, empresa, contacto, telefono, correo, firmado_en, firmante_nombre, terminos_version)
+   values ('ALTA-T-2','x','x','x','x@x.mx', now(), 'X Y', 'v1')`);
+await sinCandado("un modo de confirmación inventado no entra",
+  `update public.solicitudes_alta set correo_confirmado_por='whatsapp' where id=$1`, [altaF.id]);
+
+const cubeta = (await db.query(`select public, file_size_limit from storage.buckets where id='altas'`)).rows[0];
+if (!cubeta || cubeta.public !== false) { fallas++; console.log("  ✖ la cubeta altas no existe o es pública", cubeta); }
+else console.log(`  ✓ la cubeta altas es privada (tope ${cubeta.file_size_limit} bytes)`);
+await db.exec("set role service_role");
+await db.query(`insert into storage.objects (bucket_id, name) values ('altas', $1)`, [`${altaF.id}/firma.png`]);
+await db.exec("reset role");
+console.log("  ✓ el servidor (service_role) sube la firma");
+await debePasar("el admin SÍ ve la firma (para firmar el enlace de descarga)", "admin",
+  `select name from storage.objects where bucket_id='altas'`, [], 1);
+await debeFallar("un cliente NO ve archivos de altas", "cliente", `select name from storage.objects where bucket_id='altas'`);
+await debeFallar("un chofer NO ve archivos de altas", "chofer", `select name from storage.objects where bucket_id='altas'`);
+await debeFallar("un anónimo NO ve archivos de altas", "anon", `select name from storage.objects where bucket_id='altas'`);
+await debeFallar("un anónimo NO sube a altas", "anon",
+  `insert into storage.objects (bucket_id, name) values ('altas', $1)`, [`${altaF.id}/otra.png`]);
+await debeFallar("el admin NO sube ni reemplaza archivos de altas", "admin",
+  `insert into storage.objects (bucket_id, name) values ('altas', $1)`, [`${altaF.id}/firma2.png`]);
+await debeFallar("el admin NO cambia un archivo de altas", "admin",
+  `update storage.objects set name='x/firma.png' where bucket_id='altas'`);
+await debeFallar("el admin NO borra la firma", "admin", `delete from storage.objects where bucket_id='altas'`);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "024-ajustes-de-la-revision.sql"), "utf8"));
-  console.log("✓ 022, 023 y 024 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022/023 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "025-alta-con-firma.sql"), "utf8"));
+  console.log("✓ 022, 023, 024 y 025 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022/023/024/025 no son idempotentes:", e.message); }
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);

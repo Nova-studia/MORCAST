@@ -7,7 +7,7 @@ import { Info } from "@phosphor-icons/react/dist/ssr";
  * CUALQUIER precio o cotización, un aviso importante y claramente visible de
  * que, a pesar de la cotización, el precio puede modificarse. Un solo
  * componente para que el texto sea siempre el mismo en todas partes; si los
- * dueños lo quieren cambiar, se cambia aquí.
+ * dueños lo quieren cambiar, se cambia en `lib/aviso-precios.mjs`.
  *
  * `compacto` es para espacios chicos (junto a una cifra) y usa la versión
  * corta; el normal es para encabezar una página de precios.
@@ -15,12 +15,12 @@ import { Info } from "@phosphor-icons/react/dist/ssr";
  * Redacción formal pedida por Luis (5-oct): que el cliente no reclame "es que
  * me había salido otro precio". Pendiente de revisión por un abogado.
  */
-export const TEXTO_AVISO_PRECIOS =
-  "Las cotizaciones y precios mostrados son estimados de referencia y no constituyen una oferta definitiva. El precio final está sujeto a una revisión del servicio por parte de Morcast del Norte (tipo de residuo, volumen, equipo y condiciones de acceso), por lo que puede ser distinto al cotizado. La cotización final es opcional: usted puede aceptarla o rechazarla sin ningún compromiso.";
-
-/** La misma idea en una línea, para junto a una cifra donde no cabe el texto completo. */
-export const TEXTO_AVISO_PRECIOS_CORTO =
-  "Precio estimado: el monto final está sujeto a revisión y usted puede aceptarlo o rechazarlo sin compromiso.";
+// El texto vive en `lib/aviso-precios.mjs` para que el PDF de la solicitud de
+// alta (que se genera en el servidor) y los Términos del servicio lo citen
+// sin importar este archivo JSX. Se reexporta para no romper a quien ya lo
+// importaba de aquí (`lib/portal-pdf.js`).
+import { TEXTO_AVISO_PRECIOS, TEXTO_AVISO_PRECIOS_CORTO } from "@/lib/aviso-precios.mjs";
+export { TEXTO_AVISO_PRECIOS, TEXTO_AVISO_PRECIOS_CORTO };
 
 export default function AvisoPrecios({ compacto = false, style }) {
   return (
