@@ -35,9 +35,19 @@ export const ORIGEN_FIJO = "https://morcast.mx";
 
 /**
  * ¿Es un host nuestro?
- * Acepta `morcast.mx`, `www.morcast.mx`, cualquier `*.vercel.app` (las vistas
- * previas) y `localhost`/`127.0.0.1` para desarrollo.
+ * Acepta `morcast.mx`, `www.morcast.mx`, las vistas previas de ESTE proyecto
+ * en Vercel y `localhost`/`127.0.0.1` para desarrollo.
+ *
+ * Antes valía cualquier `*.vercel.app`, y ese dominio lo reparte Vercel a
+ * cualquiera con una cuenta gratis: alguien podía montar su propia
+ * `loquesea.vercel.app`. Las vistas previas de Morcast se ven siempre así
+ * (verificado en los despliegues del 5-oct-2026):
+ *   morcast-<id>-studias-projects-b32a1835.vercel.app
+ *   morcast-git-<rama>-studias-projects-b32a1835.vercel.app
+ * El sufijo es el equipo de Vercel, que nadie más puede usar.
  */
+export const SUFIJO_VISTAS_PREVIAS = "-studias-projects-b32a1835.vercel.app";
+
 export function hostPermitido(nombre) {
   const h = String(nombre || "").trim().toLowerCase().replace(/\.$/, "");
   if (!h) return false;
@@ -46,7 +56,7 @@ export function hostPermitido(nombre) {
     h === "www.morcast.mx" ||
     h === "localhost" ||
     h === "127.0.0.1" ||
-    h.endsWith(".vercel.app")
+    (h.startsWith("morcast-") && h.endsWith(SUFIJO_VISTAS_PREVIAS))
   );
 }
 

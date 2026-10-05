@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { casaDe, decidirDestino, DESTINOS } from "@/lib/destino-sesion.mjs";
 import { ERRORES_LOGIN } from "@/lib/errores-login.mjs";
+import { origenPermitido } from "@/lib/origen.mjs";
 import { solicitudDeUsuario } from "@/lib/solicitudes-registro";
 
 /**

@@ -48,10 +48,32 @@ const DEMO = {
   contacto: "Cuenta Demo",
   correo: "cliente@demo.com",
   telefono: "868 000 0000",
-  // La que está publicada en el README. Cambiarla aquí sin cambiarla allá deja
-  // al revisor de Google Play afuera.
-  password: "0011002",
 };
+
+/**
+ * La contraseña NO vive aquí. Hasta el 5-oct-2026 estaba escrita en este
+ * archivo y en el README, y el repositorio es público: cualquiera entraba a
+ * producción con ella. Ahora sale de la variable `DEMO_PASSWORD` o del archivo
+ * `Web/.env.demo` (`DEMO_PASSWORD=...`), que `.gitignore` deja fuera por `.env*`.
+ * Si se cambia, hay que cambiarla también en Play Console → Acceso a la app,
+ * o el revisor de Google Play se queda afuera.
+ */
+function leerArchivo(ruta) {
+  try {
+    return Object.fromEntries(
+      fs.readFileSync(ruta, "utf8")
+        .split("\n")
+        .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
+        .map((l) => {
+          const i = l.indexOf("=");
+          return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+        })
+    );
+  } catch {
+    return {};
+  }
+}
+const PASSWORD = process.env.DEMO_PASSWORD || leerArchivo(".env.demo").DEMO_PASSWORD || "";
 
 const argumentos = process.argv.slice(2);
 const DE_VERDAD = argumentos.includes("--de-verdad");
@@ -71,6 +93,10 @@ function leerEnv() {
 }
 
 const env = leerEnv();
+if (!QUITAR && PASSWORD.length < 12) {
+  console.error("Falta DEMO_PASSWORD (12 caracteres o más) en la variable de entorno o en .env.demo.");
+  process.exit(1);
+}
 if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
   process.exit(1);
@@ -172,7 +198,7 @@ async function crear() {
   if (!uid) {
     const { data, error } = await sb.auth.admin.createUser({
       email: DEMO.correo,
-      password: DEMO.password,
+      password: PASSWORD,
       email_confirm: true,
       app_metadata: { rol: "cliente", cliente_id: empresa.id },
       user_metadata: { nombre: DEMO.contacto },
@@ -188,7 +214,7 @@ async function crear() {
     console.log(`✓ usuario creado: ${DEMO.correo}`);
   } else {
     const { error } = await sb.auth.admin.updateUserById(uid, {
-      password: DEMO.password,
+      password: PASSWORD,
       email_confirm: true,
       app_metadata: { rol: "cliente", cliente_id: empresa.id },
     });
@@ -219,7 +245,7 @@ async function crear() {
   }
   console.log(`✓ perfil amarrado a ${empresa.folio}`);
   console.log("");
-  console.log(`LISTO. Entra en https://morcast.mx/portal/login con ${DEMO.correo} / ${DEMO.password}`);
+  console.log(`LISTO. Entra en https://morcast.mx/portal/login con ${DEMO.correo} y la contraseña de DEMO_PASSWORD`);
 }
 
 async function quitar() {

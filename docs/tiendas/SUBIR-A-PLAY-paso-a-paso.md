@@ -60,7 +60,7 @@ Copia todo lo que está entre las comillas triples.
 
 ```
 Usuario:    cliente@demo.com
-Contraseña: 0011002
+Contraseña: (la de la cuenta demo; NO se escribe aquí, el repo es público)
 ```
 
 En instrucciones pon:

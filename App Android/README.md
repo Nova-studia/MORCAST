@@ -17,8 +17,8 @@ npx expo start
 ```
 
 Escanea el QR con **Expo Go**. Accesos demo:
-- Cliente: `cliente@demo.com` / `0011002`
-- Chofer: botón "Chofer" → `chofer@demo.com` / `0011002`
+- Cliente: `cliente@demo.com` (contraseña aparte)
+- Chofer: botón "Chofer" → `chofer@demo.com` (contraseña aparte)
 - Admin: botón "Administración" → `morcastmx@gmail.com`, contraseña **aparte**
   (no se documenta; ver `ACCESO-DUENO.txt`, que no va a git)
 
