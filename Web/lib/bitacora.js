@@ -88,6 +88,13 @@ export const TEXTO_ACCION = {
   reactivar_usuario: "Reactivó la cuenta de alguien del equipo",
   cambiar_estado_cotizacion: "Cambió el estado de una cotización",
   entrar_panel: "Entró al panel con el código de su correo",
+  // Peso real del relleno (app/acciones-peso.js, db/023).
+  registrar_viaje_relleno: "Registró un viaje al relleno con su peso real",
+  editar_viaje_relleno: "Editó un viaje al relleno",
+  borrar_viaje_relleno: "Borró un viaje al relleno",
+  subir_ticket_viaje: "Subió la foto del ticket de báscula de un viaje",
+  poner_peso_real: "Puso el peso real de una recolección",
+  quitar_peso_real: "Quitó el peso real de una recolección",
   // Las anota la propia base (db/022), venga el cambio de la web, de la app
   // o de una llamada directa a la API.
   db_insert: "Alta",
