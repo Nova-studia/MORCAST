@@ -11,6 +11,7 @@
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { SOLICITUDES_SEED, nombreTipoRuta } from "@/lib/rutas-datos";
 import { enlaceEvidencia } from "@/lib/datos-archivos";
+import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
@@ -19,7 +20,7 @@ import { enlaceEvidencia } from "@/lib/datos-archivos";
  */
 const CAMPOS = `
   id, folio, origen, fecha_pedida, fecha_confirmada, hora_confirmada, chofer_id,
-  estado, nota, motivo_rechazo, creado,
+  estado, nota, motivo_rechazo, creado, tipo_residuo, motivo_no_procedio, detalle_no_procedio,
   clientes ( folio, empresa ),
   domicilios ( alias, colonia ),
   rutas ( clave, nombre, tipo, unidad, chofer ),
@@ -58,8 +59,21 @@ function aFormatoPantalla(f) {
     estado: f.estado,
     nota: f.nota || "",
     motivoRechazo: f.motivo_rechazo || "",
+    // Lo que el cliente dijo que iba a entregar (db/023). Las solicitudes
+    // de antes no lo traen: queda vacío y la pantalla dice "sin especificar".
+    tipoResiduo: f.tipo_residuo || "",
+    // Si el chofer la marcó "No procedió", el porqué. Es lo que el cliente
+    // necesita leer para entender por qué no se le recogió (y no se cobró).
+    motivoNoProcedio: f.motivo_no_procedio || "",
+    detalleNoProcedio: f.detalle_no_procedio || "",
   };
 }
+
+/**
+ * En el modo prototipo las solicitudes de muestra no traían tipo de
+ * residuo, y la pantalla se veía como si nadie lo hubiera pedido nunca.
+ */
+const RESIDUOS_DEMO = [TIPOS_RESIDUO[1], TIPOS_RESIDUO[0], TIPOS_RESIDUO[6]];
 
 /**
  * Todas las que la sesión tenga permitido ver.
@@ -67,7 +81,12 @@ function aFormatoPantalla(f) {
  * la diferencia la pone el RLS.
  */
 export async function listarSolicitudes() {
-  if (!haySupabaseNavegador()) return SOLICITUDES_SEED;
+  if (!haySupabaseNavegador()) {
+    return SOLICITUDES_SEED.map((s, i) => ({
+      tipoResiduo: RESIDUOS_DEMO[i % RESIDUOS_DEMO.length],
+      ...s,
+    }));
+  }
 
   const { data, error } = await supabaseNavegador()
     .from("solicitudes_recoleccion")
@@ -148,8 +167,16 @@ export async function siguienteFolio() {
  * el estado nace siempre en "solicitada". Aunque alguien manipulara esta
  * llamada, la política de RLS solo acepta insertar a nombre propio y en ese
  * estado; nadie puede darse por confirmado a sí mismo.
+ *
+ * El tipo de residuo es OBLIGATORIO (pedido de los dueños, 4-oct-2026): con
+ * él el chofer sabe qué va a recoger, y si al llegar es otra cosa lo marca
+ * "No procedió". Tiene que ser uno del catálogo (TIPOS_RESIDUO), que es el
+ * mismo que usa el cotizador de WhatsApp.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta" }) {
+export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", tipoResiduo }) {
+  if (!TIPOS_RESIDUO.includes(tipoResiduo)) {
+    return { ok: false, motivo: "Elige qué tipo de residuo vamos a recoger." };
+  }
   if (!haySupabaseNavegador()) return { ok: true, demo: true };
 
   const supabase = supabaseNavegador();
@@ -181,6 +208,7 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     fecha_pedida: fecha,
     estado: "solicitada",
     nota: nota || "",
+    tipo_residuo: tipoResiduo,
   });
 
   if (error) {

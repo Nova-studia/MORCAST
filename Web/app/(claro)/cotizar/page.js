@@ -2,6 +2,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { Encabezado } from "@/components/Secciones";
 import CuestionarioWhatsApp from "@/components/CuestionarioWhatsApp";
 import { enlaceWhatsApp } from "@/lib/datos";
+import AvisoPrecios from "@/components/AvisoPrecios";
 
 export const metadata = {
   title: "Cotiza por WhatsApp",
@@ -59,6 +60,11 @@ export default function Cotizar() {
             </div>
 
             <div className="col-lg-7 order-1 order-lg-2">
+              {/* Pedido de los dueños (4-oct-2026): junto a cualquier
+                  cotización, el aviso de que el precio puede cambiar. Va
+                  ENCIMA del cuestionario, que en el teléfono es lo primero
+                  que se ve; al final de la página nadie lo leería. */}
+              <AvisoPrecios />
               <CuestionarioWhatsApp />
             </div>
           </div>
