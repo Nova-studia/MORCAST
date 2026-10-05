@@ -218,6 +218,12 @@ await debePasar("el chofer fija la ubicación del punto de su parada", "chofer",
   `select public.fijar_ubicacion_punto($1, 25.87, -97.50) as ok`, [sol2.id], 1);
 const ub = (await db.query(`select lat, ubicacion_origen from public.domicilios where id=$1`, [dom1.id])).rows[0];
 if (ub.lat !== 25.87 || ub.ubicacion_origen !== "chofer") { fallas++; console.log("  ✖ la ubicación no quedó guardada", ub); }
+const sec = (await db.query(`select s.clave from public.domicilios d left join public.sectores s on s.id = d.sector_id where d.id=$1`, [dom1.id])).rows[0];
+if (sec.clave !== "A") { fallas++; console.log("  ✖ el sector no se calculó al guardar la ubicación del chofer", sec); }
+else console.log("  ✓ y la base le calcula su sector (A) al momento");
+const fuera = (await db.query(`select public.sector_de_punto(25.70, -97.30) as s`)).rows[0];
+if (fuera.s !== null) { fallas++; console.log("  ✖ un punto fuera de todo sector recibió sector"); }
+else console.log("  ✓ un punto fuera de los sectores queda sin sector");
 await db.query(`update public.domicilios set lat=25.88, lng=-97.51, ubicacion_origen='panel' where id=$1`, [dom1.id]);
 await debePasar("pero NO pisa la que puso el panel", "chofer", `select public.fijar_ubicacion_punto($1, 25.86, -97.49) as ok`, [sol2.id], 1);
 const ub2 = (await db.query(`select lat from public.domicilios where id=$1`, [dom1.id])).rows[0];

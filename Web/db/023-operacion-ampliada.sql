@@ -70,6 +70,54 @@ alter table public.domicilios add column if not exists ubicacion_origen text
 alter table public.domicilios add column if not exists ubicacion_fecha timestamptz;
 create index if not exists domicilios_sector_idx on public.domicilios (sector_id);
 
+-- En qué sector cae un punto. Misma regla que lib/punto-en-zona.mjs (rayo
+-- horizontal) y que lib/sectores.mjs: si cayera en dos, se queda con el
+-- primero por clave (A→D). Null si no cae en ninguno o no hay límites.
+create or replace function public.sector_de_punto(p_lat double precision, p_lng double precision)
+returns uuid
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  v_sector record;
+  v_n      integer;
+  v_i      integer;
+  v_j      integer;
+  v_dentro boolean;
+  lat_i double precision; lng_i double precision;
+  lat_j double precision; lng_j double precision;
+begin
+  if p_lat is null or p_lng is null then
+    return null;
+  end if;
+  for v_sector in
+    select id, zona from public.sectores
+     where activo and jsonb_typeof(zona) = 'array' and jsonb_array_length(zona) >= 3
+     order by clave
+  loop
+    v_n := jsonb_array_length(v_sector.zona);
+    v_dentro := false;
+    v_j := v_n - 1;
+    for v_i in 0 .. v_n - 1 loop
+      lat_i := (v_sector.zona -> v_i ->> 0)::double precision;
+      lng_i := (v_sector.zona -> v_i ->> 1)::double precision;
+      lat_j := (v_sector.zona -> v_j ->> 0)::double precision;
+      lng_j := (v_sector.zona -> v_j ->> 1)::double precision;
+      if (lat_i > p_lat) <> (lat_j > p_lat)
+         and p_lng < (lng_j - lng_i) * (p_lat - lat_i) / (lat_j - lat_i) + lng_i then
+        v_dentro := not v_dentro;
+      end if;
+      v_j := v_i;
+    end loop;
+    if v_dentro then
+      return v_sector.id;
+    end if;
+  end loop;
+  return null;
+end;
+$$;
+
 -- El chofer NO edita domicilios (es dato de Morcast), pero sí puede dejar
 -- la ubicación de un punto que todavía no la tiene, parado frente a él en
 -- su primera visita. Una función y no una política, para que solo pueda
@@ -98,8 +146,11 @@ begin
     raise exception 'Esa parada no es tuya.';
   end if;
 
+  -- El sector se calcula aquí mismo: sin esto, el punto quedaría con el
+  -- sector viejo hasta que alguien recalculara en el panel.
   update public.domicilios
-     set lat = p_lat, lng = p_lng, ubicacion_origen = 'chofer', ubicacion_fecha = now()
+     set lat = p_lat, lng = p_lng, ubicacion_origen = 'chofer', ubicacion_fecha = now(),
+         sector_id = public.sector_de_punto(p_lat, p_lng)
    where id = v_dom and (lat is null or ubicacion_origen is distinct from 'panel');
   return found;
 end;
