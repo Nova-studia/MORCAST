@@ -6,6 +6,7 @@ import {
   PlusCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "@/lib/rutas-datos";
+import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { fechaConDia } from "@/lib/portal-datos";
 import { estadoVencimiento, ordenarPorUrgencia, textoAtraso, hoyISO } from "@/lib/vencimiento";
 import {
@@ -57,6 +58,10 @@ export default function AgendarPortal() {
   const [modo, setModo] = useState("ruta"); // "ruta" | "extra"
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
+  // Sin valor por defecto A PROPÓSITO: si viniera puesto "RSU", el cliente
+  // que no lo lee mandaría RSU aunque entregue otra cosa, y el chofer
+  // llegaría preparado para lo que no es.
+  const [tipoResiduo, setTipoResiduo] = useState("");
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
@@ -80,8 +85,13 @@ export default function AgendarPortal() {
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
 
+  // Con «Otro» la nota pasa a ser obligatoria: "Otro" a secas no le dice al
+  // chofer qué llevar ni a la oficina si lo puede recoger.
+  const faltaDescribirOtro = tipoResiduo === "Otro" && !nota.trim();
+  const puedeEnviar = Boolean(fecha && tipoResiduo && !faltaDescribirOtro);
+
   const enviar = async () => {
-    if (!fecha || enviando) return;
+    if (!puedeEnviar || enviando) return;
     setEnviando(true);
     setError("");
 
@@ -90,6 +100,7 @@ export default function AgendarPortal() {
       fecha,
       nota,
       origen: modo,
+      tipoResiduo,
     });
 
     if (!r.ok) {
@@ -106,6 +117,7 @@ export default function AgendarPortal() {
     setEnviado(r.folio);
     setFecha("");
     setNota("");
+    setTipoResiduo("");
     setEnviando(false);
   };
 
@@ -175,16 +187,44 @@ export default function AgendarPortal() {
             />
           )}
 
+          {/* Pedido de los dueños (4-oct-2026): especificar el residuo al
+              agendar. Si al llegar el chofer encuentra otra cosa, la marca
+              "No procedió" y no se cobra; por eso se pide aquí y no después. */}
+          <label htmlFor="tipo-residuo" style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.4rem" }}>
+            Tipo de residuo <span style={{ color: "var(--pt-error)" }}>*</span>
+          </label>
+          <select
+            id="tipo-residuo"
+            className="pt-input"
+            value={tipoResiduo}
+            onChange={(e) => setTipoResiduo(e.target.value)}
+            required
+            style={{ width: "100%", marginBottom: "0.4rem" }}
+          >
+            <option value="" disabled>Elige qué vamos a recoger</option>
+            {TIPOS_RESIDUO.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <p style={{ fontSize: "0.8rem", color: "var(--mc-gris)", marginBottom: "1rem" }}>
+            Si al llegar el residuo es otro, el chofer no lo puede recoger y la
+            visita queda como «No procedió» (sin cobro).
+          </p>
+
           <textarea
             className="pt-input"
-            placeholder="Nota para la cuadrilla (opcional)"
+            placeholder={
+              tipoResiduo === "Otro"
+                ? "Describe el residuo (obligatorio con «Otro»)"
+                : "Nota para la cuadrilla (opcional)"
+            }
             value={nota}
             onChange={(e) => setNota(e.target.value)}
             rows={3}
             style={{ width: "100%", marginBottom: "1rem" }}
           />
 
-          <button type="button" className="pt-btn pt-btn-verde" style={{ width: "100%", justifyContent: "center" }} onClick={enviar} disabled={!fecha || enviando}>
+          <button type="button" className="pt-btn pt-btn-verde" style={{ width: "100%", justifyContent: "center" }} onClick={enviar} disabled={!puedeEnviar || enviando}>
             {enviando ? 'Enviando…' : 'Enviar solicitud'}
           </button>
 
@@ -231,6 +271,16 @@ export default function AgendarPortal() {
                   <div style={{ fontSize: "0.83rem", color: "var(--mc-gris)", marginTop: 3 }}>
                     {fechaConDia(s.fechaPedida)} · {s.origen === "extra" ? "Extra" : "De ruta"}
                   </div>
+                  <div style={{ fontSize: "0.83rem", color: "var(--mc-tinta)", marginTop: 2 }}>
+                    {s.tipoResiduo || "Residuo sin especificar"}
+                  </div>
+                  {s.estado === "no-procedio" && (
+                    <div className="pt-solicitud-aviso">
+                      No se pudo recolectar
+                      {s.motivoNoProcedio ? `: ${s.motivoNoProcedio}` : ""}
+                      {s.detalleNoProcedio ? ` (${s.detalleNoProcedio})` : ""}. No se te cobra.
+                    </div>
+                  )}
                   {venc.vencida && (
                     <div className="pt-solicitud-aviso">{venc.detalleCliente}</div>
                   )}

@@ -15,6 +15,7 @@ import { DATOS_DEPOSITO, BANCOS, RESPONSABLE_RECARGAS, estadoRecarga } from "@/l
 import { listarMovimientos, reportarDeposito, miSaldo } from "@/lib/datos-clientes";
 import { clienteActual } from "@/lib/portal-sesion";
 import { enHold, HOLD } from "@/lib/estado-sistema";
+import AvisoPrecios from "@/components/AvisoPrecios";
 
 export default function AgregarSaldo() {
   const inputRef = useRef(null);
@@ -119,6 +120,10 @@ export default function AgregarSaldo() {
         <h1>Agregar saldo</h1>
         <p>Deposita o transfiere a la cuenta de Morcast y sube tu comprobante. Nuestro equipo lo verifica y aplica el saldo a tu cuenta.</p>
       </div>
+
+      {/* El saldo se gasta en servicios cuyo precio puede cambiar: el aviso
+          va antes de depositar, no después (pedido de los dueños, 4-oct-2026). */}
+      <AvisoPrecios />
 
       {/* Saldo actual */}
       <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "1fr 2fr", gap: "1.1rem", marginBottom: "1.1rem", alignItems: "stretch" }}>

@@ -21,6 +21,7 @@ import {
 } from "@/lib/cotizacion-datos";
 import { clienteActual } from "@/lib/portal-sesion";
 import { enHold, HOLD } from "@/lib/estado-sistema";
+import AvisoPrecios from "@/components/AvisoPrecios";
 
 export default function CotizadorPortal() {
   // Los 12 precios de `CATALOGO_COTIZADOR` los invento Claude en agosto-2026;
@@ -80,6 +81,10 @@ export default function CotizadorPortal() {
         <h1>Cotizador</h1>
         <p>Arma una cotización de referencia y descárgala en PDF.</p>
       </div>
+
+      {/* Pedido de los dueños (4-oct-2026): el aviso va ARRIBA, antes de
+          cualquier cifra, no en letra chica al final. */}
+      <AvisoPrecios />
 
       <div className="pt-grid pt-grid-2" style={{ "--pt-cols": "2fr 1.2fr", alignItems: "start" }}>
         {/* Catálogo */}
@@ -151,6 +156,8 @@ export default function CotizadorPortal() {
                 <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.2rem" }}>
                   <span>Total</span><span>{pesos(total)}</span>
                 </div>
+                {/* Y otra vez junto al total: es la cifra que se va a copiar. */}
+                <AvisoPrecios compacto style={{ marginTop: "0.8rem", marginBottom: 0 }} />
               </div>
             </>
           )}
@@ -205,6 +212,7 @@ function CotizadorEnEspera() {
         cotizamos por escrito: escríbenos y te contestamos con los montos
         de tus servicios.
       </p>
+      <AvisoPrecios compacto style={{ maxWidth: "52ch", margin: "0 auto 1.4rem", textAlign: "left" }} />
       <a className="mc-btn mc-btn-verde" href="/contacto">
         Pedir una cotización
       </a>
