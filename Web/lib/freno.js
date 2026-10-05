@@ -27,14 +27,16 @@ export async function ipDeLaPeticion() {
 /**
  * ¿Puede pasar otra vez esta IP por este formulario?
  * @param {string} formulario  nombre corto: "cotizar", "alta"…
- * @param {{ maximo: number, minutos: number }} limite
+ * @param {{ maximo: number, minutos: number, porIp?: boolean }} limite
+ *   `porIp: false` cuenta a TODOS juntos (un tope global del formulario),
+ *   para quien rota IPs y esquiva el freno por equipo.
  */
-export async function pasarFreno(formulario, { maximo, minutos }) {
+export async function pasarFreno(formulario, { maximo, minutos, porIp = true }) {
   if (!haySupabase()) return true;
-  const ip = await ipDeLaPeticion();
+  const clave = porIp ? `${formulario}:${await ipDeLaPeticion()}` : formulario;
   try {
     const { data, error } = await supabaseServidor().rpc("pasar_freno", {
-      p_clave: `${formulario}:${ip}`,
+      p_clave: clave,
       p_maximo: maximo,
       p_ventana: `${minutos} minutes`,
     });

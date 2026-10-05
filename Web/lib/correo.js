@@ -768,8 +768,13 @@ function adjuntoPdf(nombre, base64) {
   return { filename: nombre || "solicitud.pdf", content: base64 };
 }
 
-/** Al CLIENTE: su solicitud firmada, y el enlace para confirmar el correo. */
-export async function correoConfirmarAlta({ correo, contacto, empresa, folio, enlace, pdfBase64, nombrePdf }) {
+/**
+ * Al CLIENTE: el enlace para confirmar el correo. SIN el PDF adjunto, a
+ * propósito: la dirección la escribió alguien sin cuenta, y este correo no
+ * debe servir para hacerle llegar documentos a un tercero. El PDF va cuando
+ * confirma (`correoSolicitudFirmada`).
+ */
+export async function correoConfirmarAlta({ correo, contacto, empresa, folio, enlace }) {
   return enviar({
     from: REMITENTE,
     to: [correo],
@@ -780,7 +785,7 @@ export async function correoConfirmarAlta({ correo, contacto, empresa, folio, en
       <p style="margin:0 0 14px;font-size:14px">
         Hola ${esc(contacto)}, recibimos la Solicitud de alta de
         <strong>${esc(empresa)}</strong>, firmada electrónicamente. Tu folio es
-        <strong>${esc(folio)}</strong> y va adjunta en PDF.</p>
+        <strong>${esc(folio)}</strong>.</p>
       <p style="margin:0 0 14px;font-size:14px">
         Para terminar, confirma que este correo es tuyo:</p>
       <p style="margin:0 0 22px">
@@ -792,10 +797,9 @@ export async function correoConfirmarAlta({ correo, contacto, empresa, folio, en
         <span style="word-break:break-all">${esc(enlace)}</span></p>
       <p style="margin:0 0 14px;font-size:14px">
         <strong>El enlace vence en 7 días</strong> y sólo se puede usar una vez. Al
-        confirmar te mandamos la versión final del PDF.</p>
+        confirmar te mandamos tu solicitud firmada en PDF.</p>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
         ¿No fuiste tú? Ignora este correo o respóndelo para avisarnos.</p>`),
-    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
   });
 }
 

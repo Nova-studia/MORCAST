@@ -26,13 +26,22 @@
  * lo delata de todos modos, pero la versión es lo que se lee a simple vista.
  */
 
-import { TEXTO_AVISO_PRECIOS } from "./aviso-precios.mjs";
-
 export const VERSION_TERMINOS = "2026-10-v1-borrador";
 
 /** Se enseña arriba de los términos en la pantalla y en el anexo del PDF. */
 export const NOTA_BORRADOR =
   "Versión preliminar (borrador) pendiente de revisión por un abogado. Morcast del Norte puede publicar una versión revisada; las solicitudes ya firmadas conservan la versión que aceptaron, salvo que el cliente acepte expresamente la nueva.";
+
+/**
+ * El aviso de precios, CONGELADO en esta versión. Es copia literal de
+ * `TEXTO_AVISO_PRECIOS` (`lib/aviso-precios.mjs`) al 5-oct-2026, y NO se
+ * importa a propósito: si mañana los dueños cambian el aviso de la pantalla,
+ * esta versión —la que ya firmaron clientes— no puede cambiar con él. Una
+ * prueba avisa si el aviso vivo y éste se separan: entonces toca publicar
+ * una versión nueva de los términos, no editar ésta.
+ */
+const AVISO_PRECIOS_V1 =
+  "Las cotizaciones y precios mostrados son estimados de referencia y no constituyen una oferta definitiva. El precio final está sujeto a una revisión del servicio por parte de Morcast del Norte (tipo de residuo, volumen, equipo y condiciones de acceso), por lo que puede ser distinto al cotizado. La cotización final es opcional: usted puede aceptarla o rechazarla sin ningún compromiso.";
 
 /** Dónde se lee el Aviso de privacidad del sitio (`app/(claro)/aviso-de-privacidad`). */
 export const RUTA_AVISO_PRIVACIDAD = "/aviso-de-privacidad";
@@ -89,7 +98,7 @@ export const CLAUSULAS = [
   {
     titulo: "7. Precios y cotizaciones",
     parrafos: [
-      TEXTO_AVISO_PRECIOS,
+      AVISO_PRECIOS_V1,
       "El precio que finalmente se acuerde, su modalidad (por recolección, mensual u otra) y si incluye impuestos se documentan por escrito, en la cotización aceptada por el Cliente o en su Portal de Clientes.",
     ],
   },
@@ -172,10 +181,12 @@ export function textoTerminos({ version, nota, clausulas } = terminosVigentes())
   return `TÉRMINOS DEL SERVICIO — MORCAST DEL NORTE, S.A. de C.V.\nVersión ${version}\n\n${nota}\n\n${cuerpo}`;
 }
 
-/** La versión que se ofrece hoy a quien se da de alta. */
-export function terminosVigentes() {
-  return { version: VERSION_TERMINOS, nota: NOTA_BORRADOR, clausulas: CLAUSULAS };
-}
+/** Congela una versión entera (y sus cláusulas) para que nada la retoque en memoria. */
+const congelar = (t) =>
+  Object.freeze({
+    ...t,
+    clausulas: Object.freeze(t.clausulas.map((c) => Object.freeze({ ...c, parrafos: Object.freeze([...c.parrafos]) }))),
+  });
 
 /**
  * EL ARCHIVO DE VERSIONES. Cuando un cliente confirma su correo (hasta 7
@@ -187,8 +198,23 @@ export function terminosVigentes() {
  * la versión se detecta.
  */
 const ARCHIVO = {
-  [VERSION_TERMINOS]: terminosVigentes(),
+  // Cada versión trae TODO su texto, incluido el aviso de precios que se
+  // imprime en el recuadro del PDF (`avisoPrecios`), sin depender de nada vivo.
+  "2026-10-v1-borrador": congelar({
+    version: "2026-10-v1-borrador",
+    nota: NOTA_BORRADOR,
+    clausulas: CLAUSULAS,
+    avisoPrecios: AVISO_PRECIOS_V1,
+  }),
 };
+
+/** Las versiones archivadas (las prueba `tests/alta-firma.test.mjs` una por una). */
+export const VERSIONES_ARCHIVADAS = Object.keys(ARCHIVO);
+
+/** La versión que se ofrece hoy a quien se da de alta. */
+export function terminosVigentes() {
+  return ARCHIVO[VERSION_TERMINOS];
+}
 
 /** Los términos de una versión firmada, o null si ya no están en el archivo. */
 export function terminosDeVersion(version) {

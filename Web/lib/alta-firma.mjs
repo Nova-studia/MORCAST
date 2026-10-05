@@ -41,21 +41,37 @@ export const LIMITES = {
   residuo: 120, equipoTexto: 40,
 };
 
-/** La Constancia de Situación Fiscal: PDF o foto, hasta 5 MB. */
+/**
+ * La Constancia de Situación Fiscal: PDF o foto, hasta 3.5 MB.
+ *
+ * ¿Por qué 3.5 y no 5? Vercel corta con un 413 CUALQUIER cuerpo de función
+ * de más de 4.5 MB, antes de que la petición llegue a Next — sin nuestro
+ * mensaje, sin nada. La constancia viaja en el MISMO cuerpo que la firma y
+ * los datos, así que entre los tres tienen que caber holgados bajo ese tope
+ * (`LIMITE_CUERPO_VERCEL`; lo comprueba `tests/alta-firma.test.mjs`).
+ */
 export const TIPOS_CONSTANCIA = ["application/pdf", "image/jpeg", "image/png"];
 export const EXTENSION_POR_TIPO = {
   "application/pdf": "pdf",
   "image/jpeg": "jpg",
   "image/png": "png",
 };
-export const MAX_CONSTANCIA_BYTES = 5 * 1024 * 1024;
+export const MAX_CONSTANCIA_BYTES = 3.5 * 1024 * 1024;
+export const TEXTO_MAX_CONSTANCIA =
+  "La Constancia de Situación Fiscal puede pesar máximo 3.5 MB; si tu constancia pesa más, mándala por correo a contacto@morcast.mx.";
 
 /**
- * La firma dibujada llega como PNG. 300 KB es de sobra: un trazo a mano en un
+ * La firma dibujada llega como PNG. 200 KB es de sobra: un trazo a mano en un
  * lienzo de 1200×400 pesa entre 5 y 40 KB. El tope está para que nadie use
  * el campo de la firma para subir una foto de 5 MB a la cubeta.
  */
-export const MAX_FIRMA_BYTES = 300 * 1024;
+export const MAX_FIRMA_BYTES = 200 * 1024;
+
+/** El JSON de los datos del formulario: de sobra para un alta, corto para un abuso. */
+export const MAX_DATOS_JSON = 64 * 1024;
+
+/** Lo más que Vercel deja pasar en el cuerpo de una función (4.5 MB). */
+export const LIMITE_CUERPO_VERCEL = 4.5 * 1000 * 1000;
 /** Un PNG con menos que esto no trae un trazo (sólo cabecera y fondo). */
 export const MIN_FIRMA_BYTES = 200;
 
@@ -224,7 +240,7 @@ export function tipoPorContenido(bytes) {
 export function validarConstancia(bytes) {
   if (!bytes || !bytes.length) return { ok: true, vacia: true };
   if (bytes.length > MAX_CONSTANCIA_BYTES) {
-    return { ok: false, motivo: "La Constancia de Situación Fiscal pesa más de 5 MB. Súbela en PDF o como foto más ligera." };
+    return { ok: false, motivo: TEXTO_MAX_CONSTANCIA };
   }
   const tipo = tipoPorContenido(bytes);
   if (!TIPOS_CONSTANCIA.includes(tipo)) {
@@ -384,6 +400,23 @@ export function estadoToken({ correoConfirmado, huella, vence } = {}, ahora = ne
   const v = new Date(vence);
   if (Number.isNaN(v.getTime()) || v.getTime() <= ahora.getTime()) return "vencido";
   return "vigente";
+}
+
+/**
+ * ¿Con qué índice chocó un INSERT que falló por llave repetida (23505)?
+ *   "folio"   — el folio al azar ya existía: se reintenta con otro.
+ *   "usuario" — esa cuenta de Google ya tiene su solicitud (017).
+ *   null      — cualquier otra cosa.
+ * Se decide por el NOMBRE del índice que trae el mensaje de Postgres, no
+ * sólo por el código: los dos choques llevan el mismo 23505 y piden
+ * respuestas opuestas.
+ */
+export function tipoDeChoque(error) {
+  if (!error || error.code !== "23505") return null;
+  const texto = `${error.message || ""} ${error.details || ""}`;
+  if (/solicitudes_alta_folio_key|\(folio\)=/.test(texto)) return "folio";
+  if (/solicitudes_alta_usuario_idx|\(usuario_id\)=/.test(texto)) return "usuario";
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

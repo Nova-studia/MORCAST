@@ -288,3 +288,52 @@ test("el archivo de términos devuelve la versión firmada, o null si ya no est�
   // La huella del texto es estable: es lo que se compara al emitir el PDF final.
   assert.equal(await sha256Hex(textoTerminos(terminosDeVersion(VERSION_TERMINOS))), await sha256Hex(textoTerminos()));
 });
+
+/**
+ * La huella del texto de CADA versión archivada, fijada a mano. Si alguien
+ * retoca el texto de una versión que ya firmaron clientes (en vez de publicar
+ * una nueva), esta prueba truena. Al publicar una versión nueva se agrega su
+ * huella aquí.
+ */
+const HUELLAS_TERMINOS = {
+  "2026-10-v1-borrador": "7d6d05ca813389b66864b762678731194699d73c9629130cb3003275bdd886b8",
+};
+
+test("cada versión archivada de los términos conserva exactamente su texto", async () => {
+  const { VERSIONES_ARCHIVADAS, terminosDeVersion } = await import("../lib/terminos.mjs");
+  assert.deepEqual([...VERSIONES_ARCHIVADAS].sort(), Object.keys(HUELLAS_TERMINOS).sort(),
+    "cada versión archivada necesita su huella fijada en esta prueba");
+  for (const v of VERSIONES_ARCHIVADAS) {
+    const t = terminosDeVersion(v);
+    assert.equal(await sha256Hex(textoTerminos(t)), HUELLAS_TERMINOS[v], `cambió el texto de la versión ${v}`);
+    assert.ok(t.avisoPrecios && t.clausulas.some((c) => c.parrafos.includes(t.avisoPrecios)),
+      `la versión ${v} trae su propia copia del aviso de precios`);
+    assert.ok(Object.isFrozen(t) && Object.isFrozen(t.clausulas[0].parrafos), "la versión archivada está congelada");
+  }
+});
+
+test("el aviso de precios vivo coincide con el congelado en la versión vigente", async () => {
+  const { terminosVigentes } = await import("../lib/terminos.mjs");
+  // Si esto truena: cambió el aviso de la pantalla. Publica una versión
+  // NUEVA de los términos con el aviso nuevo; no edites la vigente.
+  assert.equal(terminosVigentes().avisoPrecios, TEXTO_AVISO_PRECIOS);
+});
+
+test("el choque de llave repetida se distingue por el índice", async () => {
+  const { tipoDeChoque } = await import("../lib/alta-firma.mjs");
+  assert.equal(tipoDeChoque({ code: "23505", message: 'duplicate key value violates unique constraint "solicitudes_alta_folio_key"' }), "folio");
+  assert.equal(tipoDeChoque({ code: "23505", message: "duplicate key", details: "Key (folio)=(ALTA-2026-AB12) already exists." }), "folio");
+  assert.equal(tipoDeChoque({ code: "23505", message: 'duplicate key value violates unique constraint "solicitudes_alta_usuario_idx"' }), "usuario");
+  assert.equal(tipoDeChoque({ code: "23505", message: 'duplicate key value violates unique constraint "otra_cosa"' }), null);
+  assert.equal(tipoDeChoque({ code: "23503", message: "solicitudes_alta_folio_key" }), null);
+  assert.equal(tipoDeChoque(null), null);
+});
+
+test("el peor caso del formulario cabe holgado bajo el tope de 4.5 MB de Vercel", async () => {
+  const { MAX_DATOS_JSON, LIMITE_CUERPO_VERCEL } = await import("../lib/alta-firma.mjs");
+  const camposSueltos = 4 * 1024; // firmante, cargo, "acepta"
+  const sobreMultipart = 20 * 1024; // límites y cabeceras de cada parte
+  const peor = MAX_CONSTANCIA_BYTES + MAX_FIRMA_BYTES + MAX_DATOS_JSON + camposSueltos + sobreMultipart;
+  assert.ok(peor < LIMITE_CUERPO_VERCEL - 256 * 1024, `el peor caso (${peor} bytes) queda pegado al tope`);
+  assert.equal(MAX_CONSTANCIA_BYTES, 3.5 * 1024 * 1024);
+});

@@ -26,8 +26,9 @@
 --   4. Un candado: desde una sesión (el panel, la app o la API) sólo se
 --      cambia el estado y las notas. Lo firmado y su evidencia los escribe
 --      únicamente el servidor con la llave de servicio.
---   5. La cubeta PRIVADA `altas` (firma, constancia y PDF): sólo el personal
---      la lee; nadie con sesión escribe ni borra.
+--   5. La cubeta PRIVADA `altas` (firma, constancia y PDF), SIN ninguna
+--      política: nadie con sesión la lee, escribe ni borra. Todo pasa por
+--      el servidor con la llave de servicio.
 --
 --  PREPARADO PARA DESPUÉS (no se construye aquí): e.firma del SAT y
 --  constancia NOM-151 con un proveedor. Ese proveedor sella una huella, y
@@ -176,23 +177,29 @@ create trigger alta_firmada_sin_retoques_tg
 --  altas/<id del alta>/solicitud-<folio>.pdf            (el que se emite al firmar)
 --  altas/<id del alta>/solicitud-<folio>-confirmada.pdf (al confirmar el correo)
 --
---  PRIVADA y con tope de 5 MB y tipos cerrados también del lado de Storage:
+--  PRIVADA y con tope de 3.5 MB (el de la constancia) y tipos cerrados también del lado de Storage:
 --  si el servidor tuviera un error, la cubeta igual no acepta un .exe ni un
 --  archivo de 50 MB.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('altas', 'altas', false, 5242880, array['application/pdf', 'image/png', 'image/jpeg'])
+values ('altas', 'altas', false, 3670016, array['application/pdf', 'image/png', 'image/jpeg'])
 on conflict (id) do update
   set public = false,
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
--- Sólo el personal LEE. No hay política de INSERT, UPDATE ni DELETE para
--- nadie con sesión, a propósito: quien se da de alta no tiene sesión (sube
--- el servidor por él con la llave de servicio), y una firma o un PDF firmado
--- que alguien del panel pudiera reemplazar o borrar no sería evidencia.
+-- NINGUNA política, a propósito, ni siquiera de lectura para el personal:
+--  · `es_personal()` no sabe del segundo paso del panel (el código por
+--    correo vive en una cookie, `lib/mfa.mjs`). Con la contraseña robada de
+--    un admin y la llave pública, una política de lectura dejaría bajar
+--    constancias y firmas saltándose ese segundo paso.
+--  · El panel no la necesita: los enlaces de descarga los firma el servidor
+--    con la llave de servicio después de `usuarioActual()`, que SÍ exige el
+--    segundo paso (`enlacesArchivosAlta` en app/acciones-alta-cliente.js).
+--  · Escribir: quien se da de alta no tiene sesión (sube el servidor por
+--    él), y una firma o un PDF firmado que alguien con sesión pudiera
+--    reemplazar o borrar no sería evidencia.
+-- El `drop` limpia la política de lectura de un borrador anterior de esta
+-- misma migración, por si llegó a correrse en alguna base.
 drop policy if exists altas_lee_personal on storage.objects;
-create policy altas_lee_personal on storage.objects
-  for select to authenticated
-  using (bucket_id = 'altas' and es_personal());
 
 commit;

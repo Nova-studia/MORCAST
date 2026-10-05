@@ -371,8 +371,12 @@ await db.exec("set role service_role");
 await db.query(`insert into storage.objects (bucket_id, name) values ('altas', $1)`, [`${altaF.id}/firma.png`]);
 await db.exec("reset role");
 console.log("  ✓ el servidor (service_role) sube la firma");
-await debePasar("el admin SÍ ve la firma (para firmar el enlace de descarga)", "admin",
-  `select name from storage.objects where bucket_id='altas'`, [], 1);
+await debeFallar("el admin con sesión TAMPOCO lee la cubeta (los enlaces los firma el servidor tras el segundo paso)", "admin",
+  `select name from storage.objects where bucket_id='altas'`);
+await debeFallar("ni el dueño con sesión", "dueno", `select name from storage.objects where bucket_id='altas'`);
+const enCubeta = (await db.query(`select count(*)::int as n from storage.objects where bucket_id='altas'`)).rows[0].n;
+if (enCubeta !== 1) { fallas++; console.log("  ✖ la firma no quedó en la cubeta", enCubeta); }
+else console.log("  ✓ y la firma sí está ahí (la ve sólo la llave de servicio)");
 await debeFallar("un cliente NO ve archivos de altas", "cliente", `select name from storage.objects where bucket_id='altas'`);
 await debeFallar("un chofer NO ve archivos de altas", "chofer", `select name from storage.objects where bucket_id='altas'`);
 await debeFallar("un anónimo NO ve archivos de altas", "anon", `select name from storage.objects where bucket_id='altas'`);

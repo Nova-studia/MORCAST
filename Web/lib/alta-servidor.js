@@ -16,7 +16,6 @@ import { EQUIPO_RENTA, EMPRESA_COTIZACION } from "@/lib/cotizacion-datos";
 import { USOS_CFDI, FORMAS_PAGO, RUTAS_SEED } from "@/lib/rutas-datos";
 import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
 import { rutasQueCubren } from "@/lib/punto-en-zona.mjs";
-import { TEXTO_AVISO_PRECIOS } from "@/lib/aviso-precios.mjs";
 import {
   terminosVigentes,
   terminosDeVersion,
@@ -38,6 +37,9 @@ import {
   fechaHoraMatamoros,
   folioAlta,
   nombrePdfAlta,
+  tipoDeChoque,
+  MAX_DATOS_JSON,
+  TEXTO_MAX_CONSTANCIA,
   MAX_CONSTANCIA_BYTES,
   MAX_FIRMA_BYTES,
 } from "@/lib/alta-firma.mjs";
@@ -84,8 +86,6 @@ const EMISOR = {
   sitio: EMPRESA_COTIZACION.sitio,
 };
 
-/** El JSON de los datos del formulario: de sobra para un alta, corto para un abuso. */
-const MAX_DATOS_JSON = 64 * 1024;
 
 const esArchivo = (v) => v && typeof v === "object" && typeof v.arrayBuffer === "function";
 
@@ -167,7 +167,7 @@ async function leerFormulario(formData) {
   const constancia = formData.get("constancia");
   if (esArchivo(constancia) && constancia.size > 0) {
     if (constancia.size > MAX_CONSTANCIA_BYTES) {
-      return mal("La Constancia de Situación Fiscal pesa más de 5 MB. Súbela en PDF o como foto más ligera.");
+      return mal(TEXTO_MAX_CONSTANCIA);
     }
     constanciaBytes = new Uint8Array(await constancia.arrayBuffer());
   }
@@ -234,12 +234,19 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
   const rutasCubren = cubren.map((r) => r.clave || r.nombre).slice(0, 10);
 
   if (haySupabase()) {
-    if (origen === "formulario") {
-      // Cada alta manda un correo al buzón que escribieron: sin freno, la
-      // pantalla servía para mandarle correos de Morcast a cualquiera.
-      if (!(await pasarFreno("alta", { maximo: 5, minutos: 60 }))) {
-        return { ok: false, motivo: "Recibimos varias solicitudes desde este equipo. Espera un rato o llámanos directo." };
-      }
+    // Cada alta manda correos: sin freno, la pantalla servía para mandarle
+    // correos de Morcast a cualquiera. Por IP en las DOS puertas (la de
+    // Google también genera PDF y escribe en la cubeta)…
+    const frenoPorIp = origen === "google" ? "registro" : "alta";
+    if (!(await pasarFreno(frenoPorIp, { maximo: 5, minutos: 60 }))) {
+      return { ok: false, motivo: "Recibimos varias solicitudes desde este equipo. Espera un rato o llámanos directo." };
+    }
+    // …y en la pública, además, un tope GLOBAL: quien rota IPs (una red de
+    // bots) esquiva el de arriba, y cada alta pública le manda un correo a
+    // una dirección que escribió un desconocido. 40 por hora es mucho más de
+    // lo que Morcast recibe en un mes; si se llega, algo raro está pasando.
+    if (origen === "formulario" && !(await pasarFreno("alta:global", { maximo: 40, minutos: 60, porIp: false }))) {
+      return { ok: false, motivo: "Estamos recibiendo muchas solicitudes en este momento. Inténtalo en un rato o llámanos al 868 384 9478." };
     }
   }
 
@@ -250,7 +257,7 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
   const ip = await ipDeLaPeticion();
   const navegador = String((await headers()).get("user-agent") || "desconocido").slice(0, 400);
   const id = randomUUID();
-  const folio = folioAlta(origen === "google" ? "REG" : "ALTA", ahora);
+  const prefijo = origen === "google" ? "REG" : "ALTA";
   const terminos = terminosVigentes();
   const terminosHuella = await sha256Hex(textoTerminos(terminos));
   const firmaHuella = await sha256Hex(leido.firmaBytes);
@@ -261,56 +268,91 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
   // confirmado desde el inicio y así lo dice la evidencia.
   const correoConfirmado = origen === "google" && Boolean(usuario?.verificado);
 
-  const contenido = armarContenidoFirmado({
-    folio,
-    origen,
-    datos: limpia,
-    terminos: { version: terminos.version, textoSha256: terminosHuella },
-    avisoPrivacidad: { version: AVISO_PRIVACIDAD.version, url: `${EMISOR.sitio}${RUTA_AVISO_PRIVACIDAD}` },
-    firma: { imagenSha256: firmaHuella, nombre: firmante.nombre, cargo: firmante.cargo },
-    constancia,
-    evidencia: { fechaIso, ip, navegador, correo: limpia.correo },
-  });
-  const contenidoHuella = await huellaContenido(contenido);
-
-  const pdf = await generarPdfAlta({
-    alta: { ...limpia, folio, enCobertura, rutasQueCubren: rutasCubren },
-    firmante,
-    firmaPng: leido.firmaBytes,
-    firmaTamano: fp,
-    evidencia: {
-      fechaTexto, fechaIso, ip, navegador, origen,
-      terminosVersion: terminos.version,
-      terminosHuella,
-      avisoVersion: AVISO_PRIVACIDAD.version,
-      contenidoHuella,
-      firmaHuella,
+  /**
+   * Arma lo firmado y su PDF para UN folio. Es función porque el folio va
+   * impreso en el PDF y dentro de lo firmado: si al guardar choca con otro
+   * folio (azar repetido), hay que volver a armarlo todo con uno nuevo.
+   */
+  const armar = async (folio) => {
+    const contenido = armarContenidoFirmado({
+      folio,
+      origen,
+      datos: limpia,
+      terminos: { version: terminos.version, textoSha256: terminosHuella },
+      avisoPrivacidad: { version: AVISO_PRIVACIDAD.version, url: `${EMISOR.sitio}${RUTA_AVISO_PRIVACIDAD}` },
+      firma: { imagenSha256: firmaHuella, nombre: firmante.nombre, cargo: firmante.cargo },
       constancia,
-      confirmacion: correoConfirmado ? { estado: "google", fechaTexto } : { estado: "pendiente" },
-    },
-    terminos,
-    avisoPrecios: TEXTO_AVISO_PRECIOS,
-    emisor: EMISOR,
-  });
-  const pdfHuella = await sha256Hex(pdf);
-  const pdfBase64 = Buffer.from(pdf).toString("base64");
-  const nombrePdf = nombrePdfAlta(folio);
+      evidencia: { fechaIso, ip, navegador, correo: limpia.correo },
+    });
+    const contenidoHuella = await huellaContenido(contenido);
+    const pdf = await generarPdfAlta({
+      alta: { ...limpia, folio, enCobertura, rutasQueCubren: rutasCubren },
+      firmante,
+      firmaPng: leido.firmaBytes,
+      firmaTamano: fp,
+      evidencia: {
+        fechaTexto, fechaIso, ip, navegador, origen,
+        terminosVersion: terminos.version,
+        terminosHuella,
+        avisoVersion: AVISO_PRIVACIDAD.version,
+        contenidoHuella,
+        firmaHuella,
+        constancia,
+        confirmacion: correoConfirmado ? { estado: "google", fechaTexto } : { estado: "pendiente" },
+      },
+      terminos,
+      avisoPrecios: terminos.avisoPrecios,
+      emisor: EMISOR,
+    });
+    return {
+      folio,
+      contenido,
+      contenidoHuella,
+      pdf,
+      pdfHuella: await sha256Hex(pdf),
+      pdfBase64: Buffer.from(pdf).toString("base64"),
+      nombrePdf: nombrePdfAlta(folio),
+    };
+  };
 
+  /**
+   * `armar` con red: jsPDF decodifica el PNG de la firma y puede tronar con
+   * una imagen rara que pasó la revisión de la cabecera. Se arma ANTES de
+   * subir nada, así que si truena no queda ningún archivo huérfano.
+   */
+  const armarSeguro = async () => {
+    try {
+      return await armar(folioAlta(prefijo, ahora));
+    } catch (e) {
+      console.error("[alta] no se pudo generar el PDF:", e?.message);
+      return null;
+    }
+  };
+  const ERROR_PDF = {
+    ok: false,
+    campo: "firma",
+    motivo: "No pudimos generar el PDF con tu firma. Bórrala, vuelve a firmar e inténtalo otra vez.",
+  };
+
+  let doc = await armarSeguro();
+  if (!doc) return ERROR_PDF;
+
+  const rutas = cubren.map((r) => ({ id: r.id, nombre: r.nombre, tipo: r.tipo, dias: r.dias || [] }));
   // Lo que la pantalla "¡Alta exitosa!" necesita, y nada más (las acciones
   // de servidor devuelven al navegador TODO lo que regresan).
-  const respuesta = {
+  const respuesta = (d) => ({
     ok: true,
-    folio,
-    pdfBase64,
-    nombrePdf,
+    folio: d.folio,
+    pdfBase64: d.pdfBase64,
+    nombrePdf: d.nombrePdf,
     correoConfirmado,
     enCobertura,
-    rutas: cubren.map((r) => ({ id: r.id, nombre: r.nombre, tipo: r.tipo, dias: r.dias || [] })),
-  };
+    rutas,
+  });
 
   // Sin base (modo prototipo) la pantalla es navegable y el PDF se genera
   // igual, para que se pueda revisar; no se guarda ni se manda nada.
-  if (!haySupabase()) return { ...respuesta, demo: true, correo: "sin-servicio" };
+  if (!haySupabase()) return { ...respuesta(doc), demo: true, correo: "sin-servicio" };
 
   const sb = supabaseServidor();
 
@@ -327,22 +369,21 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
   // ---- Los archivos, antes que la fila ----
   const rutaFirma = `${id}/firma.png`;
   const rutaConstancia = constancia ? `${id}/constancia.${vc.extension}` : null;
-  const rutaPdf = `${id}/${nombrePdf}`;
-  const subidos = [];
+  let subidos = [];
   const subir = async (ruta, bytes, tipo) => {
     const { error } = await sb.storage.from(CUBETA).upload(ruta, bytes, { contentType: tipo, upsert: false });
     if (error) throw new Error(`${ruta}: ${error.message}`);
     subidos.push(ruta);
   };
-  const deshacerArchivos = async () => {
-    if (!subidos.length) return;
-    const { error } = await sb.storage.from(CUBETA).remove(subidos);
-    if (error) console.error("[alta] quedaron archivos huérfanos en la cubeta:", subidos, error.message);
+  const borrar = async (lista) => {
+    if (!lista.length) return;
+    const { error } = await sb.storage.from(CUBETA).remove(lista);
+    if (error) console.error("[alta] quedaron archivos huérfanos en la cubeta:", lista, error.message);
   };
+  const deshacerArchivos = () => borrar(subidos);
   try {
     await subir(rutaFirma, leido.firmaBytes, "image/png");
     if (rutaConstancia) await subir(rutaConstancia, leido.constanciaBytes, vc.tipo);
-    await subir(rutaPdf, pdf, "application/pdf");
   } catch (e) {
     console.error("[alta] no se pudo subir a la cubeta:", e?.message);
     await deshacerArchivos();
@@ -350,9 +391,9 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
   }
 
   // ---- La fila, de un solo golpe ----
-  const fila = {
+  const filaDe = (d) => ({
     id,
-    folio,
+    folio: d.folio,
     origen,
     usuario_id: usuario?.id ?? null,
     correo_verificado: origen === "google" ? Boolean(usuario?.verificado) : false,
@@ -392,29 +433,70 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
     firma_navegador: navegador,
     terminos_version: terminos.version,
     aviso_version: AVISO_PRIVACIDAD.version,
-    contenido_firmado: contenido,
-    contenido_huella: contenidoHuella,
-    pdf_ruta: rutaPdf,
-    pdf_huella: pdfHuella,
-    pdf_inicial_huella: pdfHuella,
+    contenido_firmado: d.contenido,
+    contenido_huella: d.contenidoHuella,
+    pdf_ruta: `${id}/${d.nombrePdf}`,
+    pdf_huella: d.pdfHuella,
+    pdf_inicial_huella: d.pdfHuella,
     correo_confirmado: correoConfirmado,
     correo_confirmado_en: correoConfirmado ? fechaIso : null,
     correo_confirmado_por: correoConfirmado ? "google" : null,
     confirmacion_huella: tokenHuella,
     confirmacion_vence: tokenVence,
-  };
+  });
 
-  const { error: errFila } = await sb.from("solicitudes_alta").insert(fila);
-  if (errFila) {
+  // El folio lleva 4 caracteres al azar: chocar con uno existente es raro
+  // pero posible, y no es culpa de quien firma. En ese caso se vuelve a
+  // armar todo (el folio va impreso en el PDF y dentro de lo firmado) con un
+  // folio nuevo, hasta 3 intentos. El choque se distingue POR EL NOMBRE del
+  // índice (`tipoDeChoque`): uno con `usuario_id` es otra cosa.
+  let fila = null;
+  for (let intento = 1; intento <= 3 && !fila; intento++) {
+    const rutaPdf = `${id}/${doc.nombrePdf}`;
+    try {
+      await subir(rutaPdf, doc.pdf, "application/pdf");
+    } catch (e) {
+      console.error("[alta] no se pudo subir el PDF:", e?.message);
+      await deshacerArchivos();
+      return { ok: false, motivo: "No se pudo guardar tu solicitud firmada. Inténtalo de nuevo." };
+    }
+
+    const candidata = filaDe(doc);
+    const { error: errFila } = await sb.from("solicitudes_alta").insert(candidata);
+    if (!errFila) {
+      fila = candidata;
+      break;
+    }
+
+    // El PDF de este intento ya no sirve: lleva un folio que no se guardó.
+    await borrar([rutaPdf]);
+    subidos = subidos.filter((r) => r !== rutaPdf);
+
+    const choque = tipoDeChoque(errFila);
+    if (choque === "folio" && intento < 3) {
+      console.warn(`[alta] el folio ${doc.folio} ya existía; se reintenta con otro (intento ${intento}).`);
+      doc = await armarSeguro();
+      if (!doc) {
+        await deshacerArchivos();
+        return ERROR_PDF;
+      }
+      continue;
+    }
+
     console.error("[alta] no se pudo guardar:", errFila.message);
     await deshacerArchivos();
-    // 23505 = llave repetida: en el registro con Google, la misma persona
-    // mandó dos veces a la vez (índice único de la 017).
-    if (errFila.code === "23505" && origen === "google") {
+    // La misma persona de Google mandó dos veces a la vez (índice único de la 017).
+    if (choque === "usuario") {
       return { ok: false, motivo: "Ya recibimos tu solicitud. Morcast la revisa y te contacta." };
     }
     return { ok: false, motivo: "No se pudo guardar tu solicitud. Inténtalo de nuevo." };
   }
+  if (!fila) {
+    await deshacerArchivos();
+    return { ok: false, motivo: "No se pudo guardar tu solicitud. Inténtalo de nuevo." };
+  }
+
+  const { folio, pdfBase64, nombrePdf, pdfHuella, contenidoHuella } = doc;
 
   // ---- Los correos: hasta el final y sin poder tumbar nada ----
   // Si fallan, el alta ya quedó guardada con su PDF, y la pantalla le da el
@@ -425,15 +507,20 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
     correo = "enviado";
     try {
       if (correoConfirmado) {
+        // Google ya verificó el correo: va de una vez la versión con PDF.
         await correoSolicitudFirmada({
           correo: limpia.correo, contacto: limpia.contacto, empresa: limpia.empresa,
           folio, pdfBase64, nombrePdf, porGoogle: true,
         });
       } else {
+        // SIN el PDF adjunto, a propósito: este correo va a una dirección que
+        // escribió alguien sin cuenta. Si un tercero la usara para mandar
+        // documentos "de Morcast" a quien quiera, al menos no viajan adjuntos;
+        // el PDF le llega al cliente cuando confirma que el buzón es suyo.
         const enlace = `${origenPermitido(await headers())}/portal/alta/confirmar?t=${token}`;
         await correoConfirmarAlta({
           correo: limpia.correo, contacto: limpia.contacto, empresa: limpia.empresa,
-          folio, enlace, pdfBase64, nombrePdf,
+          folio, enlace,
         });
       }
     } catch (e) {
@@ -462,7 +549,7 @@ export async function procesarAltaFirmada({ formData, origen, usuario = null }) 
     },
   });
 
-  return { ...respuesta, correo };
+  return { ...respuesta(doc), correo };
 }
 
 /* ------------------------------------------------------------------ */
@@ -623,6 +710,9 @@ async function pdfFinal(sb, fila, { ahora, ip, navegador }) {
   const c = fila.contenido_firmado;
   if (!c?.datos || !c?.firma || !c?.evidencia) throw new Error("el alta no tiene contenido firmado");
   if ((await huellaContenido(c)) !== fila.contenido_huella) throw new Error("la huella de lo firmado no cuadra");
+  // Lo firmado dice de qué folio es: tiene que ser el de la fila. Si no, la
+  // versión "confirmada" de un folio saldría con el contenido de otro.
+  if (c.folio !== fila.folio) throw new Error(`lo firmado es del folio ${c.folio}, no del ${fila.folio}`);
 
   const terminos = terminosDeVersion(fila.terminos_version);
   if (!terminos) throw new Error(`los términos ${fila.terminos_version} ya no están en el archivo`);
@@ -662,9 +752,9 @@ async function pdfFinal(sb, fila, { ahora, ip, navegador }) {
       pdfInicialHuella: fila.pdf_inicial_huella,
     },
     terminos,
-    // Igual a lo firmado: el texto de los términos (que incluye este aviso
-    // en su cláusula 7) ya pasó la comprobación de huella de arriba.
-    avisoPrecios: TEXTO_AVISO_PRECIOS,
+    // El aviso CONGELADO en la versión firmada de los términos (no el vivo de
+    // hoy): el texto de esa versión ya pasó la comprobación de huella.
+    avisoPrecios: terminos.avisoPrecios,
     emisor: EMISOR,
   });
 

@@ -22,6 +22,7 @@ import {
   validarFirmante,
   TIPOS_CONSTANCIA,
   MAX_CONSTANCIA_BYTES,
+  TEXTO_MAX_CONSTANCIA,
 } from "@/lib/alta-firma.mjs";
 import { CLAUSULAS, NOTA_BORRADOR, VERSION_TERMINOS, RUTA_AVISO_PRIVACIDAD } from "@/lib/terminos.mjs";
 import { zonasDeCobertura } from "@/app/acciones-alta";
@@ -183,7 +184,8 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
     if (!archivo) return;
     setError("");
     if (archivo.size > MAX_CONSTANCIA_BYTES) {
-      setError("La Constancia de Situación Fiscal pesa más de 5 MB. Súbela en PDF o como foto más ligera.");
+      setError(TEXTO_MAX_CONSTANCIA);
+      enfocar("constancia-zona");
       return;
     }
     if (!TIPOS_CONSTANCIA.includes(archivo.type)) {
@@ -627,7 +629,7 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
                 </div>
 
                 <p className="pt-subtitulo">Constancia de Situación Fiscal <span className="pt-opcional">(opcional)</span></p>
-                <label className="pt-dropzone" htmlFor="constancia">
+                <label className="pt-dropzone" htmlFor="constancia" id="constancia-zona">
                   <input id="constancia" ref={inputConstancia} type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange={elegirConstancia} />
                   {constancia ? (
                     <div className="pt-dropzone-archivo">
@@ -646,7 +648,7 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
                     <>
                       <UploadSimple aria-hidden="true" />
                       <strong>Sube tu constancia</strong>
-                      <span>PDF, JPG o PNG · máximo 5 MB</span>
+                      <span>PDF, JPG o PNG · máximo 3.5 MB</span>
                     </>
                   )}
                 </label>
