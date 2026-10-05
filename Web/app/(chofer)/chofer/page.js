@@ -6,8 +6,13 @@ import {
   MapPin,
   CheckCircle,
   CaretRight,
+  NavigationArrow,
+  Recycle,
+  Signpost,
+  Prohibit,
 } from "@phosphor-icons/react/dist/ssr";
 import { rutaDelDia, hoyISO } from "@/lib/datos-chofer";
+import { enlaceComoLlegar } from "@/lib/mapas.mjs";
 
 /**
  * La fecha se le enseña al chofer como se dice, no como la guarda la base.
@@ -45,6 +50,7 @@ export default function RutaChofer() {
 
   const pendientes = paradas.filter((p) => p.estatus === "pendiente");
   const hechas = paradas.filter((p) => p.estatus === "completado");
+  const noProcedieron = paradas.filter((p) => p.estatus === "no-procedio");
 
   return (
     <>
@@ -64,7 +70,9 @@ export default function RutaChofer() {
         </div>
         <div className="ch-resumen-lado">
           <div>
-            <strong>{hechas.length}</strong>
+            {/* Un "No procedió" también es una parada resuelta: sin
+                sumarlo, por hacer + hechas no daba el total. */}
+            <strong>{hechas.length + noProcedieron.length}</strong>
             <span>Hechas</span>
           </div>
           <div>
@@ -91,23 +99,49 @@ export default function RutaChofer() {
         <>
           <h2 className="ch-seccion">Por recolectar</h2>
           {pendientes.map((p) => (
-            <Link key={p.id} href={`/chofer/recoleccion/${p.id}`} className="ch-parada">
-              <div className="ch-parada-fila">
-                <div className="ch-parada-texto">
-                  <div className="ch-parada-cliente">{p.cliente}</div>
-                  <div className="ch-parada-dato">
-                    <MapPin aria-hidden="true" /> {p.direccion}
+            <div key={p.id} className="ch-parada">
+              <Link href={`/chofer/recoleccion/${p.id}`} className="ch-parada-enlace">
+                <div className="ch-parada-fila">
+                  <div className="ch-parada-texto">
+                    <div className="ch-parada-cliente">{p.cliente}</div>
+                    {/* La dirección COMPLETA, no solo el alias: es lo que el
+                        chofer lee para saber a dónde va. */}
+                    <div className="ch-parada-dato ch-parada-dir">
+                      <MapPin aria-hidden="true" />
+                      <span>
+                        {p.punto?.alias ? `${p.punto.alias} · ` : ""}
+                        {p.direccionCompleta || p.direccion}
+                      </span>
+                    </div>
+                    {p.referencias && (
+                      <div className="ch-parada-dato ch-parada-ref">
+                        <Signpost aria-hidden="true" /> <span>{p.referencias}</span>
+                      </div>
+                    )}
+                    <div className="ch-parada-dato ch-parada-residuo">
+                      <Recycle aria-hidden="true" /> {p.tipoResiduo || "Residuo sin especificar"}
+                    </div>
+                    <div className="ch-parada-dato">
+                      {p.folio} · {p.unidad}
+                    </div>
+                    {p.nota && (
+                      <div className="ch-parada-dato ch-parada-nota">“{p.nota}”</div>
+                    )}
                   </div>
-                  <div className="ch-parada-dato">
-                    {p.folio} · {p.unidad}
-                  </div>
-                  {p.nota && (
-                    <div className="ch-parada-dato ch-parada-nota">“{p.nota}”</div>
-                  )}
+                  <CaretRight aria-hidden="true" className="ch-parada-flecha" />
                 </div>
-                <CaretRight aria-hidden="true" className="ch-parada-flecha" />
-              </div>
-            </Link>
+              </Link>
+              {p.punto && (
+                <a
+                  className="ch-llegar"
+                  href={enlaceComoLlegar(p.punto)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <NavigationArrow aria-hidden="true" weight="fill" /> Cómo llegar
+                </a>
+              )}
+            </div>
           ))}
         </>
       )}
@@ -123,6 +157,25 @@ export default function RutaChofer() {
               <div className="ch-parada-dato">
                 {p.folio}
                 {p.evidencia?.peso_kg ? ` · ${p.evidencia.peso_kg} kg` : ""}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Las que no procedieron también se ven: el chofer tiene que poder
+          confirmar que el motivo quedó guardado antes de irse. */}
+      {noProcedieron.length > 0 && (
+        <>
+          <h2 className="ch-seccion ch-seccion-2">No procedieron</h2>
+          {noProcedieron.map((p) => (
+            <div key={p.id} className="ch-parada hecha">
+              <div className="ch-parada-cliente">
+                <Prohibit aria-hidden="true" color="var(--mc-error)" /> {p.cliente}
+              </div>
+              <div className="ch-parada-dato">
+                {p.folio}
+                {p.motivoNoProcedio ? ` · ${p.motivoNoProcedio}` : ""}
               </div>
             </div>
           ))}

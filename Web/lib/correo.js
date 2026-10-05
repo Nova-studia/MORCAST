@@ -565,6 +565,53 @@ export async function correoCodigoPanel({ correo, codigo, minutos }) {
   });
 }
 
+/**
+ * A la OFICINA: un chofer reportó un incidente desde la calle (accidente,
+ * retraso, falla o un contenedor dañado, movido o que no está).
+ *
+ * Lleva solo lo que hace falta para actuar —qué pasó, quién, en qué unidad,
+ * ruta y parada— y el enlace al panel, donde está el resto (la foto, el
+ * historial). Nada de datos del cliente más allá del nombre de la parada:
+ * este buzón lo leen varias personas y nadie lo borra.
+ *
+ * `asunto`, `tipoTexto` y `urgente` llegan ya armados (lib/chofer-reportes.mjs)
+ * para que el texto del tipo sea el mismo en el teléfono, en el panel y aquí.
+ */
+export async function correoIncidente({
+  asunto, tipoTexto, urgente, chofer, unidad, ruta, parada, contenedor,
+  descripcion, retraso, mapa, cuando, enlace,
+}) {
+  const fila = (etiqueta, valor) =>
+    valor
+      ? `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7a7c;vertical-align:top;white-space:nowrap">${esc(etiqueta)}</td>
+         <td style="padding:6px 0;font-size:15px;color:#1c2b2d">${esc(valor)}</td></tr>`
+      : "";
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      ${urgente ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fbe9e7;border-left:4px solid #c0392b;font-size:15px;color:#8e2a1f">
+        <strong>Urgente.</strong> Llama al chofer cuanto antes.</p>` : ""}
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">${esc(tipoTexto)}</h1>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+        ${fila("Chofer", chofer)}
+        ${fila("Unidad", unidad)}
+        ${fila("Ruta", ruta)}
+        ${fila("Parada", parada)}
+        ${fila("Contenedor", contenedor)}
+        ${fila("Retraso", retraso)}
+        ${fila("Cuándo", cuando)}
+      </table>
+      ${descripcion ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;white-space:pre-line">${esc(descripcion)}</p>` : ""}
+      ${mapa ? `<p style="margin:0 0 12px;font-size:14px"><a href="${esc(mapa)}">Ver dónde estaba el chofer</a></p>` : ""}
+      <p style="margin:20px 0 0;font-size:15px">
+        <a href="${esc(enlace)}" style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px">
+          Ver en el panel</a></p>`),
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Trabaja con nosotros                                                */
 /* ------------------------------------------------------------------ */

@@ -1,0 +1,330 @@
+/* =========================================================================
+   MODO CHOFER — piezas de la operación ampliada (pedidos de los dueños,
+   4-oct-2026): dónde es la parada, qué residuo es, "No procedió" y el
+   botón de reportar un problema.
+
+   Vive aparte de portal.css a propósito: esa hoja la tocan el portal y el
+   panel, y esto es solo del chofer. Mismas reglas que el resto de `ch-`:
+   se usa en la calle, con sol y con guantes, así que todo blanco de toque
+   mide 48 px o más y nada importante va en gris tenue.
+   ========================================================================= */
+
+/* La barra de "Reportar un problema" va fija abajo: el contenido necesita
+   ese espacio o el último botón de la pantalla queda debajo de ella. */
+.ch-contenido { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+
+/* ---------- Dónde es ---------- */
+.ch-donde { display: flex; flex-direction: column; gap: 0.7rem; }
+.ch-direccion {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--mc-tinta);
+}
+.ch-direccion svg { flex-shrink: 0; margin-top: 0.2rem; color: var(--mc-naranja); }
+.ch-referencias {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #dce6e4;
+  background: var(--mc-fondo-2, #191d1e);
+  border-left: 3px solid var(--mc-naranja);
+  border-radius: 4px;
+  padding: 0.55rem 0.75rem;
+}
+.ch-referencias strong { color: var(--mc-tinta); }
+
+/* "Cómo llegar" es un botón de verdad, no un enlace de texto: se aprieta
+   con el pulgar desde la cabina. Contorno y no relleno, porque el relleno
+   azul es la acción del paso en curso y dos rellenos en la misma pantalla
+   ya no dicen cuál toca. */
+.ch-llegar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 52px;
+  border-radius: 12px;
+  border: 1px solid var(--pt-accion-linea);
+  background: var(--pt-accion-tinte);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.98rem;
+  text-decoration: none;
+  transition: background-color 200ms ease, transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ch-llegar svg { font-size: 1.2rem; color: var(--pt-accion-txt); }
+.ch-llegar:hover { background: rgba(42, 106, 153, 0.28); color: #fff; }
+.ch-llegar:active { transform: scale(0.985); transition-duration: 100ms; }
+.ch-llegar-nota { font-size: 0.8rem; color: #c3d0cd; text-align: center; margin-top: -0.3rem; }
+
+/* ---------- Guardar la ubicación del punto ---------- */
+.ch-ubicar {
+  border: 1px dashed var(--mc-linea);
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: #dce6e4;
+  line-height: 1.45;
+}
+.ch-ubicar strong { color: var(--mc-tinta); }
+.ch-ubicar-ok { color: var(--pt-ok); display: flex; gap: 0.45rem; align-items: flex-start; font-size: 0.92rem; line-height: 1.4; }
+.ch-ubicar-ok svg { flex-shrink: 0; font-size: 1.15rem; margin-top: 0.05rem; }
+
+/* Botón secundario de ancho completo (guardar ubicación, no procedió…).
+   Se deja partir en dos renglones: .pt-btn no parte el texto, y a 390 px
+   "Guardar la ubicación de este punto" se salía del botón. */
+.ch-boton-sec,
+.ch-boton-peligro {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.3;
+}
+.ch-boton-sec {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+}
+.ch-boton-sec svg { flex-shrink: 0; }
+
+/* ---------- Tipo de residuo ---------- */
+.ch-residuo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  margin-bottom: 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--mc-linea);
+  border-radius: 10px;
+  background: var(--mc-superficie);
+}
+.ch-residuo svg { flex-shrink: 0; font-size: 1.15rem; color: var(--mc-verde-claro); }
+.ch-residuo span { color: #c3d0cd; }
+.ch-residuo strong { color: var(--mc-tinta); }
+
+/* ---------- Formularios del chofer ---------- */
+.ch-form-titulo { font-size: 1rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem; }
+.ch-form-ayuda { font-size: 0.86rem; color: #c3d0cd; margin-bottom: 0.9rem; line-height: 1.45; }
+.ch-etiqueta { display: block; font-size: 0.86rem; font-weight: 600; margin: 0.9rem 0 0.45rem; }
+.ch-etiqueta small { font-weight: 400; color: #c3d0cd; }
+.ch-error {
+  background: var(--pt-error-tinte);
+  border: 1px solid rgba(217, 119, 107, 0.45);
+  color: var(--pt-error);
+  border-radius: 9px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.88rem;
+  margin: 0.8rem 0;
+}
+
+/* Opciones como renglones grandes, no un <select>: con guantes, un menú
+   desplegable de cinco renglones chicos es donde se equivoca uno. */
+.ch-opciones { display: flex; flex-direction: column; gap: 0.45rem; }
+.ch-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 48px;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--mc-linea);
+  border-radius: 10px;
+  background: var(--mc-superficie);
+  font-size: 0.93rem;
+  cursor: pointer;
+  text-align: left;
+  color: var(--mc-tinta);
+  width: 100%;
+}
+.ch-opcion input { width: 20px; height: 20px; accent-color: var(--mc-naranja); flex-shrink: 0; }
+.ch-opcion.activa { border-color: var(--mc-naranja); background: rgba(219, 101, 45, 0.1); }
+
+/* "No se le cobra": es lo primero que pregunta el chofer antes de marcarlo,
+   y lo que el cliente va a reclamar si no se cumple. Se dice en verde de
+   estado "bien", no en gris de letra chica. */
+.ch-sin-cobro {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #dce6e4;
+  background: var(--pt-ok-tinte);
+  border: 1px solid rgba(111, 168, 103, 0.4);
+  border-radius: 9px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.9rem 0;
+}
+.ch-sin-cobro svg { flex-shrink: 0; color: var(--pt-ok); margin-top: 0.1rem; }
+
+/* El botón que cierra la parada SIN recolectar no se pinta como la acción
+   normal: lleva borde rojo de error, para que no se apriete por costumbre. */
+.ch-boton-peligro {
+  width: 100%;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: 12px;
+  border-color: rgba(217, 119, 107, 0.6);
+  color: var(--pt-error);
+  font-size: 0.95rem;
+}
+.ch-boton-peligro:hover { border-color: var(--pt-error); color: var(--pt-error); background: var(--pt-error-tinte); }
+
+.ch-foto-mini { margin-top: 0.6rem; max-width: 160px; border-radius: 10px; display: block; }
+.ch-fila-botones { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+
+/* ---------- Peso estimado ---------- */
+.ch-estimado {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #dce6e4;
+  background: var(--pt-alerta-tinte);
+  border: 1px solid rgba(214, 164, 74, 0.4);
+  border-radius: 9px;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.9rem;
+}
+.ch-estimado svg { flex-shrink: 0; color: var(--pt-alerta); margin-top: 0.1rem; }
+
+/* ---------- Barra fija "Reportar un problema" ---------- */
+/* Vive en un portal en <body> (ver ChoferBotonReportar.js), fuera de
+   .pt-body: por eso aquí no se usan los tokens --pt-*, que solo existen
+   dentro de esa caja. Se usan los globales --mc-*. */
+.ch-reportar-barra {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
+  background: rgba(9, 15, 14, 0.92);
+  backdrop-filter: blur(12px) saturate(160%);
+  border-top: 1px solid var(--mc-linea);
+}
+.ch-reportar-boton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  max-width: 688px;
+  margin: 0 auto;
+  min-height: 50px;
+  border-radius: 12px;
+  border: 1px solid rgba(214, 164, 74, 0.55);
+  background: rgba(214, 164, 74, 0.14);
+  color: var(--mc-tinta);
+  font-family: var(--fuente-cuerpo), sans-serif;
+  font-weight: 600;
+  font-size: 0.98rem;
+  text-decoration: none;
+}
+.ch-reportar-boton svg { font-size: 1.25rem; color: var(--mc-alerta); }
+.ch-reportar-boton:hover { color: #fff; border-color: var(--mc-alerta); }
+
+/* ---------- Pantalla de reportar ---------- */
+.ch-grupo { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #c3d0cd; margin: 1.1rem 0 0.5rem; }
+.ch-tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ch-tipo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-height: 76px;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--mc-linea);
+  border-radius: 12px;
+  background: var(--mc-superficie);
+  color: var(--mc-tinta);
+  text-align: left;
+  font-size: 0.93rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: border-color 200ms ease, background-color 200ms ease;
+}
+.ch-tipo svg { font-size: 1.4rem; color: var(--mc-naranja); }
+.ch-tipo.activo { border-color: var(--mc-naranja); background: rgba(219, 101, 45, 0.12); }
+/* El accidente ocupa la fila entera y va en rojo: es lo único de esta
+   pantalla que no puede esperar. */
+.ch-tipo.urgente { grid-column: 1 / -1; border-color: rgba(217, 119, 107, 0.55); }
+.ch-tipo.urgente svg { color: var(--pt-error); }
+.ch-tipo.urgente.activo { border-color: var(--pt-error); background: var(--pt-error-tinte); }
+.ch-tipo-ayuda { font-size: 0.78rem; font-weight: 400; color: #c3d0cd; }
+
+.ch-urgente {
+  border: 2px solid var(--pt-error);
+  background: var(--pt-error-tinte);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  margin: 1rem 0 0.4rem;
+  color: var(--mc-tinta);
+  font-size: 0.93rem;
+  line-height: 1.45;
+}
+.ch-urgente strong { display: block; font-size: 1.02rem; margin-bottom: 0.3rem; color: #fff; }
+.ch-llamar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  min-height: 52px;
+  border-radius: 12px;
+  background: #b5463a;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.02rem;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.ch-llamar:hover { background: #9e3c31; color: #fff; }
+.ch-num { white-space: nowrap; }
+
+.ch-minutos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+.ch-minutos .pt-btn { min-height: 44px; min-width: 64px; justify-content: center; font-size: 0.9rem; }
+.ch-minutos .pt-btn.activo { border-color: var(--mc-naranja); background: rgba(219, 101, 45, 0.12); color: var(--mc-tinta); }
+
+.ch-gps-linea { font-size: 0.82rem; color: #c3d0cd; display: flex; gap: 0.4rem; align-items: center; margin-top: 0.9rem; }
+.ch-gps-linea svg { flex-shrink: 0; }
+
+.ch-listo { text-align: center; padding: 1.6rem 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.ch-listo > svg { font-size: 2.2rem; color: var(--pt-ok); }
+.ch-listo strong { font-size: 1.08rem; }
+.ch-listo span { font-size: 0.9rem; color: #c3d0cd; max-width: 34ch; }
+
+@media (prefers-contrast: more) {
+  .ch-referencias, .ch-tipo-ayuda, .ch-form-ayuda, .ch-llegar-nota, .ch-gps-linea { color: #eef3f2; }
+  .ch-tipo, .ch-opcion, .ch-residuo { border-color: #5d6f6b; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ch-reportar-barra { background: var(--mc-negro); backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-llegar { transition-duration: 0.01ms !important; }
+  .ch-llegar:active { transform: none; }
+}
+
+/* ---------- Tarjeta de parada con "Cómo llegar" ---------- */
+/* La tarjeta entera era un enlace a la parada. "Cómo llegar" es OTRO
+   enlace, y un <a> dentro de otro no es válido (el navegador los separa a
+   su manera). Ahora la tarjeta es una caja con dos enlaces hermanos. */
+.ch-parada-enlace { display: block; color: inherit; text-decoration: none; }
+.ch-parada-enlace:hover { color: inherit; }
+.ch-parada .ch-llegar { margin-top: 0.75rem; min-height: 48px; }
+.ch-parada-dato.ch-parada-ref { align-items: flex-start; color: #dce6e4; }
+.ch-parada-dato.ch-parada-residuo { color: var(--mc-tinta); }
+.ch-parada-dato.ch-parada-residuo svg { color: var(--mc-verde-claro); }
+/* La dirección completa sí se deja partir: es lo que se lee para llegar. */
+.ch-parada-dato.ch-parada-dir { align-items: flex-start; }
+.ch-parada-dato.ch-parada-dir svg,
+.ch-parada-dato.ch-parada-ref svg { margin-top: 0.15rem; }
