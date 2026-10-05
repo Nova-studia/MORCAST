@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Check,
   X,
   Warning,
   CalendarBlank,
+  Scales,
+  Camera,
+  WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC } from "@/lib/rutas-datos";
-import { listarSolicitudes } from "@/lib/datos-solicitudes";
+import { listarSolicitudesPanel, fotoNoProcedio } from "@/lib/datos-solicitudes";
+import { haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { leerKg, textoKg, textoPeso } from "@/lib/peso.mjs";
+import { ponerPesoRealRecoleccion } from "@/app/acciones-peso";
+import EnPortal from "@/app/(admin)/admin/viajes/EnPortal";
 import { listarOperadores } from "@/lib/datos-clientes";
 import { listarRutas } from "@/lib/datos-rutas";
 import { fechaConDia } from "@/lib/portal-datos";
@@ -37,6 +45,10 @@ export default function RecoleccionesAdmin() {
   // Antes no se decidía nada: se confirmaba con la fecha que hubiera pedido el
   // cliente, sin hora y con el chofer que trajera la ruta.
   const [plan, setPlan] = useState({});
+  // "Poner peso real" de una recolección: { s, kg, error, guardando }.
+  const [pesoReal, setPesoReal] = useState(null);
+  // Foto de un "No procedió", por folio: "cargando" | url | "sin-foto".
+  const [fotosNP, setFotosNP] = useState({});
 
   /**
    * Lo que el admin lleva elegido para esta solicitud.
@@ -70,7 +82,7 @@ export default function RecoleccionesAdmin() {
       // "próximo día de su ruta" no aparecía nunca.
       setDiasPorRuta(Object.fromEntries((rs || []).map((r) => [r.id, r.dias || []])));
     });
-    listarSolicitudes().then((lista) => {
+    listarSolicitudesPanel().then((lista) => {
       if (!vivo) return;
       setSolicitudes(lista);
       setCargando(false);
@@ -153,6 +165,39 @@ export default function RecoleccionesAdmin() {
         ),
       { estado: "rechazada", motivoRechazo: texto }
     );
+  };
+
+  /**
+   * Peso real de UNA recolección (el "por si acaso" de los dueños). Va por
+   * el servidor: comprueba el rol, cuenta la fila y lo anota en la bitácora
+   * con el valor de antes. Vacío = quitarlo.
+   */
+  const guardarPesoReal = async (quitar = false) => {
+    const { s, kg } = pesoReal;
+    let valor = null;
+    if (!quitar) {
+      const p = leerKg(kg);
+      if (p.error) return setPesoReal((x) => ({ ...x, error: p.error }));
+      valor = p.kg;
+    }
+    setPesoReal((x) => ({ ...x, guardando: true, error: "" }));
+    const r = await ponerPesoRealRecoleccion(s.evidencia.id, quitar ? null : String(valor));
+    if (!r.ok) {
+      return setPesoReal((x) => ({ ...x, guardando: false, error: r.motivo || "No se pudo guardar." }));
+    }
+    const en = r.demo ? (quitar ? null : new Date().toISOString()) : r.en;
+    setSolicitudes((lista) =>
+      lista.map((x) =>
+        x.folio === s.folio ? { ...x, evidencia: { ...x.evidencia, realKg: valor, realEn: en } } : x
+      )
+    );
+    setPesoReal(null);
+  };
+
+  const verFotoNP = async (s) => {
+    setFotosNP((f) => ({ ...f, [s.folio]: "cargando" }));
+    const url = await fotoNoProcedio(s.id);
+    setFotosNP((f) => ({ ...f, [s.folio]: url || "sin-foto" }));
   };
 
   // El orden es lo primero que fallaba: estaba de la más nueva a la más
@@ -282,6 +327,16 @@ export default function RecoleccionesAdmin() {
                     .join(" · ")}
                 </div>
 
+                {/* Lo que pidió el cliente al agendar (db/023). Es lo que el
+                    chofer compara con lo que encuentra: si no es eso, la
+                    parada termina en "No procedió". */}
+                {s.tipoResiduo && (
+                  <div style={{ fontSize: "0.84rem", marginTop: 5 }}>
+                    <span style={{ color: "var(--mc-gris)" }}>Residuo que pidió: </span>
+                    {s.tipoResiduo}
+                  </div>
+                )}
+
                 {venc.vencida && (
                   <div className="pt-recoleccion-motivo">{venc.detalle}</div>
                 )}
@@ -311,6 +366,81 @@ export default function RecoleccionesAdmin() {
                 {s.motivoRechazo && (
                   <div style={{ fontSize: "0.84rem", color: "#f0895c", marginTop: 5 }}>
                     Rechazada: {s.motivoRechazo}
+                  </div>
+                )}
+
+                {/* "No procedió": el chofer sí llegó. Se enseña su motivo como
+                    respaldo ante el cliente, y no cuenta como incumplida
+                    (lib/vencimiento.js) ni se cobra. */}
+                {s.estado === "no-procedio" && (
+                  // Ámbar y no rojo: el rojo de esta lista es "Morcast falló"
+                  // (vencidas), y aquí el camión sí llegó.
+                  <div style={{ fontSize: "0.84rem", marginTop: 6, lineHeight: 1.4, borderLeft: "3px solid var(--mc-alerta)", paddingLeft: "0.7rem" }}>
+                    <strong style={{ color: "var(--mc-alerta)" }}>No procedió: {s.motivoNoProcedio || "sin motivo registrado"}</strong>
+                    {s.detalleNoProcedio && <div style={{ marginTop: 3 }}>{s.detalleNoProcedio}</div>}
+                    <div style={{ marginTop: 6, display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                      {fotosNP[s.folio] === undefined && haySupabaseNavegador() && (
+                        <button type="button" className="pt-btn" onClick={() => verFotoNP(s)}>
+                          <Camera /> Ver foto del chofer
+                        </button>
+                      )}
+                      {fotosNP[s.folio] === "cargando" && <span style={{ fontSize: "0.8rem" }}>Buscando la foto…</span>}
+                      {fotosNP[s.folio] === "sin-foto" && (
+                        <span style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>El chofer no dejó foto.</span>
+                      )}
+                      {fotosNP[s.folio] && !["cargando", "sin-foto"].includes(fotosNP[s.folio]) && (
+                        <a href={fotosNP[s.folio]} target="_blank" rel="noopener noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={fotosNP[s.folio]}
+                            alt={`Foto de la visita ${s.folio}`}
+                            style={{ maxWidth: 220, maxHeight: 160, borderRadius: 10, border: "1px solid var(--mc-linea)", display: "block" }}
+                          />
+                        </a>
+                      )}
+                      {!haySupabaseNavegador() && (
+                        <span style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+                          (En modo demostración no hay fotos.)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* El peso: el del chofer es un ESTIMADO. El real lo da la
+                    báscula del relleno, por viaje (/admin/viajes) o, por si
+                    acaso, por recolección con el botón de aquí. */}
+                {s.estado === "completada" && (
+                  <div style={{ fontSize: "0.84rem", marginTop: 6, display: "flex", gap: "0.5rem 1rem", flexWrap: "wrap", alignItems: "center" }}>
+                    {!s.evidencia ? (
+                      <span style={{ color: "var(--mc-gris)" }}>Sin evidencia del chofer: no hay peso.</span>
+                    ) : (
+                      <>
+                        <span>
+                          <span style={{ color: "var(--mc-gris)" }}>Estimado del chofer: </span>
+                          {s.evidencia.estimadoKg ? textoKg(s.evidencia.estimadoKg) : "sin peso"}
+                        </span>
+                        {s.evidencia.realKg && (
+                          <span style={{ color: "var(--mc-ok)" }}>
+                            Peso real: <strong>{textoKg(s.evidencia.realKg)}</strong>
+                          </span>
+                        )}
+                        {s.evidencia.viaje && (
+                          <Link href="/admin/viajes" style={{ color: "var(--mc-azul-txt, #6ba3cf)" }}>
+                            Va en el viaje del {fechaConDia(s.evidencia.viaje.fecha)}
+                            {s.evidencia.viaje.pesoRealKg ? ` · ${textoPeso(s.evidencia.viaje.pesoRealKg)} reales en total` : ""}
+                            {s.evidencia.viaje.folioTicket ? ` · ticket ${s.evidencia.viaje.folioTicket}` : ""}
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          className="pt-btn"
+                          onClick={() => setPesoReal({ s, kg: s.evidencia.realKg ? String(s.evidencia.realKg) : "", error: "" })}
+                        >
+                          <Scales /> {s.evidencia.realKg ? "Cambiar peso real" : "Poner peso real"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -430,6 +560,77 @@ export default function RecoleccionesAdmin() {
           })
         )}
       </div>
+
+      {pesoReal && (
+        <EnPortal>
+          <div className="pt-modal-fondo" onClick={() => !pesoReal.guardando && setPesoReal(null)}>
+            <div
+              className="pt-modal"
+              style={{ width: "min(460px, 100%)" }}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Poner peso real"
+            >
+              <div className="pt-modal-head">
+                <div>
+                  <strong>Peso real · {pesoReal.s.folio}</strong>
+                  <span>{pesoReal.s.cliente}</span>
+                </div>
+                <button type="button" className="pt-btn" onClick={() => setPesoReal(null)} disabled={pesoReal.guardando} aria-label="Cerrar"><X /></button>
+              </div>
+              <div style={{ padding: "1.2rem" }}>
+                <p style={{ fontSize: "0.84rem", color: "var(--mc-gris)", marginTop: 0 }}>
+                  El chofer estimó{" "}
+                  <strong style={{ color: "var(--mc-tinta)" }}>
+                    {pesoReal.s.evidencia.estimadoKg ? textoKg(pesoReal.s.evidencia.estimadoKg) : "nada"}
+                  </strong>
+                  . Úsalo cuando la báscula pesó solo esta recolección (un roll-off, un viaje con un
+                  solo contenedor). Si iba con otras en el camión, registra el viaje completo en{" "}
+                  <Link href="/admin/viajes" style={{ color: "var(--mc-azul-txt, #6ba3cf)" }}>Peso real (relleno)</Link>.
+                </p>
+                {pesoReal.s.evidencia.viaje && (
+                  <p className="pt-nota-demo" style={{ margin: "0 0 0.9rem" }}>
+                    <WarningCircle /> Esta recolección ya va en un viaje con peso real. En los reportes
+                    manda el peso del viaje; este dato queda como referencia.
+                  </p>
+                )}
+                <div className="pt-campo">
+                  <label htmlFor="peso-real-kg">Peso real (kg)</label>
+                  <input
+                    id="peso-real-kg"
+                    inputMode="decimal"
+                    autoFocus
+                    value={pesoReal.kg}
+                    placeholder="Ej. 3460"
+                    onChange={(e) => setPesoReal((x) => ({ ...x, kg: e.target.value, error: "" }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") guardarPesoReal(); }}
+                    style={{ fontFamily: "var(--fuente-mono), 'JetBrains Mono', monospace" }}
+                  />
+                </div>
+                {pesoReal.error && (
+                  <div className="pt-login-error" role="alert" style={{ marginBottom: "0.9rem" }}>{pesoReal.error}</div>
+                )}
+                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <div>
+                    {pesoReal.s.evidencia.realKg && (
+                      <button type="button" className="pt-btn" onClick={() => guardarPesoReal(true)} disabled={pesoReal.guardando}>
+                        Quitar peso real
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button type="button" className="pt-btn" onClick={() => setPesoReal(null)} disabled={pesoReal.guardando}>Cancelar</button>
+                    <button type="button" className="pt-btn pt-btn-verde" onClick={() => guardarPesoReal()} disabled={pesoReal.guardando}>
+                      <Check /> {pesoReal.guardando ? "Guardando…" : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </EnPortal>
+      )}
     </>
   );
 }

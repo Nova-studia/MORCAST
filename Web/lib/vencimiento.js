@@ -25,7 +25,13 @@
  *                 la terminó. Suele ser papeleo, no servicio: casi siempre el
  *                 camión sí fue.
  *
- * `completada` y `rechazada` son finales: nunca vencen.
+ * `completada`, `rechazada` y `no-procedio` son finales: nunca vencen.
+ *
+ * "No procedió" (db/023) es cuando el chofer SÍ llegó y no se pudo recoger:
+ * el residuo no era el agendado, estaba cerrado, el contenedor no estaba…
+ * Deja motivo y no se cobra. Tratarla como "No se cumplió" sería culpar a
+ * Morcast de una visita que sí se hizo, y volverla a pintar en rojo arriba de
+ * la lista cada día hasta que alguien la reagendara.
  */
 
 /** Hoy en AAAA-MM-DD, armado con la fecha LOCAL (no UTC, que corre el día). */
@@ -46,7 +52,7 @@ export function diasEntre(aISO, bISO) {
   return Math.round((b - a) / 86400000);
 }
 
-const FINALES = new Set(["completada", "rechazada"]);
+const FINALES = new Set(["completada", "rechazada", "no-procedio"]);
 
 const POR_ESTADO = {
   solicitada: {
@@ -110,7 +116,8 @@ export function textoAtraso(dias) {
  *   1. Vencidas, la más atrasada primero.
  *   2. Pendientes por venir, la más próxima primero (mañana antes que en tres
  *      semanas: es lo siguiente que hay que resolver).
- *   3. Cerradas (completadas y rechazadas), lo más reciente primero.
+ *   3. Cerradas (completadas, rechazadas y las que no procedieron), lo más
+ *      reciente primero.
  */
 export function ordenarPorUrgencia(lista, hoy = hoyISO()) {
   const rango = (s) => {

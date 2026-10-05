@@ -90,6 +90,22 @@ export const TEXTO_ACCION = {
   entrar_panel: "Entró al panel con el código de su correo",
   atender_incidente: "Marcó como atendido un incidente del chofer",
   enviar_aviso: "Mandó un aviso a clientes",
+  // Las del chofer (app/acciones-chofer.js).
+  no_procedio: "Marcó una parada como \"No procedió\"",
+  reportar_incidente: "Reportó un incidente desde su ruta",
+  // Éstas ya se anotaban pero salían con su clave cruda en la pantalla.
+  activar_cuenta_registrada: "Activó la cuenta de un cliente registrado",
+  alta_solicitada: "Llegó una solicitud de alta",
+  registro_google: "Un cliente se registró con Google",
+  eliminar_cuenta: "Eliminó su cuenta desde la app",
+  eliminar_cuenta_simulada: "Pidió eliminar la cuenta de muestra",
+  // Peso real del relleno (app/acciones-peso.js, db/023).
+  registrar_viaje_relleno: "Registró un viaje al relleno con su peso real",
+  editar_viaje_relleno: "Editó un viaje al relleno",
+  borrar_viaje_relleno: "Borró un viaje al relleno",
+  subir_ticket_viaje: "Subió la foto del ticket de báscula de un viaje",
+  poner_peso_real: "Puso el peso real de una recolección",
+  quitar_peso_real: "Quitó el peso real de una recolección",
   // Las anota la propia base (db/022), venga el cambio de la web, de la app
   // o de una llamada directa a la API.
   db_insert: "Alta",
@@ -105,6 +121,10 @@ export const TEXTO_TABLA = {
   rutas: "ruta",
   solicitudes_recoleccion: "solicitud de recolección",
   domicilios: "punto de recolección",
+  unidades: "unidad",
+  contenedores: "contenedor",
+  viajes_relleno: "viaje al relleno",
+  suscripciones: "servicio contratado",
 };
 
 /** El texto de la columna «Acción» de una fila de la bitácora. */

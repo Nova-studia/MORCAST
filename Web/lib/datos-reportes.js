@@ -1,6 +1,8 @@
 "use client";
 
 import { colorDe } from "@/lib/paleta-datos";
+import { aportesConMejorDato } from "@/lib/peso.mjs";
+import { demoPeso } from "@/lib/datos-viajes";
 
 /**
  * Reportes: se arman sumando lo que de verdad se recolectó.
@@ -15,6 +17,12 @@ import { colorDe } from "@/lib/paleta-datos";
  *
  * Sirve igual para el cliente y para el panel: el RLS decide qué filas entran
  * en la suma. El cliente suma lo suyo; Morcast, todo.
+ *
+ * EL PESO ES EL MEJOR DATO DISPONIBLE (db/023), no siempre el del chofer: el
+ * real de la báscula del relleno si ya se registró —por viaje o por
+ * recolección— y si no, el estimado. La regla y el cuidado de no contar
+ * doble viven en `lib/peso.mjs`. Cada periodo trae además cuánto de su total
+ * es real y cuánto estimado, para que la pantalla lo diga.
  */
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
@@ -56,7 +64,7 @@ function serie(filas, cuantos, paso) {
       clave = `${f.getFullYear()}`;
       etiqueta = String(f.getFullYear());
     }
-    cubos.push({ clave, periodo: etiqueta, volumen: 0, monto: 0, servicios: 0 });
+    cubos.push({ clave, periodo: etiqueta, volumen: 0, real: 0, estimado: 0, monto: 0, servicios: 0 });
   }
 
   const porClave = Object.fromEntries(cubos.map((c) => [c.clave, c]));
@@ -72,49 +80,95 @@ function serie(filas, cuantos, paso) {
     const cubo = porClave[clave];
     if (!cubo) continue;
     cubo.volumen += fila.toneladas;
-    cubo.servicios += 1;
+    if (fila.esReal) cubo.real += fila.toneladas;
+    else cubo.estimado += fila.toneladas;
+    // Un viaje al relleno es UN aporte pero varios servicios.
+    cubo.servicios += fila.servicios ?? 1;
   }
 
+  const r2 = (n) => Math.round(n * 100) / 100;
   return cubos.map(({ clave, ...resto }) => ({
     ...resto,
-    volumen: Math.round(resto.volumen * 100) / 100,
+    volumen: r2(resto.volumen),
+    real: r2(resto.real),
+    estimado: r2(resto.estimado),
   }));
 }
 
 /**
- * Todos los servicios completados con peso, en el formato mínimo que
+ * Todos los servicios completados, convertidos en APORTES de peso con el
+ * mejor dato de cada uno (ver lib/peso.mjs), en el formato mínimo que
  * necesitan las gráficas.
+ *
+ * Los viajes se piden aparte. Al cliente el RLS no le enseña ninguno, así
+ * que sus recolecciones caen solas a su peso real propio o a su estimado:
+ * el ticket del viaje es del camión entero, no de su empresa.
  */
 async function serviciosPesados() {
-  if (!haySupabaseNavegador()) return [];
-
-  const { data, error } = await supabaseNavegador()
-    .from("solicitudes_recoleccion")
-    .select("fecha_pedida, fecha_confirmada, rutas ( tipo ), recolecciones ( peso_kg )")
-    .eq("estado", "completada");
-
-  if (error) {
-    console.error("[reportes] No se pudieron leer:", error.message);
-    return [];
+  if (!haySupabaseNavegador()) {
+    // En la demo, las mismas recolecciones y viajes que /admin/viajes, para
+    // que se vea la parte real y la estimada del total.
+    const d = demoPeso();
+    const tipoDe = { "RT-INDUSTRIAL": "roll-off", "RT-CENTRO": "compactador", "RT-NORTE": "manual" };
+    return aFilas(aportesConMejorDato(
+      d.recolecciones.map((r) => ({ ...r, tipo: tipoDe[r.rutaClave] || "otro" })),
+      d.viajes
+    ));
   }
 
-  return (data || [])
+  const supabase = supabaseNavegador();
+  const [solicitudes, viajes] = await Promise.all([
+    supabase
+      .from("solicitudes_recoleccion")
+      .select("fecha_pedida, fecha_confirmada, rutas ( tipo ), recolecciones ( peso_kg, peso_real_kg, viaje_id )")
+      .eq("estado", "completada"),
+    supabase.from("viajes_relleno").select("id, fecha, peso_real_kg"),
+  ]);
+
+  if (solicitudes.error) {
+    console.error("[reportes] No se pudieron leer:", solicitudes.error.message);
+    return { filas: [], totales: aportesConMejorDato([], []) };
+  }
+  // Sin viajes (error o cliente) se sigue: cada recolección cuenta lo suyo.
+  if (viajes.error) console.error("[reportes] No se pudieron leer los viajes:", viajes.error.message);
+
+  const recolecciones = (solicitudes.data || [])
     .map((s) => {
-      const kg = Number(s.recolecciones?.[0]?.peso_kg || 0);
+      const ev = s.recolecciones?.[0] || null;
       return {
         fecha: s.fecha_confirmada || s.fecha_pedida,
-        // En toneladas, que es como se habla de residuos: 1250 kg se lee
-        // mejor como 1.25 que como mil doscientos cincuenta.
-        toneladas: kg / 1000,
         tipo: s.rutas?.tipo || "otro",
+        estimadoKg: ev?.peso_kg,
+        realKg: ev?.peso_real_kg,
+        viajeId: ev?.viaje_id || null,
       };
     })
-    .filter((s) => s.fecha);
+    .filter((r) => r.fecha);
+
+  return aFilas(aportesConMejorDato(
+    recolecciones,
+    (viajes.data || []).map((v) => ({ id: v.id, fecha: v.fecha, pesoRealKg: v.peso_real_kg }))
+  ));
+}
+
+/** Aportes de peso → filas de las gráficas, en toneladas. */
+function aFilas(totales) {
+  const filas = totales.aportes.map((a) => ({
+    fecha: a.fecha,
+    // En toneladas, que es como se habla de residuos: 1250 kg se lee
+    // mejor como 1.25 que como mil doscientos cincuenta.
+    toneladas: a.kg / 1000,
+    tipo: a.tipo,
+    esReal: a.fuente === "viaje" || a.fuente === "real",
+    servicios: a.servicios,
+  }));
+
+  return { filas, totales };
 }
 
 /** Series listas para las tres vistas, más el reparto por tipo de ruta. */
 export async function reportes() {
-  const filas = await serviciosPesados();
+  const { filas, totales } = await serviciosPesados();
 
   const porTipo = {};
   let total = 0;
@@ -142,7 +196,11 @@ export async function reportes() {
 
   return {
     hayDatos: filas.length > 0,
-    servicios: filas.length,
+    servicios: totales.servicios,
+    // De todo el historial, cuánto salió de báscula y cuánto del chofer.
+    toneladasReales: totales.kgReal / 1000,
+    toneladasEstimadas: totales.kgEstimado / 1000,
+    serviciosConPesoReal: totales.serviciosConReal,
     diario: serie(filas, 14, "dia"),
     mensual: serie(filas, 12, "mes"),
     anual: serie(filas, 4, "anio"),

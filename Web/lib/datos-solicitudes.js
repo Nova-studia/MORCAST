@@ -12,6 +12,7 @@ import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegado
 import { SOLICITUDES_SEED, nombreTipoRuta } from "@/lib/rutas-datos";
 import { enlaceEvidencia } from "@/lib/datos-archivos";
 import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
+import { demoPeso } from "@/lib/datos-viajes";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
@@ -98,6 +99,92 @@ export async function listarSolicitudes() {
     return [];
   }
   return (data || []).map(aFormatoPantalla);
+}
+
+/**
+ * Lo mismo que `listarSolicitudes`, más lo que solo le sirve al PANEL
+ * (db/023): el tipo de residuo que pidió el cliente, el motivo de un "No
+ * procedió", y el peso de su recolección —el estimado del chofer, el real si
+ * ya se puso, y el viaje al relleno en que iba—.
+ *
+ * Va aparte y no dentro de `listarSolicitudes` porque ésa también la usa el
+ * portal del cliente, y al cliente no le toca la pregunta "¿en qué viaje del
+ * camión iba mi basura?": el ticket del viaje es del camión completo, con
+ * residuo de otras empresas. Además el RLS no le deja leer `viajes_relleno`.
+ */
+const CAMPOS_PANEL = `${CAMPOS},
+  tipo_residuo, motivo_no_procedio, detalle_no_procedio,
+  recolecciones (
+    id, peso_kg, peso_real_kg, peso_real_en, viaje_id,
+    viajes_relleno ( id, fecha, peso_real_kg, folio_ticket )
+  )
+`;
+
+const numero = (v) => (v === null || v === undefined ? null : Number(v));
+
+export async function listarSolicitudesPanel() {
+  if (!haySupabaseNavegador()) {
+    // Las de siempre, más completadas con peso y una que no procedió, para
+    // que en la demo se vea cómo se pinta cada caso.
+    return [...SOLICITUDES_SEED, ...demoPeso().solicitudes.map((s) => ({ ...s }))];
+  }
+
+  const { data, error } = await supabaseNavegador()
+    .from("solicitudes_recoleccion")
+    .select(CAMPOS_PANEL)
+    .order("fecha_pedida", { ascending: false });
+
+  if (error) {
+    console.error("[solicitudes] No se pudieron leer (panel):", error.message);
+    return [];
+  }
+  return (data || []).map((f) => {
+    // Una recolección por servicio (así la levanta el chofer). Si hubiera
+    // dos, manda la primera, igual que en el historial del cliente.
+    const ev = f.recolecciones?.[0] || null;
+    const v = ev?.viajes_relleno || null;
+    return {
+      ...aFormatoPantalla(f),
+      tipoResiduo: f.tipo_residuo || "",
+      motivoNoProcedio: f.motivo_no_procedio || "",
+      detalleNoProcedio: f.detalle_no_procedio || "",
+      evidencia: ev
+        ? {
+            id: ev.id,
+            estimadoKg: numero(ev.peso_kg),
+            realKg: numero(ev.peso_real_kg),
+            realEn: ev.peso_real_en || null,
+            viajeId: ev.viaje_id || null,
+            viaje: v
+              ? { id: v.id, fecha: v.fecha, pesoRealKg: numero(v.peso_real_kg), folioTicket: v.folio_ticket || "" }
+              : null,
+          }
+        : null,
+    };
+  });
+}
+
+/**
+ * La foto que dejó el chofer al marcar "No procedió", si la dejó.
+ *
+ * No hay columna para ella: vive en la carpeta de evidencias de la solicitud
+ * (`evidencias/<id>/…`), que es la única donde la política de la cubeta le
+ * deja subir al chofer. Se prefiere un archivo cuyo nombre diga
+ * "no-procedio"; si no hay, la foto más reciente de la carpeta, que en una
+ * parada que no procedió es la de esa visita. Devuelve el enlace firmado o
+ * null.
+ */
+export async function fotoNoProcedio(solicitudId) {
+  if (!haySupabaseNavegador() || !solicitudId) return null;
+
+  const { data, error } = await supabaseNavegador()
+    .storage.from("evidencias")
+    .list(String(solicitudId), { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+  if (error || !data?.length) return null;
+
+  const fotos = data.filter((a) => /\.(jpe?g|png|webp|heic)$/i.test(a.name));
+  const elegida = fotos.find((a) => /no.?procedi/i.test(a.name)) || fotos[0];
+  return elegida ? enlaceEvidencia(`${solicitudId}/${elegida.name}`) : null;
 }
 
 /**

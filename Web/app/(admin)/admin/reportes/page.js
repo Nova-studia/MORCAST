@@ -35,9 +35,19 @@ export default function ReportesAdmin() {
   // Se grafica el PESO recolectado por mes, no los ingresos: el peso lo
   // registra el chofer en cada servicio; la facturacion todavia no vive en el
   // sistema y graficar ceros con etiqueta de dinero solo confunde.
-  const serie = rep ? rep.mensual.map((d) => ({ periodo: d.periodo, monto: d.volumen })) : ADMIN_INGRESOS;
+  //
+  // Cada mes trae qué parte de su peso es REAL (báscula del relleno, por
+  // viaje o por recolección) y qué parte es el ESTIMADO del chofer. Se
+  // enseñan las dos: un total que mezcla las dos sin decirlo se lee como si
+  // todo fuera de báscula, y el dueño cobra por tonelada.
+  const serie = rep
+    ? rep.mensual.map((d) => ({ periodo: d.periodo, monto: d.volumen, real: d.real || 0, estimado: d.estimado || 0 }))
+    : ADMIN_INGRESOS;
   const max = Math.max(...serie.map((d) => d.monto), 1);
   const total = serie.reduce((a, d) => a + d.monto, 0);
+  const totalReal = serie.reduce((a, d) => a + (d.real || 0), 0);
+  const totalEstimado = serie.reduce((a, d) => a + (d.estimado || 0), 0);
+  const pctReal = total ? Math.round((totalReal / total) * 100) : 0;
   const promedio = serie.length ? total / serie.length : 0;
   const mejor = serie.length
     ? serie.reduce((a, d) => (d.monto > a.monto ? d : a), serie[0])
@@ -65,7 +75,11 @@ export default function ReportesAdmin() {
       <div className="pt-page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h1>Reportes del negocio</h1>
-          <p>Peso recolectado y desempeño comercial de los últimos 12 meses.</p>
+          <p>
+            Peso recolectado y desempeño comercial de los últimos 12 meses. El peso es
+            el real de la báscula del relleno donde ya se registró; donde no, el
+            estimado del chofer.
+          </p>
         </div>
         <button className="pt-btn pt-btn-naranja" onClick={exportar} disabled={bajando}>
           <DownloadSimple /> {bajando ? "Generando…" : "Exportar PDF"}
@@ -78,6 +92,11 @@ export default function ReportesAdmin() {
           <div className="pt-stat-etiqueta">Recolectado 12 meses</div>
           <div className="pt-stat-valor">{ton(total)}</div>
           <div className="pt-stat-sub">Promedio {ton(promedio)} / mes</div>
+          {total > 0 && (
+            <div className="pt-stat-sub">
+              {pctReal}% real de báscula · {ton(totalEstimado)} estimado
+            </div>
+          )}
         </div>
         <div className="pt-stat">
           <div className="pt-stat-icono teal"><Medal /></div>
@@ -103,32 +122,78 @@ export default function ReportesAdmin() {
             salen en cero.
           </p>
         )}
+        {/* Barra apilada: abajo lo real, arriba (más tenue) lo estimado. El
+            mismo tono en las dos porque es la misma cosa —peso recolectado—
+            medida con distinta certeza; dos colores harían pensar en dos
+            residuos distintos. */}
         <div className="pt-bars">
           {serie.map((d) => (
             <div className="pt-bar-col" key={d.periodo}>
               <div className="pt-bar-track">
-                <div className="pt-bar naranja" style={{ height: `${(d.monto / max) * 100}%` }} title={ton(d.monto)} />
+                {d.monto > 0 ? (
+                  <div
+                    style={{ height: `${(d.monto / max) * 100}%`, width: "100%", display: "flex", flexDirection: "column" }}
+                    title={`${ton(d.monto)} · real ${ton(d.real)} · estimado ${ton(d.estimado)}`}
+                  >
+                    {d.estimado > 0 && (
+                      <div className="pt-bar naranja" style={{ flex: d.estimado, minHeight: 0, opacity: 0.38 }} />
+                    )}
+                    {d.real > 0 && (
+                      <div
+                        className="pt-bar naranja"
+                        style={{ flex: d.real, minHeight: 0, borderRadius: d.estimado > 0 ? 0 : undefined }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="pt-bar naranja" style={{ height: 0 }} title={ton(0)} />
+                )}
               </div>
               <div className="pt-bar-label">{d.periodo}</div>
             </div>
           ))}
+        </div>
+        <div style={{ display: "flex", gap: "1.2rem", flexWrap: "wrap", marginTop: "0.9rem", fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="pt-bar naranja" style={{ width: 12, height: 12, minHeight: 0, borderRadius: 3 }} />
+            Real: báscula del relleno
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="pt-bar naranja" style={{ width: 12, height: 12, minHeight: 0, borderRadius: 3, opacity: 0.38 }} />
+            Estimado del chofer (aún sin peso real)
+          </span>
         </div>
       </div>
 
       <div className="pt-card">
         <div className="pt-card-head"><h2>Detalle</h2></div>
         <div className="pt-tabla-wrap">
-          <table className="pt-tabla" style={{ minWidth: 360 }}>
+          <table className="pt-tabla" style={{ minWidth: 420 }}>
             <thead>
-              <tr><th>Periodo</th><th className="num">Recolectado</th></tr>
+              <tr>
+                <th>Periodo</th>
+                <th className="num">Real</th>
+                <th className="num">Estimado</th>
+                <th className="num">Recolectado</th>
+              </tr>
             </thead>
             <tbody>
               {serie.map((d) => (
-                <tr key={d.periodo}><td>{d.periodo}</td><td className="num">{ton(d.monto)}</td></tr>
+                <tr key={d.periodo}>
+                  <td>{d.periodo}</td>
+                  <td className="num">{ton(d.real)}</td>
+                  <td className="num" style={{ color: "var(--mc-gris)" }}>{ton(d.estimado)}</td>
+                  <td className="num">{ton(d.monto)}</td>
+                </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700 }}><td>Total</td><td className="num">{ton(total)}</td></tr>
+              <tr style={{ fontWeight: 700 }}>
+                <td>Total</td>
+                <td className="num">{ton(totalReal)}</td>
+                <td className="num">{ton(totalEstimado)}</td>
+                <td className="num">{ton(total)}</td>
+              </tr>
             </tfoot>
           </table>
         </div>
