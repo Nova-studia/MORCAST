@@ -36,7 +36,10 @@ export function paseUtil(guardado, uidActual, ahora = Date.now()) {
   if (!guardado || typeof guardado.pase !== "string" || !guardado.pase) return false;
   if (!uidActual || guardado.uid !== uidActual) return false;
   if (guardado.vence != null && guardado.vence !== "") {
-    const vence = typeof guardado.vence === "number" ? guardado.vence : Date.parse(guardado.vence);
+    // El servidor manda `vence` en SEGUNDOS Unix; Date.now() va en ms. Un
+    // número menor que 1e12 es de segundos (1e12 ms sería el año 2001).
+    const crudo = typeof guardado.vence === "string" && /^\d+$/.test(guardado.vence) ? Number(guardado.vence) : guardado.vence;
+    const vence = typeof crudo === "number" ? (crudo < 1e12 ? crudo * 1000 : crudo) : Date.parse(crudo);
     // Una fecha ilegible no se toma como "vigente": se pide código otra vez.
     if (!Number.isFinite(vence) || vence <= ahora) return false;
   }

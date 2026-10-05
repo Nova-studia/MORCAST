@@ -68,6 +68,10 @@ export async function comprobarPase() {
   const r = await postApp("segundo-paso/estado", { pase: guardado.pase });
   if (r.red) return { valido: false, red: true, motivo: r.motivo };
   if (r.ok && r.valido === true) return { valido: true };
+  // Solo se tira el pase cuando el servidor dice que NO es válido. Un 429,
+  // un 5xx o un token que no se pudo renovar con mala señal no dicen nada
+  // del pase: se trata como falta de red y se ofrece reintentar.
+  if (r.ok !== true) return { valido: false, red: true, motivo: r.motivo };
 
   await olvidarPase();
   return { valido: false };

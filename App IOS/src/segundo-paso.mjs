@@ -25,12 +25,24 @@ export function codigoCompleto(texto) {
  * el código de nuevo. Si no hay `vence` (o no se entiende), se pregunta: el
  * que manda es el servidor.
  */
+/**
+ * El servidor manda `vence` en SEGUNDOS Unix (lib/mfa.mjs del web); JavaScript
+ * cuenta en milisegundos. Un número menor que 1e12 es de segundos (1e12 ms
+ * sería el año 2001): se multiplica. También acepta fechas ISO.
+ */
+export function venceEnMs(vence) {
+  if (typeof vence === "number") return vence < 1e12 ? vence * 1000 : vence;
+  if (typeof vence === "string" && /^\d+$/.test(vence)) return venceEnMs(Number(vence));
+  const t = new Date(vence).getTime();
+  return Number.isNaN(t) ? NaN : t;
+}
+
 export function paseLocalVigente(guardado, ahora = new Date()) {
   if (!guardado || typeof guardado.pase !== "string" || !guardado.pase) return false;
   if (!guardado.vence) return true;
-  const vence = new Date(guardado.vence);
-  if (Number.isNaN(vence.getTime())) return true;
-  return vence.getTime() > ahora.getTime();
+  const vence = venceEnMs(guardado.vence);
+  if (Number.isNaN(vence)) return true;
+  return vence > ahora.getTime();
 }
 
 /** Lo que se guarda en el llavero: el pase, su vencimiento y de QUIÉN es. */

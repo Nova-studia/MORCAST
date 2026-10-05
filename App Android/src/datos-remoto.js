@@ -909,7 +909,11 @@ export async function marcarAvisoEnterado(avisoId) {
   if (!haySupabase()) return { ok: true, demo: true };
   try {
     const { error } = await supabase.from("avisos_lecturas").insert({ aviso_id: avisoId });
-    if (error && !esDuplicado(error)) return { ok: false, motivo: error.message };
+    if (error && !esDuplicado(error)) {
+      // Nada de mensajes crudos de Postgres en inglés frente al cliente.
+      console.warn("[avisos] no se pudo anotar la lectura:", error.message);
+      return { ok: false, motivo: "No pudimos guardar tu \"Enterado\". Inténtalo de nuevo en un momento." };
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, motivo: e?.message || String(e) };

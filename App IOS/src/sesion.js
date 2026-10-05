@@ -165,8 +165,11 @@ export async function salir() {
   // borra a nombre de quien sale (si no, el siguiente que entrara en este
   // iPhone recibiría sus avisos). El pase del segundo paso se tira: vale
   // para esta sesión y nadie más debe poder usarlo.
-  await borrarTokenAlSalir().catch(() => {});
-  await olvidarPase();
+  // Con tope de 4 s (igual que Android): con señal débil, "Salir" no se
+  // puede quedar colgado esperando al servidor.
+  const conTope = (p) => Promise.race([p, new Promise((r) => setTimeout(r, 4000))]);
+  await conTope(borrarTokenAlSalir().catch(() => {}));
+  await conTope(olvidarPase().catch(() => {}));
   olvidarCuentaDeMuestra();
   if (haySupabase()) await supabase.auth.signOut();
 }

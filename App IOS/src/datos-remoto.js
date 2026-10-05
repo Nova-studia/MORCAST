@@ -214,7 +214,7 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
   // llegaría a la bandeja de Morcast como si fuera de un cliente.
   if (esCuentaDeMuestra()) {
     const su = await miSuscripcion();
-    return pedirRecoleccionDeMuestra({ fecha, nota, origen }, su?.ruta?.nombre);
+    return pedirRecoleccionDeMuestra({ fecha, nota, origen, tipoResiduo }, su?.ruta?.nombre);
   }
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -230,3 +230,13 @@ test("Reporte: retraso pide minutos, otro pide descripción, contenedor solo en 
   assert.deepEqual(u, { lat: 25.861235, lng: -97.5, precision_m: 13, capturada: "2026-10-05T12:00:00.000Z" });
   assert.equal(textoMinutos(90), "1 h 30 min");
 });
+
+test("el vencimiento del pase llega en SEGUNDOS Unix y se reconoce bien", async () => {
+  const { paseLocalVigente, venceEnMs } = await import("../src/segundo-paso.mjs");
+  const ahora = new Date("2026-10-05T12:00:00Z");
+  const enSegundos = Math.floor(ahora.getTime() / 1000) + 7 * 24 * 3600; // como lo manda el servidor
+  assert.equal(venceEnMs(enSegundos), enSegundos * 1000);
+  assert.equal(paseLocalVigente({ pase: "p", vence: enSegundos }, ahora), true);
+  assert.equal(paseLocalVigente({ pase: "p", vence: Math.floor(ahora.getTime() / 1000) - 60 }, ahora), false);
+  assert.equal(paseLocalVigente({ pase: "p", vence: String(enSegundos) }, ahora), true);
+});

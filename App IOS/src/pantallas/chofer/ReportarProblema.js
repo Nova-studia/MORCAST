@@ -57,7 +57,9 @@ export default function ReportarProblema({ route, navigation, ruta = [] }) {
       setContenedores(l || []);
       // Si viene del escáner, se preselecciona el que se leyó (si existe).
       if (desde.codigo) {
-        const c = (l || []).find((x) => x.codigo === desde.codigo);
+        // Se compara sin espacios ni mayúsculas, igual que Android.
+        const norm = (v) => String(v || "").trim().toUpperCase();
+        const c = (l || []).find((x) => norm(x.codigo) === norm(desde.codigo));
         if (c) setContenedorId(c.id);
       }
     });

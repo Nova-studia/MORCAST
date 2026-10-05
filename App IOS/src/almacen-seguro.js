@@ -23,10 +23,57 @@ const llavero = {
   removeItem: (k) => SecureStore.deleteItemAsync(k),
 };
 
+/**
+ * El llavero de iOS NO se borra al desinstalar la app (AsyncStorage sí). Sin
+ * esto, quien borra la app y la vuelve a instalar entraría solo, sin
+ * contraseña. Una marca en AsyncStorage dice "esta instalación ya corrió":
+ * si no está, lo que haya en el llavero es de una instalación anterior y se
+ * tira. OJO: solo se limpia el LLAVERO; la copia vieja de AsyncStorage (la
+ * sesión de quien viene de la 1.0) se respeta para que la mudanza funcione.
+ */
+const MARCA_INSTALACION = "morcast_llavero_instalacion";
+const soloLlavero = crearAlmacenTrozado({ seguro: llavero, viejo: null });
+let revision = null;
+let limpiarLlavero = false;
+const limpiadas = new Set();
+
+function revisarInstalacion() {
+  if (!revision) {
+    revision = (async () => {
+      try {
+        if (!(await AsyncStorage.getItem(MARCA_INSTALACION))) {
+          limpiarLlavero = true;
+          await AsyncStorage.setItem(MARCA_INSTALACION, "1");
+        }
+      } catch {
+        // Si AsyncStorage falla no se limpia nada: mejor una sesión de más
+        // que sacar a todos.
+      }
+    })();
+  }
+  return revision;
+}
+
+async function antesDeTocar(k) {
+  await revisarInstalacion();
+  if (limpiarLlavero && !limpiadas.has(k)) {
+    limpiadas.add(k);
+    await soloLlavero.removeItem(k).catch(() => {});
+  }
+}
+
+function conRevision(almacen) {
+  return {
+    getItem: async (k) => { await antesDeTocar(k); return almacen.getItem(k); },
+    setItem: async (k, v) => { await antesDeTocar(k); return almacen.setItem(k, v); },
+    removeItem: async (k) => { await antesDeTocar(k); return almacen.removeItem(k); },
+  };
+}
+
 export const almacenSesion =
   Platform.OS === "web"
     ? AsyncStorage
-    : crearAlmacenTrozado({ seguro: llavero, viejo: AsyncStorage });
+    : conRevision(crearAlmacenTrozado({ seguro: llavero, viejo: AsyncStorage }));
 
 /**
  * Para guardar cosas sueltas en el llavero (el pase del segundo paso de la

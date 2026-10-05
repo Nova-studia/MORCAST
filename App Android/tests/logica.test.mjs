@@ -180,3 +180,11 @@ test("tocar una notificación lleva a la pantalla de su modo", () => {
   assert.equal(destinoDeNotificacion({ tipo: "otro" }, "cliente"), null);
   assert.equal(destinoDeNotificacion(null, "cliente"), null);
 });
+
+test("el vencimiento del pase llega en SEGUNDOS Unix y se reconoce bien", () => {
+  const ahora = Date.parse("2026-10-05T12:00:00Z");
+  const enSegundos = Math.floor(ahora / 1000) + 7 * 24 * 3600; // como lo manda el servidor
+  assert.equal(paseUtil({ pase: "p", uid: "u", vence: enSegundos }, "u", ahora), true);
+  assert.equal(paseUtil({ pase: "p", uid: "u", vence: Math.floor(ahora / 1000) - 60 }, "u", ahora), false);
+  assert.equal(paseUtil({ pase: "p", uid: "u", vence: String(enSegundos) }, "u", ahora), true);
+});
