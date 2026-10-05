@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
@@ -8,11 +8,24 @@ import { CHOFER_PERFIL } from "../../datos-chofer";
 import { usePerfilSesion } from "../../mi-perfil";
 import { miRutaDeChofer } from "../../datos-remoto";
 import { haySupabase } from "../../supabase";
+import DondeEs from "./DondeEs";
 
-export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout }) {
+export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, recargarRuta }) {
   const [verComp, setVerComp] = useState(null);
+  const [refrescando, setRefrescando] = useState(false);
   const pendientes = ruta.filter((s) => s.estatus === "pendiente");
   const completados = ruta.filter((s) => s.estatus === "completado");
+  // "No procedió" (db/023): ya quedaron resueltas, no se vuelve por ellas.
+  // Se listan aparte para que el chofer vea que sí quedaron registradas.
+  const noProcedieron = ruta.filter((s) => s.estatus === "no-procedio");
+
+  // Jalar hacia abajo relee la ruta: si la oficina le agrega o confirma una
+  // parada a media jornada, el chofer no tiene que salir y volver a entrar.
+  const refrescar = async () => {
+    if (!recargarRuta) return;
+    setRefrescando(true);
+    try { await recargarRuta(); } finally { setRefrescando(false); }
+  };
 
   // Quién es y qué maneja, de la sesión y de SU ruta en la base. La barra
   // decía "Hola, José · Unidad Roll off 04" —el chofer de demostración— a
@@ -45,10 +58,20 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout })
           <Text style={s.hola} numberOfLines={1}>{saludo}</Text>
           <Text style={s.unidad} numberOfLines={1}>{lineaUnidad}</Text>
         </View>
+        {/* "Reportar un problema" SIEMPRE a la vista (pedido de los dueños,
+            4-oct-2026): un accidente o una falla no esperan a que el chofer
+            encuentre el botón dentro de una parada. */}
+        <Pressable onPress={() => navigation.navigate("ReportarProblema")} hitSlop={6} style={s.reportar} accessibilityRole="button" accessibilityLabel="Reportar un problema">
+          <Feather name="alert-triangle" size={16} color="#0d1211" />
+          <Text style={s.reportarTxt}>Reportar</Text>
+        </Pressable>
         <Pressable onPress={onLogout} hitSlop={10} style={s.salir}><Feather name="log-out" size={18} color={T.gris} /></Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={recargarRuta ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
+      >
         {/* Resumen */}
         <View style={s.resumen}>
           <View style={s.resItem}><Text style={s.resNum}>{pendientes.length}</Text><Text style={s.resLbl}>Pendientes</Text></View>
@@ -68,15 +91,35 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout })
                 <View style={s.hora}><Text style={s.horaTxt}>{sv.hora}</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.cliente}>{sv.cliente}</Text>
-                  <Text style={s.dir}><Feather name="map-pin" size={11} color={T.gris} /> {sv.direccion}</Text>
-                  <Text style={s.cont}>{sv.contenedor} · {sv.tipo}</Text>
+                  <Text style={s.cont}>{sv.tipo}</Text>
                 </View>
                 <Feather name="chevron-right" size={20} color={T.gris} />
               </View>
+              {/* Dirección completa, referencias y "Cómo llegar" desde la
+                  lista: casi siempre se navega antes de abrir la parada. */}
+              <DondeEs parada={sv} compacto />
               <View style={s.scanHint}><Feather name="maximize" size={13} color={T.tealClaro} /><Text style={s.scanHintTxt}>Toca para escanear el QR y recolectar</Text></View>
             </Tarjeta>
           </Pressable>
         ))}
+
+        {noProcedieron.length > 0 && (
+          <>
+            <Text style={s.seccion}>No procedieron</Text>
+            {noProcedieron.map((sv) => (
+              <Tarjeta key={sv.folio} style={{ padding: 14 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={[s.hora, { backgroundColor: "rgba(217,119,107,0.14)" }]}><Feather name="slash" size={16} color={T.error} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.cliente}>{sv.cliente}</Text>
+                    <Text style={s.cont}>{sv.motivoNoProcedio || "Sin motivo"} · no se cobra</Text>
+                  </View>
+                  <Badge clase="mal">No procedió</Badge>
+                </View>
+              </Tarjeta>
+            ))}
+          </>
+        )}
 
         {completados.length > 0 && (
           <>
@@ -123,7 +166,7 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout })
                 </View>
 
                 <View style={s.evDatos}>
-                  <Dato k="Peso recolectado" v={verComp.evidencia?.peso || "—"} />
+                  <Dato k="Peso estimado" v={verComp.evidencia?.peso || (verComp.evidencia?.peso_kg ? `${verComp.evidencia.peso_kg} kg` : "—")} />
                   <Dato k="Contenedor (QR)" v={verComp.evidencia?.qr || verComp.qr} />
                   <Dato k="Estatus" v="Recolectado ✓" ok />
                 </View>
@@ -160,6 +203,9 @@ const s = StyleSheet.create({
   hola: { color: T.tinta, fontSize: 18, fontWeight: "800" },
   unidad: { color: T.gris, fontSize: 12.5, marginTop: 1 },
   salir: { width: 40, height: 40, borderRadius: 10, backgroundColor: T.panel, alignItems: "center", justifyContent: "center" },
+  // Naranja de campo con tinta casi negra (5.32:1): señalización, como el resto del modo chofer.
+  reportar: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 10, backgroundColor: T.campo, marginRight: 8 },
+  reportarTxt: { color: "#0d1211", fontWeight: "800", fontSize: 13.5 },
   resumen: { flexDirection: "row", backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 14, paddingVertical: 14, marginBottom: 18 },
   resItem: { flex: 1, alignItems: "center" },
   resDiv: { width: 1, backgroundColor: T.linea },

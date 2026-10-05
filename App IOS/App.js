@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -27,6 +27,8 @@ import CoberturaPublica from "./src/pantallas/explorar/CoberturaPublica";
 import LoginChofer from "./src/pantallas/chofer/LoginChofer";
 import RutaChofer from "./src/pantallas/chofer/RutaChofer";
 import Recoleccion from "./src/pantallas/chofer/Recoleccion";
+import NoProcedio from "./src/pantallas/chofer/NoProcedio";
+import ReportarProblema from "./src/pantallas/chofer/ReportarProblema";
 import { RUTA_HOY } from "./src/datos-chofer";
 import { rutaDelDia, cerrarRecoleccion } from "./src/datos-remoto";
 import { sesionActiva, salir as salirDeSesion } from "./src/sesion";
@@ -41,6 +43,11 @@ import Clientes from "./src/pantallas/admin/Clientes";
 import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
+import SegundoPaso from "./src/pantallas/admin/SegundoPaso";
+// Notificaciones (1.1)
+import PermisoNotificaciones from "./src/PermisoNotificaciones";
+import { datosDeLaUltimaNotificacion, alTocarNotificacion } from "./src/notificaciones";
+import { destinoDeNotificacion } from "./src/push-destino.mjs";
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
@@ -138,10 +145,17 @@ function AppChofer({ onLogout }) {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
-        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} />}
+        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} />}
       </Stack.Screen>
       <Stack.Screen name="Recoleccion" options={{ title: "Recolección" }}>
         {(props) => <Recoleccion {...props} completar={completar} />}
+      </Stack.Screen>
+      {/* 1.1 · lo que el chofer reporta desde la calle (pedidos de los dueños). */}
+      <Stack.Screen name="NoProcedio" options={{ title: "No procedió" }}>
+        {(props) => <NoProcedio {...props} recargarRuta={recargarRuta} />}
+      </Stack.Screen>
+      <Stack.Screen name="ReportarProblema" options={{ title: "Reportar un problema" }}>
+        {(props) => <ReportarProblema {...props} ruta={ruta} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -181,6 +195,16 @@ function AppCliente({ onLogout }) {
   );
 }
 
+function AppClienteConAvisos({ onLogout }) {
+  return (
+    <>
+      <AppCliente onLogout={onLogout} />
+      {/* Explica para qué se avisa ANTES de que iOS pregunte (ver el archivo). */}
+      <PermisoNotificaciones modo="cliente" />
+    </>
+  );
+}
+
 /* ---------- Admin ---------- */
 const ICONOS_ADM = { Panel: "grid", Solicitudes: "inbox", Saldos: "dollar-sign", MasA: "menu" };
 
@@ -214,9 +238,73 @@ function AppAdmin({ onLogout }) {
   );
 }
 
+/**
+ * La administración detrás del SEGUNDO PASO (código por correo, pedido de
+ * los dueños el 4-oct-2026). Mientras no haya un pase válido comprobado con
+ * el servidor, no se monta nada del panel: ni las pestañas ni sus consultas.
+ */
+function AdminConPuerta({ onLogout, alAbrir }) {
+  const [abierta, setAbierta] = useState(false);
+
+  useEffect(() => {
+    if (abierta) alAbrir?.();
+  }, [abierta]);
+
+  if (!abierta) return <SegundoPaso onListo={() => setAbierta(true)} onSalir={onLogout} />;
+  return (
+    <>
+      <AppAdmin onLogout={onLogout} />
+      <PermisoNotificaciones modo="admin" />
+    </>
+  );
+}
+
 export default function App() {
   const [sesion, setSesion] = useState(null); // null | "cliente" | "admin" | "chofer"
   const [revisando, setRevisando] = useState(true);
+
+  /**
+   * EL TOQUE DE UNA NOTIFICACIÓN. Puede llegar antes de que haya a dónde ir:
+   * con la app cerrada (se abre en frío, todavía buscando la sesión) o con
+   * el admin en la pantalla del código. Por eso se guarda como PENDIENTE y
+   * se intenta cada vez que cambia la navegación, hasta que la pantalla de
+   * destino exista. `push-destino.mjs` decide cuál es según el modo.
+   */
+  const navRef = useNavigationContainerRef();
+  const pendiente = useRef(null);
+  const sesionRef = useRef(null);
+  sesionRef.current = sesion;
+
+  const intentarNavegar = useCallback(() => {
+    const datos = pendiente.current;
+    if (!datos || !navRef.isReady()) return;
+    const destino = destinoDeNotificacion(datos, sesionRef.current);
+    if (!destino) {
+      // Con sesión y sin destino, el aviso no es para este modo: se descarta.
+      // Sin sesión se guarda para cuando entre.
+      if (sesionRef.current) pendiente.current = null;
+      return;
+    }
+    const pantallas = navRef.getRootState()?.routeNames || [];
+    if (!pantallas.includes(destino.pantalla)) return;
+    pendiente.current = null;
+    navRef.navigate(destino.pantalla, destino.params);
+  }, [navRef]);
+
+  useEffect(() => {
+    const enFrio = datosDeLaUltimaNotificacion();
+    if (enFrio) pendiente.current = enFrio;
+    return alTocarNotificacion((datos) => {
+      pendiente.current = datos;
+      intentarNavegar();
+    });
+  }, [intentarNavegar]);
+
+  useEffect(() => {
+    // Un respiro para que el navegador de la sesión nueva termine de montar.
+    const t = setTimeout(intentarNavegar, 0);
+    return () => clearTimeout(t);
+  }, [sesion, intentarNavegar]);
 
   /**
    * Al abrir la app se busca una sesión guardada y se entra directo.
@@ -288,13 +376,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <NavigationContainer theme={temaNav}>
+      <NavigationContainer theme={temaNav} ref={navRef} onReady={intentarNavegar} onStateChange={intentarNavegar}>
         {sesion === "admin" ? (
-          <AppAdmin onLogout={salir} />
+          <AdminConPuerta onLogout={salir} alAbrir={() => setTimeout(intentarNavegar, 0)} />
         ) : sesion === "chofer" ? (
           <AppChofer onLogout={salir} />
         ) : sesion === "cliente" ? (
-          <AppCliente onLogout={salir} />
+          <AppClienteConAvisos onLogout={salir} />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
             <AuthFlow onCliente={() => setSesion("cliente")} onAdmin={() => setSesion("admin")} onChofer={() => setSesion("chofer")} />

@@ -165,6 +165,8 @@ export function estatusInfo(estatus) {
     case "completado": return { texto: "Completado", clase: "ok" };
     case "programado": return { texto: "Programado", clase: "prog" };
     case "en-ruta": return { texto: "En ruta", clase: "ruta" };
+    // db/023. Antes salía el texto crudo de la base ("no-procedio") en gris.
+    case "no-procedio": return { texto: "No procedió", clase: "mal" };
     case "aplicada": return { texto: "Aplicada", clase: "ok" };
     case "por-verificar": return { texto: "Por verificar", clase: "prog" };
     default: return { texto: estatus, clase: "none" };
