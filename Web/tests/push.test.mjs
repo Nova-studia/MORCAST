@@ -93,7 +93,7 @@ test("arma un mensaje por token con los datos para abrir la pantalla", () => {
   const m = armarMensajes([tk(1), tk(2)], { titulo: "Retraso", cuerpo: "La ruta va tarde", datos: { tipo: "aviso", id: "a1" } });
   assert.equal(m.length, 2);
   assert.deepEqual(m[0], {
-    to: tk(1), title: "Retraso", body: "La ruta va tarde", data: { tipo: "aviso", id: "a1" }, sound: "default", priority: "high",
+    to: tk(1), title: "Retraso", body: "La ruta va tarde", data: { tipo: "aviso", id: "a1" }, sound: "default", priority: "high", channelId: "avisos",
   });
 });
 

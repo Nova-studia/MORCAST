@@ -86,6 +86,10 @@ export function armarMensajes(tokens, { titulo, cuerpo, datos } = {}) {
     // "high" para que Android la muestre aunque el teléfono esté en reposo:
     // un incidente o un retraso pierden sentido si llegan una hora tarde.
     priority: "high",
+    // Canal de Android que crea la app ("Avisos de Morcast", importancia
+    // alta; App Android/src/push.js CANAL_AVISOS). Sin él, Android 8+ la
+    // manda al canal por omisión, sin sonido ni globo. iOS lo ignora.
+    channelId: "avisos",
   }));
 }
 
