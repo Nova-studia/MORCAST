@@ -12,6 +12,8 @@ import { darAccesoACliente } from "@/app/acciones-alta-cliente";
 import { pesos, fechaLarga } from "@/lib/portal-datos";
 import { etiquetaEstado, loQueFalta, puedeRecibirAcceso } from "@/lib/estado-cliente.mjs";
 import { enHold } from "@/lib/estado-sistema";
+import { listarSectores } from "@/lib/datos-sectores";
+import SectorInsignia from "@/components/admin/SectorInsignia";
 
 /** Por qué no se puede pulsar el botón, en el mismo texto que va en el `title`. */
 const MOTIVO_TEXTO = {
@@ -35,16 +37,28 @@ export default function ClientesAdmin() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  // Filtro por sector (db/023): "" = todos, una clave ("A"…) o "ninguno".
+  const [sectores, setSectores] = useState([]);
+  const [filtroSector, setFiltroSector] = useState("");
 
   useEffect(() => {
     let vivo = true;
-    listarClientes().then((l) => {
+    Promise.all([listarClientes(), listarSectores()]).then(([l, s]) => {
       if (!vivo) return;
       setLista(l);
+      setSectores(s);
       setCargando(false);
     });
     return () => { vivo = false; };
   }, []);
+
+  // Un cliente está en un sector si alguno de sus puntos cae en él, así que
+  // una empresa con plantas en dos sectores sale en los dos filtros.
+  const visibles = lista.filter((c) => {
+    const claves = (c.sectores || []).map((s) => s.clave);
+    if (filtroSector === "ninguno") return claves.length === 0;
+    return !filtroSector || claves.includes(filtroSector);
+  });
   const [alta, setAlta] = useState(false);
   const [form, setForm] = useState({ empresa: "", contacto: "", correo: "", telefono: "", plan: "Por evento" });
   // Acceso al portal por cliente: { [uuid]: { enviando, error, enviado } }.
@@ -147,6 +161,27 @@ export default function ClientesAdmin() {
       )}
 
       <div className="pt-card">
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginBottom: "0.9rem" }}>
+          <label htmlFor="filtro-sector" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Sector</label>
+          <select
+            id="filtro-sector"
+            className="pt-input"
+            value={filtroSector}
+            onChange={(e) => setFiltroSector(e.target.value)}
+            style={{ width: "auto", minWidth: 180 }}
+          >
+            <option value="">Todos los sectores</option>
+            {sectores.map((s) => (
+              <option key={s.id} value={s.clave}>{s.nombre}</option>
+            ))}
+            <option value="ninguno">Sin sector</option>
+          </select>
+          {filtroSector && (
+            <span style={{ fontSize: "0.84rem", color: "var(--mc-gris)" }}>
+              {visibles.length} de {lista.length} clientes
+            </span>
+          )}
+        </div>
         <div className="pt-tabla-wrap">
           <table className="pt-tabla pt-tabla-compacta">
             <thead>
@@ -168,11 +203,18 @@ export default function ClientesAdmin() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((c) => (
+              {visibles.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <strong style={{ display: "block" }}>{c.empresa}</strong>
-                    <span className="folio" style={{ fontSize: "0.8rem" }}>{c.id}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                      <span className="folio" style={{ fontSize: "0.8rem" }}>{c.id}</span>
+                      {/* La(s) letra(s) del sector de sus puntos, del color
+                          del sector (components/admin/SectorInsignia). */}
+                      {(c.sectores || []).map((s) => (
+                        <SectorInsignia key={s.clave} clave={s.clave} color={s.color} nombre={s.nombre} chica />
+                      ))}
+                    </span>
                   </td>
                   <td className="pt-celda-recorte">
                     {/* El correo largo era lo que ensanchaba esta columna a
@@ -268,6 +310,15 @@ export default function ClientesAdmin() {
                   </td>
                 </tr>
               ))}
+              {filtroSector && !visibles.length && (
+                <tr>
+                  <td colSpan={enHold() ? 6 : 7} className="pt-vacio">
+                    {filtroSector === "ninguno"
+                      ? "Todos los clientes tienen sector."
+                      : "Ningún cliente tiene puntos en ese sector. Si los sectores no tienen límites todavía, dibújalos en Sectores y puntos."}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
