@@ -15,6 +15,11 @@ export function hayResend() {
   return Boolean(process.env.RESEND_API_KEY);
 }
 
+/**
+ * Manda un correo. `payload` pasa tal cual a la API de Resend, así que ya
+ * acepta `attachments: [{ filename, content }]` con el contenido en base64
+ * (lo usa el alta firmada para adjuntar el PDF; ver `adjuntoPdf`).
+ */
 async function enviar(payload) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -82,7 +87,7 @@ export async function correoConfirmacion(datos) {
  * El asunto avisa de una vez si cae dentro de cobertura, que es lo primero
  * que se pregunta quien lo lee.
  */
-export async function correoAvisoAlta(datos) {
+export async function correoAvisoAlta(datos, { pdfBase64, nombrePdf, huellaPdf } = {}) {
   const fila = (etiqueta, valor) =>
     valor || valor === 0
       ? `<tr><td style="padding:6px 12px 6px 0;font-weight:bold;white-space:nowrap;vertical-align:top">${etiqueta}</td><td style="padding:6px 0">${esc(String(valor))}</td></tr>`
@@ -106,6 +111,7 @@ export async function correoAvisoAlta(datos) {
       <p style="margin:0 0 14px;font-size:14px">¿Está en cobertura? ${cobertura}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5">
         ${fila("Folio", datos.folio)}
+        ${fila("Origen", datos.origen === "google" ? "Se registró con Google (activar su cuenta desde el panel)" : "")}
         ${fila("Empresa", datos.empresa)}
         ${fila("Contacto", datos.contacto)}
         ${fila("Teléfono", datos.telefono)}
@@ -117,10 +123,20 @@ export async function correoAvisoAlta(datos) {
         ${fila("Recolecciones al mes", datos.servicios_por_mes)}
         ${fila("Razón social", datos.razon_social)}
         ${fila("RFC", datos.rfc)}
+        ${fila("Representante legal", [datos.representante_nombre, datos.representante_cargo].filter(Boolean).join(" · "))}
+        ${fila("Facturación", [datos.facturacion_nombre, datos.facturacion_correo, datos.facturacion_telefono].filter(Boolean).join(" · "))}
+        ${fila("Horario de acceso", datos.horario_acceso)}
+        ${fila("Constancia fiscal", datos.constancia_ruta ? "Adjunta (en el panel)" : "")}
+        ${fila("Firmó", datos.firmante_nombre ? [datos.firmante_nombre, datos.firmante_cargo].filter(Boolean).join(" · ") : "")}
+        ${fila("Confirmación del correo", datos.firmante_nombre ? (datos.correo_confirmado ? "Confirmado (Google)" : "Por confirmar: se le mandó el enlace") : "")}
+        ${fila("Huella del PDF", huellaPdf)}
       </table>
+      ${pdfBase64 ? `<p style="margin:16px 0 0;font-size:14px">
+        Va adjunta la <strong>Solicitud de alta firmada</strong> en PDF.</p>` : ""}
       <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
         Está en el panel, en <strong>Altas de clientes</strong>
         (morcast.mx/admin/altas). Puedes responderle directamente a este correo.</p>`),
+    ...(pdfBase64 ? { attachments: [adjuntoPdf(nombrePdf, pdfBase64)] } : {}),
   });
 }
 
@@ -733,5 +749,102 @@ export async function correoAvisoCliente({ correo, empresa, titulo, mensaje, mot
         También lo tienes en <a href="https://morcast.mx/portal">tu portal</a>.
       </p>
       <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
+
+/* ==================================================================== */
+/* ALTA CON FIRMA ELECTRÓNICA (5-oct-2026)                               */
+/*                                                                      */
+/* El alta ya no termina con un acuse de "recibimos tus datos": el      */
+/* cliente FIRMA su Solicitud de alta y recibe el PDF. En el formulario */
+/* público, además, tiene que confirmar que el correo es suyo con un    */
+/* enlace de un solo uso — es parte de la evidencia de la firma: prueba */
+/* que quien firmó controla ese buzón. En el registro con Google ese    */
+/* paso ya lo hizo Google y el correo sale sin enlace.                  */
+/* ==================================================================== */
+
+/** Un PDF adjunto, en el formato que pide Resend. */
+function adjuntoPdf(nombre, base64) {
+  return { filename: nombre || "solicitud.pdf", content: base64 };
+}
+
+/** Al CLIENTE: su solicitud firmada, y el enlace para confirmar el correo. */
+export async function correoConfirmarAlta({ correo, contacto, empresa, folio, enlace, pdfBase64, nombrePdf }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Confirma tu solicitud de alta — Morcast del Norte (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Confirma tu solicitud de alta</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, recibimos la Solicitud de alta de
+        <strong>${esc(empresa)}</strong>, firmada electrónicamente. Tu folio es
+        <strong>${esc(folio)}</strong> y va adjunta en PDF.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Para terminar, confirma que este correo es tuyo:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Confirmar mi solicitud</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en 7 días</strong> y sólo se puede usar una vez. Al
+        confirmar te mandamos la versión final del PDF.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿No fuiste tú? Ignora este correo o respóndelo para avisarnos.</p>`),
+    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
+  });
+}
+
+/**
+ * Al CLIENTE: la versión FINAL de su solicitud (el correo ya está
+ * confirmado). Sale al confirmar con el enlace, y de una vez en el registro
+ * con Google, donde el correo ya viene verificado.
+ */
+export async function correoSolicitudFirmada({ correo, contacto, empresa, folio, pdfBase64, nombrePdf, porGoogle }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Tu solicitud de alta firmada — Morcast del Norte (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu solicitud de alta está firmada</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, ${porGoogle
+          ? "como te registraste con tu cuenta de Google, tu correo ya quedó verificado."
+          : "gracias por confirmar tu correo."}
+        Va adjunta la versión final de la Solicitud de alta de
+        <strong>${esc(empresa)}</strong> (folio <strong>${esc(folio)}</strong>).</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        El siguiente paso lo damos nosotros: revisamos tu solicitud y te
+        contactamos para confirmar el precio y el día de arranque.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Guarda este PDF: es tu copia de lo que firmaste. ¿Dudas? Responde a este
+        correo o llámanos al 868 384 9478.</p>`),
+    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
+  });
+}
+
+/** A MORCAST: el cliente confirmó su correo; va la versión final. */
+export async function correoAvisoAltaConfirmada({ correo, empresa, folio, pdfBase64, nombrePdf, huellaPdf }) {
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: correo,
+    subject: `Alta confirmada — ${empresa} (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">El cliente confirmó su correo</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>${esc(empresa)}</strong> confirmó con el enlace que el correo
+        <strong>${esc(correo)}</strong> es suyo. La solicitud <strong>${esc(folio)}</strong>
+        ya está firmada y confirmada; va adjunta la versión final.</p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Huella SHA-256 del PDF: <span style="font-family:monospace;word-break:break-all">${esc(huellaPdf)}</span></p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Está en el panel, en <strong>Altas de clientes</strong> (morcast.mx/admin/altas).</p>`),
+    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
   });
 }

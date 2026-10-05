@@ -97,6 +97,10 @@ export const TEXTO_ACCION = {
   activar_cuenta_registrada: "Activó la cuenta de un cliente registrado",
   alta_solicitada: "Llegó una solicitud de alta",
   registro_google: "Un cliente se registró con Google",
+  // Alta con firma electrónica (lib/alta-servidor.js, db/025). Las dos puertas
+  // —formulario y Google— anotan lo mismo; el detalle dice de cuál vino.
+  alta_firmada: "Un cliente firmó su solicitud de alta",
+  alta_correo_confirmado: "Un cliente confirmó el correo de su alta",
   eliminar_cuenta: "Eliminó su cuenta desde la app",
   eliminar_cuenta_simulada: "Pidió eliminar la cuenta de muestra",
   // Peso real del relleno (app/acciones-peso.js, db/023).

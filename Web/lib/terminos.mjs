@@ -167,7 +167,30 @@ export const CLAUSULAS = [
  * se quita la nota, cambia la huella, y eso es correcto — cambió lo que se
  * firma.
  */
-export function textoTerminos() {
-  const cuerpo = CLAUSULAS.map((c) => [c.titulo, ...c.parrafos].join("\n")).join("\n\n");
-  return `TÉRMINOS DEL SERVICIO — MORCAST DEL NORTE, S.A. de C.V.\nVersión ${VERSION_TERMINOS}\n\n${NOTA_BORRADOR}\n\n${cuerpo}`;
+export function textoTerminos({ version, nota, clausulas } = terminosVigentes()) {
+  const cuerpo = clausulas.map((c) => [c.titulo, ...c.parrafos].join("\n")).join("\n\n");
+  return `TÉRMINOS DEL SERVICIO — MORCAST DEL NORTE, S.A. de C.V.\nVersión ${version}\n\n${nota}\n\n${cuerpo}`;
+}
+
+/** La versión que se ofrece hoy a quien se da de alta. */
+export function terminosVigentes() {
+  return { version: VERSION_TERMINOS, nota: NOTA_BORRADOR, clausulas: CLAUSULAS };
+}
+
+/**
+ * EL ARCHIVO DE VERSIONES. Cuando un cliente confirma su correo (hasta 7
+ * días después de firmar), el PDF final se vuelve a generar con los términos
+ * QUE FIRMÓ, no con los de ese día. Por eso, al publicar una versión nueva,
+ * la anterior NO se borra: se queda aquí con su versión como llave. Quien
+ * confirma compara además la huella del texto con la que quedó en lo
+ * firmado (`terminos.texto_sha256`), así que un texto retocado sin cambiar
+ * la versión se detecta.
+ */
+const ARCHIVO = {
+  [VERSION_TERMINOS]: terminosVigentes(),
+};
+
+/** Los términos de una versión firmada, o null si ya no están en el archivo. */
+export function terminosDeVersion(version) {
+  return ARCHIVO[version] || null;
 }

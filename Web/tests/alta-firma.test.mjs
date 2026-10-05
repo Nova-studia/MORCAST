@@ -280,3 +280,11 @@ test("los términos: versión borrador, aviso de precios EXACTO y nota visible",
   // Prudencia: el borrador no cita artículos de ley.
   assert.doesNotMatch(t, /art[íi]culo\s+\d|arts?\.\s*\d/i);
 });
+
+test("el archivo de términos devuelve la versión firmada, o null si ya no está", async () => {
+  const { terminosDeVersion, terminosVigentes } = await import("../lib/terminos.mjs");
+  assert.deepEqual(terminosDeVersion(VERSION_TERMINOS), terminosVigentes());
+  assert.equal(terminosDeVersion("1999-01-v0"), null);
+  // La huella del texto es estable: es lo que se compara al emitir el PDF final.
+  assert.equal(await sha256Hex(textoTerminos(terminosDeVersion(VERSION_TERMINOS))), await sha256Hex(textoTerminos()));
+});

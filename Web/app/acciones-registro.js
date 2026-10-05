@@ -1,40 +1,32 @@
 "use server";
 
-import { supabaseServidor, haySupabase } from "@/lib/supabase";
+import { haySupabase } from "@/lib/supabase";
 import { supabaseSesion } from "@/lib/supabase-sesion";
 import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
 import { solicitudDeUsuario } from "@/lib/solicitudes-registro";
-import { correoAvisoRegistro, correoAcuseRegistro } from "@/lib/correo";
-import { registrar } from "@/lib/bitacora";
+import { procesarAltaFirmada } from "@/lib/alta-servidor";
 
 /**
- * EL REGISTRO ABIERTO: alguien entró con Google y deja sus datos.
+ * EL REGISTRO ABIERTO: alguien entró con Google y se da de alta.
  *
- * Va aparte de `acciones-alta.js` porque es otro flujo: aquel es un
- * formulario público de quien NO tiene sesión; este lo usa alguien que
+ * Va aparte de `acciones-alta.js` porque es otra puerta: aquélla es un
+ * formulario público de quien NO tiene sesión; ésta la usa alguien que
  * acaba de identificarse con Google y ya tiene usuario.
  *
+ * Hasta el 5-oct-2026 aquí sólo se pedían empresa y teléfono. El socio pidió
+ * que las dos puertas terminen IGUAL: alta amplia, firma electrónica, PDF y
+ * "¡Alta exitosa!". La faena es la misma de `lib/alta-servidor.js`; lo único
+ * propio de esta puerta es que el correo ya lo verificó Google, así que
+ * queda confirmado desde el inicio (y así lo dice la evidencia del PDF).
+ *
  * De quién es la solicitud NO se lee de lo que mande el navegador: sale de
- * la SESIÓN. Si viniera del formulario, cualquiera podría registrar datos a
- * nombre del usuario de otro.
+ * la SESIÓN — el usuario y también el correo. Si vinieran del formulario,
+ * cualquiera podría registrar datos a nombre del usuario de otro.
  *
  * La escritura va con la llave de servicio porque `solicitudes_alta` no
  * tiene política de INSERT a propósito (010): si se abriera al público,
  * cualquiera podría llenarla de basura sin pasar por la pantalla.
  */
-
-const LIMITES = { empresa: 120, contacto: 120, telefono: 30 };
-const texto = (v, max) => String(v ?? "").trim().slice(0, max);
-
-/** Los teléfonos de Matamoros son de 10 dígitos; se aceptan 10 a 15 por si traen lada. */
-const digitos = (v) => String(v ?? "").replace(/\D/g, "");
-
-function folioNuevo() {
-  // REG-2026-8F3K. Prefijo distinto al de `acciones-alta.js` (ALTA-) para
-  // que quien lo lea por teléfono sepa de cuál de las dos puertas vino.
-  const azar = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `REG-${new Date().getFullYear()}-${azar}`;
-}
 
 /** El usuario de la sesión, comprobado contra el servidor de Supabase. */
 async function usuarioDeLaSesion() {
@@ -59,9 +51,21 @@ export async function miSolicitud() {
   return solicitudDeUsuario(user.id);
 }
 
-/** Guarda los datos mínimos de quien acaba de entrar con Google. */
-export async function registrarConGoogle({ empresa, telefono }) {
-  if (!haySupabase()) return { ok: true, demo: true, folio: folioNuevo() };
+/**
+ * Recibe el alta firmada de quien entró con Google. Llega como FormData
+ * (trae la firma y, si la suben, la constancia), igual que la del formulario
+ * público.
+ */
+export async function registrarConGoogle(formData) {
+  // Modo prototipo: sin base no hay sesión que leer; se firma a nombre de un
+  // usuario de muestra para que la pantalla se pueda recorrer completa.
+  if (!haySupabase()) {
+    return procesarAltaFirmada({
+      formData,
+      origen: "google",
+      usuario: { id: null, correo: "demo@morcast.mx", verificado: true },
+    });
+  }
 
   const user = await usuarioDeLaSesion();
   if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar con Google." };
@@ -77,22 +81,6 @@ export async function registrarConGoogle({ empresa, telefono }) {
     return { ok: false, motivo: "Tu cuenta ya está dada de alta." };
   }
 
-  const limpio = {
-    empresa: texto(empresa, LIMITES.empresa),
-    telefono: texto(telefono, LIMITES.telefono),
-    contacto: texto(
-      user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-      LIMITES.contacto
-    ),
-    correo: texto(user.email, 160).toLowerCase(),
-  };
-
-  if (!limpio.empresa) return { ok: false, motivo: "Escribe el nombre de tu empresa." };
-  const tel = digitos(limpio.telefono);
-  if (tel.length < 10 || tel.length > 15) {
-    return { ok: false, motivo: "El teléfono debe traer 10 dígitos (por ejemplo 868 384 9478)." };
-  }
-
   // Si ya se había registrado, no se duplica: se le devuelve su folio y se
   // sigue adelante. La pantalla lo manda a la sala de espera igual, y así
   // recargar o darle dos veces al botón no crea filas gemelas ni truena
@@ -100,47 +88,13 @@ export async function registrarConGoogle({ empresa, telefono }) {
   const yaEsta = await solicitudDeUsuario(user.id);
   if (yaEsta) return { ok: true, folio: yaEsta.folio, repetido: true };
 
-  const fila = {
-    folio: folioNuevo(),
+  return procesarAltaFirmada({
+    formData,
     origen: "google",
-    usuario_id: user.id,
-    correo_verificado: Boolean(user.email_confirmed_at),
-    empresa: limpio.empresa,
-    contacto: limpio.contacto,
-    telefono: limpio.telefono,
-    correo: limpio.correo,
-    // No se pregunta y NO se inventa: el panel lo enseña como raya.
-    servicios_por_mes: null,
-    // La cobertura se calcula con un domicilio, y aquí todavía no hay.
-    en_cobertura: false,
-  };
-
-  const { error } = await supabaseServidor().from("solicitudes_alta").insert(fila);
-  if (error) {
-    console.error("[registro] no se pudo guardar:", error.message);
-    return { ok: false, motivo: "No se pudo guardar tu registro. Inténtalo de nuevo." };
-  }
-
-  // Los correos NO tumban el registro si fallan: ya quedó guardado. Pero el
-  // fallo SÍ se anota — es la lección del mes que el sitio estuvo mudo sin
-  // que nadie se enterara.
-  try {
-    await correoAvisoRegistro(fila);
-  } catch (e) {
-    console.error("[registro] aviso a Morcast falló:", e?.message);
-  }
-  try {
-    await correoAcuseRegistro(fila);
-  } catch (e) {
-    console.error("[registro] acuse al cliente falló:", e?.message);
-  }
-
-  await registrar({
-    accion: "registro_google",
-    tabla: "solicitudes_alta",
-    registroId: fila.folio,
-    detalle: { empresa: limpio.empresa, correo: limpio.correo },
+    usuario: {
+      id: user.id,
+      correo: String(user.email || "").toLowerCase(),
+      verificado: Boolean(user.email_confirmed_at),
+    },
   });
-
-  return { ok: true, folio: fila.folio };
 }

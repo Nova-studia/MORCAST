@@ -2934,3 +2934,269 @@
     font-size: 0.6rem;
   }
 }
+
+/* =====================================================================
+   ALTA CON FIRMA ELECTRÓNICA (5-oct-2026)
+   ---------------------------------------------------------------------
+   `components/portal/AltaConFirma.js`, `FirmaDibujada.js`, `AltaExitosa.js`
+   y la página de confirmación del correo. Pedido del socio: alta amplia,
+   firma, PDF y "¡Alta exitosa!". Todo con los tokens del área: la acción
+   en azul (una sola por pantalla), el verde de estado para "listo".
+   ===================================================================== */
+
+/* ---------- Los tres pasos ---------- */
+.pt-pasos {
+  display: flex;
+  gap: 0.4rem 1.6rem;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0 0 1.4rem;
+  padding: 0;
+  font-size: 0.86rem;
+  color: var(--mc-gris);
+}
+.pt-pasos li { display: inline-flex; align-items: center; gap: 0.5rem; }
+.pt-pasos-num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--mc-linea);
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+}
+.pt-pasos li.activo { color: var(--mc-tinta); font-weight: 600; }
+.pt-pasos li.activo .pt-pasos-num { border-color: var(--pt-accion-txt); color: var(--pt-accion-txt); }
+.pt-pasos li.hecho { color: var(--pt-ok); }
+.pt-pasos li.hecho .pt-pasos-num { border-color: transparent; font-size: 1.1rem; }
+
+/* ---------- Detalles del formulario ---------- */
+.pt-opcional { color: var(--mc-gris-claro); font-weight: 400; font-size: 0.8em; }
+.pt-ayuda { margin: 0.4rem 0 0; font-size: 0.84rem; color: var(--mc-gris); }
+.pt-subtitulo { margin: 1.3rem 0 0.7rem; font-weight: 600; font-size: 0.92rem; }
+.pt-cobertura {
+  display: flex; gap: 8px; align-items: center;
+  margin: 0.6rem 0 0; font-weight: 700;
+}
+.pt-cobertura.si { color: var(--pt-ok); }
+.pt-cobertura.no { color: var(--pt-alerta); }
+.pt-campo input[readonly] { color: var(--mc-gris); cursor: default; }
+.pt-btn-ancho {
+  width: 100%;
+  justify-content: center;
+  padding: 0.85rem;
+  margin-top: 1.1rem;
+  font-size: 0.9rem;
+}
+.pt-btn-ancho-sec { width: 100%; justify-content: center; margin-top: 0.6rem; padding: 0.7rem; }
+.pt-falta { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--mc-gris); text-align: center; }
+
+/* ---------- Resumen (paso 2) ---------- */
+.pt-resumen section + section { margin-top: 1.2rem; padding-top: 1.1rem; border-top: 1px solid var(--mc-linea); }
+.pt-resumen h3 {
+  margin: 0 0 0.7rem;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-gris);
+}
+.pt-resumen dl { margin: 0; display: grid; gap: 0.5rem; }
+.pt-resumen dl > div { display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; }
+.pt-resumen dt { color: var(--mc-gris); font-size: 0.86rem; }
+.pt-resumen dd { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+@media (max-width: 575.98px) {
+  .pt-resumen dl > div { grid-template-columns: 1fr; gap: 0.1rem; }
+}
+
+/* ---------- Términos (paso 2) ---------- */
+.pt-nota-borrador {
+  display: flex; gap: 0.55rem; align-items: flex-start;
+  margin: 0 0 0.9rem; padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  background: var(--pt-alerta-tinte);
+  border-left: 3px solid var(--pt-alerta);
+  font-size: 0.8rem; line-height: 1.45; color: var(--mc-tinta);
+}
+.pt-nota-borrador > svg { color: var(--pt-alerta); flex-shrink: 0; margin-top: 2px; font-size: 1rem; }
+.pt-terminos {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--mc-linea);
+  border-radius: 8px;
+  background: var(--mc-negro);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--mc-gris);
+}
+.pt-terminos:focus-visible { outline: 2px solid var(--pt-accion-txt); outline-offset: 2px; }
+.pt-terminos-version {
+  margin: 0 0 0.6rem;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--mc-gris-claro);
+}
+.pt-terminos h3 { margin: 1rem 0 0.35rem; font-size: 0.88rem; font-weight: 600; color: var(--mc-tinta); }
+.pt-terminos section:first-of-type h3 { margin-top: 0; }
+.pt-terminos p { margin: 0 0 0.5rem; }
+.pt-terminos-enlace { margin: 0.8rem 0 0; font-size: 0.86rem; color: var(--mc-gris); }
+.pt-terminos-enlace a { color: var(--pt-accion-txt); font-weight: 600; }
+.pt-terminos-enlace svg { vertical-align: -2px; }
+.pt-acepto {
+  display: flex; gap: 0.65rem; align-items: flex-start;
+  margin-top: 1rem; padding: 0.8rem 0.9rem;
+  border: 1px solid var(--mc-linea); border-radius: 8px;
+  font-size: 0.88rem; line-height: 1.45; cursor: pointer;
+}
+.pt-acepto:has(input:checked) { border-color: var(--pt-accion-linea); background: var(--pt-accion-tinte); }
+.pt-acepto input { width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; accent-color: var(--pt-accion); }
+
+/* ---------- Recuadro de firma ---------- */
+/* "Papel" claro y tinta oscura: la firma termina impresa en un PDF blanco.
+   `touch-action: none` es lo que deja firmar con el dedo sin que el teléfono
+   desplace la página a medio trazo. */
+.pt-firma {
+  position: relative;
+  height: 190px;
+  border-radius: 8px;
+  border: 1px solid var(--mc-linea);
+  background: #f4f6f5;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pt-firma canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+.pt-firma-guia {
+  position: absolute; left: 22px; right: 22px; bottom: 44px;
+  border-bottom: 1px solid #b7bfbd;
+  pointer-events: none;
+}
+.pt-firma-guia span {
+  position: absolute; left: -2px; bottom: 4px;
+  color: #6e7877; font-size: 1.1rem; line-height: 1;
+}
+.pt-firma-vacia {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  padding-bottom: 30px;
+  color: #6e7877; font-size: 0.9rem;
+  pointer-events: none;
+}
+.pt-firma-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  margin-top: 0.55rem; font-size: 0.82rem; color: var(--mc-gris);
+}
+
+/* ---------- ¡Alta exitosa! ---------- */
+.pt-exitosa {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2.4rem 2rem 2rem;
+  text-align: center;
+}
+.pt-exitosa-sello {
+  width: 72px; height: 72px;
+  margin: 0 auto 1.2rem;
+  border-radius: 50%;
+  /* El halo se apaga solo, UNA vez: es un brillo, no un latido. */
+  animation: pt-halo 1.6s ease-out 0.75s both;
+}
+.pt-exitosa-circulo {
+  fill: none;
+  stroke: var(--pt-ok);
+  stroke-width: 2.5;
+  stroke-dasharray: 158;
+  stroke-dashoffset: 158;
+  animation: pt-trazo 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+.pt-exitosa-check {
+  fill: none;
+  stroke: var(--pt-ok);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: pt-trazo 0.38s cubic-bezier(0.4, 0, 0.2, 1) 0.62s forwards;
+}
+.pt-exitosa-texto { animation: pt-aparecer 0.4s ease-out 0.5s both; }
+.pt-exitosa-folio {
+  margin: 0 0 0.4rem;
+  font-family: var(--fuente-mono), "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-gris);
+}
+.pt-exitosa h2 { margin: 0 0 0.8rem; font-size: 1.7rem; font-weight: 500; letter-spacing: 0.02em; }
+.pt-exitosa-texto > p { margin: 0 auto 1rem; max-width: 52ch; color: var(--mc-gris); font-size: 0.94rem; line-height: 1.6; }
+.pt-exitosa-texto strong { color: var(--mc-tinta); }
+.pt-exitosa-rutas { list-style: none; padding: 0; margin: 0 auto 1.2rem; max-width: 420px; text-align: left; }
+.pt-exitosa-rutas li { padding: 0.6rem 0; border-top: 1px solid var(--mc-linea); }
+.pt-exitosa-rutas strong { display: block; font-size: 0.92rem; }
+.pt-exitosa-rutas span { font-size: 0.84rem; color: var(--mc-gris); }
+.pt-exitosa-descarga {
+  justify-content: center;
+  padding: 0.85rem 1.4rem;
+  font-size: 0.92rem;
+  animation: pt-aparecer 0.4s ease-out 0.65s both;
+}
+.pt-exitosa-descarga[aria-disabled="true"] { opacity: 0.6; pointer-events: none; }
+.pt-exitosa-aviso {
+  display: flex; gap: 0.6rem; align-items: flex-start; justify-content: center;
+  margin: 1.3rem auto 0; max-width: 46ch;
+  font-size: 0.88rem; line-height: 1.5; color: var(--mc-tinta); text-align: left;
+  animation: pt-aparecer 0.4s ease-out 0.75s both;
+}
+.pt-exitosa-aviso > svg { flex-shrink: 0; margin-top: 2px; font-size: 1.15rem; color: var(--pt-accion-txt); }
+.pt-exitosa-aviso.alerta > svg { color: var(--pt-alerta); }
+.pt-exitosa-acciones {
+  display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;
+  margin-top: 1.6rem; padding-top: 1.3rem; border-top: 1px solid var(--mc-linea);
+}
+@media (max-width: 575.98px) {
+  .pt-exitosa { padding: 2rem 1.1rem 1.5rem; }
+  .pt-exitosa-descarga { width: 100%; }
+}
+
+@keyframes pt-trazo { to { stroke-dashoffset: 0; } }
+@keyframes pt-aparecer {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pt-halo {
+  0% { box-shadow: 0 0 0 0 rgba(111, 168, 103, 0.45); }
+  100% { box-shadow: 0 0 0 22px rgba(111, 168, 103, 0); }
+}
+
+/* Movimiento reducido: todo aparece ya terminado, sin trazos ni halo. */
+@media (prefers-reduced-motion: reduce) {
+  .pt-exitosa-sello,
+  .pt-exitosa-texto,
+  .pt-exitosa-descarga,
+  .pt-exitosa-aviso { animation: none; }
+  .pt-exitosa-circulo,
+  .pt-exitosa-check { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ---------- Confirmación del correo ---------- */
+.pt-alta-angosta { max-width: 720px; }
+.pt-confirmar { max-width: 640px; }
+@media (max-width: 575.98px) {
+  /* Los tres pasos caben en un renglón a 390 px. */
+  .pt-pasos { gap: 0.4rem 0.9rem; font-size: 0.8rem; }
+}
+.pt-alta-angosta .pt-exitosa { margin: 0; }

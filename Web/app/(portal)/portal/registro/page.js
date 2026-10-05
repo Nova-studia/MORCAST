@@ -4,17 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { registrarConGoogle } from "@/app/acciones-registro";
+import AltaConFirma from "@/components/portal/AltaConFirma";
 
 /**
- * CAPTURA MÍNIMA después de entrar con Google.
+ * EL ALTA DE QUIEN ENTRÓ CON GOOGLE.
  *
- * Google entrega nombre y correo, nada más. Sin empresa y sin teléfono
- * Morcast no puede ni identificar quién tocó la puerta ni contactarlo por
- * WhatsApp, que es como trabaja. Son los dos únicos campos a propósito: todo
- * lo demás (domicilio, residuos, RFC) se levanta al contactarlo.
+ * Hasta el 5-oct-2026 aquí sólo se pedían empresa y teléfono, y todo lo
+ * demás se levantaba al contactarlo. El socio pidió que las dos puertas de
+ * alta terminen IGUAL —alta amplia, firma electrónica, PDF y "¡Alta
+ * exitosa!"—, así que esta pantalla monta el mismo `AltaConFirma` que
+ * `/portal/alta`. Lo único distinto: el nombre y el correo vienen de Google,
+ * y el correo ya viene verificado (no se manda enlace de confirmación).
  *
  * Va FUERA del shell protegido: quien llega aquí tiene sesión pero no tiene
  * sello, y el shell exige el sello.
@@ -22,15 +25,11 @@ import { registrarConGoogle } from "@/app/acciones-registro";
 export default function RegistroPortal() {
   const router = useRouter();
   const [quien, setQuien] = useState(null);
-  const [empresa, setEmpresa] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [error, setError] = useState("");
-  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     if (!haySupabaseNavegador()) {
-      setQuien({ nombre: "Modo demostración", correo: "demo@morcast.mx" });
+      setQuien({ nombre: "", correo: "demo@morcast.mx" });
       return;
     }
     supabaseNavegador().auth.getUser().then(({ data: { user } }) => {
@@ -49,19 +48,18 @@ export default function RegistroPortal() {
     };
   }, [router]);
 
-  const enviar = async (e) => {
-    e.preventDefault();
-    setError("");
-    setEnviando(true);
-    const r = await registrarConGoogle({ empresa, telefono });
-    if (!r.ok) {
-      setError(r.motivo);
-      setEnviando(false);
-      return;
-    }
+  const irALaSalaDeEspera = () => {
     // refresh() antes de navegar: obliga al servidor a releer la sesión.
     router.refresh();
     router.replace("/portal/pendiente");
+  };
+
+  const enviar = async (fd) => {
+    const r = await registrarConGoogle(fd);
+    // Ya se había registrado antes (recargó, o le dio dos veces): no hay PDF
+    // nuevo que enseñar, se va directo a la sala de espera.
+    if (r?.ok && r.repetido) irALaSalaDeEspera();
+    return r;
   };
 
   if (!quien) {
@@ -73,91 +71,40 @@ export default function RegistroPortal() {
   }
 
   return (
-    <div className="pt-login">
-      <div
-        className="pt-login-form-lado"
-        /* `.pt-login` es una rejilla de DOS columnas (portal.css:592).
-           Esta pantalla monta un solo hijo, asi que sin esto la tarjeta
-           se queda en la mitad izquierda con la derecha en blanco. No
-           lleva `margin: 0 auto`: `.pt-login-form-lado` ya centra con
-           flex, y en el telefono la rejilla colapsa a una columna, donde
-           `1 / -1` sigue siendo correcto. */
-        style={{ gridColumn: "1 / -1" }}
-      >
-        <div className="pt-login-card">
-          <Link href="/" className="pt-login-marca" aria-label="Ir a la página de Morcast del Norte">
+    <div className="pt-alta">
+      <header className="pt-alta-cab">
+        <div>
+          <Link href="/" aria-label="Ir a la página de Morcast del Norte">
             <Image
-              /* El BLANCO: las cuatro pantallas sueltas del portal van sobre
-                 el fondo casi negro, y con `logo-h.png` el renglon
-                 "DEL NORTE / MANEJO DE RESIDUOS" queda verde oscuro sobre
-                 negro, ilegible. */
+              /* El BLANCO: las pantallas sueltas del portal van sobre el fondo
+                 casi negro, y con `logo-h.png` el renglón "DEL NORTE / MANEJO
+                 DE RESIDUOS" queda verde oscuro sobre negro, ilegible. */
               src="/img/logo-h-blanco.png"
               alt="Morcast del Norte"
               width={688}
               height={200}
-              style={{ width: "auto", height: 48 }}
+              style={{ height: 52, width: "auto" }}
               priority
             />
           </Link>
-
-          <h1>Un paso más</h1>
+          <h1>Un paso más: tu alta</h1>
           <p>
-            Ya te identificamos como <strong>{quien.correo}</strong>. Sólo nos faltan dos
-            datos para poder contactarte.
-          </p>
-
-          {error && (
-            <div className="pt-login-error" role="alert">
-              <WarningCircle style={{ marginRight: 6, verticalAlign: "-2px" }} />
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={enviar}>
-            <div className="pt-campo">
-              <label htmlFor="empresa">Nombre de tu empresa</label>
-              <input
-                id="empresa"
-                type="text"
-                value={empresa}
-                onChange={(e) => setEmpresa(e.target.value)}
-                placeholder="Industrias del Golfo, S.A. de C.V."
-                maxLength={120}
-                required
-                autoFocus
-              />
-            </div>
-
-            <div className="pt-campo">
-              <label htmlFor="telefono">Teléfono o WhatsApp</label>
-              <input
-                id="telefono"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                placeholder="868 384 9478"
-                maxLength={30}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="pt-btn pt-btn-verde"
-              style={{ width: "100%", justifyContent: "center", padding: "0.8rem", fontSize: "0.95rem" }}
-              disabled={enviando}
-            >
-              {enviando ? "Enviando…" : <>Enviar mi registro <ArrowRight /></>}
-            </button>
-          </form>
-
-          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "1.1rem" }}>
-            Registrarte no te da acceso todavía. Morcast revisa tus datos y activa tu cuenta.
+            Ya te identificamos como <strong>{quien.correo}</strong>. Completa los datos de tu empresa y firma
+            tu solicitud. Registrarte no te da acceso todavía: Morcast revisa tu alta y activa tu cuenta.
           </p>
         </div>
-      </div>
+      </header>
+
+      <AltaConFirma
+        modo="google"
+        quien={quien}
+        enviarAlta={enviar}
+        accionesFinales={() => (
+          <button type="button" className="pt-btn" onClick={irALaSalaDeEspera}>
+            Continuar <ArrowRight aria-hidden="true" />
+          </button>
+        )}
+      />
     </div>
   );
 }

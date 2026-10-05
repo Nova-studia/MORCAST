@@ -16,6 +16,9 @@ export default function PortalLayout({ children }) {
   const SIN_SHELL = [
     "/portal/login",
     "/portal/alta",
+    // A donde lleva el enlace del correo del alta firmada: quien confirma
+    // todavía no tiene cuenta.
+    "/portal/alta/confirmar",
     "/portal/registro",
     "/portal/pendiente",
     "/portal/recuperar",

@@ -340,7 +340,7 @@ export async function generarPdfAlta({
   const textoConfirmacion = {
     pendiente: `Pendiente. Se envía a ${alta.correo} un enlace de un solo uso, vigente 7 días, para confirmar que el correo pertenece a quien firma. Al confirmarlo se emite la versión final de este documento.`,
     enlace: `Correo confirmado el ${conf.fechaTexto || "—"}, con el enlace de un solo uso enviado a ${alta.correo}.`,
-    google: `Correo verificado por Google: quien firma inició sesión con la cuenta de Google ${alta.correo}, que Google reporta como verificada${conf.fechaTexto ? ` (${conf.fechaTexto})` : ""}.`,
+    google: `Correo verificado por Google: quien firma inició sesión con la cuenta de Google ${alta.correo}, que Google reporta como verificada. Quedó confirmado al momento de firmar.`,
   }[conf.estado] || "—";
 
   titulo("Quién firmó");
