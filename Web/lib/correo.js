@@ -686,3 +686,52 @@ export async function correoAcuseEmpleo({ correo, nombre, folio, puesto }) {
         tu información 12 meses y después se borra.</p>`),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Avisos a clientes (/admin/avisos)                                   */
+/* ------------------------------------------------------------------ */
+
+/** Color del rótulo del motivo. Retraso en ámbar, como en el portal. */
+const MOTIVO_AVISO = {
+  retraso: { texto: "Retraso", fondo: "#fbf1dc", tinta: "#7a5310" },
+  reagenda: { texto: "Reagenda", fondo: "#e3eef7", tinta: "#1f4f73" },
+  general: { texto: "Aviso", fondo: "#eef1f0", tinta: "#3d4b4d" },
+};
+
+/**
+ * Al CLIENTE: un aviso de la administración (retraso, reagenda, general).
+ *
+ * Un correo por destinatario, con un solo `to`: el aviso le llega a decenas
+ * de empresas y ninguna tiene por qué ver el correo de las demás (con un
+ * `to` o `cc` compartido, cualquiera las vería todas). Por eso no hay copia
+ * oculta a nadie ni lista de varios.
+ *
+ * El mensaje lo escribe una persona del panel: se escapa COMPLETO y los
+ * saltos de línea se vuelven <br> después de escapar, nunca antes.
+ */
+export async function correoAvisoCliente({ correo, empresa, titulo, mensaje, motivo, vigenteHasta }) {
+  if (!correo) return null;
+  const m = MOTIVO_AVISO[motivo] || MOTIVO_AVISO.general;
+  const cuerpo = esc(mensaje).replace(/\n/g, "<br>");
+  // El asunto no es HTML, pero un salto de línea ahí rompe la cabecera.
+  const asunto = `${m.texto}: ${String(titulo || "").replace(/\s+/g, " ").trim()} — Morcast del Norte`;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      <p style="margin:0 0 14px">
+        <span style="display:inline-block;background:${m.fondo};color:${m.tinta};font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:4px">${m.texto}</span>
+      </p>
+      <h1 style="margin:0 0 16px;font-size:21px;color:#144C4F">${esc(titulo)}</h1>
+      ${empresa ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">${esc(empresa)}:</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">${cuerpo}</p>
+      ${vigenteHasta ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#6b7a7c">
+        Este aviso aplica hasta el ${fechaEnLetra(vigenteHasta)}.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        También lo tienes en <a href="https://morcast.mx/portal">tu portal</a>.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
