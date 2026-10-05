@@ -317,3 +317,29 @@ export function borradorRetraso({ rutaNombre, minutos } = {}) {
       `Si necesitas algo, llámanos al 868 384 9478.`,
   };
 }
+
+/**
+ * "Leído por 3 de 12": cuántas cuentas de cliente tocaron "Enterado" en la
+ * app (`avisos_lecturas`, db/026) contra cuántas le tocaba recibirlo.
+ *
+ * `usuariosDestino` se guarda AL MANDAR (las cuentas de cliente activas de
+ * esas empresas en ese momento): null en los avisos de antes de la app 1.1,
+ * y ahí solo se dice cuántos lo leyeron. `leidos` null = no se pudo saber
+ * (la migración 026 sin correr): se enseña una raya, no un cero que mienta.
+ */
+export function fraseLecturas({ leidos, usuariosDestino } = {}) {
+  if (leidos == null) return "—";
+  const x = Number(leidos) || 0;
+  if (usuariosDestino == null) return x ? `Leído por ${x}` : "Sin lecturas";
+  const y = Number(usuariosDestino) || 0;
+  if (!y && !x) return "Nadie con cuenta";
+  // Una empresa pudo dar de alta a alguien después de mandarse el aviso: si
+  // lee, cuenta, aunque pase del total que había al mandar.
+  return `Leído por ${x} de ${Math.max(x, y)}`;
+}
+
+/** "3 notificaciones" / "1 notificación": con plurales a mano es fácil un "1 notificaciones". */
+export function textoNotificaciones(n) {
+  const k = Number(n) || 0;
+  return `${k} ${k === 1 ? "notificación" : "notificaciones"}`;
+}

@@ -1,23 +1,16 @@
 "use server";
 
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
-import { haySupabase } from "@/lib/supabase";
+import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
-import { hayResend, correoIncidente } from "@/lib/correo";
-import {
-  validarReporte,
-  validarNoProcedio,
-  rutaEnCarpeta,
-  tipoIncidente,
-  asuntoIncidente,
-  textoMinutos,
-} from "@/lib/chofer-reportes.mjs";
+import { cargarIncidente, avisarOficina } from "@/lib/avisar-incidente";
+import { validarReporte, validarNoProcedio, rutaEnCarpeta } from "@/lib/chofer-reportes.mjs";
 
 /**
  * Lo que el CHOFER manda desde la calle y tiene que quedar firmado:
  * el "No procedió" de una parada (no se le cobra al cliente) y los
  * incidentes (accidente, retraso, contenedor dañado…), que además avisan
- * por correo a la oficina.
+ * a la oficina por correo y con una notificación al teléfono.
  *
  * Mismo criterio que `acciones-auditadas.js`:
  *   · La escritura va con la SESIÓN del chofer, no con la llave de servicio.
@@ -36,38 +29,6 @@ async function exigirChofer() {
   if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
   if (quien.rol !== "operador") return { error: "Esto solo lo puede hacer un chofer." };
   return { quien };
-}
-
-/**
- * El correo NO puede tumbar el reporte. Si Resend falla o no está
- * configurado, el incidente ya quedó guardado y la oficina lo ve en el
- * panel; pero el fallo se ANOTA, porque un mes entero sin correos ya pasó
- * una vez y nadie se enteró (ver `avisar()` en acciones-auditadas.js).
- */
-async function avisar(que, fn) {
-  if (!hayResend()) {
-    console.warn(`[avisos] ${que}: no se mandó, falta RESEND_API_KEY`);
-    return false;
-  }
-  try {
-    await fn();
-    return true;
-  } catch (e) {
-    console.error(`[avisos] ${que}: no se pudo mandar —`, e?.message || e);
-    return false;
-  }
-}
-
-/** Fecha y hora de Matamoros, como se lee en un correo. */
-function ahoraEnMatamoros() {
-  return new Date().toLocaleString("es-MX", {
-    timeZone: "America/Matamoros",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 /**
@@ -178,15 +139,14 @@ export async function reportarIncidente(entrada = {}) {
     ruta = data?.[0] || null;
   }
 
-  let contenedor = null;
+  // Si el RLS no le deja ver el contenedor, no es de sus paradas.
   if (datos.contenedor_id) {
     const { data } = await supabase
       .from("contenedores")
-      .select("id, codigo")
+      .select("id")
       .eq("id", datos.contenedor_id)
       .maybeSingle();
     if (!data) return { ok: false, motivo: "Ese contenedor no es de tus paradas." };
-    contenedor = data;
   }
 
   const { data: filas, error } = await supabase
@@ -215,26 +175,19 @@ export async function reportarIncidente(entrada = {}) {
     detalle: { tipo: datos.tipo, solicitud_id: datos.solicitud_id, ruta_id: ruta?.id || null },
   });
 
-  const tipo = tipoIncidente(datos.tipo);
-  const correo = await avisar(`incidente ${datos.tipo}`, () =>
-    correoIncidente({
-      asunto: asuntoIncidente({ tipo: datos.tipo, chofer: quien.nombre, retrasoMin: datos.retraso_min }),
-      tipoTexto: tipo.texto,
-      urgente: Boolean(tipo.urgente),
-      chofer: quien.nombre || quien.correo,
-      unidad: ruta?.unidades?.numero_economico || ruta?.unidad || null,
-      ruta: ruta?.nombre || null,
-      parada: parada
-        ? [parada.folio, parada.clientes?.empresa, parada.domicilios?.alias].filter(Boolean).join(" · ")
-        : null,
-      contenedor: contenedor?.codigo || null,
-      retraso: datos.retraso_min ? textoMinutos(datos.retraso_min) : null,
-      descripcion: datos.descripcion,
-      mapa: datos.ubicacion ? `https://www.google.com/maps?q=${datos.ubicacion.lat},${datos.ubicacion.lng}` : null,
-      cuando: ahoraEnMatamoros(),
-      enlace: "https://morcast.mx/admin/incidentes",
-    })
-  );
+  // El aviso a la oficina (correo + notificación al teléfono del dueño y los
+  // administradores) es el mismo que pide la app: lib/avisar-incidente.js.
+  // Se relee el incidente con la llave de servicio para armarlo igual en los
+  // dos casos; si algo falla, el reporte ya quedó guardado.
+  let aviso = { correo: false, notificaciones: 0 };
+  try {
+    const sb = supabaseServidor();
+    const incidente = await cargarIncidente(sb, filas[0].id);
+    if (incidente) aviso = await avisarOficina({ sb, incidente, chofer: quien.nombre || quien.correo });
+    else console.error("[incidentes] no se pudo releer el incidente para avisar:", filas[0].id);
+  } catch (e) {
+    console.error("[incidentes] no se pudo avisar a la oficina:", e?.message || e);
+  }
 
-  return { ok: true, id: filas[0].id, correo };
+  return { ok: true, id: filas[0].id, correo: aviso.correo, notificaciones: aviso.notificaciones };
 }

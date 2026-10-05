@@ -388,12 +388,103 @@ await debeFallar("el admin NO cambia un archivo de altas", "admin",
   `update storage.objects set name='x/firma.png' where bucket_id='altas'`);
 await debeFallar("el admin NO borra la firma", "admin", `delete from storage.objects where bucket_id='altas'`);
 
+// ================================================================ 026
+console.log("\n18 · 026: tokens de notificaciones");
+const TK = (s) => `ExponentPushToken[${s}]`;
+await debePasar("el cliente registra su teléfono por la función", "cliente",
+  `select public.registrar_push_token($1, 'ios') as ok`, [TK("tel-compartido")], 1);
+await debePasar("y el upsert directo de la app también sirve con un token nuevo", "cliente",
+  `insert into public.push_tokens (token, plataforma) values ($1, 'android')
+   on conflict (token) do update set plataforma = excluded.plataforma, actualizado = now()`, [TK("tel-del-cliente")], 1);
+await debePasar("y repetirlo (mismo token, suyo) no falla", "cliente",
+  `insert into public.push_tokens (token, plataforma) values ($1, 'android')
+   on conflict (token) do update set plataforma = excluded.plataforma, actualizado = now()`, [TK("tel-del-cliente")], 1);
+await debePasar("el cliente ve sus 2 tokens", "cliente", `select token from public.push_tokens`, [], 2);
+await debeFallar("la otra empresa NO se queda el token por upsert directo (RLS)", "otro",
+  `insert into public.push_tokens (token, plataforma) values ($1, 'ios')
+   on conflict (token) do update set usuario_id = auth.uid()`, [TK("tel-compartido")]);
+await debePasar("pero SÍ por la función (teléfono compartido: entra otra persona)", "otro",
+  `select public.registrar_push_token($1, 'ios') as ok`, [TK("tel-compartido")], 1);
+const dueTk = (await db.query(`select usuario_id from public.push_tokens where token=$1`, [TK("tel-compartido")])).rows[0];
+if (dueTk?.usuario_id !== U.otro) { fallas++; console.log("  ✖ el token no cambió de dueño", dueTk); }
+else console.log("  ✓ y el token ya es de quien entró al final");
+await debePasar("el cliente anterior ya no lo ve (le queda 1)", "cliente", `select token from public.push_tokens`, [], 1);
+await debeFallar("nadie mete un token a nombre de otro", "cliente",
+  `insert into public.push_tokens (usuario_id, token, plataforma) values ($1, $2, 'ios')`, [U.otro, TK("ajeno")]);
+await debeFallar("nadie se pasa un token ajeno cambiando el dueño", "cliente",
+  `update public.push_tokens set usuario_id=$1`, [U.otro]);
+await debeFallar("un token con otro formato no entra", "cliente",
+  `select public.registrar_push_token('<script>alert(1)</script>', 'ios')`);
+await debeFallar("una plataforma inventada no entra", "cliente",
+  `select public.registrar_push_token($1, 'windows')`, [TK("x")]);
+await debeFallar("un anónimo NO registra tokens", "anon", `select public.registrar_push_token($1, 'ios')`, [TK("anon")]);
+await debeFallar("un anónimo NO lee tokens", "anon", `select token from public.push_tokens`);
+await debeFallar("el admin con sesión NO lee los tokens de los clientes", "admin", `select token from public.push_tokens`);
+const borroAjeno = (await como("cliente", `select public.borrar_push_token($1) as ok`, [TK("tel-compartido")])).rows[0].ok;
+const sigue = (await db.query(`select count(*)::int as n from public.push_tokens where token=$1`, [TK("tel-compartido")])).rows[0].n;
+if (borroAjeno !== false || sigue !== 1) { fallas++; console.log("  ✖ borrar_push_token borró un token ajeno", borroAjeno, sigue); }
+else console.log("  ✓ borrar_push_token NO borra el token de otro");
+await debePasar("al cerrar sesión borra el suyo", "otro", `select public.borrar_push_token($1) as ok`, [TK("tel-compartido")], 1);
+const quedan = (await db.query(`select count(*)::int as n from public.push_tokens where token=$1`, [TK("tel-compartido")])).rows[0].n;
+if (quedan !== 0) { fallas++; console.log("  ✖ el token no se borró al cerrar sesión"); }
+else console.log("  ✓ y ya no está");
+await db.exec("set role service_role");
+const tkServ = (await db.query(`select count(*)::int as n from public.push_tokens`)).rows[0].n;
+await db.exec("reset role");
+if (tkServ < 1) { fallas++; console.log("  ✖ el servidor no ve los tokens"); }
+else console.log(`  ✓ el servidor (service_role) ve todos los tokens (${tkServ})`);
+
+console.log("\n19 · 026: \"Enterado\" en los avisos");
+const idAviso = async (titulo) => (await db.query(`select id from public.avisos where titulo=$1`, [titulo])).rows[0].id;
+const avTodos = await idAviso("Día festivo");
+const avDos = await idAviso("Solo Dos");
+await debePasar("el cliente marca \"Enterado\" en un aviso que ve", "cliente",
+  `insert into public.avisos_lecturas (aviso_id, leido) values ($1, '2000-01-01')`, [avTodos], 1);
+const lect = (await db.query(`select cliente_id, leido from public.avisos_lecturas where aviso_id=$1 and usuario_id=$2`, [avTodos, U.cliente])).rows[0];
+if (lect?.cliente_id !== cli1.id) { fallas++; console.log("  ✖ la lectura no quedó con su empresa", lect); }
+else console.log("  ✓ y queda a nombre de su empresa sin que la app la mande");
+if (new Date(lect.leido).getFullYear() < 2026) { fallas++; console.log("  ✖ la app pudo poner la hora de lectura", lect.leido); }
+else console.log("  ✓ la hora la pone la base, no el teléfono");
+await debeFallar("dos veces el mismo aviso no entra (la app ignora el duplicado)", "cliente",
+  `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avTodos]);
+await debePasar("…o, con upsert({ignoreDuplicates:true}), pasa sin error y sin duplicar", "cliente",
+  `insert into public.avisos_lecturas (aviso_id) values ($1) on conflict do nothing`, [avTodos], 0);
+await debeFallar("NO marca leído un aviso de otra empresa", "cliente",
+  `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avDos]);
+await debeFallar("NO a nombre de otra empresa", "cliente",
+  `insert into public.avisos_lecturas (aviso_id, cliente_id) values ($1, $2)`, [await idAviso("Retraso"), cli2.id]);
+await debeFallar("NO a nombre de otro usuario", "cliente",
+  `insert into public.avisos_lecturas (aviso_id, usuario_id) values ($1, $2)`, [await idAviso("Retraso"), U.otro]);
+await debeFallar("el chofer NO anota lecturas", "chofer", `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avTodos]);
+await debeFallar("el admin NO anota lecturas", "admin", `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avTodos]);
+await debeFallar("un anónimo NO anota lecturas", "anon", `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avTodos]);
+await debePasar("la otra empresa marca el suyo", "otro", `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avDos], 1);
+await debePasar("y el general", "otro", `insert into public.avisos_lecturas (aviso_id) values ($1)`, [avTodos], 1);
+await debePasar("cada cliente lee SOLO sus lecturas", "cliente", `select aviso_id from public.avisos_lecturas`, [], 1);
+await debePasar("el personal lee todas", "admin", `select aviso_id from public.avisos_lecturas`, [], 3);
+await debePasar("y las cuenta por aviso", "admin",
+  `select aviso_id, count(*)::int as n from public.avisos_lecturas where aviso_id=$1 group by aviso_id`, [avTodos], 1);
+await debeFallar("el chofer NO las lee", "chofer", `select aviso_id from public.avisos_lecturas`);
+await debeFallar("un anónimo NO las lee", "anon", `select aviso_id from public.avisos_lecturas`);
+await debeFallar("el cliente NO cambia la hora después", "cliente", `update public.avisos_lecturas set leido = now() - interval '9 days'`);
+await debeFallar("el cliente NO borra su lectura", "cliente", `delete from public.avisos_lecturas`);
+await debePasar("el admin guarda cuántas notificaciones salieron", "admin",
+  `update public.avisos set notificaciones_enviadas=2, usuarios_destino=3 where id=$1`, [avTodos], 1);
+
+console.log("\n20 · 026: un aviso por incidente");
+await debeFallar("el chofer NO mete un incidente ya \"avisado\"", "chofer",
+  `insert into public.incidentes (tipo, operador_id, avisado_en) values ('otro', $1, now())`, [U.chofer]);
+await debePasar("sin eso, sigue reportando normal", "chofer",
+  `insert into public.incidentes (tipo, operador_id) values ('otro', $1)`, [U.chofer], 1);
+await debeFallar("y NO lo marca como avisado después", "chofer", `update public.incidentes set avisado_en = now()`);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "024-ajustes-de-la-revision.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "025-alta-con-firma.sql"), "utf8"));
-  console.log("✓ 022, 023, 024 y 025 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022/023/024/025 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "026-app-1-1.sql"), "utf8"));
+  console.log("✓ 022, 023, 024, 025 y 026 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022/023/024/025/026 no son idempotentes:", e.message); }
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);
