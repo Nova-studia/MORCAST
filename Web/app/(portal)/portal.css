@@ -3192,6 +3192,66 @@
   .pt-exitosa-check { animation: none; stroke-dashoffset: 0; }
 }
 
+/* ---------- ¡Alta exitosa! en modo fiesta (pedido del socio, 5-oct-2026) ----------
+   La versión quieta de arriba sigue siendo la base; esto la agranda: la
+   palomita BROTA con rebote dentro de un círculo verde lleno, dos anillos se
+   expanden, y el título entra grande con un salto. El confeti va aparte, en
+   un lienzo encima de toda la página (AltaExitosa.js). */
+.pt-exitosa-fiesta { overflow: visible; }
+.pt-exitosa-fiesta .pt-exitosa-sello {
+  position: relative;
+  width: 112px; height: 112px;
+  margin-bottom: 1.4rem;
+  background: var(--pt-ok);
+  box-shadow: 0 10px 30px rgba(38, 84, 33, 0.35);
+  animation: pt-brotar 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+}
+.pt-exitosa-fiesta .pt-exitosa-sello svg { width: 112px; height: 112px; position: relative; z-index: 1; }
+.pt-exitosa-fiesta .pt-exitosa-circulo { stroke: rgba(255, 255, 255, 0.55); stroke-width: 2; }
+.pt-exitosa-fiesta .pt-exitosa-check { stroke: #fff; stroke-width: 4; animation-delay: 0.45s; }
+.pt-exitosa-anillo {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--pt-ok);
+  opacity: 0;
+  pointer-events: none;
+}
+.pt-exitosa-fiesta .pt-exitosa-anillo { animation: pt-anillo 1.3s ease-out 0.55s 2 both; }
+.pt-exitosa-fiesta .pt-exitosa-anillo.dos { animation-delay: 0.85s; }
+.pt-exitosa-fiesta h2 {
+  font-size: clamp(2rem, 6vw, 2.9rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  background: linear-gradient(90deg, #265421, #4eb34a 45%, #2a6a99);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pt-salto 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
+}
+.pt-exitosa-fiesta .pt-exitosa-texto { animation-delay: 0.55s; }
+
+@keyframes pt-brotar {
+  0% { transform: scale(0) rotate(-45deg); }
+  70% { transform: scale(1.12) rotate(6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes pt-anillo {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+@keyframes pt-salto {
+  0% { transform: translateY(26px) scale(0.6); opacity: 0; }
+  60% { transform: translateY(-6px) scale(1.08); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pt-exitosa-fiesta .pt-exitosa-sello,
+  .pt-exitosa-fiesta h2,
+  .pt-exitosa-fiesta .pt-exitosa-anillo { animation: none; }
+}
+
 /* ---------- Confirmación del correo ---------- */
 .pt-alta-angosta { max-width: 720px; }
 .pt-confirmar { max-width: 640px; }

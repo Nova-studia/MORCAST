@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, EnvelopeSimple, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 
 /**
  * "¡ALTA EXITOSA!" — el cierre del alta firmada (y de la confirmación del
  * correo, con `titulo` propio).
  *
- * El movimiento sigue DESIGN.md ("intencional pero quieto"): el círculo y la
- * palomita se DIBUJAN una sola vez, el halo se apaga solo y el texto aparece
- * subiendo 12 px. Nada de escalas, giros ni confeti que se quede brincando:
- * a quien acaba de firmar un documento le toca una confirmación seria. Con
- * `prefers-reduced-motion` todo aparece ya terminado (ver el CSS).
+ * Celebración LLAMATIVA a propósito: la pidió el socio de Luis (5-oct-2026)
+ * para que darse de alta se sienta como un logro. La palomita brota con
+ * rebote, salen anillos, el título entra con un salto y cae confeti en TODA
+ * la página (canvas-confetti: un lienzo fijo encima de todo que no estorba
+ * los clics y se borra solo al terminar). Dura unos 4 s y no se repite.
+ * Con `prefers-reduced-motion` no hay confeti y todo aparece ya terminado
+ * (ver el CSS): el movimiento es para festejar, no para marear a nadie.
  *
  * El PDF llega en base64 en la misma respuesta de la acción de servidor: se
  * convierte en un Blob y se descarga de ahí, sin otro viaje ni un enlace
@@ -33,6 +35,67 @@ function usarUrlPdf(base64) {
   return url;
 }
 
+/** Colores de Morcast (DESIGN.md) más blanco y un amarillo de fiesta. */
+const COLORES_CONFETI = ["#2a6a99", "#4eb34a", "#265421", "#8fc9ef", "#f2c230", "#ffffff"];
+
+/**
+ * El festejo: dos cañonazos desde las esquinas de abajo, lluvia por toda la
+ * página y un estallido final. Devuelve con qué cancelarlo (al desmontar).
+ */
+function usarConfeti(activo) {
+  const yaFue = useRef(false);
+  useEffect(() => {
+    if (!activo || yaFue.current) return undefined;
+    if (typeof window === "undefined") return undefined;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    yaFue.current = true;
+
+    let vivo = true;
+    const relojes = [];
+    let lanzar = null;
+
+    import("canvas-confetti").then(({ default: confetti }) => {
+      if (!vivo) return;
+      lanzar = confetti;
+      const base = { colors: COLORES_CONFETI, disableForReducedMotion: true, zIndex: 9999 };
+
+      // 1) Cañonazos cuando termina de dibujarse la palomita.
+      relojes.push(setTimeout(() => {
+        confetti({ ...base, particleCount: 140, angle: 60, spread: 70, startVelocity: 62, origin: { x: 0, y: 0.95 } });
+        confetti({ ...base, particleCount: 140, angle: 120, spread: 70, startVelocity: 62, origin: { x: 1, y: 0.95 } });
+      }, 550));
+
+      // 2) Lluvia: desde arriba, en puntos al azar, durante ~3.5 s.
+      const fin = Date.now() + 4000;
+      relojes.push(setTimeout(function llover() {
+        if (!vivo || Date.now() > fin) return;
+        confetti({
+          ...base,
+          particleCount: 7,
+          startVelocity: 0,
+          ticks: 420,
+          gravity: 0.7,
+          drift: Math.random() * 1.2 - 0.6,
+          scalar: 1.05,
+          origin: { x: Math.random(), y: -0.05 },
+        });
+        relojes.push(setTimeout(llover, 140));
+      }, 900));
+
+      // 3) Estallido final al centro.
+      relojes.push(setTimeout(() => {
+        confetti({ ...base, particleCount: 180, spread: 120, startVelocity: 45, scalar: 1.15, origin: { x: 0.5, y: 0.45 } });
+      }, 2600));
+    });
+
+    return () => {
+      vivo = false;
+      relojes.forEach(clearTimeout);
+      lanzar?.reset?.();
+    };
+  }, [activo]);
+}
+
 export default function AltaExitosa({
   titulo = "¡Alta exitosa!",
   folio,
@@ -42,12 +105,16 @@ export default function AltaExitosa({
   aviso,          // { tipo: "correo" | "alerta", texto }
   children,       // detalle propio de cada pantalla (cobertura, siguientes pasos)
   acciones,       // botones secundarios
+  celebrar = true, // confeti y animación grande
 }) {
   const url = usarUrlPdf(pdfBase64);
+  usarConfeti(celebrar);
 
   return (
-    <div className="pt-card pt-exitosa">
+    <div className={`pt-card pt-exitosa ${celebrar ? "pt-exitosa-fiesta" : ""}`}>
       <div className="pt-exitosa-sello" aria-hidden="true">
+        <span className="pt-exitosa-anillo" />
+        <span className="pt-exitosa-anillo dos" />
         <svg viewBox="0 0 56 56" width="72" height="72">
           <circle className="pt-exitosa-circulo" cx="28" cy="28" r="25" />
           <path className="pt-exitosa-check" d="M17 29.5l7.5 7.5L40 21" />
