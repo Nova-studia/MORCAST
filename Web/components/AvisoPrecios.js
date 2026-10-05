@@ -13,7 +13,7 @@ import { Info } from "@phosphor-icons/react/dist/ssr";
  * encabezar una página de precios.
  */
 export const TEXTO_AVISO_PRECIOS =
-  "Los precios y cotizaciones mostrados son de referencia y pueden tener modificaciones. El monto final depende del tipo de residuo, el volumen y las condiciones del servicio.";
+  "A pesar de la cotización, los precios pueden tener modificaciones. El monto final depende del tipo de residuo, el volumen y las condiciones del servicio.";
 
 export default function AvisoPrecios({ compacto = false, style }) {
   return (
