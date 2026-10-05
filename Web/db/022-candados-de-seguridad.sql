@@ -39,7 +39,15 @@ begin;
 --  un anónimo o un cliente ven cero filas. Además se le quita el permiso a
 --  los visitantes sin sesión: no tienen nada que hacer ahí.
 alter view if exists public.cotizaciones_pendientes set (security_invoker = true);
-revoke all on public.cotizaciones_pendientes from anon;
+-- La vista nace en supabase/schema.sql, no en db/: si no existe (una base
+-- armada solo con db/*.sql), un `revoke` suelto abortaría toda la migración.
+do $$
+begin
+  if to_regclass('public.cotizaciones_pendientes') is not null then
+    execute 'revoke all on public.cotizaciones_pendientes from anon';
+  end if;
+end
+$$;
 
 
 -- ---------------------------------------------------------------------

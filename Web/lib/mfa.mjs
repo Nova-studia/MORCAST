@@ -19,7 +19,12 @@
  *
  * Válvula de emergencia: si algo saliera mal con Supabase y nadie pudiera
  * entrar, `MFA_PANEL=apagado` en las variables de Vercel lo desactiva sin
- * tocar código. No es para dejarlo así.
+ * tocar código (hay que REDESPLEGAR para que tome efecto). No es para
+ * dejarlo así.
+ *
+ * Si alguien pierde su teléfono: en el dashboard de Supabase → Authentication
+ * → Users → esa persona → borrar su factor MFA. Al volver a entrar, el panel
+ * le pide dar de alta uno nuevo.
  */
 
 export const RUTA_VERIFICACION = "/admin/verificacion";

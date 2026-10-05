@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,8 +36,13 @@ function VerificacionAdmin() {
   const [codigo, setCodigo] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // En desarrollo React corre los efectos dos veces: sin esto se darían de
+  // alta dos factores y el segundo chocaría con el nombre del primero.
+  const yaPreparado = useRef(false);
 
   useEffect(() => {
+    if (yaPreparado.current) return undefined;
+    yaPreparado.current = true;
     let vivo = true;
     // Modo prototipo (sin Supabase): no hay segundo paso que hacer.
     if (!haySupabaseNavegador()) {
