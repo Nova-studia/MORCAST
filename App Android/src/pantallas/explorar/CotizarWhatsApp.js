@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
-import { Tarjeta, Boton } from "../../ui";
+import { Tarjeta, Boton, AvisoPrecios } from "../../ui";
 import { EMPRESA_COTIZACION } from "../../cotizacion-datos";
 import { abrirWhatsApp } from "../../whatsapp";
 import {
@@ -104,6 +104,9 @@ export default function CotizarWhatsApp({ navigation }) {
           Contesta en un minuto y tu mensaje nos llega con todo lo que necesitamos para cotizarte.
           No necesitas cuenta.
         </Text>
+        {/* ENCIMA del cuestionario, como en morcast.mx/cotizar: al final de
+            la pantalla nadie lo leería. */}
+        <AvisoPrecios />
 
         {residuos.map((r, i) => {
           const pre = `residuo-${r.id}`;

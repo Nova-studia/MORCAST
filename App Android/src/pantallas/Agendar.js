@@ -5,6 +5,8 @@ import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, EncabezadoPantalla } from "../ui";
 import { miSuscripcion, misSolicitudes, pedirRecoleccion } from "../datos-remoto";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "../rutas-datos";
+import { TIPOS_RESIDUO } from "../cotizar-whatsapp";
+import { validarSolicitud, textoNoProcedio } from "../solicitudes.js";
 
 /**
  * Fecha en YYYY-MM-DD con la hora LOCAL.
@@ -36,6 +38,11 @@ export default function Agendar() {
   const [mias, setMias] = useState([]);
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
+  // Pedido de los dueños (4-oct-2026): especificar el residuo al agendar.
+  // Si al llegar el chofer encuentra otra cosa, la marca "No procedió" y no
+  // se cobra; por eso se pide aquí y no después. Empieza VACÍO a propósito:
+  // uno preseleccionado se mandaría sin que nadie lo eligiera.
+  const [tipoResiduo, setTipoResiduo] = useState("");
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
@@ -64,8 +71,15 @@ export default function Agendar() {
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
 
+  const validacion = validarSolicitud({ fecha, tipoResiduo, nota });
+  const faltaDescribirOtro = tipoResiduo === "Otro" && !nota.trim();
+
   const enviar = async () => {
-    if (!fecha || enviando) return;
+    if (enviando) return;
+    if (!validacion.ok) {
+      setError(validacion.mensaje);
+      return;
+    }
     setEnviando(true);
     setError("");
 
@@ -77,6 +91,7 @@ export default function Agendar() {
       fecha,
       nota,
       origen: "ruta",
+      tipoResiduo,
     });
 
     if (!r.ok) {
@@ -92,6 +107,7 @@ export default function Agendar() {
     setEnviado(r.folio);
     setFecha("");
     setNota("");
+    setTipoResiduo("");
     setEnviando(false);
   };
 
@@ -136,16 +152,37 @@ export default function Agendar() {
           ))}
         </View>
 
+        <Text style={s.etiqueta}>
+          Tipo de residuo <Text style={{ color: T.error }}>*</Text>
+        </Text>
+        <View style={s.fechas} accessibilityRole="radiogroup" accessibilityLabel="Tipo de residuo">
+          {TIPOS_RESIDUO.map((t) => (
+            <Pressable
+              key={t}
+              onPress={() => { setTipoResiduo(t); setError(""); }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: tipoResiduo === t }}
+              style={[s.chip, tipoResiduo === t && s.chipActivo]}
+            >
+              <Text style={[s.chipTxt, tipoResiduo === t && s.chipTxtActivo]}>{t}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={s.ayuda}>
+          Si al llegar el residuo es otro, el chofer no lo puede recoger y la
+          visita queda como «No procedió» (sin cobro).
+        </Text>
+
         <TextInput
-          style={s.input}
-          placeholder="Nota para la cuadrilla (opcional)"
+          style={[s.input, faltaDescribirOtro && { borderColor: T.alerta }]}
+          placeholder={tipoResiduo === "Otro" ? "Describe el residuo (obligatorio con «Otro»)" : "Nota para la cuadrilla (opcional)"}
           placeholderTextColor={T.grisClaro}
           value={nota}
           onChangeText={setNota}
           multiline
         />
 
-        <Boton onPress={enviar} disabled={!fecha || enviando}>
+        <Boton onPress={enviar} disabled={!validacion.ok || enviando}>
           <Text style={s.botonTxt}>{enviando ? "Enviando…" : "Enviar solicitud"}</Text>
         </Boton>
 
@@ -167,12 +204,16 @@ export default function Agendar() {
           mias.map((sol, i) => {
             const b = badge(sol.estado);
             return (
-              <View key={sol.folio} style={[s.fila, i > 0 && s.filaBorde]}>
+              <View key={sol.folio} style={[s.fila, i > 0 && s.filaBorde, { alignItems: "flex-start" }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.folio}>{sol.folio}</Text>
                   <Text style={s.filaDato}>
                     {sol.fechaPedida} · {sol.origen === "extra" ? "Extra" : "De ruta"}
                   </Text>
+                  <Text style={s.filaResiduo}>{sol.tipoResiduo || "Residuo sin especificar"}</Text>
+                  {sol.estado === "no-procedio" ? (
+                    <Text style={s.noProcedio}>{textoNoProcedio(sol)}</Text>
+                  ) : null}
                 </View>
                 <Badge clase={b.clase}>{b.texto}</Badge>
               </View>
@@ -212,6 +253,10 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   botonTxt: { color: "#fff", fontWeight: "800", fontSize: 14.5 },
+  etiqueta: { color: T.tinta, fontSize: 13, fontWeight: "700", marginBottom: 8 },
+  ayuda: { color: T.gris, fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 12 },
+  filaResiduo: { color: T.tinta, fontSize: 12.5, marginTop: 2 },
+  noProcedio: { color: T.error, fontSize: 12.5, lineHeight: 18, marginTop: 6 },
   error: { color: "#ef8080", fontSize: 12.5, marginTop: 10, lineHeight: 18 },
   exito: { color: T.verdeClaro, fontSize: 12.5, marginTop: 10, lineHeight: 18 },
   vacio: { color: T.gris, fontSize: 13 },

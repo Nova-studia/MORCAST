@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T, COLOR_TIPO, SERIES } from "../tema";
 import { enHold } from "../estado-sistema";
-import { Tarjeta, TituloTarjeta, Boton, AvisoHold } from "../ui";
+import { Tarjeta, TituloTarjeta, Boton, AvisoHold, AvisoPrecios } from "../ui";
 import { REPORTE_DIARIO, REPORTE_MENSUAL, REPORTE_ANUAL, COMPOSICION_RESIDUOS, pesos } from "../datos";
 import { reportes } from "../datos-remoto";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
@@ -70,6 +70,9 @@ export default function Reportes() {
       <Text style={s.h1}>Reportes</Text>
       <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Peso recolectado por periodo, tomado de cada servicio.</Text>
+      {/* Los montos de aquí son de referencia (pedido de los dueños,
+          4-oct-2026): el aviso, arriba y a la vista, igual que en el portal. */}
+      <AvisoPrecios />
 
       <View style={s.seg}>
         {PERIODOS.map((p) => (

@@ -8,12 +8,14 @@ import { misServicios } from "../datos-remoto";
 import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto } from "../pdf";
+import { textoNoProcedio } from "../solicitudes.js";
 
 const FILTROS = [
   { id: "todos", texto: "Todos" },
   { id: "completado", texto: "Completados" },
   { id: "programado", texto: "Programados" },
   { id: "en-ruta", texto: "En ruta" },
+  { id: "no-procedio", texto: "No procedió" },
 ];
 
 export default function Historial() {
@@ -106,7 +108,11 @@ export default function Historial() {
                 <Dato k="Contenedor" v={x.contenedor} />
                 <Dato k="Peso" v={x.peso} />
                 <Dato k="Operador" v={x.operador} />
-                {x.manifiesto ? (
+                {/* El chofer fue y no se pudo recoger: el porqué y que no se
+                    cobra, con las mismas palabras que el portal. */}
+                {x.estatus === "no-procedio" ? (
+                  <Text style={s.noProcedio}>{textoNoProcedio(x)}</Text>
+                ) : x.manifiesto ? (
                   <Pressable style={s.manif} onPress={() => bajarManifiesto(x)} disabled={bajando === x.folio}>
                     <Feather name={bajando === x.folio ? "loader" : "download"} size={15} color={T.verdeClaro} />
                     <Text style={s.manifTxt}>{bajando === x.folio ? "Generando…" : `Descargar manifiesto ${x.manifiesto}`}</Text>
@@ -149,5 +155,6 @@ const s = StyleSheet.create({
   manif: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 8, backgroundColor: "rgba(78,179,74,0.1)", borderRadius: 9, paddingVertical: 9, paddingHorizontal: 11 },
   manifTxt: { color: T.verdeClaro, fontSize: 13, fontWeight: "600" },
   pend: { color: T.grisClaro, fontSize: 12.5, marginTop: 8 },
+  noProcedio: { color: T.error, fontSize: 13, lineHeight: 19, marginTop: 8, backgroundColor: "rgba(217,119,107,0.10)", borderRadius: 9, padding: 10 },
   vacio: { color: T.gris, textAlign: "center", paddingVertical: 24 },
 });

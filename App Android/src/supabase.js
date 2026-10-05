@@ -1,14 +1,17 @@
 import "react-native-url-polyfill/auto";
 import { AppState, Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { almacenSesion } from "./almacen-seguro";
 import { createClient, processLock } from "@supabase/supabase-js";
 
 /**
  * Cliente de Supabase para la app.
  *
  * Diferencias con la web, que son las que importan:
- *  · La sesión se guarda en AsyncStorage, no en cookies. En un teléfono no
- *    hay navegador que las administre.
+ *  · La sesión se guarda en el almacén CIFRADO del teléfono
+ *    (`expo-secure-store`), no en cookies ni en AsyncStorage. Hasta la 1.0
+ *    iba en AsyncStorage, que es un archivo sin cifrar: con un teléfono con
+ *    root o un respaldo, el token se podía copiar. La de quien actualiza se
+ *    muda sola (ver `almacen-seguro.js`).
  *  · `detectSessionInUrl: false` porque aquí no hay direcciones web de las
  *    que sacar una sesión.
  *  · `processLock` evita que dos partes de la app renueven el token a la vez
@@ -29,7 +32,7 @@ export function haySupabase() {
 export const supabase = haySupabase()
   ? createClient(URL_SUPABASE, LLAVE_ANON, {
       auth: {
-        storage: AsyncStorage,
+        storage: almacenSesion,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,

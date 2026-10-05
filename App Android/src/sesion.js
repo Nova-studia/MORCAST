@@ -3,6 +3,8 @@ import { CREDENCIALES_DEMO, CLIENTE } from "./datos";
 import { ADMIN_DEMO, ADMIN_PERFIL } from "./datos-admin";
 import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
 import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
+import { borrarTokenAlSalir } from "./push";
+import { olvidarPase } from "./segundo-paso";
 
 /**
  * Sesión de la app, para los tres modos.
@@ -158,7 +160,22 @@ export async function sesionActiva(modo) {
   return perfilDe(user, modo);
 }
 
+/**
+ * Cierra la sesión. Antes de `signOut()`, mientras todavía hay sesión para
+ * que la base lo acepte, se da de baja el token de push de este teléfono
+ * (que no le sigan llegando a este aparato los avisos de esa cuenta) y se
+ * borra el pase del segundo paso del admin (quien entre después en este
+ * teléfono tiene que escribir SU código). Ninguna de las dos puede impedir
+ * salir: si fallan, se sale igual, y sin señal no se espera más de 4 s
+ * (un botón "Salir" que no responde es peor que un token huérfano, que el
+ * servidor limpia cuando Expo le avisa que ya no existe).
+ */
 export async function salir() {
   olvidarCuentaDeMuestra();
+  const limpieza = Promise.all([
+    borrarTokenAlSalir().catch(() => {}),
+    olvidarPase().catch(() => {}),
+  ]);
+  await Promise.race([limpieza, new Promise((listo) => setTimeout(listo, 4000))]);
   if (haySupabase()) await supabase.auth.signOut();
 }
