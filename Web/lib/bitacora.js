@@ -87,6 +87,7 @@ export const TEXTO_ACCION = {
   desactivar_usuario: "Desactivó la cuenta de alguien del equipo",
   reactivar_usuario: "Reactivó la cuenta de alguien del equipo",
   cambiar_estado_cotizacion: "Cambió el estado de una cotización",
+  entrar_panel: "Entró al panel con el código de su correo",
   // Las anota la propia base (db/022), venga el cambio de la web, de la app
   // o de una llamada directa a la API.
   db_insert: "Alta",

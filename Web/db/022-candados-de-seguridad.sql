@@ -356,4 +356,22 @@ $$;
 revoke all on function public.pasar_freno(text, integer, interval) from public, anon, authenticated;
 grant execute on function public.pasar_freno(text, integer, interval) to service_role;
 
+
+-- ---------------------------------------------------------------------
+--  8 · Códigos del segundo paso del panel (por correo)
+-- ---------------------------------------------------------------------
+--  Uno vigente por persona. Se guarda la HUELLA del código (HMAC), nunca el
+--  código: quien llegara a leer la tabla no puede usarla para entrar. Solo
+--  el servidor (llave de servicio) la lee y la escribe: RLS encendido y sin
+--  políticas. Ver lib/mfa.mjs y app/acciones-segundo-paso.js.
+create table if not exists public.codigos_panel (
+  usuario_id uuid primary key references auth.users (id) on delete cascade,
+  huella     text not null,
+  vence      timestamptz not null,
+  intentos   integer not null default 0,
+  enviado    timestamptz not null default now()
+);
+alter table public.codigos_panel enable row level security;
+revoke all on public.codigos_panel from anon, authenticated;
+
 commit;

@@ -1,7 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { casaDe, DESTINOS } from "@/lib/destino-sesion.mjs";
-import { RUTA_VERIFICACION, mfaPanelActivo, necesitaVerificar } from "@/lib/mfa.mjs";
+import {
+  COOKIE_PASE,
+  RUTA_VERIFICACION,
+  mfaPanelActivo,
+  necesitaVerificar,
+  secretoPanel,
+  sesionDelToken,
+  verificarPase,
+} from "@/lib/mfa.mjs";
 
 /**
  * GUARDIA DE RUTAS — se ejecuta en el servidor ANTES de entregar la página.
@@ -145,8 +153,13 @@ export async function proxy(request) {
   // única del panel que se ve con solo la contraseña.
   if (zonaAdmin && mfaPanelActivo()) {
     const enVerificacion = esArea(ruta, RUTA_VERIFICACION);
-    const { data: nivel } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const falta = necesitaVerificar({ rol, aal: nivel?.currentLevel });
+    const { data: { session } } = await supabase.auth.getSession();
+    const paseValido = await verificarPase(
+      request.cookies.get(COOKIE_PASE)?.value,
+      { uid: user.id, sesion: sesionDelToken(session?.access_token) },
+      secretoPanel()
+    );
+    const falta = necesitaVerificar({ rol, paseValido });
     if (falta && !enVerificacion) {
       const url = request.nextUrl.clone();
       url.pathname = RUTA_VERIFICACION;

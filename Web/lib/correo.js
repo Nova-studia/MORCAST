@@ -537,6 +537,34 @@ export async function correoContrasenaCambiada({ correo }) {
   });
 }
 
+/**
+ * Código del segundo paso del panel (dueño y administradores).
+ *
+ * Sin botones ni enlaces a propósito: un correo de "código de acceso" con un
+ * botón es justo lo que imita el phishing. Solo el número, cuánto dura y qué
+ * hacer si la persona no estaba entrando.
+ */
+export async function correoCodigoPanel({ correo, codigo, minutos }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `${codigo} es tu código para entrar al panel de Morcast`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu código para entrar al panel</h1>
+      <p style="margin:0 0 18px;font-size:14px">
+        Escribe este código en la pantalla del panel de administración:</p>
+      <p style="margin:0 0 18px;font-size:34px;font-weight:bold;letter-spacing:8px;color:#144C4F;text-align:center">
+        ${esc(codigo)}</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>Vence en ${esc(minutos)} minutos.</strong> No lo compartas con nadie:
+        nadie de Morcast te lo va a pedir.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿No estabas entrando al panel? Alguien escribió tu contraseña. Cámbiala
+        cuanto antes y avísanos al <strong>868 384 9478</strong>.</p>`),
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Trabaja con nosotros                                                */
 /* ------------------------------------------------------------------ */

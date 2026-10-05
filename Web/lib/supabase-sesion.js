@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { mfaPanelActivo, necesitaVerificar } from "./mfa.mjs";
+import {
+  COOKIE_PASE,
+  mfaPanelActivo,
+  necesitaVerificar,
+  secretoPanel,
+  sesionDelToken,
+  verificarPase,
+} from "./mfa.mjs";
 
 /**
  * Cliente de Supabase para el SERVIDOR, con la sesión del usuario.
@@ -66,8 +73,14 @@ export async function usuarioActual() {
   // acción del servidor no se puede llamar a mano con solo la contraseña,
   // aunque proxy.js ya lo hubiera mandado a verificar (ver lib/mfa.mjs).
   if (mfaPanelActivo() && (perfil.rol === "dueno" || perfil.rol === "admin")) {
-    const { data: nivel } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (necesitaVerificar({ rol: perfil.rol, aal: nivel?.currentLevel })) {
+    const galleta = await cookies();
+    const { data: { session } } = await supabase.auth.getSession();
+    const paseValido = await verificarPase(
+      galleta.get(COOKIE_PASE)?.value,
+      { uid: user.id, sesion: sesionDelToken(session?.access_token) },
+      secretoPanel()
+    );
+    if (necesitaVerificar({ rol: perfil.rol, paseValido })) {
       return { correo: user.email, ...perfil, rol: "sin-verificar", rolReal: perfil.rol };
     }
   }

@@ -97,9 +97,9 @@ console.log("perfiles:", perfiles.map((p) => p.rol).join(", "));
 
 // ---------------------------------------------------------------- pruebas
 let fallas = 0;
-let AAL = "aal2"; // el panel ya exige el segundo paso; 023 lo hará exigir también a la base
+
 async function como(quien, sql, params = []) {
-  const claims = quien === "anon" ? { role: "anon" } : { sub: U[quien], role: "authenticated", email: `${quien}@t.mx`, aal: AAL };
+  const claims = quien === "anon" ? { role: "anon" } : { sub: U[quien], role: "authenticated", email: `${quien}@t.mx` };
   await db.exec("reset role");
   await db.query(`select set_config('request.jwt.claim.sub', $1, false), set_config('request.jwt.claims', $2, false)`,
     [claims.sub || "", JSON.stringify(claims)]);
@@ -197,16 +197,11 @@ console.log("   resultados:", r.join(", "));
 if (r.join() !== "true,true,true,false") { fallas++; console.log("  ✖ el freno no frenó en el cuarto"); }
 await debeFallar("un anónimo NO puede llamar al freno", "anon", `select public.pasar_freno('x', 3, '10 minutes')`);
 
-console.log("\n8 · 023 (pendiente): la base exige el segundo paso");
-await db.exec(fs.readFileSync(path.join(WEB, "db", "pendientes", "023-la-base-exige-dos-pasos.sql"), "utf8"));
-AAL = "aal1";
-await debeFallar("admin con solo contraseña NO lee prospectos", "admin", `select * from public.cotizaciones_pendientes`);
-await debeFallar("admin con solo contraseña NO lee clientes", "admin", `select * from public.clientes`);
-await debePasar("el chofer sigue viendo su parada sin segundo paso", "chofer",
-  `select id from public.solicitudes_recoleccion where id=$1`, [sol.id], 1);
-await debePasar("el cliente sigue viendo su empresa", "cliente", `select id from public.clientes`, [], 1);
-AAL = "aal2";
-await debePasar("admin con el segundo paso sí lee prospectos", "admin", `select * from public.cotizaciones_pendientes`, [], 1);
+console.log("\n8 · códigos del segundo paso");
+await db.query(`insert into public.codigos_panel (usuario_id, huella, vence) values ($1, 'h', now() + interval '10 minutes')`, [U.admin]);
+await debeFallar("el admin NO lee la tabla de códigos", "admin", `select * from public.codigos_panel`);
+await debeFallar("el admin NO borra su código", "admin", `delete from public.codigos_panel`);
+await debeFallar("un anónimo NO lee la tabla de códigos", "anon", `select * from public.codigos_panel`);
 
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
