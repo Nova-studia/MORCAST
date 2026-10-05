@@ -2,7 +2,7 @@
   "expo": {
     "name": "Morcast",
     "slug": "morcast-app",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -55,7 +55,30 @@
         }
       ],
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Morcast usa tu ubicación solo cuando tú lo pides en el modo chofer: para guardar el punto exacto de la entrada de un cliente y para que un reporte de incidente diga dónde pasó. No te sigue ni la usa en segundo plano.",
+          "locationAlwaysAndWhenInUsePermission": "Morcast usa tu ubicación solo mientras usas la app (modo chofer), para guardar el punto de la entrada de un cliente y ubicar un reporte de incidente. No la usa en segundo plano.",
+          "locationAlwaysPermission": "Morcast usa tu ubicación solo mientras usas la app (modo chofer). No la usa en segundo plano.",
+          "motionUsagePermission": "Morcast no usa el sensor de actividad física del teléfono.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

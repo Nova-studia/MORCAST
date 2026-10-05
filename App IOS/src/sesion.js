@@ -3,6 +3,8 @@ import { CREDENCIALES_DEMO, CLIENTE } from "./datos";
 import { ADMIN_DEMO, ADMIN_PERFIL } from "./datos-admin";
 import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
 import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
+import { borrarTokenAlSalir } from "./notificaciones";
+import { olvidarPase } from "./pase-admin";
 
 /**
  * Sesión de la app, para los tres modos.
@@ -159,6 +161,12 @@ export async function sesionActiva(modo) {
 }
 
 export async function salir() {
+  // Primero lo que necesita la sesión viva: el token de notificaciones se
+  // borra a nombre de quien sale (si no, el siguiente que entrara en este
+  // iPhone recibiría sus avisos). El pase del segundo paso se tira: vale
+  // para esta sesión y nadie más debe poder usarlo.
+  await borrarTokenAlSalir().catch(() => {});
+  await olvidarPase();
   olvidarCuentaDeMuestra();
   if (haySupabase()) await supabase.auth.signOut();
 }

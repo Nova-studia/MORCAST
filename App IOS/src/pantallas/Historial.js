@@ -8,12 +8,16 @@ import { misServicios } from "../datos-remoto";
 import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto } from "../pdf";
+import { textoNoProcedio } from "../estado-servicio.mjs";
 
 const FILTROS = [
   { id: "todos", texto: "Todos" },
   { id: "completado", texto: "Completados" },
   { id: "programado", texto: "Programados" },
   { id: "en-ruta", texto: "En ruta" },
+  // db/023: el chofer llegó y no se pudo recoger. Sin este filtro esas
+  // visitas solo se veían en "Todos", con el texto crudo de la base.
+  { id: "no-procedio", texto: "No procedió" },
 ];
 
 export default function Historial() {
@@ -100,13 +104,24 @@ export default function Historial() {
               <Feather name={open ? "chevron-up" : "chevron-down"} size={18} color={T.gris} style={{ marginLeft: 8 }} />
             </Pressable>
 
+            {/* Lo primero que se pregunta quien ve "No procedió": por qué, y
+                si se le va a cobrar. Va a la vista, sin tener que abrir. */}
+            {x.estatus === "no-procedio" && (
+              <View style={s.noProc}>
+                <Feather name="info" size={14} color={T.error} style={{ marginTop: 2 }} />
+                <Text style={s.noProcTxt}>{textoNoProcedio(x.motivoNoProcedio, x.detalleNoProcedio)}</Text>
+              </View>
+            )}
+
             {open && (
               <View style={s.detalle}>
                 <Dato k="Residuo" v={x.residuo} />
                 <Dato k="Contenedor" v={x.contenedor} />
                 <Dato k="Peso" v={x.peso} />
                 <Dato k="Operador" v={x.operador} />
-                {x.manifiesto ? (
+                {x.estatus === "no-procedio" ? (
+                  <Text style={s.pend}>Sin manifiesto: no hubo recolección.</Text>
+                ) : x.manifiesto ? (
                   <Pressable style={s.manif} onPress={() => bajarManifiesto(x)} disabled={bajando === x.folio}>
                     <Feather name={bajando === x.folio ? "loader" : "download"} size={15} color={T.verdeClaro} />
                     <Text style={s.manifTxt}>{bajando === x.folio ? "Generando…" : `Descargar manifiesto ${x.manifiesto}`}</Text>
@@ -150,4 +165,6 @@ const s = StyleSheet.create({
   manifTxt: { color: T.verdeClaro, fontSize: 13, fontWeight: "600" },
   pend: { color: T.grisClaro, fontSize: 12.5, marginTop: 8 },
   vacio: { color: T.gris, textAlign: "center", paddingVertical: 24 },
+  noProc: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginBottom: 14, marginTop: -4, padding: 10, borderRadius: 9, backgroundColor: "rgba(217,119,107,0.10)" },
+  noProcTxt: { flex: 1, color: T.tinta, fontSize: 13, lineHeight: 18 },
 });

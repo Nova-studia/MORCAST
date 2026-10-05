@@ -4,6 +4,7 @@ import { File, Paths } from "expo-file-system";
 import { pesos, fechaLarga, CONSTANCIA_FISCAL, IVA } from "./datos";
 import { haySupabase } from "./supabase";
 import { enHold } from "./estado-sistema";
+import { TEXTO_AVISO_PRECIOS } from "./aviso-precios.mjs";
 import {
   EMPRESA_COTIZACION,
   CONDICIONES_COMERCIALES,
@@ -49,6 +50,8 @@ const CSS = `
   .firma { flex:1; border-top:1px solid #99a; padding-top:6px; text-align:center; font-size:10px; }
   .caja { background:#f4f9f7; border-left:3px solid #265421; padding:10px 12px; font-size:10.5px; color:#3a4a48; margin-top:10px; }
   .subtit { font-size:9.5px; font-weight:800; letter-spacing:0.06em; color:#265421; }
+  .aviso-precios { background:#eef4fa; border:1px solid #2a6a99; border-left:4px solid #2a6a99; padding:10px 12px; font-size:10.5px; color:#163a55; line-height:1.5; margin:14px 0; }
+  .aviso-precios b { display:block; letter-spacing:0.06em; margin-bottom:3px; }
   .pie { margin-top:24px; border-top:1px solid #e1e6e5; padding-top:10px; color:#9aa4a2; font-size:9px; }
 `;
 
@@ -66,6 +69,14 @@ function pie(tipo) {
     ? `${tipo} generado por la app de Morcast del Norte.`
     : `${tipo} de demostración generado por la app de Morcast del Norte.`;
 }
+
+/**
+ * Recuadro "IMPORTANTE: los precios pueden cambiar" (pedido de los dueños,
+ * 4-oct-2026), con el MISMO texto de la pantalla y de los PDF de la web. Va
+ * en un recuadro de color y no como nota gris al pie: estos PDF andan
+ * sueltos, los reenvían a compras, y el aviso tiene que viajar a la vista.
+ */
+const avisoPrecios = `<div class="aviso-precios"><b>IMPORTANTE</b>${TEXTO_AVISO_PRECIOS}</div>`;
 
 /** "Manifiesto MAN-2026-0714" → "Manifiesto-MAN-2026-0714.pdf" */
 function nombreArchivo(nombre) {
@@ -173,6 +184,7 @@ export async function descargarReporte(titulo, filas, cliente, { conMonto = !enH
     <div class="cont">
       <div class="titulo">${titulo}</div>
       <div class="folio">${cliente.empresa} · ${cliente.id}</div>
+      ${avisoPrecios}
       <table>
         <tr><th>Periodo</th><th>Peso recolectado</th>${conMonto ? "<th>Monto</th>" : ""}</tr>
         ${cuerpo}
@@ -228,7 +240,7 @@ export async function descargarCotizacion(items, cliente) {
         <div class="tot"><span>IVA (16%)</span><span>${pesos(iva)}</span></div>
         <div class="tot g"><span>Total</span><span>${pesos(total)}</span></div>
       </div>
-      <div class="caja">Precios de referencia sujetos a confirmación según volumen, frecuencia y condiciones del sitio.</div>
+      ${avisoPrecios}
       <div style="display:flex; gap:18px; margin-top:14px">
         <div style="flex:1">
           <div class="subtit">CONDICIONES COMERCIALES</div>

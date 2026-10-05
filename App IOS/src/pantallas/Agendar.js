@@ -5,6 +5,9 @@ import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, EncabezadoPantalla } from "../ui";
 import { miSuscripcion, misSolicitudes, pedirRecoleccion } from "../datos-remoto";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "../rutas-datos";
+import { TIPOS_RESIDUO } from "../cotizar-whatsapp";
+import { validarSolicitudAgenda } from "../agendar.mjs";
+import { textoNoProcedio } from "../estado-servicio.mjs";
 
 /**
  * Fecha en YYYY-MM-DD con la hora LOCAL.
@@ -36,6 +39,10 @@ export default function Agendar() {
   const [mias, setMias] = useState([]);
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
+  // Sin valor por defecto A PROPÓSITO (igual que la web): si viniera puesto
+  // "RSU", el cliente que no lo lee mandaría RSU aunque entregue otra cosa,
+  // y el chofer llegaría preparado para lo que no es.
+  const [tipoResiduo, setTipoResiduo] = useState("");
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
@@ -64,8 +71,13 @@ export default function Agendar() {
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
 
+  // Obligatorio desde la 1.1 (db/023); con «Otro», la nota también.
+  const revision = validarSolicitudAgenda({ fecha, tipoResiduo, nota }, TIPOS_RESIDUO);
+  const faltaDescribirOtro = tipoResiduo === "Otro" && !nota.trim();
+
   const enviar = async () => {
-    if (!fecha || enviando) return;
+    if (enviando) return;
+    if (!revision.ok) { setError(revision.mensaje); return; }
     setEnviando(true);
     setError("");
 
@@ -77,6 +89,7 @@ export default function Agendar() {
       fecha,
       nota,
       origen: "ruta",
+      tipoResiduo,
     });
 
     if (!r.ok) {
@@ -92,6 +105,7 @@ export default function Agendar() {
     setEnviado(r.folio);
     setFecha("");
     setNota("");
+    setTipoResiduo("");
     setEnviando(false);
   };
 
@@ -141,15 +155,37 @@ export default function Agendar() {
           ))}
         </View>
 
+        {/* El tipo de residuo: es lo que le dice al chofer con qué ir. */}
+        <Text style={s.label}>¿Qué residuo vas a entregar? <Text style={{ color: T.error }}>*</Text></Text>
+        <View style={s.fechas}>
+          {TIPOS_RESIDUO.map((t) => (
+            <Pressable
+              key={t}
+              onPress={() => { setTipoResiduo(t); setError(""); }}
+              style={[s.chip, tipoResiduo === t && s.chipActivo]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: tipoResiduo === t }}
+            >
+              <Text style={[s.chipTxt, tipoResiduo === t && s.chipTxtActivo]}>{t}</Text>
+            </Pressable>
+          ))}
+        </View>
+
         <TextInput
-          style={s.input}
-          placeholder="Nota para la cuadrilla (opcional)"
+          style={[s.input, faltaDescribirOtro && { borderColor: T.alerta }]}
+          placeholder={tipoResiduo === "Otro" ? "¿Qué residuo es? (obligatorio con «Otro»)" : "Nota para la cuadrilla (opcional)"}
           placeholderTextColor={T.grisClaro}
           value={nota}
           onChangeText={setNota}
           multiline
         />
 
+        {faltaDescribirOtro ? (
+          <Text style={s.aviso}>Con «Otro», escribe en la nota qué residuo es.</Text>
+        ) : null}
+
+        {/* Se deja tocar aunque falte algo: así se dice QUÉ falta, en vez de
+            un botón apagado sin explicación. */}
         <Boton onPress={enviar} disabled={!fecha || enviando}>
           <Text style={s.botonTxt}>{enviando ? "Enviando…" : "Enviar solicitud"}</Text>
         </Boton>
@@ -177,7 +213,11 @@ export default function Agendar() {
                   <Text style={s.folio}>{sol.folio}</Text>
                   <Text style={s.filaDato}>
                     {sol.fechaPedida} · {sol.origen === "extra" ? "Extra" : "De ruta"}
+                    {sol.tipoResiduo ? ` · ${sol.tipoResiduo}` : ""}
                   </Text>
+                  {sol.estado === "no-procedio" ? (
+                    <Text style={s.noProc}>{textoNoProcedio(sol.motivoNoProcedio, sol.detalleNoProcedio)}</Text>
+                  ) : null}
                 </View>
                 <Badge clase={b.clase}>{b.texto}</Badge>
               </View>
@@ -191,6 +231,9 @@ export default function Agendar() {
 
 const s = StyleSheet.create({
   intro: { color: T.gris, fontSize: 13, lineHeight: 19, marginBottom: 12 },
+  label: { color: T.tinta, fontSize: 13, fontWeight: "700", marginBottom: 8 },
+  aviso: { color: T.alerta, fontSize: 12.5, marginTop: -4, marginBottom: 10 },
+  noProc: { color: T.tinta, fontSize: 12.5, marginTop: 4, lineHeight: 18 },
   fuerte: { color: T.tinta, fontWeight: "700" },
   fechas: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 12 },
   chip: {

@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
-import { subirEvidencia } from "../../datos-remoto";
+import { useState, useRef, useEffect } from "react";
+import { subirEvidencia, contenedoresDelPunto } from "../../datos-remoto";
+import { revisarContenedor } from "../../contenedor-punto.mjs";
+import DondeEs from "./DondeEs";
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -11,7 +13,9 @@ import { Tarjeta, Boton } from "../../ui";
 const PASOS = ["Escanear", "Foto antes", "Recolectar", "Foto después", "Finalizar"];
 
 export default function Recoleccion({ route, navigation, completar }) {
-  const servicio = route.params.servicio;
+  // La parada puede ganar su pin aquí mismo ("Guardar la ubicación"): se
+  // copia a un estado para que "Cómo llegar" lo use sin recargar la ruta.
+  const [servicio, setServicio] = useState(route.params.servicio);
   const alturaEncabezado = useHeaderHeight();
   const [paso, setPaso] = useState(0);
   const [qrCodigo, setQrCodigo] = useState(null);
@@ -25,6 +29,60 @@ export default function Recoleccion({ route, navigation, completar }) {
   const [rutaAntes, setRutaAntes] = useState(null);
   const [rutaDespues, setRutaDespues] = useState(null);
   const [peso, setPeso] = useState("");
+
+  // Los contenedores registrados en este punto (inventario de db/023), para
+  // revisar que el QR escaneado sea de aquí. `null` = no se pudo leer: en
+  // ese caso no se avisa nada, porque no hay contra qué comparar.
+  const [contenedores, setContenedores] = useState(null);
+  const [revision, setRevision] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    if (servicio.punto?.id) {
+      contenedoresDelPunto(servicio.punto.id).then((l) => { if (vivo) setContenedores(l); });
+    }
+    return () => { vivo = false; };
+  }, [servicio.punto?.id]);
+
+  // "No procedió" solo se puede en una parada abierta: la base no deja
+  // cerrar así una que ya se completó (`solicitudes_cierra_operador`).
+  const puedeNoProcedio = ["confirmada", "en-ruta"].includes(servicio.estado) || !servicio.estado;
+
+  /**
+   * El contenedor quedó identificado (escaneado o escrito). Si el punto tiene
+   * inventario y este código no es de aquí, se avisa CLARO, pero no se
+   * bloquea: el servicio sí se hizo. El chofer decide si sigue (el código se
+   * anota tal cual en la recolección) o reporta "contenedor movido".
+   */
+  const identificar = (codigo) => {
+    const r = revisarContenedor(codigo, contenedores || []);
+    const leido = r.codigo || String(codigo || "").trim();
+    setQrCodigo(leido);
+    setRevision(r);
+    if (r.estado !== "ajeno") {
+      setPaso(1);
+      return;
+    }
+    Alert.alert(
+      "Este contenedor no está registrado en este punto",
+      `El código ${leido} no es de los contenedores de ${servicio.cliente}.\n\nPuede que lo hayan movido de otro cliente, o que el inventario esté mal. ¿Qué hacemos?`,
+      [
+        { text: "Volver a escanear", style: "cancel", onPress: () => { setQrCodigo(null); setRevision(null); } },
+        {
+          text: "Reportar contenedor movido",
+          onPress: () => {
+            setPaso(1);
+            navigation.navigate("ReportarProblema", {
+              tipo: "contenedor-movido",
+              parada: servicio,
+              codigo: leido,
+              descripcion: `Escaneé el contenedor ${leido} en este punto y no está registrado aquí.`,
+            });
+          },
+        },
+        { text: "Continuar y anotarlo", onPress: () => setPaso(1) },
+      ]
+    );
+  };
 
   const horaAhora = () => {
     const d = new Date();
@@ -46,9 +104,8 @@ export default function Recoleccion({ route, navigation, completar }) {
   const alEscanear = ({ data }) => {
     if (yaEscaneo.current) return;
     yaEscaneo.current = true;
-    setQrCodigo(data || servicio.qr);
     setEscaneando(false);
-    setPaso(1);
+    identificar(data || servicio.qr);
   };
 
   /**
@@ -99,7 +156,7 @@ export default function Recoleccion({ route, navigation, completar }) {
       return;
     }
     if (!(Number(peso) > 0)) {
-      Alert.alert("Falta el peso", "Anota el peso recolectado en kilogramos. Si no lo pesaste, pon el estimado.");
+      Alert.alert("Falta el peso estimado", "Anota cuántos kilos calculas que recogiste. El peso real lo registra la oficina con el ticket de la báscula del relleno.");
       return;
     }
 
@@ -184,8 +241,13 @@ export default function Recoleccion({ route, navigation, completar }) {
       {/* Info del servicio */}
       <Tarjeta style={{ padding: 14 }}>
         <Text style={s.cliente}>{servicio.cliente}</Text>
-        <Text style={s.dir}><Feather name="map-pin" size={11} color={T.gris} /> {servicio.direccion}</Text>
-        <Text style={s.cont}>{servicio.contenedor} · {servicio.tipo}</Text>
+        <Text style={s.cont}>{servicio.tipo}{servicio.nota ? ` · Nota: ${servicio.nota}` : ""}</Text>
+        {/* Dirección completa, referencias, "Cómo llegar" y, si falta el
+            pin, "Guardar la ubicación de este punto". */}
+        <DondeEs
+          parada={servicio}
+          onUbicacionGuardada={({ lat, lng }) => setServicio((sv) => ({ ...sv, punto: { ...sv.punto, lat, lng } }))}
+        />
       </Tarjeta>
 
       {/* Progreso */}
@@ -220,7 +282,7 @@ export default function Recoleccion({ route, navigation, completar }) {
             onChangeText={setCodigoManual}
           />
           <Boton
-            onPress={() => { setQrCodigo(codigoManual.trim()); setPaso(1); }}
+            onPress={() => identificar(codigoManual.trim())}
             disabled={!codigoManual.trim()}
             style={{ marginTop: 10 }}
           >
@@ -232,6 +294,12 @@ export default function Recoleccion({ route, navigation, completar }) {
       {paso >= 1 && (
         <Tarjeta>
           <View style={s.okFila}><Feather name="check-circle" size={16} color={T.verdeClaro} /><Text style={s.okTxt}>Contenedor identificado: <Text style={{ fontWeight: "700", color: T.tinta }}>{qrCodigo}</Text></Text></View>
+          {revision?.estado === "ajeno" ? (
+            <View style={[s.okFila, { marginTop: 8 }]}>
+              <Feather name="alert-triangle" size={16} color={T.alerta} />
+              <Text style={[s.okTxt, { color: T.alerta }]}>No está registrado en este punto. Se anota tal cual; la oficina lo revisará.</Text>
+            </View>
+          ) : null}
         </Tarjeta>
       )}
 
@@ -267,15 +335,34 @@ export default function Recoleccion({ route, navigation, completar }) {
       {paso === 4 && (
         <Tarjeta>
           <Paso icono="check-square" titulo="Cierra el servicio" texto="Registra el peso recolectado y finaliza." />
-          <Text style={s.label}>Peso recolectado (kilogramos)</Text>
+          {/* ESTIMADO: el chofer no tiene báscula. El real lo pone la oficina
+              con el ticket del relleno (db/023, peso_real_kg) y es el que
+              manda en los reportes. Decir "peso" a secas hacía pensar que
+              este número era el que se cobraba. */}
+          <Text style={s.label}>Peso estimado (kg)</Text>
           {/* KILOS, no toneladas: es lo que guarda la base y lo que muestran la
               web y el comprobante del cliente. Antes decia toneladas y un 1.2
               se grababa como 1.2 kg, mil veces menos de lo recolectado. */}
           <TextInput style={s.input} placeholder="Ej. 1250" placeholderTextColor={T.grisClaro} keyboardType="decimal-pad" value={peso} onChangeText={setPeso} />
-          <Text style={s.ayuda}>Si no lo pesaste, pon el estimado.</Text>
+          <Text style={s.ayuda}>El peso real lo registra la oficina con el ticket de la báscula del relleno.</Text>
           <Boton onPress={finalizar} disabled={guardando} style={{ marginTop: 14 }}><Feather name="check-circle" size={16} color="#0d1211" /><Text style={s.btnTxt}>  {guardando ? "Guardando evidencia…" : "Finalizar servicio"}</Text></Boton>
         </Tarjeta>
       )}
+
+      {/* Las salidas cuando la recolección no sale como se agendó. Van al pie,
+          siempre a la vista, y en gris: no compiten con el paso que toca. */}
+      <View style={s.salidas}>
+        {puedeNoProcedio ? (
+          <Boton variante="linea" onPress={() => navigation.navigate("NoProcedio", { parada: servicio })} style={{ flex: 1 }}>
+            <Feather name="slash" size={15} color={T.tinta} />
+            <Text style={{ color: T.tinta, fontWeight: "700" }}>  No procedió</Text>
+          </Boton>
+        ) : null}
+        <Boton variante="linea" onPress={() => navigation.navigate("ReportarProblema", { parada: servicio, codigo: qrCodigo || undefined })} style={{ flex: 1 }}>
+          <Feather name="alert-triangle" size={15} color={T.tinta} />
+          <Text style={{ color: T.tinta, fontWeight: "700" }}>  Reportar problema</Text>
+        </Boton>
+      </View>
     </ScrollView>
 
       {(procesando || guardando) && (
@@ -337,7 +424,8 @@ const s = StyleSheet.create({
   btnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
   okFila: { flexDirection: "row", alignItems: "center", gap: 8 },
   okTxt: { color: T.gris, fontSize: 13, flex: 1 },
-  ayuda: { color: T.gris, fontSize: 12, marginTop: 6 },
+  ayuda: { color: T.gris, fontSize: 12, marginTop: 6, lineHeight: 17 },
+  salidas: { flexDirection: "row", gap: 10, marginTop: 10 },
   capa: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: "rgba(9, 15, 14, 0.72)",

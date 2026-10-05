@@ -10,6 +10,11 @@ import {
   pedirRecoleccionDeMuestra,
   solicitudesDeMuestra,
 } from "./cuenta-muestra";
+import { estatusDePantalla } from "./estado-servicio.mjs";
+import { avisosPorEnseñar, esLecturaDuplicada, DIAS_EN_PORTAL } from "./avisos.mjs";
+import { validarNoProcedio, validarReporte } from "./chofer-reportes.mjs";
+import { direccionDe } from "./mapas.mjs";
+import { postWeb } from "./api-web";
 
 /**
  * Consultas de la app contra Supabase.
@@ -173,7 +178,7 @@ export async function misSolicitudes() {
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
-    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, rutas ( nombre )")
+    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, tipo_residuo, motivo_no_procedio, detalle_no_procedio, rutas ( nombre )")
     .order("fecha_pedida", { ascending: false });
 
   // Cuenta de muestra: lo que el revisor pidió en esta sesión va arriba (no
@@ -189,6 +194,9 @@ export async function misSolicitudes() {
     fechaConfirmada: s.fecha_confirmada,
     estado: s.estado,
     nota: s.nota || "",
+    tipoResiduo: s.tipo_residuo || "",
+    motivoNoProcedio: s.motivo_no_procedio || "",
+    detalleNoProcedio: s.detalle_no_procedio || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
   })));
@@ -199,7 +207,7 @@ export async function misSolicitudes() {
  * empresa sale de su sesión y el estado nace en "solicitada". El RLS lo
  * obliga aunque se manipule la llamada.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null }) {
+export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo = null }) {
   if (!haySupabase()) return { ok: true, demo: true };
 
   // La cuenta de muestra del revisor NO escribe en la base: su solicitud le
@@ -252,6 +260,9 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     fecha_pedida: fecha,
     estado: "solicitada",
     nota: nota || "",
+    // Obligatorio desde la 1.1 (db/023): con él sabe el chofer con qué ir,
+    // y respalda un "No procedió" si al llegar el residuo es otro.
+    tipo_residuo: tipoResiduo || null,
   });
 
   if (error) {
@@ -273,6 +284,75 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     };
   }
   return { ok: true, folio };
+}
+
+/* ==================================================================== */
+/* AVISOS DE MORCAST (retrasos, reagendas)                              */
+/* ==================================================================== */
+
+// Los que se marcaron "Enterado" y la base no pudo guardar porque la tabla
+// de lecturas aún no existe (antes de la 026), y los de la cuenta del
+// revisor de Apple, que no escribe en la base. Viven en memoria: la tarjeta
+// se va al tocarla y no vuelve hasta reabrir la app.
+let leidosEnEstaSesion = [];
+
+/**
+ * Los avisos vigentes que este cliente todavía no marca como "Enterado".
+ *
+ * Cuáles le tocan (a todos, a su sector, a su ruta o a su empresa) lo decide
+ * la base con `avisos_lee_cliente` (db/023-024): aquí no se filtra por
+ * alcance. Se piden solo los de los últimos 30 días, que es lo más viejo que
+ * puede seguir vigente (`avisos.mjs`), para no bajar el historial completo.
+ *
+ * Las lecturas (`avisos_lecturas`, db/026) devuelven solo las propias. Si la
+ * tabla todavía no existe en la base, se sigue sin ellas: se enseñan todos
+ * los vigentes, que es lo que hace la web.
+ */
+export async function avisosParaMi() {
+  if (!haySupabase()) return [];
+
+  const desde = new Date(Date.now() - DIAS_EN_PORTAL * 24 * 60 * 60 * 1000).toISOString();
+  const [{ data: avisos, error }, lecturas] = await Promise.all([
+    supabase
+      .from("avisos")
+      .select("id, titulo, mensaje, motivo, vigente_hasta, creado")
+      .gte("creado", desde)
+      .order("creado", { ascending: false })
+      .limit(20),
+    supabase.from("avisos_lecturas").select("aviso_id"),
+  ]);
+
+  if (error) return [];
+  const leidos = lecturas?.error ? [] : (lecturas?.data || []).map((l) => l.aviso_id);
+  return avisosPorEnseñar(avisos || [], leidos.concat(leidosEnEstaSesion));
+}
+
+/**
+ * "Enterado": guarda la lectura. Devuelve `{ ok }` o `{ ok:false, motivo }`.
+ *
+ * Un duplicado (lo tocó en otro teléfono, o dos veces con mala señal) cuenta
+ * como bien: para él el aviso YA está leído. El usuario lo pone la base
+ * (`default auth.uid()`): desde aquí solo viaja el aviso.
+ */
+export async function marcarAvisoLeido(avisoId) {
+  if (!haySupabase() || !avisoId) return { ok: true, demo: true };
+  // La cuenta del revisor de Apple no escribe en la base (ver cuenta-muestra.js).
+  if (esCuentaDeMuestra()) {
+    leidosEnEstaSesion = leidosEnEstaSesion.concat(avisoId);
+    return { ok: true, simulado: true };
+  }
+
+  const { error } = await supabase.from("avisos_lecturas").insert({ aviso_id: avisoId });
+  if (!error || esLecturaDuplicada(error)) return { ok: true };
+
+  // La tabla todavía no existe (la 026 no se ha corrido): no se castiga al
+  // cliente con una tarjeta que no se puede quitar.
+  const msg = String(error.message || "");
+  if (error.code === "42P01" || error.code === "PGRST205" || /could not find the table|does not exist/i.test(msg)) {
+    leidosEnEstaSesion = leidosEnEstaSesion.concat(avisoId);
+    return { ok: true, sinTabla: true };
+  }
+  return { ok: false, motivo: "No se pudo guardar. Revisa tu señal e inténtalo de nuevo." };
 }
 
 /* ==================================================================== */
@@ -497,14 +577,6 @@ export async function enlaceEvidencia(ruta) {
   return error ? null : data?.signedUrl || null;
 }
 
-/** Cómo se llama cada estado de la base en las pantallas de la app. */
-const ESTATUS_PANTALLA = {
-  solicitada: "programado",
-  confirmada: "programado",
-  "en-ruta": "en-ruta",
-  completada: "completado",
-};
-
 export async function misServicios() {
   if (!haySupabase()) return [];
 
@@ -512,6 +584,7 @@ export async function misServicios() {
     .from("solicitudes_recoleccion")
     .select(`
       id, folio, fecha_pedida, fecha_confirmada, origen, estado,
+      tipo_residuo, motivo_no_procedio, detalle_no_procedio,
       rutas ( nombre, tipo, unidad, chofer ),
       recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues )
     `)
@@ -536,14 +609,21 @@ export async function misServicios() {
         folio: s.folio,
         fecha: s.fecha_confirmada || s.fecha_pedida,
         tipo: nombreTipoRuta(s.rutas?.tipo) || "Recolección",
-        residuo: s.origen === "extra" ? "Recolección extra" : "Residuos de ruta",
+        // Lo que el cliente dijo al agendar (db/023). Las viejas no lo traen.
+        residuo: s.tipo_residuo || (s.origen === "extra" ? "Recolección extra" : "Residuos de ruta"),
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "—",
         peso: ev?.peso_kg ? `${ev.peso_kg} kg` : "—",
         unidad: s.rutas?.unidad || "—",
         operador: s.rutas?.chofer || "—",
         // El estado sale de la base, no fijo: si no, todo se pintaría como
         // completado aunque apenas estuviera programado.
-        estatus: ESTATUS_PANTALLA[s.estado] || s.estado,
+        //
+        // "no-procedio" (db/023) tiene su propio estado: antes caía crudo y,
+        // como "no está completado", el Inicio lo contaba entre los PRÓXIMOS
+        // servicios. Ver `estado-servicio.mjs`.
+        estatus: estatusDePantalla(s.estado),
+        motivoNoProcedio: s.motivo_no_procedio || "",
+        detalleNoProcedio: s.detalle_no_procedio || "",
         // El manifiesto se firma con la recolección hecha. Antes se ofrecía
         // para TODOS los servicios, también los programados: el cliente podía
         // bajar un manifiesto de algo que todavía no pasaba. La pantalla ya
@@ -574,39 +654,250 @@ export async function misServicios() {
 /* MODO CHOFER                                                          */
 /* ==================================================================== */
 
+/**
+ * Fila de la base → parada del chofer. Igual que `aParada` de
+ * `Web/lib/datos-chofer.js`, para que la app y la web digan lo mismo.
+ */
+function aParada(s) {
+  const ev = s.recolecciones?.[0] || null;
+  const d = s.domicilios || null;
+  return {
+    id: s.id,
+    folio: s.folio,
+    estado: s.estado,
+    cliente: s.clientes?.empresa || "—",
+    direccion: d
+      ? [d.alias, d.calle, d.colonia].filter(Boolean).join(" · ")
+      : "Sin domicilio registrado",
+    // El punto completo, para "Cómo llegar" y para decir la dirección
+    // entera: con alias y calle no basta para dar con un portón en un
+    // parque industrial (pedido de los dueños, 4-oct-2026).
+    punto: d
+      ? { id: d.id, alias: d.alias, calle: d.calle, colonia: d.colonia, cp: d.cp, lat: d.lat, lng: d.lng }
+      : null,
+    direccionCompleta: d ? direccionDe(d) : "",
+    referencias: d?.referencias || "",
+    // Lo que pidió el cliente al agendar. Las solicitudes viejas no lo
+    // traen: se dice "sin especificar", no se adivina.
+    tipoResiduo: s.tipo_residuo || "",
+    tipo: s.tipo_residuo || "Residuo sin especificar",
+    contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "Contenedor",
+    // La tarjeta de la ruta tiene una casilla para la hora y con datos reales
+    // salía vacía: la hora confirmada existe desde db/013.
+    hora: s.hora_confirmada ? String(s.hora_confirmada).slice(0, 5) : "—",
+    // La unidad del inventario (db/023) si la ruta ya la tiene; si no, el
+    // texto viejo de la ruta.
+    unidad: s.rutas?.unidades?.numero_economico || s.rutas?.unidad || "Sin unidad",
+    nota: s.nota || "",
+    motivoNoProcedio: s.motivo_no_procedio || "",
+    // "Completado" es que ya se levantó la evidencia, no solo que el estado
+    // diga completada. "No procedió" también sale de los pendientes: ya
+    // quedó resuelta, no hay que volver.
+    estatus:
+      s.estado === "no-procedio"
+        ? "no-procedio"
+        : s.estado === "completada" && ev
+          ? "completado"
+          : "pendiente",
+    evidencia: ev,
+  };
+}
+
+/**
+ * Las paradas del chofer para una fecha: las confirmadas, las que ya van en
+ * ruta y las ya resueltas (completadas o "no procedió"). Una "solicitada" no
+ * aparece a propósito: si Morcast no la confirmó, el chofer no va por ella.
+ */
 export async function rutaDelDia(fecha = hoyISO()) {
   if (!haySupabase()) return [];
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
     .select(`
-      id, folio, estado, fecha_pedida, fecha_confirmada, nota,
+      id, folio, estado, fecha_pedida, fecha_confirmada, hora_confirmada, nota,
+      tipo_residuo, motivo_no_procedio,
       clientes ( empresa ),
-      domicilios ( alias, calle, colonia ),
-      rutas ( nombre, unidad ),
+      domicilios ( id, alias, calle, colonia, cp, lat, lng, referencias ),
+      rutas ( nombre, unidad, unidades ( numero_economico ) ),
       recolecciones ( id, qr, peso_kg )
     `)
-    .in("estado", ["confirmada", "en-ruta", "completada"])
+    .in("estado", ["confirmada", "en-ruta", "completada", "no-procedio"])
     .or(`fecha_confirmada.eq.${fecha},and(fecha_confirmada.is.null,fecha_pedida.eq.${fecha})`)
     .order("folio");
 
   if (error) return [];
+  return (data || []).map(aParada);
+}
 
-  return (data || []).map((s) => {
-    const ev = s.recolecciones?.[0] || null;
-    return {
-      id: s.id,
-      folio: s.folio,
-      cliente: s.clientes?.empresa || "—",
-      direccion: s.domicilios
-        ? [s.domicilios.alias, s.domicilios.calle, s.domicilios.colonia].filter(Boolean).join(" · ")
-        : "Sin domicilio registrado",
-      unidad: s.rutas?.unidad || "Sin unidad",
-      nota: s.nota || "",
-      estatus: s.estado === "completada" && ev ? "completado" : "pendiente",
-      evidencia: ev,
-    };
+/**
+ * Guarda la ubicación del punto con el GPS del chofer, parado en la entrada.
+ *
+ * Va por la función `fijar_ubicacion_punto` (db/023) y no por un UPDATE: el
+ * chofer no edita domicilios. La función solo acepta puntos de SUS paradas,
+ * solo coordenadas dentro de Matamoros, y nunca pisa una ubicación que puso
+ * la oficina. En ese caso devuelve `false`, y se dice: el chofer tiene que
+ * saber que su lectura no se usó.
+ */
+export async function fijarUbicacionPunto(solicitudId, lectura) {
+  if (!lectura || typeof lectura.lat !== "number") {
+    return { ok: false, motivo: "Todavía no hay una lectura de GPS." };
+  }
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { data, error } = await supabase.rpc("fijar_ubicacion_punto", {
+    p_solicitud: solicitudId,
+    p_lat: lectura.lat,
+    p_lng: lectura.lng,
   });
+  if (error) return { ok: false, motivo: error.message };
+  if (data !== true) {
+    return { ok: false, motivo: "Este punto ya tiene la ubicación que puso la oficina; no se cambió." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Los contenedores de un punto: para validar el QR que se escanea y para
+ * decir CUÁL se dañó o no está. El RLS (`contenedores_lee_operador`) solo le
+ * deja ver los de los puntos de sus paradas. Devuelve `null` si no se pudo
+ * leer, que no es lo mismo que "no tiene ninguno" (`[]`).
+ */
+export async function contenedoresDelPunto(domicilioId) {
+  if (!domicilioId || !haySupabase()) return [];
+  const { data, error } = await supabase
+    .from("contenedores")
+    .select("id, codigo, tipo, medida, estado")
+    .eq("domicilio_id", domicilioId)
+    .order("codigo");
+  if (error) return null;
+  return data || [];
+}
+
+/**
+ * "No procedió": el chofer llegó y no se pudo recoger. La parada se cierra
+ * sin cobro, con el motivo (obligatorio: también lo exige el trigger de la
+ * base, db/023). Solo en paradas `confirmada` o `en-ruta`: la política
+ * `solicitudes_cierra_operador` no deja tocar las demás.
+ *
+ * La foto, si la hay, ya subió a `evidencias/<solicitud>/no-procedio-…`
+ * (mismo camino que la evidencia). La tabla no tiene columna para ella; la
+ * oficina la encuentra en la carpeta de la parada.
+ */
+export async function marcarNoProcedio(solicitudId, { motivo, detalle } = {}) {
+  const v = validarNoProcedio({ motivo, detalle });
+  if (!v.ok) return { ok: false, motivo: v.mensaje, campo: v.campo };
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { data, error } = await supabase
+    .from("solicitudes_recoleccion")
+    .update({ estado: "no-procedio", ...v.datos })
+    .eq("id", solicitudId)
+    .select("id");
+
+  // El trigger responde en español ("hay que decir el motivo"): tal cual.
+  if (error) return { ok: false, motivo: error.message };
+  if (!data?.length) {
+    return {
+      ok: false,
+      motivo: "No se cambió nada: esa parada ya no está abierta o no es de tu ruta. Avisa a la oficina.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sube la foto de un incidente a `incidentes/<uid del chofer>/…`. La carpeta
+ * no es decorativa: la política de la cubeta (db/023) solo deja subir a la
+ * que se llama como quien sube. Misma lectura de bytes que la evidencia
+ * (ver `subirEvidencia`: sin `File(...).bytes()` sube 0 bytes sin avisar).
+ */
+export async function subirFotoIncidente(uri, tipoMime = "image/jpeg") {
+  if (!haySupabase()) return { ok: true, demo: true, ruta: null };
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+
+  const extension = (tipoMime.split("/")[1] || "jpg").replace("jpeg", "jpg");
+  const ruta = `${user.id}/${Date.now()}.${extension}`;
+
+  let binario;
+  try {
+    binario = await new File(uri).bytes();
+  } catch {
+    return { ok: false, motivo: "No se pudo leer la foto del teléfono." };
+  }
+  if (!binario || binario.length === 0) return { ok: false, motivo: "La foto salió vacía. Tómala de nuevo." };
+
+  const { error } = await supabase.storage
+    .from("incidentes")
+    .upload(ruta, binario, { contentType: tipoMime, upsert: false });
+  return error ? { ok: false, motivo: error.message } : { ok: true, ruta };
+}
+
+/**
+ * El chofer reporta un incidente. Se GUARDA primero y después se le pide a
+ * la web que avise a la oficina (push y correo, `POST /api/app/incidente-avisado`):
+ * si el aviso falla, el reporte no se pierde y la oficina lo ve en el panel.
+ *
+ * La unidad y la ruta no las escribe el chofer: salen de la parada o de la
+ * ruta que maneja, igual que en `Web/app/acciones-chofer.js`. Así el panel
+ * sabe qué camión fue aunque con las prisas nadie lo haya dicho.
+ *
+ * Devuelve `{ ok, avisado }` o `{ ok:false, motivo, campo? }`.
+ */
+export async function reportarIncidente(entrada = {}) {
+  const v = validarReporte(entrada);
+  if (!v.ok) return { ok: false, motivo: v.mensaje, campo: v.campo };
+  if (!haySupabase()) return { ok: true, demo: true, avisado: false };
+
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  if (!user) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+
+  const datos = v.datos;
+  let ruta = null;
+  if (datos.solicitud_id) {
+    const { data } = await supabase
+      .from("solicitudes_recoleccion")
+      .select("id, rutas ( id, unidad_id )")
+      .eq("id", datos.solicitud_id)
+      .maybeSingle();
+    if (!data) return { ok: false, motivo: "Esa parada no está en tu ruta." };
+    ruta = data.rutas || null;
+  }
+  if (!ruta) {
+    // Sin parada (o parada sin ruta): la ruta activa que maneja. Si tiene
+    // varias, primero la que ya tiene unidad asignada.
+    const { data } = await supabase
+      .from("rutas")
+      .select("id, unidad_id")
+      .eq("chofer_id", user.id)
+      .eq("activa", true)
+      .order("unidad_id", { ascending: true, nullsFirst: false })
+      .limit(1);
+    ruta = data?.[0] || null;
+  }
+
+  // La foto solo se acepta si está en SU carpeta. La arma
+  // `subirFotoIncidente`, pero no cuesta nada asegurarlo: la columna apunta
+  // a un archivo y no debe poder apuntar al de otro.
+  const foto = entrada.foto && String(entrada.foto).startsWith(`${user.id}/`) ? String(entrada.foto) : null;
+
+  const { data: filas, error } = await supabase
+    .from("incidentes")
+    .insert({
+      ...datos,
+      foto,
+      operador_id: user.id,
+      unidad_id: ruta?.unidad_id || null,
+      ruta_id: ruta?.id || null,
+    })
+    .select("id");
+
+  if (error) return { ok: false, motivo: error.message };
+  // Un INSERT bloqueado por el RLS no da error: no inserta nada.
+  if (!filas?.length) return { ok: false, motivo: "No se guardó el reporte: el permiso de la base no lo dejó pasar." };
+
+  const aviso = await postWeb("/api/app/incidente-avisado", { incidente_id: filas[0].id });
+  return { ok: true, id: filas[0].id, avisado: aviso?.ok === true };
 }
 
 /**
