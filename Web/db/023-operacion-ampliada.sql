@@ -443,8 +443,10 @@ create index if not exists avisos_creado_idx on public.avisos (creado desc);
 -- Rutas y sectores de MI empresa (por mis suscripciones y mis puntos).
 create or replace function public.mis_rutas()
 returns setof uuid language sql stable security definer set search_path = public as $$
+  -- Solo las suscripciones activas: igual que los correos de lib/avisos.mjs,
+  -- para que el portal y el correo digan lo mismo.
   select distinct ruta_id from public.suscripciones
-   where cliente_id = public.mi_cliente() and ruta_id is not null
+   where cliente_id = public.mi_cliente() and ruta_id is not null and estado = 'activa'
 $$;
 create or replace function public.mis_sectores()
 returns setof uuid language sql stable security definer set search_path = public as $$
