@@ -185,3 +185,32 @@ test("la vista previa solo pide el destino, no el mensaje", async () => {
   assert.equal(validarAlcance({ alcance: "sector" }).ok, false);
   assert.equal(validarAlcance({}).ok, false);
 });
+
+/* ---------------- 026: lecturas y notificaciones ---------------- */
+import { fraseLecturas, textoNotificaciones } from "../lib/avisos.mjs";
+
+test("Leído por X de Y", () => {
+  assert.equal(fraseLecturas({ leidos: 3, usuariosDestino: 12 }), "Leído por 3 de 12");
+  assert.equal(fraseLecturas({ leidos: 0, usuariosDestino: 12 }), "Leído por 0 de 12");
+});
+
+test("sin el total (avisos de antes de la app 1.1) solo dice cuántos", () => {
+  assert.equal(fraseLecturas({ leidos: 2, usuariosDestino: null }), "Leído por 2");
+  assert.equal(fraseLecturas({ leidos: 0, usuariosDestino: null }), "Sin lecturas");
+});
+
+test("sin dato de lecturas (026 sin correr) no inventa un cero", () => {
+  assert.equal(fraseLecturas({ leidos: null, usuariosDestino: 5 }), "—");
+  assert.equal(fraseLecturas({}), "—");
+});
+
+test("empresas sin cuentas, y alguien que entró después de mandarlo", () => {
+  assert.equal(fraseLecturas({ leidos: 0, usuariosDestino: 0 }), "Nadie con cuenta");
+  assert.equal(fraseLecturas({ leidos: 4, usuariosDestino: 3 }), "Leído por 4 de 4");
+});
+
+test("1 notificación, 2 notificaciones", () => {
+  assert.equal(textoNotificaciones(1), "1 notificación");
+  assert.equal(textoNotificaciones(0), "0 notificaciones");
+  assert.equal(textoNotificaciones(undefined), "0 notificaciones");
+});

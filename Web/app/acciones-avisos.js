@@ -4,6 +4,7 @@ import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { hayResend, correoAvisoCliente } from "@/lib/correo";
+import { enviarPush, tokensDeUsuarios, usuariosClienteDe } from "@/lib/push.mjs";
 import {
   validarAviso,
   validarAlcance,
@@ -14,7 +15,8 @@ import {
 } from "@/lib/avisos.mjs";
 
 /**
- * AVISOS A CLIENTES (/admin/avisos): mandar un aviso por correo y al portal.
+ * AVISOS A CLIENTES (/admin/avisos): mandar un aviso por correo, al portal
+ * y como notificación al teléfono de quien tenga la app.
  *
  * Por qué va en el servidor
  * -------------------------
@@ -187,6 +189,11 @@ export async function enviarAviso(datos) {
     }
   }
 
+  // Notificación al teléfono: a las cuentas de cliente activas de las
+  // empresas del aviso que tengan la app con permiso de notificaciones. Va
+  // DESPUÉS de los correos y nunca tumba nada (lib/push.mjs no lanza).
+  const push = await notificarAviso(aviso.id, limpio, dest);
+
   // Se cuenta lo devuelto: un UPDATE que el RLS bloquea no da error, cambia
   // cero filas y responde 200. Aquí no tumba nada (los correos ya salieron),
   // pero el historial diría "0 correos" y hay que saber por qué.
@@ -198,6 +205,15 @@ export async function enviarAviso(datos) {
   if (errAct || !act?.length) {
     console.error("[avisos] no se guardó el conteo de correos:", errAct?.message || "0 filas");
   }
+
+  // Cuántas notificaciones salieron y a cuántos usuarios les tocaba (la "Y"
+  // de "Leído por X de Y"), en su propio UPDATE: si la migración 026 no se ha
+  // corrido, estas columnas no existen y no deben tumbar el conteo de correos.
+  const { error: errPush } = await supabase
+    .from("avisos")
+    .update({ notificaciones_enviadas: push.enviadas, usuarios_destino: push.usuarios })
+    .eq("id", aviso.id);
+  if (errPush) console.error("[avisos] no se guardó el conteo de notificaciones:", errPush.message);
 
   const resumen = resumenDestinatarios(dest);
   await registrar({
@@ -214,6 +230,8 @@ export async function enviarAviso(datos) {
       clientes: resumen.clientes,
       correos_enviados: enviados,
       correos_fallidos: fallidos.length,
+      notificaciones: push.enviadas,
+      usuarios_app: push.usuarios,
       sin_correo: resumen.sinCorreo,
       sin_resend: sinResend || undefined,
     },
@@ -227,5 +245,20 @@ export async function enviarAviso(datos) {
     enviados,
     fallidos,
     sinResend,
+    notificaciones: push.enviadas,
   };
+}
+
+/** Lo que cabe en la notificación: el título del aviso y el principio del mensaje. */
+async function notificarAviso(avisoId, limpio, dest) {
+  const sb = supabaseServidor();
+  const usuarios = await usuariosClienteDe(sb, dest.clientes.map((c) => c.id));
+  if (usuarios === null) return { enviadas: 0, usuarios: null };
+  const tokens = await tokensDeUsuarios(sb, usuarios);
+  const r = await enviarPush(
+    tokens,
+    { titulo: limpio.titulo, cuerpo: limpio.mensaje, datos: { tipo: "aviso", id: avisoId } },
+    { sb }
+  );
+  return { enviadas: r.enviadas, usuarios: usuarios.length };
 }

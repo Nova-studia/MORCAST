@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -18,6 +18,7 @@ import {
   listarRutasParaAvisos,
   listarClientesParaAvisos,
   listarAvisos,
+  lectoresDeAviso,
   vistaPreviaDestinatarios,
   mandarAviso,
 } from "@/lib/datos-avisos";
@@ -32,6 +33,8 @@ import {
   textoMotivo,
   borradorRetraso,
   hoyMatamoros,
+  fraseLecturas,
+  textoNotificaciones,
 } from "@/lib/avisos.mjs";
 import { fechaHora } from "../incidentes/bandeja.mjs";
 
@@ -212,6 +215,11 @@ export default function PantallaAvisos() {
         alcance: form.alcance,
         vigente_hasta: form.vigenteHasta || null,
         correos_enviados: r.enviados ?? 0,
+        notificaciones_enviadas: r.notificaciones ?? 0,
+        // Aún no se sabe a cuántos usuarios les tocaba (lo calculó el
+        // servidor); al recargar la página aparece el "de Y".
+        usuarios_destino: null,
+        leidos: 0,
         creado: r.creado || new Date().toISOString(),
         sectores: form.alcance === "sector" && sector ? { nombre: sector.nombre } : null,
         rutas: form.alcance === "ruta" && ruta ? { nombre: ruta.nombre } : null,
@@ -475,7 +483,7 @@ export default function PantallaAvisos() {
       <div className="pt-card">
         <div className="pt-card-head"><h2>Avisos enviados</h2></div>
         <div className="pt-tabla-wrap">
-          <table className="pt-tabla" style={{ minWidth: 620 }}>
+          <table className="pt-tabla" style={{ minWidth: 820 }}>
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -483,30 +491,109 @@ export default function PantallaAvisos() {
                 <th>Motivo</th>
                 <th>Título</th>
                 <th className="num">Correos</th>
+                <th className="num" title="Notificaciones al teléfono (app)">Notif.</th>
+                <th>En la app</th>
               </tr>
             </thead>
             <tbody>
-              {cargandoHist && <tr><td colSpan={5} className="pt-vacio">Cargando…</td></tr>}
+              {cargandoHist && <tr><td colSpan={7} className="pt-vacio">Cargando…</td></tr>}
               {!cargandoHist && historial.length === 0 && (
-                <tr><td colSpan={5} className="pt-vacio">Todavía no se ha mandado ningún aviso.</td></tr>
+                <tr><td colSpan={7} className="pt-vacio">Todavía no se ha mandado ningún aviso.</td></tr>
               )}
               {historial.map((a) => (
-                <tr key={a.id}>
-                  <td style={{ whiteSpace: "nowrap" }}>{fechaHora(a.creado)}</td>
-                  <td>{textoAlcance(a)}</td>
-                  <td><InsigniaMotivo motivo={a.motivo} /></td>
-                  <td style={{ maxWidth: 320 }}>
-                    <span style={{ display: "block", overflowWrap: "anywhere" }}>{a.titulo}</span>
-                    {a.vigente_hasta && <span style={{ color: "var(--mc-gris)", fontSize: "0.78rem" }}>Vigente hasta {a.vigente_hasta.split("-").reverse().join("/")}</span>}
-                  </td>
-                  <td className="num"><span className="pt-mov">{a.correos_enviados ?? 0}</span></td>
-                </tr>
+                <FilaAviso key={a.id} a={a} />
               ))}
             </tbody>
           </table>
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Un aviso del historial. La última columna dice cuántos lo marcaron
+ * "Enterado" en la app; al pulsarla se abre debajo la lista de quién y
+ * cuándo. La lista se pide al abrir (no con el historial): casi nunca se
+ * consulta, y con 50 avisos serían cientos de renglones de más.
+ */
+function FilaAviso({ a }) {
+  const [abierto, setAbierto] = useState(false);
+  const [lectores, setLectores] = useState(null); // null = sin pedir
+  const [fallo, setFallo] = useState(false);
+
+  const alternar = async () => {
+    const abrir = !abierto;
+    setAbierto(abrir);
+    if (abrir && lectores === null) {
+      const r = await lectoresDeAviso(a.id);
+      setFallo(!r.ok);
+      setLectores(r.lectores || []);
+    }
+  };
+
+  const frase = fraseLecturas({ leidos: a.leidos, usuariosDestino: a.usuarios_destino });
+  const hayLecturas = (a.leidos ?? 0) > 0;
+  const idLista = `lectores-${a.id}`;
+
+  return (
+    <Fragment>
+      <tr>
+        <td style={{ whiteSpace: "nowrap" }}>{fechaHora(a.creado)}</td>
+        <td>{textoAlcance(a)}</td>
+        <td><InsigniaMotivo motivo={a.motivo} /></td>
+        <td style={{ maxWidth: 320 }}>
+          <span style={{ display: "block", overflowWrap: "anywhere" }}>{a.titulo}</span>
+          {a.vigente_hasta && <span style={{ color: "var(--mc-gris)", fontSize: "0.78rem" }}>Vigente hasta {a.vigente_hasta.split("-").reverse().join("/")}</span>}
+        </td>
+        <td className="num"><span className="pt-mov">{a.correos_enviados ?? 0}</span></td>
+        <td className="num">
+          <span className="pt-mov" title={textoNotificaciones(a.notificaciones_enviadas)}>{a.notificaciones_enviadas ?? 0}</span>
+        </td>
+        <td style={{ whiteSpace: "nowrap" }}>
+          {hayLecturas ? (
+            <button
+              type="button"
+              onClick={alternar}
+              aria-expanded={abierto}
+              aria-controls={idLista}
+              style={{
+                background: "none", border: 0, padding: 0, cursor: "pointer",
+                color: "var(--mc-azul-txt)", textDecoration: "underline", textUnderlineOffset: 3,
+                font: "inherit", fontSize: "0.85rem",
+              }}
+            >
+              <Users aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />
+              {frase}
+            </button>
+          ) : (
+            <span style={{ color: "var(--mc-gris)", fontSize: "0.85rem" }}>{frase}</span>
+          )}
+        </td>
+      </tr>
+      {abierto && (
+        <tr id={idLista}>
+          <td colSpan={7} style={{ background: "rgba(107, 163, 207, 0.06)" }}>
+            {lectores === null && <span style={{ color: "var(--mc-gris)", fontSize: "0.85rem" }}>Cargando…</span>}
+            {fallo && <span style={{ color: "var(--mc-error)", fontSize: "0.85rem" }}>No se pudo leer quién lo vio. Recarga la página.</span>}
+            {lectores && !fallo && lectores.length === 0 && (
+              <span style={{ color: "var(--mc-gris)", fontSize: "0.85rem" }}>Nadie lo ha marcado como leído todavía.</span>
+            )}
+            {lectores && lectores.length > 0 && (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "0.35rem" }}>
+                {lectores.map((l) => (
+                  <li key={l.usuarioId} style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem 0.8rem", fontSize: "0.85rem" }}>
+                    <strong style={{ fontWeight: 600 }}>{l.nombre}</strong>
+                    {l.empresa && <span style={{ color: "var(--mc-gris)" }}>{l.empresa}</span>}
+                    <span className="pt-mov" style={{ marginLeft: "auto" }}>{fechaHora(l.leido)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </td>
+        </tr>
+      )}
+    </Fragment>
   );
 }
 
@@ -551,6 +638,9 @@ function Resultado({ r }) {
     detalle = `Ya aparece en el portal de ${clientes}. Correos enviados: ${r.enviados}.`;
     if (r.resumen?.sinCorreo) detalle += ` Sin correo (solo portal): ${r.resumen.sinCorreo}.`;
   }
+  // Las notificaciones al teléfono salen aunque no haya correo (no dependen
+  // de Resend), así que se dicen en los dos casos.
+  if (!r.demo) detalle += ` ${textoNotificaciones(r.notificaciones)} ${(r.notificaciones ?? 0) === 1 ? "enviada" : "enviadas"} a la app.`;
   const bien = !r.sinResend && fallidos.length === 0;
   return (
     <div

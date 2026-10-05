@@ -73,23 +73,89 @@ export async function listarClientesParaAvisos() {
   return data || [];
 }
 
-/** Historial: lo último que se mandó, con el nombre de su destino. */
+/**
+ * Historial: lo último que se mandó, con el nombre de su destino y cuántos
+ * lo marcaron "Enterado" en la app (`avisos_lecturas`, db/026).
+ *
+ * `avisos_lecturas ( count )` le pide a PostgREST solo la cuenta por aviso,
+ * no las filas: con 50 avisos y cien usuarios serían miles de renglones para
+ * enseñar un número.
+ */
+const CAMPOS_HISTORIAL = `
+  id, titulo, mensaje, motivo, alcance, vigente_hasta, correos_enviados, creado,
+  sectores ( clave, nombre ), rutas ( clave, nombre ), clientes ( empresa ),
+  perfiles ( nombre )
+`;
 export async function listarAvisos({ limite = 50 } = {}) {
   if (!haySupabaseNavegador()) return DEMO.historial();
-  const { data, error } = await supabaseNavegador()
+  const sb = supabaseNavegador();
+  let { data, error } = await sb
     .from("avisos")
-    .select(`
-      id, titulo, mensaje, motivo, alcance, vigente_hasta, correos_enviados, creado,
-      sectores ( clave, nombre ), rutas ( clave, nombre ), clientes ( empresa ),
-      perfiles ( nombre )
-    `)
+    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, avisos_lecturas ( count )`)
     .order("creado", { ascending: false })
     .limit(limite);
+  if (error) {
+    // Sin la migración 026 esas columnas no existen: el historial se enseña
+    // igual, sin las cifras de la app.
+    console.warn("[avisos] historial sin lecturas (¿falta la migración 026?):", error.message);
+    ({ data, error } = await sb
+      .from("avisos")
+      .select(CAMPOS_HISTORIAL)
+      .order("creado", { ascending: false })
+      .limit(limite));
+  }
   if (error) {
     console.error("[avisos] No se pudo leer el historial:", error.message);
     return [];
   }
-  return data || [];
+  return (data || []).map((a) => ({ ...a, leidos: cuentaLecturas(a.avisos_lecturas) }));
+}
+
+/** `[{ count: 3 }]` (lo que devuelve PostgREST) → 3; sin dato → null. */
+function cuentaLecturas(embebido) {
+  if (!Array.isArray(embebido)) return null;
+  return Number(embebido[0]?.count ?? 0);
+}
+
+/**
+ * Quién marcó "Enterado" en un aviso y cuándo, lo más reciente primero.
+ *
+ * Dos consultas más porque `avisos_lecturas` apunta a `auth.users`, no a
+ * `perfiles` (es el contrato con las apps), y PostgREST no puede unirlas
+ * solo. El personal ve todas las lecturas, perfiles y empresas por RLS.
+ */
+export async function lectoresDeAviso(avisoId) {
+  if (!haySupabaseNavegador()) return DEMO.lectores(avisoId);
+  const sb = supabaseNavegador();
+  const { data: lecturas, error } = await sb
+    .from("avisos_lecturas")
+    .select("usuario_id, cliente_id, leido")
+    .eq("aviso_id", avisoId)
+    .order("leido", { ascending: false });
+  if (error) {
+    console.error("[avisos] No se pudieron leer las lecturas:", error.message);
+    return { ok: false, lectores: [] };
+  }
+  if (!lecturas?.length) return { ok: true, lectores: [] };
+
+  const usuarios = [...new Set(lecturas.map((l) => l.usuario_id))];
+  const empresas = [...new Set(lecturas.map((l) => l.cliente_id).filter(Boolean))];
+  const [p, c] = await Promise.all([
+    sb.from("perfiles").select("id, nombre").in("id", usuarios),
+    empresas.length ? sb.from("clientes").select("id, empresa").in("id", empresas) : { data: [] },
+  ]);
+  const nombre = new Map((p.data || []).map((x) => [x.id, x.nombre]));
+  const empresa = new Map((c.data || []).map((x) => [x.id, x.empresa]));
+  return {
+    ok: true,
+    lectores: lecturas.map((l) => ({
+      usuarioId: l.usuario_id,
+      // Una cuenta ya borrada deja su lectura (la empresa sigue): se dice así.
+      nombre: nombre.get(l.usuario_id) || "Cuenta eliminada",
+      empresa: empresa.get(l.cliente_id) || "",
+      leido: l.leido,
+    })),
+  };
 }
 
 /**
@@ -112,7 +178,7 @@ export async function mandarAviso(datos) {
     const v = validarAviso(datos);
     if (!v.ok) return { ok: false, motivo: v.motivo };
     const resumen = resumenDestinatarios(calcularDestinatarios(v.limpio, DEMO));
-    return { ok: true, demo: true, id: `demo-${Date.now()}`, creado: new Date().toISOString(), resumen, enviados: 0, fallidos: [] };
+    return { ok: true, demo: true, id: `demo-${Date.now()}`, creado: new Date().toISOString(), resumen, enviados: 0, fallidos: [], notificaciones: 0 };
   }
   return enviarAviso(datos);
 }
@@ -185,15 +251,29 @@ const DEMO = {
         id: "demo-av-1", titulo: "Retraso en Ruta Centro", motivo: "retraso", alcance: "ruta",
         mensaje: "Hoy Ruta Centro trae un retraso de aproximadamente 40 minutos.",
         vigente_hasta: null, correos_enviados: 2, creado: hace(28),
+        notificaciones_enviadas: 3, usuarios_destino: 4, leidos: 2,
         rutas: { clave: "RT-CENTRO", nombre: "Ruta Centro" }, perfiles: { nombre: "Ing. Ramón Cázares" },
       },
       {
         id: "demo-av-2", titulo: "Sin servicio el 2 de noviembre", motivo: "reagenda", alcance: "todos",
         mensaje: "Por ser día festivo no habrá recolección. Las rutas de ese día pasan el 3.",
         vigente_hasta: "2026-11-03", correos_enviados: 3, creado: hace(24 * 6),
+        // Mandado antes de la app 1.1: no se sabe a cuántos usuarios les tocaba.
+        notificaciones_enviadas: 0, usuarios_destino: null, leidos: 0,
         perfiles: { nombre: "Ing. Ramón Cázares" },
       },
     ];
+  },
+  lectores(avisoId) {
+    if (avisoId !== "demo-av-1") return { ok: true, lectores: [] };
+    const hace = (h) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+    return {
+      ok: true,
+      lectores: [
+        { usuarioId: "demo-u-1", nombre: "Mónica Treviño", empresa: "Centro Comercial Puerta Norte", leido: hace(26) },
+        { usuarioId: "demo-u-2", nombre: "Héctor Lozano", empresa: "Vidriera Matamoros", leido: hace(27.5) },
+      ],
+    };
   },
   paraElPortal() {
     return DEMO.historial().filter((a) => avisoVigente(a));
