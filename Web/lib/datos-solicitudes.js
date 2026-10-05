@@ -113,7 +113,6 @@ export async function listarSolicitudes() {
  * residuo de otras empresas. Además el RLS no le deja leer `viajes_relleno`.
  */
 const CAMPOS_PANEL = `${CAMPOS},
-  tipo_residuo, motivo_no_procedio, detalle_no_procedio,
   recolecciones (
     id, peso_kg, peso_real_kg, peso_real_en, viaje_id,
     viajes_relleno ( id, fecha, peso_real_kg, folio_ticket )
@@ -170,9 +169,9 @@ export async function listarSolicitudesPanel() {
  * No hay columna para ella: vive en la carpeta de evidencias de la solicitud
  * (`evidencias/<id>/…`), que es la única donde la política de la cubeta le
  * deja subir al chofer. Se prefiere un archivo cuyo nombre diga
- * "no-procedio"; si no hay, la foto más reciente de la carpeta, que en una
- * parada que no procedió es la de esa visita. Devuelve el enlace firmado o
- * null.
+ * "no-procedio" (así la nombra la web del chofer). Si no hay, null: mejor
+ * "sin foto" que enseñar otra foto de la carpeta. Devuelve el enlace firmado
+ * o null.
  */
 export async function fotoNoProcedio(solicitudId) {
   if (!haySupabaseNavegador() || !solicitudId) return null;
@@ -183,7 +182,10 @@ export async function fotoNoProcedio(solicitudId) {
   if (error || !data?.length) return null;
 
   const fotos = data.filter((a) => /\.(jpe?g|png|webp|heic)$/i.test(a.name));
-  const elegida = fotos.find((a) => /no.?procedi/i.test(a.name)) || fotos[0];
+  // Solo la que el chofer subió AL MARCAR "No procedió" (se llama así). Sin
+  // respaldo a "la más reciente": podría ser la foto de "antes" de esa misma
+  // visita, y el panel la enseñaría como prueba de algo que no es.
+  const elegida = fotos.find((a) => /no.?procedi/i.test(a.name));
   return elegida ? enlaceEvidencia(`${solicitudId}/${elegida.name}`) : null;
 }
 

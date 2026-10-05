@@ -450,6 +450,9 @@ export default function RecoleccionChofer() {
 
       {/* "No procedió" va DESPUÉS del paso en curso y cerrado: es la salida
           rara, no el camino normal. */}
+      {/* Solo en paradas abiertas: la base no deja cambiar una ya cerrada, y
+          el botón solo le daría al chofer un "No se cambió nada". */}
+      {["confirmada", "en-ruta"].includes(parada.estado) && (
       <div style={{ margin: "1rem 0" }}>
         <ChoferNoProcedio
           parada={parada}
@@ -459,6 +462,7 @@ export default function RecoleccionChofer() {
           }}
         />
       </div>
+      )}
 
       {(antes || despues) && (
         <div className="pt-card">

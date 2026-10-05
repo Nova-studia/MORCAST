@@ -302,10 +302,24 @@ await debePasar("el admin pone el precio de un servicio", "admin",
   `update public.suscripciones set precio=904.80, modalidad='por-recoleccion', incluye_iva=true`, [], 1);
 await debeFallar("una modalidad inventada no entra", "admin", `update public.suscripciones set modalidad='quincenal'`);
 
+console.log("\n16 · 024: ajustes de la revisión");
+const { rows: [sol4] } = await db.query(
+  `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, ruta_id, fecha_pedida, estado)
+   values ('REC-T-12',$1,$2,$3,current_date,'confirmada') returning id`, [cli2.id, dom2.id, ruta.id]);
+await debePasar("el chofer marca \"No procedió\" en la parada de la otra empresa", "chofer",
+  `update public.solicitudes_recoleccion set estado='no-procedio', motivo_no_procedio='Cerrado o sin acceso' where id=$1`, [sol4.id], 1);
+await debePasar("y SIGUE viendo a qué empresa era", "chofer", `select empresa from public.clientes where id=$1`, [cli2.id], 1);
+await debePasar("y su domicilio", "chofer", `select alias from public.domicilios where id=$1`, [dom2.id], 1);
+await db.query(`update public.suscripciones set estado='pausada' where cliente_id=$1`, [cli1.id]);
+await debePasar("con su suscripción pausada, el cliente sigue viendo su ruta", "cliente", `select id from public.rutas`, [], 1);
+await debePasar("pero ya no los avisos de esa ruta (todos + sector = 2)", "cliente", `select titulo from public.avisos`, [], 2);
+await db.query(`update public.suscripciones set estado='activa' where cliente_id=$1`, [cli1.id]);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
-  console.log("✓ 022 y 023 corren dos veces sin romperse");
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "024-ajustes-de-la-revision.sql"), "utf8"));
+  console.log("✓ 022, 023 y 024 corren dos veces sin romperse");
 } catch (e) { fallas++; console.log("✖ 022/023 no son idempotentes:", e.message); }
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);

@@ -256,7 +256,9 @@ export async function ponerPesoRealRecoleccion(recoleccionId, kg) {
   const en = quitar ? null : new Date().toISOString();
   const { data, error } = await supabase
     .from("recolecciones")
-    .update({ peso_real_kg: valor, peso_real_por: quitar ? null : quien.id, peso_real_en: en })
+    // `peso_es_estimado` dice si lo que cuenta es el dato del chofer (true)
+    // o el de la báscula (false).
+    .update({ peso_real_kg: valor, peso_real_por: quitar ? null : quien.id, peso_real_en: en, peso_es_estimado: quitar })
     .eq("id", recoleccionId)
     .select("id");
   if (error) return { ok: false, motivo: error.message };
