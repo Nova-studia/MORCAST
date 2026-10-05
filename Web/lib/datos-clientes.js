@@ -11,6 +11,8 @@
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { subirComprobante } from "@/lib/datos-archivos";
 import { CLIENTES_ADMIN, USUARIOS_ADMIN } from "@/lib/admin-datos";
+import { sectoresDemoDeCliente } from "@/lib/datos-sectores";
+import { ordenarSectores } from "@/lib/sectores.mjs";
 
 const ROLES_LEGIBLES = {
   dueno: "Dueño",
@@ -32,16 +34,18 @@ const ROLES_LEGIBLES = {
  * consulta de saldo por cada fila de la tabla.
  */
 export async function listarClientes() {
-  if (!haySupabaseNavegador()) return CLIENTES_ADMIN;
+  if (!haySupabaseNavegador()) {
+    return CLIENTES_ADMIN.map((c) => ({ ...c, sectores: sectoresDemoDeCliente(c.id) }));
+  }
 
   const supabase = supabaseNavegador();
   // Tres consultas en el mismo Promise.all, no una por fila: con 43 clientes
   // eso serian 43 viajes extra solo para saber quien ya tiene acceso.
   //
-  // ⚠️ Ya son tres elementos aqui adentro. Si agregas una consulta más,
+  // ⚠️ Ya son CUATRO elementos aqui adentro. Si agregas una consulta más,
   // ajusta la desestructuración de abajo en el MISMO orden — si no, cada
   // resultado queda leyendo el dato de otro sin que nada truene.
-  const [{ data: clientes, error }, { data: saldos }, { data: conAcceso }] = await Promise.all([
+  const [{ data: clientes, error }, { data: saldos }, { data: conAcceso }, { data: puntosConSector }] = await Promise.all([
     supabase
       .from("clientes")
       .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito, nota_interna")
@@ -51,6 +55,9 @@ export async function listarClientes() {
     // cliente YA tiene un perfil ligado; se calcula aqui, no en la base, para
     // que la regla siga viviendo en un solo lugar.
     supabase.from("perfiles").select("cliente_id").not("cliente_id", "is", null),
+    // Sector de cada punto (db/023, lo calcula /admin/sectores). Un cliente
+    // está en un sector si ALGUNO de sus puntos cae en él.
+    supabase.from("domicilios").select("cliente_id, sectores ( clave, nombre, color )").not("sector_id", "is", null),
   ]);
 
   if (error) {
@@ -60,6 +67,13 @@ export async function listarClientes() {
 
   const porId = Object.fromEntries((saldos || []).map((s) => [s.cliente_id, s]));
   const conAccesoIds = new Set((conAcceso || []).map((p) => p.cliente_id));
+  // { cliente_id: Map(clave → sector) }: sin repetir la letra si dos plantas
+  // de la misma empresa caen en el mismo sector.
+  const sectoresPorCliente = {};
+  for (const d of puntosConSector || []) {
+    if (!d.sectores) continue;
+    (sectoresPorCliente[d.cliente_id] ||= new Map()).set(d.sectores.clave, d.sectores);
+  }
 
   return (clientes || []).map((c) => ({
     id: c.folio,
@@ -80,6 +94,7 @@ export async function listarClientes() {
     saldo: Number(porId[c.id]?.saldo ?? 0),
     porPagar: Number(porId[c.id]?.cargos ?? 0),
     tieneAcceso: conAccesoIds.has(c.id),
+    sectores: ordenarSectores([...(sectoresPorCliente[c.id]?.values() || [])]),
   }));
 }
 
@@ -133,6 +148,8 @@ export async function crearCliente(datos) {
       porPagar: 0,
       // Recien nacido: todavia no puede tener ningun perfil ligado.
       tieneAcceso: false,
+      // Ni puntos de recolección, así que tampoco sector.
+      sectores: [],
     },
   };
 }
@@ -346,6 +363,10 @@ export async function listarUsuarios() {
 
   return (data || []).map((p, i) => ({
     id: `U-${String(i + 1).padStart(3, "0")}`,
+    // El id de verdad (auth.users / perfiles), para desactivar o reactivar
+    // desde /admin/usuarios. `id` se queda como folio corto para la tabla.
+    uid: p.id,
+    rolId: p.rol,
     nombre: p.nombre || "Sin nombre",
     // El correo vive en auth.users, que no es consultable desde el navegador
     // por seguridad. Se muestra el teléfono, que sí es del perfil.

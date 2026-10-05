@@ -34,12 +34,13 @@ Una plataforma completa para la empresa: la **web pública** que capta clientes,
 
 | Rol | Dónde entra | Correo | Contraseña |
 |---|---|---|---|
-| Cliente | [morcast.mx/portal/login](https://morcast.mx/portal/login) | `cliente@demo.com` | `0011002` |
-| Chofer | [morcast.mx/chofer/login](https://morcast.mx/chofer/login) | `chofer@demo.com` | `0011002` |
+| Cliente | [morcast.mx/portal/login](https://morcast.mx/portal/login) | `cliente@demo.com` | *(aparte)* |
+| Chofer | [morcast.mx/chofer/login](https://morcast.mx/chofer/login) | `chofer@demo.com` | *(aparte)* |
 | Administración | [morcast.mx/admin/login](https://morcast.mx/admin/login) | `morcastmx@gmail.com` | *(se entrega directo a la empresa)* |
 
-> Son cuentas de demostración con datos inventados. **La contraseña de administración
-> no se documenta aquí**: se entrega a Morcast por separado.
+> Son cuentas de demostración con datos inventados. **Ninguna contraseña se documenta
+> aquí**: este repositorio es público y las cuentas entran al sistema de producción.
+> Se entregan por separado.
 >
 > ⚠️ **`cliente@demo.com` es la cuenta que usa el revisor de Google Play.** No se
 > borra ni se le cambia la contraseña mientras la app esté en revisión.

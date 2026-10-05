@@ -13,8 +13,8 @@ npx expo start
 Abre **Expo Go** en tu teléfono (misma Wi-Fi) y escanea el QR, o entra a `exp://<IP-de-tu-PC>:8081`.
 
 **Accesos demo:**
-- Cliente: `cliente@demo.com` / `0011002`
-- Chofer: botón **"Chofer"** → `chofer@demo.com` / `0011002`
+- Cliente: `cliente@demo.com` (contraseña aparte)
+- Chofer: botón **"Chofer"** → `chofer@demo.com` (contraseña aparte)
 - Admin: botón **"Administración"** → `morcastmx@gmail.com`, contraseña **aparte**
   (no se documenta; ver `ACCESO-DUENO.txt`, que no va a git)
 

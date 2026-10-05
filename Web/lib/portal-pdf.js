@@ -14,6 +14,7 @@ import {
   CONDICIONES_COMERCIALES,
   DATOS_TRANSFERENCIA,
 } from "@/lib/cotizacion-datos";
+import { TEXTO_AVISO_PRECIOS } from "@/components/AvisoPrecios";
 
 const PENDIENTE = "Pendiente de confirmar";
 
@@ -153,6 +154,36 @@ function bloqueLista(doc, x, y, titulo, puntos, ancho = 250) {
     y += 12 * lineas.length + 2;
   });
   return y;
+}
+
+/**
+ * Recuadro "Importante: los precios pueden cambiar" (pedido de los dueños,
+ * 4-oct-2026). El texto es el MISMO de la pantalla (`TEXTO_AVISO_PRECIOS`),
+ * para que el PDF no prometa algo distinto de lo que dice el portal. Va en
+ * un recuadro de color y no como nota gris al pie: este PDF anda suelto, lo
+ * reenvían a compras, y el aviso tiene que viajar a la vista.
+ * Devuelve la Y donde continuar.
+ */
+function avisoPrecios(doc, y) {
+  const W = doc.internal.pageSize.getWidth();
+  const ancho = W - 80;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const lineas = doc.splitTextToSize(TEXTO_AVISO_PRECIOS, ancho - 28);
+  const alto = 30 + lineas.length * 11.5;
+  doc.setFillColor(238, 244, 250);
+  doc.setDrawColor(42, 106, 153);
+  doc.setLineWidth(0.8);
+  doc.rect(40, y, ancho, alto, "FD");
+  doc.setFillColor(42, 106, 153);
+  doc.rect(40, y, 4, alto, "F");
+  doc.setLineWidth(1);
+  doc.setTextColor(22, 58, 85);
+  doc.setFont("helvetica", "bold");
+  doc.text("IMPORTANTE", 54, y + 16);
+  doc.setFont("helvetica", "normal");
+  doc.text(lineas, 54, y + 30);
+  return y + alto + 14;
 }
 
 /* ============================ MANIFIESTO ============================ */
@@ -343,7 +374,8 @@ export async function descargarCotizacion(cotizacion, cliente) {
   doc.line(x, y - 6, W - 40, y - 6);
   fila("Total", pesos(cotizacion.total), true);
 
-  y += 14;
+  // Pegado al total, que es la cifra que se va a citar.
+  y = avisoPrecios(doc, y + 4);
 
   // Condiciones comerciales (columna izquierda) y datos para transferencia
   // (columna derecha), a la misma altura.
@@ -394,7 +426,9 @@ export async function descargarReportePDF(titulo, filas, cliente, totales) {
     ["Empresa", cliente.empresa],
     ["RFC", cliente.rfc],
   ], W - 200);
-  y += 60;
+  y += 46;
+  // Los montos del reporte son de referencia: el aviso va ANTES de la tabla.
+  y = avisoPrecios(doc, y);
 
   autoTable(doc, {
     startY: y,

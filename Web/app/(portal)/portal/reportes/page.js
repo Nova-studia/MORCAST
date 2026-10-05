@@ -19,6 +19,7 @@ import { reportes } from "@/lib/datos-reportes";
 import { descargarReportePDF } from "@/lib/portal-pdf";
 import { clienteActual } from "@/lib/portal-sesion";
 import { enHold } from "@/lib/estado-sistema";
+import AvisoPrecios from "@/components/AvisoPrecios";
 
 const VISTAS = {
   diario: { titulo: "Reporte diario", sub: "Últimos 14 días", datos: REPORTE_DIARIO, metrica: "monto" },
@@ -72,6 +73,10 @@ export default function ReportesPortal() {
         <h1>Reportes</h1>
         <p>Peso recolectado por periodo, tomado de lo que registra el chofer en cada servicio.</p>
       </div>
+
+      {/* Los montos de facturación de aquí son de referencia (pedido de los
+          dueños, 4-oct-2026): el aviso, arriba y a la vista. */}
+      <AvisoPrecios />
 
       <div className="pt-card-head" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-segmento">

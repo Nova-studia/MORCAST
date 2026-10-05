@@ -59,9 +59,16 @@ test("cabeceras acumuladas por comas: manda la primera, y se valida", () => {
 });
 
 test("las vistas previas de Vercel valen; un dominio que solo las imita, no", () => {
+  const vista = "morcast-gilplkqoy-studias-projects-b32a1835.vercel.app";
+  assert.equal(origenPermitido(cab({ "x-forwarded-host": vista })), `https://${vista}`);
+  const rama = "morcast-git-seguridad-oct-studias-projects-b32a1835.vercel.app";
+  assert.equal(origenPermitido(cab({ "x-forwarded-host": rama })), `https://${rama}`);
+  // Cualquiera saca un *.vercel.app gratis: sin el sufijo del equipo no vale.
+  assert.equal(origenPermitido(cab({ "x-forwarded-host": "morcast-abc.vercel.app" })), ORIGEN_FIJO);
+  assert.equal(origenPermitido(cab({ "x-forwarded-host": "x.vercel.app" })), ORIGEN_FIJO);
   assert.equal(
-    origenPermitido(cab({ "x-forwarded-host": "morcast-abc-studias.vercel.app" })),
-    "https://morcast-abc-studias.vercel.app"
+    origenPermitido(cab({ "x-forwarded-host": "evil-studias-projects-b32a1835.vercel.app" })),
+    ORIGEN_FIJO
   );
   assert.equal(origenPermitido(cab({ "x-forwarded-host": "vercel.app.evil.com" })), ORIGEN_FIJO);
   assert.equal(origenPermitido(cab({ "x-forwarded-host": "novercel.app" })), ORIGEN_FIJO);
@@ -101,10 +108,10 @@ test("partirHost rechaza lo que no tiene forma de host", () => {
 });
 
 test("hostPermitido dice que si solo a los nuestros", () => {
-  ["morcast.mx", "WWW.MORCAST.MX", "x.vercel.app", "localhost", "127.0.0.1"].forEach((h) =>
+  ["morcast.mx", "WWW.MORCAST.MX", "morcast-abc-studias-projects-b32a1835.vercel.app", "localhost", "127.0.0.1"].forEach((h) =>
     assert.equal(hostPermitido(h), true, h)
   );
-  ["evil.com", "morcast.mx.evil.com", "vercel.app.evil.com", "", null].forEach((h) =>
+  ["evil.com", "morcast.mx.evil.com", "vercel.app.evil.com", "x.vercel.app", "", null].forEach((h) =>
     assert.equal(hostPermitido(h), false, String(h))
   );
 });

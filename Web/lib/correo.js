@@ -15,6 +15,11 @@ export function hayResend() {
   return Boolean(process.env.RESEND_API_KEY);
 }
 
+/**
+ * Manda un correo. `payload` pasa tal cual a la API de Resend, así que ya
+ * acepta `attachments: [{ filename, content }]` con el contenido en base64
+ * (lo usa el alta firmada para adjuntar el PDF; ver `adjuntoPdf`).
+ */
 async function enviar(payload) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -82,7 +87,7 @@ export async function correoConfirmacion(datos) {
  * El asunto avisa de una vez si cae dentro de cobertura, que es lo primero
  * que se pregunta quien lo lee.
  */
-export async function correoAvisoAlta(datos) {
+export async function correoAvisoAlta(datos, { pdfBase64, nombrePdf, huellaPdf } = {}) {
   const fila = (etiqueta, valor) =>
     valor || valor === 0
       ? `<tr><td style="padding:6px 12px 6px 0;font-weight:bold;white-space:nowrap;vertical-align:top">${etiqueta}</td><td style="padding:6px 0">${esc(String(valor))}</td></tr>`
@@ -106,6 +111,7 @@ export async function correoAvisoAlta(datos) {
       <p style="margin:0 0 14px;font-size:14px">¿Está en cobertura? ${cobertura}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5">
         ${fila("Folio", datos.folio)}
+        ${fila("Origen", datos.origen === "google" ? "Se registró con Google (activar su cuenta desde el panel)" : "")}
         ${fila("Empresa", datos.empresa)}
         ${fila("Contacto", datos.contacto)}
         ${fila("Teléfono", datos.telefono)}
@@ -117,10 +123,20 @@ export async function correoAvisoAlta(datos) {
         ${fila("Recolecciones al mes", datos.servicios_por_mes)}
         ${fila("Razón social", datos.razon_social)}
         ${fila("RFC", datos.rfc)}
+        ${fila("Representante legal", [datos.representante_nombre, datos.representante_cargo].filter(Boolean).join(" · "))}
+        ${fila("Facturación", [datos.facturacion_nombre, datos.facturacion_correo, datos.facturacion_telefono].filter(Boolean).join(" · "))}
+        ${fila("Horario de acceso", datos.horario_acceso)}
+        ${fila("Constancia fiscal", datos.constancia_ruta ? "Adjunta (en el panel)" : "")}
+        ${fila("Firmó", datos.firmante_nombre ? [datos.firmante_nombre, datos.firmante_cargo].filter(Boolean).join(" · ") : "")}
+        ${fila("Confirmación del correo", datos.firmante_nombre ? (datos.correo_confirmado ? "Confirmado (Google)" : "Por confirmar: se le mandó el enlace") : "")}
+        ${fila("Huella del PDF", huellaPdf)}
       </table>
+      ${pdfBase64 ? `<p style="margin:16px 0 0;font-size:14px">
+        Va adjunta la <strong>Solicitud de alta firmada</strong> en PDF.</p>` : ""}
       <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
         Está en el panel, en <strong>Altas de clientes</strong>
         (morcast.mx/admin/altas). Puedes responderle directamente a este correo.</p>`),
+    ...(pdfBase64 ? { attachments: [adjuntoPdf(nombrePdf, pdfBase64)] } : {}),
   });
 }
 
@@ -439,6 +455,43 @@ export async function correoAccesoCliente({ correo, contacto, empresa, folio, en
 }
 
 /**
+ * Invitación al EQUIPO de Morcast (administrador o chofer), desde
+ * /admin/usuarios. Igual que el acceso de cliente: nadie ve la contraseña,
+ * la persona la elige con el enlace. Al terminar, el sistema la manda sola a
+ * su área (/admin o /chofer) según su rol.
+ */
+export async function correoInvitacionEquipo({ correo, nombre, rolLegible, enlace, invitadoPor }) {
+  const esChofer = rolLegible.startsWith("Chofer");
+  const entrada = esChofer ? "morcast.mx/chofer/login" : "morcast.mx/admin/login";
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: "Te invitaron al equipo de Morcast del Norte",
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Bienvenido al equipo</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(nombre)}, ${invitadoPor ? `${esc(invitadoPor)} te dio` : "te dieron"} acceso al sistema
+        de Morcast del Norte como <strong>${esc(rolLegible)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Pulsa el botón y elige la contraseña con la que vas a entrar:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#144C4F;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Crear mi contraseña</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en una hora</strong> y sólo se puede usar una vez. Si se te
+        pasa, pide que te vuelvan a invitar o usa "¿Olvidaste tu contraseña?".</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Después vas a entrar en
+        <a href="https://${entrada}" style="color:#144C4F">${entrada}</a>${esChofer ? ", o desde la app de Morcast en tu teléfono" : ""}.</p>`),
+  });
+}
+
+/**
  * Enlace para crear una contraseña nueva.
  *
  * Lo manda Resend y no Supabase a propósito: el correo de Supabase sale con su
@@ -497,6 +550,81 @@ export async function correoContrasenaCambiada({ correo }) {
         <strong>¿No fuiste tú?</strong> Llámanos cuanto antes al
         <strong>868 384 9478</strong> para que bloqueemos el acceso. No hace
         falta que respondas a este correo ni que pulses ningún enlace.</p>`),
+  });
+}
+
+/**
+ * Código del segundo paso del panel (dueño y administradores).
+ *
+ * Sin botones ni enlaces a propósito: un correo de "código de acceso" con un
+ * botón es justo lo que imita el phishing. Solo el número, cuánto dura y qué
+ * hacer si la persona no estaba entrando.
+ */
+export async function correoCodigoPanel({ correo, codigo, minutos }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `${codigo} es tu código para entrar al panel de Morcast`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu código para entrar al panel</h1>
+      <p style="margin:0 0 18px;font-size:14px">
+        Escribe este código en la pantalla del panel de administración:</p>
+      <p style="margin:0 0 18px;font-size:34px;font-weight:bold;letter-spacing:8px;color:#144C4F;text-align:center">
+        ${esc(codigo)}</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>Vence en ${esc(minutos)} minutos.</strong> No lo compartas con nadie:
+        nadie de Morcast te lo va a pedir.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿No estabas entrando al panel? Alguien escribió tu contraseña. Cámbiala
+        cuanto antes y avísanos al <strong>868 384 9478</strong>.</p>`),
+  });
+}
+
+/**
+ * A la OFICINA: un chofer reportó un incidente desde la calle (accidente,
+ * retraso, falla o un contenedor dañado, movido o que no está).
+ *
+ * Lleva solo lo que hace falta para actuar —qué pasó, quién, en qué unidad,
+ * ruta y parada— y el enlace al panel, donde está el resto (la foto, el
+ * historial). Nada de datos del cliente más allá del nombre de la parada:
+ * este buzón lo leen varias personas y nadie lo borra.
+ *
+ * `asunto`, `tipoTexto` y `urgente` llegan ya armados (lib/chofer-reportes.mjs)
+ * para que el texto del tipo sea el mismo en el teléfono, en el panel y aquí.
+ */
+export async function correoIncidente({
+  asunto, tipoTexto, urgente, chofer, unidad, ruta, parada, contenedor,
+  descripcion, retraso, mapa, cuando, enlace,
+}) {
+  const fila = (etiqueta, valor) =>
+    valor
+      ? `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7a7c;vertical-align:top;white-space:nowrap">${esc(etiqueta)}</td>
+         <td style="padding:6px 0;font-size:15px;color:#1c2b2d">${esc(valor)}</td></tr>`
+      : "";
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      ${urgente ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fbe9e7;border-left:4px solid #c0392b;font-size:15px;color:#8e2a1f">
+        <strong>Urgente.</strong> Llama al chofer cuanto antes.</p>` : ""}
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">${esc(tipoTexto)}</h1>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+        ${fila("Chofer", chofer)}
+        ${fila("Unidad", unidad)}
+        ${fila("Ruta", ruta)}
+        ${fila("Parada", parada)}
+        ${fila("Contenedor", contenedor)}
+        ${fila("Retraso", retraso)}
+        ${fila("Cuándo", cuando)}
+      </table>
+      ${descripcion ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;white-space:pre-line">${esc(descripcion)}</p>` : ""}
+      ${mapa ? `<p style="margin:0 0 12px;font-size:14px"><a href="${esc(mapa)}">Ver dónde estaba el chofer</a></p>` : ""}
+      <p style="margin:20px 0 0;font-size:15px">
+        <a href="${esc(enlace)}" style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px">
+          Ver en el panel</a></p>`),
   });
 }
 
@@ -572,5 +700,155 @@ export async function correoAcuseEmpleo({ correo, nombre, folio, puesto }) {
       <p style="font-size:14px;line-height:1.6">
         Si tu perfil encaja con una vacante, te contactamos por teléfono. Guardamos
         tu información 12 meses y después se borra.</p>`),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Avisos a clientes (/admin/avisos)                                   */
+/* ------------------------------------------------------------------ */
+
+/** Color del rótulo del motivo. Retraso en ámbar, como en el portal. */
+const MOTIVO_AVISO = {
+  retraso: { texto: "Retraso", fondo: "#fbf1dc", tinta: "#7a5310" },
+  reagenda: { texto: "Reagenda", fondo: "#e3eef7", tinta: "#1f4f73" },
+  general: { texto: "Aviso", fondo: "#eef1f0", tinta: "#3d4b4d" },
+};
+
+/**
+ * Al CLIENTE: un aviso de la administración (retraso, reagenda, general).
+ *
+ * Un correo por destinatario, con un solo `to`: el aviso le llega a decenas
+ * de empresas y ninguna tiene por qué ver el correo de las demás (con un
+ * `to` o `cc` compartido, cualquiera las vería todas). Por eso no hay copia
+ * oculta a nadie ni lista de varios.
+ *
+ * El mensaje lo escribe una persona del panel: se escapa COMPLETO y los
+ * saltos de línea se vuelven <br> después de escapar, nunca antes.
+ */
+export async function correoAvisoCliente({ correo, empresa, titulo, mensaje, motivo, vigenteHasta }) {
+  if (!correo) return null;
+  const m = MOTIVO_AVISO[motivo] || MOTIVO_AVISO.general;
+  const cuerpo = esc(mensaje).replace(/\n/g, "<br>");
+  // El asunto no es HTML, pero un salto de línea ahí rompe la cabecera.
+  const asunto = `${m.texto}: ${String(titulo || "").replace(/\s+/g, " ").trim()} — Morcast del Norte`;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      <p style="margin:0 0 14px">
+        <span style="display:inline-block;background:${m.fondo};color:${m.tinta};font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:4px">${m.texto}</span>
+      </p>
+      <h1 style="margin:0 0 16px;font-size:21px;color:#144C4F">${esc(titulo)}</h1>
+      ${empresa ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">${esc(empresa)}:</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">${cuerpo}</p>
+      ${vigenteHasta ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#6b7a7c">
+        Este aviso aplica hasta el ${fechaEnLetra(vigenteHasta)}.</p>` : ""}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        También lo tienes en <a href="https://morcast.mx/portal">tu portal</a>.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
+
+/* ==================================================================== */
+/* ALTA CON FIRMA ELECTRÓNICA (5-oct-2026)                               */
+/*                                                                      */
+/* El alta ya no termina con un acuse de "recibimos tus datos": el      */
+/* cliente FIRMA su Solicitud de alta y recibe el PDF. En el formulario */
+/* público, además, tiene que confirmar que el correo es suyo con un    */
+/* enlace de un solo uso — es parte de la evidencia de la firma: prueba */
+/* que quien firmó controla ese buzón. En el registro con Google ese    */
+/* paso ya lo hizo Google y el correo sale sin enlace.                  */
+/* ==================================================================== */
+
+/** Un PDF adjunto, en el formato que pide Resend. */
+function adjuntoPdf(nombre, base64) {
+  return { filename: nombre || "solicitud.pdf", content: base64 };
+}
+
+/**
+ * Al CLIENTE: el enlace para confirmar el correo. SIN el PDF adjunto, a
+ * propósito: la dirección la escribió alguien sin cuenta, y este correo no
+ * debe servir para hacerle llegar documentos a un tercero. El PDF va cuando
+ * confirma (`correoSolicitudFirmada`).
+ */
+export async function correoConfirmarAlta({ correo, contacto, empresa, folio, enlace }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Confirma tu solicitud de alta — Morcast del Norte (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Confirma tu solicitud de alta</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, recibimos la Solicitud de alta de
+        <strong>${esc(empresa)}</strong>, firmada electrónicamente. Tu folio es
+        <strong>${esc(folio)}</strong>.</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        Para terminar, confirma que este correo es tuyo:</p>
+      <p style="margin:0 0 22px">
+        <a href="${esc(enlace)}"
+           style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">
+          Confirmar mi solicitud</a></p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+        <span style="word-break:break-all">${esc(enlace)}</span></p>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>El enlace vence en 7 días</strong> y sólo se puede usar una vez. Al
+        confirmar te mandamos tu solicitud firmada en PDF.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        ¿No fuiste tú? Ignora este correo o respóndelo para avisarnos.</p>`),
+  });
+}
+
+/**
+ * Al CLIENTE: la versión FINAL de su solicitud (el correo ya está
+ * confirmado). Sale al confirmar con el enlace, y de una vez en el registro
+ * con Google, donde el correo ya viene verificado.
+ */
+export async function correoSolicitudFirmada({ correo, contacto, empresa, folio, pdfBase64, nombrePdf, porGoogle }) {
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: `Tu solicitud de alta firmada — Morcast del Norte (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Tu solicitud de alta está firmada</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        Hola ${esc(contacto)}, ${porGoogle
+          ? "como te registraste con tu cuenta de Google, tu correo ya quedó verificado."
+          : "gracias por confirmar tu correo."}
+        Va adjunta la versión final de la Solicitud de alta de
+        <strong>${esc(empresa)}</strong> (folio <strong>${esc(folio)}</strong>).</p>
+      <p style="margin:0 0 14px;font-size:14px">
+        El siguiente paso lo damos nosotros: revisamos tu solicitud y te
+        contactamos para confirmar el precio y el día de arranque.</p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Guarda este PDF: es tu copia de lo que firmaste. ¿Dudas? Responde a este
+        correo o llámanos al 868 384 9478.</p>`),
+    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
+  });
+}
+
+/** A MORCAST: el cliente confirmó su correo; va la versión final. */
+export async function correoAvisoAltaConfirmada({ correo, empresa, folio, pdfBase64, nombrePdf, huellaPdf }) {
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: correo,
+    subject: `Alta confirmada — ${empresa} (${folio})`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">El cliente confirmó su correo</h1>
+      <p style="margin:0 0 14px;font-size:14px">
+        <strong>${esc(empresa)}</strong> confirmó con el enlace que el correo
+        <strong>${esc(correo)}</strong> es suyo. La solicitud <strong>${esc(folio)}</strong>
+        ya está firmada y confirmada; va adjunta la versión final.</p>
+      <p style="margin:0 0 14px;font-size:13px;color:#6b7a7c">
+        Huella SHA-256 del PDF: <span style="font-family:monospace;word-break:break-all">${esc(huellaPdf)}</span></p>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7a7c">
+        Está en el panel, en <strong>Altas de clientes</strong> (morcast.mx/admin/altas).</p>`),
+    attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
   });
 }

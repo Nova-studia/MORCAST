@@ -10,16 +10,29 @@ import {
   WarningCircle,
   GoogleLogo,
   UserCircle,
+  FilePdf,
+  FileText,
+  Signature,
 } from "@phosphor-icons/react/dist/ssr";
 import { listarAltas, cambiarEstadoAlta } from "@/lib/datos-altas";
-import { activarCuentaRegistrada } from "@/app/acciones-alta-cliente";
+import { activarCuentaRegistrada, enlacesArchivosAlta } from "@/app/acciones-alta-cliente";
 
+// Las clases son las que de verdad existen en portal.css (`ok`, `prog`,
+// `mal`). Aquí decían `verde`, `azul` y `rojo`, que no existen, y todas las
+// insignias salían grises: "Aprobada" y "Rechazada" se veían igual.
 const ESTADOS = [
   { id: "nueva", texto: "Nueva", clase: "" },
-  { id: "contactada", texto: "Contactada", clase: "azul" },
-  { id: "aprobada", texto: "Aprobada", clase: "verde" },
-  { id: "rechazada", texto: "Rechazada", clase: "rojo" },
+  { id: "contactada", texto: "Contactada", clase: "prog" },
+  { id: "aprobada", texto: "Aprobada", clase: "ok" },
+  { id: "rechazada", texto: "Rechazada", clase: "mal" },
 ];
+
+/** Fecha y hora de Matamoros, para la evidencia de la firma. */
+const fechaHora = (iso) =>
+  new Date(iso).toLocaleString("es-MX", {
+    timeZone: "America/Matamoros", day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 
 const fecha = (iso) =>
   new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
@@ -58,6 +71,31 @@ export default function AltasAdmin() {
 
   const recargar = () => listarAltas().then((l) => { setAltas(l); setCargando(false); });
   useEffect(() => { recargar(); }, []);
+
+  const [bajando, setBajando] = useState(false);
+
+  /**
+   * Pide al servidor un enlace firmado de 5 minutos y lo abre. Se navega al
+   * enlace (no `window.open`): viene con "descargar como", así que la
+   * página no se va, y una ventana abierta después de un `await` la
+   * bloquean los navegadores.
+   */
+  const descargar = async (a, cual) => {
+    setError("");
+    setBajando(true);
+    const r = await enlacesArchivosAlta(a.id);
+    setBajando(false);
+    if (r?.demo) {
+      setError("En el prototipo no hay archivos guardados: el PDF se descarga al terminar el alta en /portal/alta.");
+      return;
+    }
+    const url = r?.ok ? r[cual] : null;
+    if (!url) {
+      setError(r?.motivo || "No se encontró el archivo de esa solicitud.");
+      return;
+    }
+    window.location.assign(url);
+  };
 
   const marcar = async (a, estado) => {
     setError("");
@@ -143,11 +181,11 @@ export default function AltasAdmin() {
             <div className="pt-vacio">No hay altas en este estado.</div>
           ) : (
             <div className="pt-tabla-wrap">
-              <table className="pt-tabla" style={{ minWidth: 640 }}>
+              <table className="pt-tabla" style={{ minWidth: 700 }}>
                 <thead>
                   <tr>
                     <th>Folio</th><th>Fecha</th><th>Empresa</th>
-                    <th className="num">Al mes</th><th>Cobertura</th><th>Estado</th>
+                    <th className="num">Al mes</th><th>Cobertura</th><th>Firma</th><th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,7 +209,7 @@ export default function AltasAdmin() {
                       <td>{a.empresa}</td>
                       <td className="num">{a.serviciosPorMes ?? "—"}</td>
                       <td>
-                        <span className={`pt-badge ${a.enCobertura ? "verde" : "rojo"}`}>
+                        <span className={`pt-badge ${a.enCobertura ? "ok" : "mal"}`}>
                           {/* Decía "En ruta", que es además el nombre de un
                               ESTADO de servicio (el chofer va en camino).
                               Aquí lo que se responde es otra cosa: si el
@@ -179,6 +217,7 @@ export default function AltasAdmin() {
                           {a.enCobertura ? "En cobertura" : "Fuera"}
                         </span>
                       </td>
+                      <td><InsigniasFirma alta={a} compacta /></td>
                       <td>
                         <span className={`pt-badge ${ESTADOS.find((e) => e.id === a.estado)?.clase || ""}`}>
                           {ESTADOS.find((e) => e.id === a.estado)?.texto || a.estado}
@@ -210,10 +249,57 @@ export default function AltasAdmin() {
                    href={`https://wa.me/${whatsappMx(sel.telefono)}`}>WhatsApp</a>
               </div>
 
+              <div style={{ margin: "0 0 1rem" }}><InsigniasFirma alta={sel} /></div>
+
+              {sel.firmada && (
+                <div className="pt-card" style={{ padding: "0.9rem", margin: "0 0 1.1rem" }}>
+                  <strong style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Signature aria-hidden="true" /> Solicitud firmada
+                  </strong>
+                  <p style={{ margin: "0.4rem 0 0.7rem", fontSize: "0.86rem", color: "var(--mc-gris)" }}>
+                    Firmó <strong style={{ color: "var(--mc-tinta)" }}>{sel.firmanteNombre}</strong>
+                    {sel.firmanteCargo ? ` (${sel.firmanteCargo})` : ""} el {fechaHora(sel.firmadoEn)}, desde la IP{" "}
+                    {sel.firmaIp || "—"}. Términos {sel.terminosVersion}.{" "}
+                    {sel.correoConfirmado
+                      ? sel.correoConfirmadoPor === "google"
+                        ? "Correo verificado por Google."
+                        : `Correo confirmado el ${fechaHora(sel.correoConfirmadoEn)}.`
+                      : "Correo aún sin confirmar (se le mandó el enlace)."}
+                  </p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {sel.tienePdf && (
+                      <button type="button" className="pt-btn" onClick={() => descargar(sel, "pdf")} disabled={bajando}>
+                        <FilePdf aria-hidden="true" /> Descargar PDF
+                      </button>
+                    )}
+                    {sel.tieneConstancia && (
+                      <button type="button" className="pt-btn" onClick={() => descargar(sel, "constancia")} disabled={bajando}>
+                        <FileText aria-hidden="true" /> Constancia fiscal
+                      </button>
+                    )}
+                  </div>
+                  {sel.contenidoHuella && (
+                    <p style={{ margin: "0.7rem 0 0", fontSize: "0.74rem", color: "var(--mc-gris)", overflowWrap: "anywhere" }}>
+                      Huella de lo firmado:{" "}
+                      <span style={{ fontFamily: "var(--fuente-mono), monospace" }}>{sel.contenidoHuella}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <Dato etiqueta="Contacto" valor={`${sel.contacto} · ${sel.telefono}`} />
               <Dato etiqueta="Correo" valor={sel.correo} />
+              <Dato
+                etiqueta="Representante legal"
+                valor={[sel.representanteNombre, sel.representanteCargo].filter(Boolean).join(" · ")}
+              />
+              <Dato
+                etiqueta="Contacto de facturación"
+                valor={[sel.facturacionNombre, sel.facturacionCorreo, sel.facturacionTelefono].filter(Boolean).join(" · ")}
+              />
               <Dato etiqueta="Domicilio" valor={[sel.calle, sel.colonia, sel.cp].filter(Boolean).join(", ")} />
               <Dato etiqueta="Referencias" valor={sel.referencias} />
+              <Dato etiqueta="Horario de acceso" valor={sel.horarioAcceso} />
               <Dato etiqueta="Residuos" valor={(sel.residuos || []).join(", ")} />
               <Dato
                 etiqueta="Equipo pedido"
@@ -322,6 +408,28 @@ export default function AltasAdmin() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * "Firmada" y el estado del correo. Las altas de antes de la firma no traen
+ * nada. En la tabla va UNA sola insignia (`compacta`): la columna es angosta
+ * y con dos la tabla se desbordaba; el detalle enseña las dos.
+ */
+function InsigniasFirma({ alta, compacta = false }) {
+  if (!alta.firmada) return <span className="pt-badge">Sin firma</span>;
+  if (compacta) {
+    return alta.correoConfirmado
+      ? <span className="pt-badge ok" title="Firmada y con el correo confirmado">Firmada</span>
+      : <span className="pt-badge prog" title="Firmada; el correo aún no se confirma">Por confirmar</span>;
+  }
+  return (
+    <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+      <span className="pt-badge ok">Firmada</span>
+      {alta.correoConfirmado
+        ? <span className="pt-badge ok">Correo confirmado</span>
+        : <span className="pt-badge">Correo por confirmar</span>}
+    </span>
   );
 }
 

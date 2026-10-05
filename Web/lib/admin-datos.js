@@ -75,13 +75,15 @@ export const USUARIOS_ADMIN = [
   { id: "U-006", nombre: "Alberto Cruz", correo: "acruz@morcast.mx", rol: "Chofer / Operador", estatus: "activo", ultimo: "2026-07-18" },
 ];
 
-/** Roles disponibles y lo que puede hacer cada uno (para el alta de usuarios). */
+/**
+ * Los roles que EXISTEN en la base (db/001: dueno, admin, operador, cliente) y
+ * lo que de verdad puede hacer cada uno. Hasta el 2-oct-2026 aquí había cinco
+ * ("Auxiliar", "Facturación", "Operaciones"…) que la base nunca aplicó.
+ */
 export const ROLES = [
-  { id: "Administrador", detalle: "Acceso total: solicitudes, clientes, servicios, reportes, facturación y usuarios." },
-  { id: "Auxiliar de administrador", detalle: "Gestiona solicitudes, clientes y servicios. No administra usuarios ni facturación." },
-  { id: "Facturación", detalle: "Acceso a clientes, saldos, reportes y emisión de documentos fiscales." },
-  { id: "Operaciones", detalle: "Ve y actualiza la agenda de servicios y manifiestos. Sin acceso comercial." },
-  { id: "Chofer / Operador", detalle: "App móvil: escanea el QR del contenedor, registra la recolección (peso, foto y firma) y actualiza el estatus del servicio en ruta. Solo ve su agenda del día." },
+  { id: "Dueño", detalle: "Todo el panel, igual que un Administrador. Es una sola cuenta y no se puede desactivar." },
+  { id: "Administrador", detalle: "Todo el panel: rutas, recolecciones, clientes, saldos, reportes y el equipo." },
+  { id: "Chofer / Operador", detalle: "Solo su recorrido del día, desde la app o desde morcast.mx/chofer: escanea el contenedor, toma las fotos y registra el peso." },
 ];
 
 /** Agenda de servicios (todos los clientes) para el admin. */

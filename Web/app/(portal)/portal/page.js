@@ -28,6 +28,8 @@ import { resumenCliente } from "@/lib/datos-panel";
 import { listarSolicitudes, misServicios } from "@/lib/datos-solicitudes";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { enHold } from "@/lib/estado-sistema";
+import AvisosCliente from "@/components/AvisosCliente";
+import AvisoPrecios from "@/components/AvisoPrecios";
 
 /** Estados que el cliente ve como "todavía va a pasar". */
 const PENDIENTES = ["solicitada", "confirmada", "en-ruta"];
@@ -151,6 +153,11 @@ export default function PanelPortal() {
         </p>
       </div>
 
+      {/* Avisos de la administración (retrasos, reagendas). Arriba de todo
+          lo demás: si la ruta de hoy va tarde, es lo primero que el cliente
+          tiene que leer. Sin avisos vigentes no ocupa nada. */}
+      <AvisosCliente />
+
       {/* Saldo + KPIs */}
       {/* ⚠️ Las proporciones van en CSS (`.pt-panel-resumen`), NO en un
           `style` en linea. El estilo en linea LE GANA A LA MEDIA QUERY, asi
@@ -211,6 +218,11 @@ export default function PanelPortal() {
           </div>
         </div>
       </div>
+
+      {/* El aviso de que los precios pueden cambiar va junto a CUALQUIER
+          cifra de dinero (pedido de los dueños, 4-oct-2026). En Hold no hay
+          cifras —todo dice "—"—, así que no hay nada que matizar. */}
+      {!enHold() && <AvisoPrecios compacto style={{ margin: "-0.4rem 0 1.1rem" }} />}
 
       {/* Próximos servicios + composición */}
       <div className="pt-grid pt-grid-2" style={{ marginBottom: "1.1rem", "--pt-cols": "2fr 1.3fr" }}>

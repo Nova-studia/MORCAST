@@ -1,9 +1,7 @@
 "use server";
 
-import { supabaseServidor, haySupabase } from "@/lib/supabase";
-import { correoAvisoAlta, correoAcuseAlta } from "@/lib/correo";
-import { registrar } from "@/lib/bitacora";
-import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
+import { pasarFreno } from "@/lib/freno";
+import { leerZonas, procesarAltaFirmada, confirmarCorreo } from "@/lib/alta-servidor";
 
 /**
  * Alta de cliente desde la pantalla pública.
@@ -13,8 +11,10 @@ import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
  * abriera al público, cualquiera podría llenarla de basura desde fuera sin
  * pasar por la pantalla.
  *
- * No confía en nada de lo que manda el navegador: valida y recorta aquí. El
- * cliente puede mandar lo que quiera.
+ * No confía en nada de lo que manda el navegador: valida y recorta en el
+ * servidor. Desde el 5-oct-2026 el alta se FIRMA (firma electrónica simple,
+ * con PDF y confirmación del correo); toda esa faena vive en
+ * `lib/alta-servidor.js`, que comparte con el registro con Google.
  */
 
 /**
@@ -28,126 +28,37 @@ import { ZONA_MATAMOROS } from "@/lib/zona-matamoros.mjs";
  *
  * Devuelve SOLO lo que la pantalla enseña. La zona no es un secreto (es lo que
  * se le presume al cliente), pero el chofer asignado y la unidad no tienen por
- * qué salir al público.
+ * qué salir al público. Sin base devuelve null y la pantalla usa sus zonas de
+ * respaldo.
  */
 export async function zonasDeCobertura() {
-  if (!haySupabase()) return null; // sin base, la pantalla usa sus zonas de respaldo
-
-  const { data, error } = await supabaseServidor()
-    .from("rutas")
-    .select("id, clave, nombre, tipo, dias, zona, activa")
-    .eq("activa", true)
-    .order("clave");
-
-  if (error) {
-    console.error("[alta] no se pudieron leer las zonas:", error.message);
-    return null;
-  }
-  const conZona = (data || [])
-    .filter((r) => Array.isArray(r.zona) && r.zona.length >= 3)
-    .map((r) => ({
-      id: r.id,
-      clave: r.clave,
-      nombre: r.nombre,
-      tipo: r.tipo,
-      dias: r.dias || [],
-      zona: r.zona,
-      activa: true,
-    }));
-
-  // Las 5 rutas reales entraron SIN poligono: el cuaderno da nombres de
-  // colonias, no coordenadas. Sin este respaldo el verificador le contestaria
-  // "no hay cobertura" a todo el mundo, incluida la gente que si la tiene.
-  // Se quita el dia que la empresa entregue las zonas por ruta.
-  if (!conZona.length) {
-    return [{ id: ZONA_MATAMOROS.clave, ...ZONA_MATAMOROS, activa: true }];
-  }
-  return conZona;
+  return leerZonas();
 }
 
-const LIMITES = {
-  empresa: 120, contacto: 120, telefono: 30, correo: 160,
-  alias: 80, calle: 160, colonia: 120, cp: 10, referencias: 400,
-  razonSocial: 160, rfc: 20, domicilioFiscal: 240, usoCFDI: 80, formaPago: 80,
-};
-
-const texto = (v, max) => String(v ?? "").trim().slice(0, max);
-
-function folioNuevo() {
-  // ALTA-2026-8F3K: legible por teléfono y sin depender de un contador que
-  // obligaría a leer la tabla antes de escribir.
-  const azar = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `ALTA-${new Date().getFullYear()}-${azar}`;
+/**
+ * Recibe el alta firmada. Llega como FormData porque trae dos archivos (la
+ * firma dibujada y, si la suben, la Constancia de Situación Fiscal). Devuelve
+ * el folio y los bytes del PDF en base64 para el botón "Descargar mi
+ * solicitud".
+ */
+export async function registrarAlta(formData) {
+  return procesarAltaFirmada({ formData, origen: "formulario" });
 }
 
-export async function registrarAlta(entrada) {
-  const empresa = texto(entrada.empresa, LIMITES.empresa);
-  const contacto = texto(entrada.contacto, LIMITES.contacto);
-  const telefono = texto(entrada.telefono, LIMITES.telefono);
-  const correo = texto(entrada.correo, LIMITES.correo);
-
-  if (!empresa || !contacto || !telefono || !correo) {
-    return { ok: false, motivo: "Faltan datos de contacto." };
+/**
+ * "Confirmar mi solicitud", desde el enlace del correo.
+ *
+ * Es una acción (POST, con un botón) y no se confirma con sólo abrir el
+ * enlace (GET), a propósito: los filtros de correo de muchas empresas abren
+ * cada enlace para revisarlo, y eso gastaría el token de un solo uso sin que
+ * la persona hiciera nada — la evidencia diría que confirmó quien no confirmó.
+ *
+ * El token trae 256 bits de azar y no se adivina; el freno está para que
+ * nadie use esta acción para golpear la base a lo loco.
+ */
+export async function confirmarCorreoAlta(token) {
+  if (!(await pasarFreno("confirmar-alta", { maximo: 20, minutos: 60 }))) {
+    return { ok: false, motivo: "Demasiados intentos desde este equipo. Espera un rato y vuelve a abrir el enlace." };
   }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) {
-    return { ok: false, motivo: "El correo no parece válido." };
-  }
-
-  const servicios = Number.parseInt(entrada.serviciosPorMes, 10);
-  if (!Number.isFinite(servicios) || servicios < 1 || servicios > 200) {
-    return { ok: false, motivo: "Di cuántas recolecciones al mes necesitas (entre 1 y 200)." };
-  }
-
-  const fila = {
-    folio: folioNuevo(),
-    empresa, contacto, telefono, correo,
-    alias: texto(entrada.alias, LIMITES.alias),
-    calle: texto(entrada.calle, LIMITES.calle),
-    colonia: texto(entrada.colonia, LIMITES.colonia),
-    cp: texto(entrada.cp, LIMITES.cp),
-    referencias: texto(entrada.referencias, LIMITES.referencias),
-    lat: Number.isFinite(Number(entrada.lat)) ? Number(entrada.lat) : null,
-    lng: Number.isFinite(Number(entrada.lng)) ? Number(entrada.lng) : null,
-    residuos: Array.isArray(entrada.residuos) ? entrada.residuos.slice(0, 20) : [],
-    equipo: Array.isArray(entrada.equipo) ? entrada.equipo.slice(0, 20) : [],
-    servicios_por_mes: servicios,
-    razon_social: texto(entrada.razonSocial, LIMITES.razonSocial),
-    rfc: texto(entrada.rfc, LIMITES.rfc).toUpperCase(),
-    domicilio_fiscal: texto(entrada.domicilioFiscal, LIMITES.domicilioFiscal),
-    uso_cfdi: texto(entrada.usoCFDI, LIMITES.usoCFDI),
-    forma_pago: texto(entrada.formaPago, LIMITES.formaPago),
-    en_cobertura: Boolean(entrada.enCobertura),
-    rutas_que_cubren: Array.isArray(entrada.rutasQueCubren) ? entrada.rutasQueCubren.slice(0, 10) : [],
-  };
-
-  // Sin base configurada la pantalla sigue siendo navegable (modo prototipo).
-  if (!haySupabase()) return { ok: true, demo: true, folio: fila.folio };
-
-  const { error } = await supabaseServidor().from("solicitudes_alta").insert(fila);
-  if (error) {
-    console.error("[alta] no se pudo guardar:", error.message);
-    return { ok: false, motivo: "No se pudo guardar tu solicitud. Inténtalo de nuevo." };
-  }
-
-  // Los correos NO tumban el alta si fallan: ya quedó guardada, y perderla
-  // por un problema del servicio de correo sería lo peor de los dos mundos.
-  try {
-    await correoAvisoAlta(fila);
-  } catch (e) {
-    console.error("[alta] aviso interno falló:", e?.message);
-  }
-  try {
-    await correoAcuseAlta(fila);
-  } catch (e) {
-    console.error("[alta] acuse al cliente falló:", e?.message);
-  }
-
-  await registrar({
-    accion: "alta_solicitada",
-    tabla: "solicitudes_alta",
-    registroId: fila.folio,
-    detalle: { empresa, servicios_por_mes: servicios, en_cobertura: fila.en_cobertura },
-  });
-
-  return { ok: true, folio: fila.folio };
+  return confirmarCorreo(String(token || ""));
 }

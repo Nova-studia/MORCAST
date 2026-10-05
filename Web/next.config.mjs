@@ -5,6 +5,7 @@
 // propósito sin importar React ni Supabase para poder importarse así, igual
 // que ya hacen las pruebas de `npm test`.
 import { MAX_CV_BYTES } from "./lib/empleo.mjs";
+import { MAX_CONSTANCIA_BYTES, MAX_FIRMA_BYTES } from "./lib/alta-firma.mjs";
 
 const enDesarrollo = process.env.NODE_ENV === "development";
 
@@ -25,7 +26,15 @@ const enDesarrollo = process.env.NODE_ENV === "development";
  * teléfono, correo, puesto, hasta 2000 caracteres de experiencia) — de sobra
  * para eso, que no llega ni a unos KB.
  */
-const LIMITE_ACCIONES_SERVIDOR = MAX_CV_BYTES + 1024 * 1024;
+const LIMITE_ACCIONES_SERVIDOR =
+  Math.max(
+    MAX_CV_BYTES,
+    // El alta firmada (`registrarAlta`, `registrarConGoogle`) manda en un solo
+    // cuerpo la Constancia de Situación Fiscal (hasta 5 MB) Y la firma (PNG,
+    // hasta 300 KB). Si un día sube cualquiera de los dos topes, el límite
+    // sube con ellos en vez de rebotar la acción entera sin mensaje.
+    MAX_CONSTANCIA_BYTES + MAX_FIRMA_BYTES
+  ) + 1024 * 1024;
 
 /**
  * Política de Contenido (CSP). Se manda en modo SOLO-REPORTE a propósito.

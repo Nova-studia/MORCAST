@@ -83,5 +83,57 @@ export const TEXTO_ACCION = {
   cambiar_rol: "Cambió el rol de un usuario",
   alta_cliente: "Dio de alta un cliente",
   invitar_cliente: "Invitó a un cliente al portal",
+  invitar_equipo: "Invitó a alguien al equipo",
+  desactivar_usuario: "Desactivó la cuenta de alguien del equipo",
+  reactivar_usuario: "Reactivó la cuenta de alguien del equipo",
   cambiar_estado_cotizacion: "Cambió el estado de una cotización",
+  entrar_panel: "Entró al panel con el código de su correo",
+  atender_incidente: "Marcó como atendido un incidente del chofer",
+  enviar_aviso: "Mandó un aviso a clientes",
+  // Las del chofer (app/acciones-chofer.js).
+  no_procedio: "Marcó una parada como \"No procedió\"",
+  reportar_incidente: "Reportó un incidente desde su ruta",
+  // Éstas ya se anotaban pero salían con su clave cruda en la pantalla.
+  activar_cuenta_registrada: "Activó la cuenta de un cliente registrado",
+  alta_solicitada: "Llegó una solicitud de alta",
+  registro_google: "Un cliente se registró con Google",
+  // Alta con firma electrónica (lib/alta-servidor.js, db/025). Las dos puertas
+  // —formulario y Google— anotan lo mismo; el detalle dice de cuál vino.
+  alta_firmada: "Un cliente firmó su solicitud de alta",
+  alta_correo_confirmado: "Un cliente confirmó el correo de su alta",
+  eliminar_cuenta: "Eliminó su cuenta desde la app",
+  eliminar_cuenta_simulada: "Pidió eliminar la cuenta de muestra",
+  // Peso real del relleno (app/acciones-peso.js, db/023).
+  registrar_viaje_relleno: "Registró un viaje al relleno con su peso real",
+  editar_viaje_relleno: "Editó un viaje al relleno",
+  borrar_viaje_relleno: "Borró un viaje al relleno",
+  subir_ticket_viaje: "Subió la foto del ticket de báscula de un viaje",
+  poner_peso_real: "Puso el peso real de una recolección",
+  quitar_peso_real: "Quitó el peso real de una recolección",
+  // Las anota la propia base (db/022), venga el cambio de la web, de la app
+  // o de una llamada directa a la API.
+  db_insert: "Alta",
+  db_update: "Cambio",
+  db_delete: "Borrado",
 };
+
+/** Cómo se llama cada tabla en la bitácora, para las filas que anota la base. */
+export const TEXTO_TABLA = {
+  movimientos_saldo: "movimiento de saldo",
+  perfiles: "cuenta de acceso",
+  clientes: "cliente",
+  rutas: "ruta",
+  solicitudes_recoleccion: "solicitud de recolección",
+  domicilios: "punto de recolección",
+  unidades: "unidad",
+  contenedores: "contenedor",
+  viajes_relleno: "viaje al relleno",
+  suscripciones: "servicio contratado",
+};
+
+/** El texto de la columna «Acción» de una fila de la bitácora. */
+export function textoDeAccion(fila) {
+  const base = TEXTO_ACCION[fila.accion] || fila.accion;
+  if (!String(fila.accion).startsWith("db_")) return base;
+  return `${base} de ${TEXTO_TABLA[fila.tabla] || fila.tabla || "registro"}`;
+}

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { hayResend, correoConfirmacion, correoAvisoInterno } from "@/lib/correo";
 import { TIPOS_SERVICIO, FRECUENCIAS } from "@/lib/datos";
+import { pasarFreno } from "@/lib/freno";
 
 // Los correos no deben tumbar la solicitud: la BD es la fuente de la verdad
 // y el prospecto ya quedó guardado cuando se envían.
@@ -98,7 +99,9 @@ export async function enviarCotizacion(_estadoPrevio, formData) {
     cabeceras.get("x-real-ip") ||
     "desconocida";
 
-  if (limiteAlcanzado(ip)) {
+  // El de memoria corta lo obvio sin ir a la base; el de la base es el que
+  // vale entre las varias instancias de Vercel (ver lib/freno.js).
+  if (limiteAlcanzado(ip) || !(await pasarFreno("cotizar", { maximo: 3, minutos: 10 }))) {
     return {
       ok: false,
       mensaje:

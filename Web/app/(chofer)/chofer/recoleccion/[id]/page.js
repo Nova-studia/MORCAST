@@ -12,8 +12,13 @@ import {
   ArrowsOut,
   Truck,
   MapPin,
+  Recycle,
+  Scales,
+  Prohibit,
 } from "@phosphor-icons/react/dist/ssr";
 import VisorFoto from "@/components/VisorFoto";
+import ChoferDondeEs from "@/components/chofer/ChoferDondeEs";
+import ChoferNoProcedio from "@/components/chofer/ChoferNoProcedio";
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
 import { subirEvidencia } from "@/lib/datos-archivos";
 import useUbicacion, { esConfiable } from "@/lib/ubicacion";
@@ -197,6 +202,23 @@ export default function RecoleccionChofer() {
 
   if (cargando) return <div className="pt-vacio">Cargando…</div>;
 
+  // Se marcó "No procedió" (aquí o desde otro teléfono): ya no hay pasos
+  // que hacer, solo confirmar que quedó guardado con su motivo.
+  if (parada && parada.estatus === "no-procedio") {
+    return (
+      <>
+        <Link href="/chofer" className="pt-btn ch-volver">
+          <ArrowLeft /> Mi ruta
+        </Link>
+        <div className="pt-card ch-listo">
+          <Prohibit aria-hidden="true" color="var(--mc-error)" />
+          <strong>{parada.cliente}: no procedió</strong>
+          <span>{parada.motivoNoProcedio || "Motivo guardado."} No se le cobra al cliente.</span>
+        </div>
+      </>
+    );
+  }
+
   if (!parada) {
     return (
       <div className="pt-card">
@@ -222,8 +244,34 @@ export default function RecoleccionChofer() {
 
       <div className="pt-page-head ch-encabezado">
         <h1>{parada.cliente}</h1>
-        <p>{parada.direccion}</p>
+        <p>{parada.folio} · {parada.unidad}</p>
       </div>
+
+      {/* Lo que pidió el cliente, ANTES de empezar: si al llegar no es eso,
+          el chofer tiene el "No procedió" abajo (pedido de los dueños). */}
+      <div className="ch-residuo">
+        <Recycle aria-hidden="true" weight="fill" />
+        <div>
+          <span>Residuo agendado: </span>
+          <strong>{parada.tipoResiduo || "Sin especificar (pregunta a la oficina)"}</strong>
+        </div>
+      </div>
+
+      <div className="pt-card" style={{ marginBottom: "1rem" }}>
+        <ChoferDondeEs
+          parada={parada}
+          conGuardar
+          lectura={lectura}
+          estadoGps={estadoGps}
+          alGuardar={(coords) =>
+            setParada((p) => ({ ...p, punto: { ...p.punto, ...coords } }))
+          }
+        />
+      </div>
+
+      {parada.nota && (
+        <p className="ch-form-ayuda">Nota del cliente: “{parada.nota}”</p>
+      )}
 
       <div className="ch-pasos">
         {PASOS.map((p, i) => (
@@ -360,12 +408,22 @@ export default function RecoleccionChofer() {
         {paso === 4 && (
           <>
             <h2 style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>
-              <FloppyDisk aria-hidden="true" /> Peso recolectado
+              <FloppyDisk aria-hidden="true" />{" "}
+              <label htmlFor="peso-estimado">Peso estimado (kg)</label>
             </h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.8rem" }}>
-              En kilogramos. Si no lo pesaste, pon el estimado.
-            </p>
+            {/* Pedido de los dueños: que quede CLARO que este número es un
+                estimado. El chofer no tiene báscula; el peso que se cobra y
+                se reporta lo captura la oficina con el ticket del relleno
+                (db/023: `peso_es_estimado` queda en true). */}
+            <div className="ch-estimado">
+              <Scales aria-hidden="true" weight="fill" />
+              <span>
+                Es un estimado. El peso real lo registra la oficina con el ticket
+                de la báscula del relleno.
+              </span>
+            </div>
             <input
+              id="peso-estimado"
               className="pt-input"
               type="number"
               inputMode="decimal"
@@ -389,6 +447,22 @@ export default function RecoleccionChofer() {
           </>
         )}
       </div>
+
+      {/* "No procedió" va DESPUÉS del paso en curso y cerrado: es la salida
+          rara, no el camino normal. */}
+      {/* Solo en paradas abiertas: la base no deja cambiar una ya cerrada, y
+          el botón solo le daría al chofer un "No se cambió nada". */}
+      {["confirmada", "en-ruta"].includes(parada.estado) && (
+      <div style={{ margin: "1rem 0" }}>
+        <ChoferNoProcedio
+          parada={parada}
+          alTerminar={() => {
+            memoria.borrar(id); // ya no hay nada que retomar en esta parada
+            router.replace("/chofer");
+          }}
+        />
+      </div>
+      )}
 
       {(antes || despues) && (
         <div className="pt-card">

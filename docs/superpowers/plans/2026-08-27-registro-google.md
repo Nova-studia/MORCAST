@@ -1951,7 +1951,7 @@ Luego, en el navegador, comprobar **en este orden**:
 3. Recargar `/portal/pendiente` → **sigue ahí**, no manda a capturar otra vez. *(Prueba que `miSolicitud` va con la llave de servicio; si fuera con la del usuario, el RLS devolvería nada y rebotaría a `/portal/registro`.)*
 4. Escribir `/portal` a mano en la barra → **rebota a `/portal/pendiente`**.
 5. Pulsar **"Ya me activaron — revisar"** → dice que todavía no.
-6. En otra pestaña, entrar al panel como `morcastmx@gmail.com` / `0011002`, ir a `/admin/altas`, filtro **"Se registraron"** → ahí está, con el distintivo de Google y "Al mes" en raya.
+6. En otra pestaña, entrar al panel con la cuenta de administración, ir a `/admin/altas`, filtro **"Se registraron"** → ahí está, con el distintivo de Google y "Al mes" en raya.
 7. Pulsar **"Activar cuenta"** → aparece el recuadro con la contraseña una sola vez.
 8. Volver a la pestaña del cliente y pulsar **"Ya me activaron — revisar"** → **entra al portal** y ve su empresa, no la de ejemplo.
 

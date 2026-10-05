@@ -712,3 +712,55 @@ export async function darAccesoACliente({ clienteId }) {
 
   return { ok: true, correo, folio: cliente.folio, creadaPor: quien.correo };
 }
+
+/**
+ * ENLACES DE DESCARGA DE UN ALTA FIRMADA: el PDF vigente y la constancia.
+ *
+ * La cubeta `altas` es PRIVADA (db/025): sin enlace firmado no se abre nada.
+ * El enlace lo firma el SERVIDOR con la llave de servicio, y sólo después de
+ * comprobar en la sesión que quien pide es dueño o administrador — la misma
+ * puerta que el resto de este archivo. Vence en 5 minutos: sirve para
+ * descargarlo ahora, no para pegarlo en un chat y que siga abriendo.
+ *
+ * Recibe sólo el id del alta; las rutas salen de la base, nunca del
+ * navegador, así que nadie puede pedir "firma este otro archivo".
+ */
+const MINUTOS_ENLACE_ALTA = 5;
+
+export async function enlacesArchivosAlta(solicitudId) {
+  if (!haySupabase()) return { ok: true, demo: true };
+
+  const { error: sinPermiso } = await exigirPersonal();
+  if (sinPermiso) return { ok: false, motivo: sinPermiso };
+
+  if (typeof solicitudId !== "string" || !/^[0-9a-f-]{36}$/i.test(solicitudId)) {
+    return { ok: false, motivo: "Esa solicitud no existe." };
+  }
+
+  const sb = supabaseServidor();
+  const { data: fila, error } = await sb
+    .from("solicitudes_alta")
+    .select("id, folio, pdf_ruta, constancia_ruta")
+    .eq("id", solicitudId)
+    .maybeSingle();
+  if (error || !fila) return { ok: false, motivo: "No se encontró esa solicitud." };
+
+  const firmar = async (ruta, nombre) => {
+    if (!ruta) return null;
+    const { data, error: errFirma } = await sb.storage
+      .from("altas")
+      .createSignedUrl(ruta, MINUTOS_ENLACE_ALTA * 60, { download: nombre });
+    if (errFirma) {
+      console.error("[altas] no se pudo firmar el enlace:", ruta, errFirma.message);
+      return null;
+    }
+    return data?.signedUrl || null;
+  };
+
+  const extension = (fila.constancia_ruta || "").split(".").pop() || "pdf";
+  return {
+    ok: true,
+    pdf: await firmar(fila.pdf_ruta, (fila.pdf_ruta || "").split("/").pop() || `solicitud-${fila.folio}.pdf`),
+    constancia: await firmar(fila.constancia_ruta, `constancia-${fila.folio}.${extension}`),
+  };
+}

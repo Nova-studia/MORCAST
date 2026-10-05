@@ -5,48 +5,92 @@ import {
   UserPlus,
   X,
   ShieldCheck,
-  Trash,
+  CheckCircle,
+  WarningCircle,
+  Prohibit,
+  ArrowCounterClockwise,
 } from "@phosphor-icons/react/dist/ssr";
 import { ROLES } from "@/lib/admin-datos";
+import { ROLES_INVITABLES } from "@/lib/equipo.mjs";
 import { listarUsuarios } from "@/lib/datos-clientes";
 import { fechaLarga } from "@/lib/portal-datos";
+import { invitarUsuarioEquipo, cambiarActivoUsuario } from "@/app/acciones-equipo";
+
+/**
+ * EL EQUIPO DE MORCAST.
+ *
+ * Hasta el 2-oct-2026 "Invitar usuario" agregaba una fila a un `useState` y
+ * al recargar desaparecía: no se creaba nada. Ahora invitar crea la cuenta de
+ * verdad (app/acciones-equipo.js) y a la persona le llega un correo para
+ * escoger su contraseña. Solo se ofrecen los dos roles que existen en la base
+ * para el personal: Administrador y Chofer / Operador.
+ */
+const FORM_VACIO = { nombre: "", correo: "", rol: "operador" };
 
 export default function UsuariosAdmin() {
   const [lista, setLista] = useState([]);
+  const [alta, setAlta] = useState(false);
+  const [form, setForm] = useState(FORM_VACIO);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState(null); // { tipo: "ok" | "error", texto }
+  const [cambiando, setCambiando] = useState(null); // uid en curso
+
+  const recargar = () => listarUsuarios().then(setLista);
 
   useEffect(() => {
     let vivo = true;
     listarUsuarios().then((l) => { if (vivo) setLista(l); });
     return () => { vivo = false; };
   }, []);
-  const [alta, setAlta] = useState(false);
-  const [form, setForm] = useState({ nombre: "", correo: "", rol: "Auxiliar de administrador" });
 
-  const crear = (e) => {
+  const invitar = async (e) => {
     e.preventDefault();
-    const nuevo = {
-      id: `U-${String(Math.max(0, ...lista.map((u) => parseInt(u.id.split("-")[1], 10) || 0)) + 1).padStart(3, "0")}`,
-      nombre: form.nombre,
-      correo: form.correo,
-      rol: form.rol,
-      estatus: "invitado",
-      ultimo: "—",
-    };
-    setLista((l) => [...l, nuevo]);
-    setForm({ nombre: "", correo: "", rol: "Auxiliar de administrador" });
+    if (enviando) return;
+    setEnviando(true);
+    setAviso(null);
+    const r = await invitarUsuarioEquipo(form);
+    setEnviando(false);
+    if (!r.ok) {
+      setAviso({ tipo: "error", texto: r.motivo || "No se pudo mandar la invitación." });
+      return;
+    }
+    setAviso({
+      tipo: "ok",
+      texto: r.demo
+        ? "Modo de demostración: no se creó ninguna cuenta."
+        : `Listo. A ${r.correo} le llegó un correo para escoger su contraseña (el enlace vence en una hora).`,
+    });
+    setForm(FORM_VACIO);
     setAlta(false);
+    recargar();
   };
 
-  const quitar = (id) => setLista((l) => l.filter((u) => u.id !== id));
+  const cambiarActivo = async (u) => {
+    const desactivar = u.estatus === "activo";
+    const pregunta = desactivar
+      ? `¿Desactivar a ${u.nombre}? Ya no va a poder entrar al sistema.`
+      : `¿Reactivar a ${u.nombre}? Va a poder entrar otra vez con su contraseña.`;
+    if (!window.confirm(pregunta)) return;
+    setCambiando(u.uid);
+    setAviso(null);
+    const r = await cambiarActivoUsuario({ id: u.uid, activo: !desactivar });
+    setCambiando(null);
+    if (!r.ok) {
+      setAviso({ tipo: "error", texto: r.motivo || "No se pudo cambiar el acceso." });
+      return;
+    }
+    setAviso({ tipo: "ok", texto: `${u.nombre} quedó ${desactivar ? "desactivado" : "activo"}.` });
+    recargar();
+  };
 
   const rolClase = (rol) =>
-    rol === "Administrador"
+    rol === "Administrador" || rol === "Dueño"
       ? "ruta"
-      : rol === "Auxiliar de administrador"
-        ? "prog"
-        : rol === "Chofer / Operador"
-          ? "ok"
-          : "";
+      : rol === "Chofer / Operador"
+        ? "ok"
+        : "";
+
+  const detalleRol = ROLES.find((r) => r.id === ROLES_INVITABLES[form.rol])?.detalle;
 
   return (
     <>
@@ -55,15 +99,27 @@ export default function UsuariosAdmin() {
           <h1>Usuarios y roles</h1>
           <p>Administra las cuentas del equipo y sus permisos.</p>
         </div>
-        <button className="pt-btn pt-btn-naranja" onClick={() => setAlta((v) => !v)}>
+        <button className="pt-btn pt-btn-naranja" onClick={() => { setAlta((v) => !v); setAviso(null); }}>
           {alta ? <><X /> Cancelar</> : <><UserPlus /> Invitar usuario</>}
         </button>
       </div>
 
+      {aviso && (
+        aviso.tipo === "ok" ? (
+          <div className="pt-activar-ok" role="status" style={{ marginBottom: "1rem" }}>
+            <CheckCircle /> {aviso.texto}
+          </div>
+        ) : (
+          <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
+            <WarningCircle style={{ marginRight: 6, verticalAlign: "-2px" }} /> {aviso.texto}
+          </div>
+        )
+      )}
+
       {alta && (
         <div className="pt-card" style={{ marginBottom: "1.1rem" }}>
           <div className="pt-card-head"><h2>Invitar usuario al equipo</h2></div>
-          <form onSubmit={crear}>
+          <form onSubmit={invitar}>
             <div className="pt-grid pt-grid-3" style={{ gap: "0.8rem", marginBottom: "1rem" }}>
               <div className="pt-campo" style={{ margin: 0 }}>
                 <label>Nombre completo</label>
@@ -76,16 +132,16 @@ export default function UsuariosAdmin() {
               <div className="pt-campo" style={{ margin: 0 }}>
                 <label>Rol</label>
                 <select className="pt-input" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
-                  {ROLES.map((r) => <option key={r.id}>{r.id}</option>)}
+                  {Object.entries(ROLES_INVITABLES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
                 </select>
               </div>
             </div>
             <div style={{ background: "var(--mc-blanco)", border: "1px solid var(--mc-linea)", borderRadius: 10, padding: "0.75rem 0.9rem", fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "1rem" }}>
               <ShieldCheck style={{ verticalAlign: "-2px", marginRight: 6, color: "var(--mc-verde-claro)" }} />
-              {ROLES.find((r) => r.id === form.rol)?.detalle}
+              {detalleRol} Le llega un correo para escoger su contraseña.
             </div>
-            <button type="submit" className="pt-btn pt-btn-verde" style={{ padding: "0.65rem 1.4rem" }}>
-              Enviar invitación
+            <button type="submit" className="pt-btn pt-btn-verde" style={{ padding: "0.65rem 1.4rem" }} disabled={enviando}>
+              {enviando ? "Enviando…" : "Enviar invitación"}
             </button>
           </form>
         </div>
@@ -98,10 +154,10 @@ export default function UsuariosAdmin() {
             <thead>
               <tr>
                 <th>Usuario</th>
-                <th>Correo</th>
+                <th>Teléfono</th>
                 <th>Rol</th>
                 <th>Estatus</th>
-                <th>Último acceso</th>
+                <th>Alta</th>
                 <th></th>
               </tr>
             </thead>
@@ -113,15 +169,22 @@ export default function UsuariosAdmin() {
                   <td><span className={`pt-badge ${rolClase(u.rol)}`}>{u.rol}</span></td>
                   <td>
                     <span className={`pt-badge ${u.estatus === "activo" ? "ok" : ""}`}>
-                      {u.estatus === "activo" ? "Activo" : "Invitado"}
+                      {u.estatus === "activo" ? "Activo" : "Desactivado"}
                     </span>
                   </td>
-                  <td style={{ whiteSpace: "nowrap" }}>{u.ultimo === "—" ? "—" : fechaLarga(u.ultimo)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{!u.ultimo || u.ultimo === "—" ? "—" : fechaLarga(u.ultimo)}</td>
                   <td>
-                    {u.rol !== "Administrador" ? (
-                      <button className="pt-btn" onClick={() => quitar(u.id)} aria-label="Quitar"><Trash /></button>
-                    ) : (
+                    {u.rolId === "dueno" || !u.uid ? (
                       <span style={{ color: "var(--mc-gris-claro)", fontSize: "0.78rem" }}>Principal</span>
+                    ) : (
+                      <button
+                        className="pt-btn"
+                        onClick={() => cambiarActivo(u)}
+                        disabled={cambiando === u.uid}
+                        title={u.estatus === "activo" ? "Desactivar su acceso" : "Reactivar su acceso"}
+                      >
+                        {u.estatus === "activo" ? <><Prohibit /> Desactivar</> : <><ArrowCounterClockwise /> Reactivar</>}
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -133,7 +196,7 @@ export default function UsuariosAdmin() {
 
       {/* Referencia de roles */}
       <div className="pt-card">
-        <div className="pt-card-head"><h2>Roles disponibles</h2></div>
+        <div className="pt-card-head"><h2>Roles</h2></div>
         <div className="pt-grid pt-grid-2" style={{ gap: "0.8rem" }}>
           {ROLES.map((r) => (
             <div key={r.id} style={{ display: "flex", gap: "0.7rem", padding: "0.6rem 0", borderBottom: "1px solid var(--mc-linea)" }}>
