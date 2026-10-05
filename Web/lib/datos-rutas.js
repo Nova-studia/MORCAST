@@ -23,7 +23,10 @@ function aFormatoPantalla(fila) {
     nombre: fila.nombre,
     tipo: fila.tipo,
     dias: fila.dias || [],
+    // `unidad` es el texto libre de antes; `unidadId` la unidad del
+    // inventario (db/023). Una ruta con texto y sin id está "sin vincular".
     unidad: fila.unidad || "",
+    unidadId: fila.unidad_id || "",
     chofer: fila.chofer || "",
     cupo: fila.cupo ?? 10,
     activa: fila.activa,
@@ -36,11 +39,11 @@ function aFormatoPantalla(fila) {
  * para que el sitio siga navegable en modo prototipo.
  */
 export async function listarRutas() {
-  if (!haySupabaseNavegador()) return RUTAS_SEED;
+  if (!haySupabaseNavegador()) return RUTAS_SEED.map((r) => ({ unidadId: "", ...r }));
 
   const { data, error } = await supabaseNavegador()
     .from("rutas")
-    .select("id, clave, nombre, tipo, dias, unidad, chofer, cupo, activa, zona")
+    .select("id, clave, nombre, tipo, dias, unidad, unidad_id, chofer, cupo, activa, zona")
     .order("clave");
 
   if (error) {
@@ -69,7 +72,11 @@ export async function guardarRuta(ruta) {
       nombre: ruta.nombre,
       tipo: ruta.tipo,
       dias: ruta.dias,
+      // Se guardan los dos: `unidad_id` es el dato bueno, y el texto se
+      // sigue llenando con el nombre de la unidad porque el modo chofer y
+      // la agenda del panel todavía leen `rutas.unidad` para enseñarla.
       unidad: ruta.unidad,
+      unidad_id: ruta.unidadId || null,
       chofer: ruta.chofer,
       cupo: Number(ruta.cupo) || 0,
       activa: ruta.activa,

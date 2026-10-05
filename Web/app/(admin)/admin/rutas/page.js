@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   Plus,
   FloppyDisk,
   MapPin,
   Trash,
+  LinkBreak,
 } from "@phosphor-icons/react/dist/ssr";
 import { TIPOS_RUTA, DIAS_SEMANA, nombreTipoRuta } from "@/lib/rutas-datos";
 import { SERIES } from "@/lib/paleta-datos";
@@ -21,7 +23,8 @@ import {
   borrarRuta,
   alternarRutaActiva,
 } from "@/lib/datos-rutas";
-import { UNIDADES } from "@/lib/cotizacion-datos";
+import { listarUnidades } from "@/lib/datos-unidades";
+import { etiquetaUnidad, etiquetaEstadoUnidad, sugerirUnidad } from "@/lib/unidades.mjs";
 
 const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
   ssr: false,
@@ -42,13 +45,17 @@ export default function RutasAdmin() {
   const [guardado, setGuardado] = useState(null);
   const [aviso, setAviso] = useState("");
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+  // El inventario de camiones (/admin/unidades). La unidad de la ruta ya no
+  // es texto libre: se elige de aquí y se guarda su id.
+  const [unidades, setUnidades] = useState([]);
 
-  // Traer las rutas de la base al abrir la pantalla.
+  // Traer las rutas y las unidades de la base al abrir la pantalla.
   useEffect(() => {
     let vivo = true;
-    listarRutas().then((lista) => {
+    Promise.all([listarRutas(), listarUnidades()]).then(([lista, flota]) => {
       if (!vivo) return;
       setRutas(lista);
+      setUnidades(flota);
       setSeleccion((actual) => actual || lista[0]?.id || "");
       setCargando(false);
     });
@@ -58,6 +65,17 @@ export default function RutasAdmin() {
   }, []);
 
   const ruta = rutas.find((r) => r.id === seleccion);
+
+  // En el menú, solo las ACTIVAS: un camión en taller o de baja no debería
+  // poder asignarse a una ruta nueva. Pero si la ruta YA tiene uno que se
+  // fue al taller, se agrega igual — si no, el menú lo enseñaría vacío y al
+  // guardar parecería que se desvinculó solo.
+  const vinculada = unidades.find((u) => u.id === ruta?.unidadId) || null;
+  const opcionesUnidad = unidades.filter((u) => u.estado === "activa" || u.id === vinculada?.id);
+  // Ruta con el texto viejo y sin unidad del inventario: hay que vincularla.
+  const sinVincular = Boolean(ruta && !ruta.unidadId && ruta.unidad);
+  const sugerida = sinVincular ? sugerirUnidad(ruta.unidad, opcionesUnidad) : null;
+  const cuantasSinVincular = rutas.filter((r) => !r.unidadId && r.unidad).length;
 
   const zonas = useMemo(() => {
     const base = rutas.filter((r) => r.activa).map((r, i) => ({
@@ -84,6 +102,17 @@ export default function RutasAdmin() {
   // la base con cada tecla sería una llamada por letra tecleada.
   const cambia = (campo, valor) => {
     setRutas(rutas.map((r) => (r.id === seleccion ? { ...r, [campo]: valor } : r)));
+    setGuardado("sucio");
+  };
+
+  /**
+   * Vincula la ruta a una unidad del inventario. El texto viejo se reescribe
+   * con el nombre de la unidad (ver `guardarRuta`), y elegir "Sin unidad"
+   * borra los dos: es una decisión explícita, no un olvido.
+   */
+  const eligeUnidad = (id) => {
+    const u = unidades.find((x) => x.id === id);
+    setRutas(rutas.map((r) => (r.id === seleccion ? { ...r, unidadId: u?.id || "", unidad: u ? etiquetaUnidad(u) : "" } : r)));
     setGuardado("sucio");
   };
 
@@ -178,7 +207,12 @@ export default function RutasAdmin() {
     <>
       <div className="pt-page-head">
         <h1>Rutas</h1>
-        <p>Define los días, la unidad y la zona que cubre cada ruta.</p>
+        <p>
+          Define los días, la unidad y la zona que cubre cada ruta.
+          {cuantasSinVincular > 0 && (
+            <> {cuantasSinVincular === 1 ? "Una ruta tiene" : `${cuantasSinVincular} rutas tienen`} la unidad sin vincular al inventario.</>
+          )}
+        </p>
       </div>
 
       <div className="pt-grid pt-grid-mapa">
@@ -277,12 +311,60 @@ export default function RutasAdmin() {
               </div>
 
               <div className="pt-campo">
-                <label>Unidad</label>
-                <select className="pt-input" value={ruta.unidad} onChange={(e) => cambia("unidad", e.target.value)} style={{ width: "100%" }}>
-                  {UNIDADES.map((u) => (
-                    <option key={u} value={u}>{u}</option>
+                <label htmlFor="ruta-unidad">Unidad</label>
+                <select
+                  id="ruta-unidad"
+                  className="pt-input"
+                  value={ruta.unidadId || ""}
+                  onChange={(e) => eligeUnidad(e.target.value)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">{sinVincular ? "— Elige la unidad —" : "Sin unidad"}</option>
+                  {opcionesUnidad.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {etiquetaUnidad(u)}
+                      {u.estado !== "activa" ? ` (${etiquetaEstadoUnidad(u.estado).texto.toLowerCase()})` : ""}
+                    </option>
                   ))}
                 </select>
+                {/* El texto libre de antes no se borra solo: se enseña para
+                    que alguien elija a qué camión del inventario se refería. */}
+                {sinVincular && (
+                  <div
+                    style={{
+                      marginTop: "0.5rem",
+                      padding: "0.6rem 0.75rem",
+                      borderRadius: 9,
+                      border: "1px solid rgba(214,164,74,0.45)",
+                      background: "var(--pt-alerta-tinte)",
+                      fontSize: "0.82rem",
+                    }}
+                  >
+                    <span style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--pt-alerta)", fontWeight: 600 }}>
+                      <LinkBreak aria-hidden="true" /> Sin vincular
+                    </span>
+                    <span style={{ display: "block", marginTop: 3 }}>
+                      Tenía escrito «{ruta.unidad}», que no es una unidad del inventario.
+                      Elígela en la lista para vincularla
+                      {opcionesUnidad.length === 0 && <> (primero dala de alta en <Link href="/admin/unidades" style={{ color: "var(--pt-accion-txt)" }}>Unidades</Link>)</>}.
+                    </span>
+                    {sugerida && (
+                      <button
+                        type="button"
+                        className="pt-btn"
+                        style={{ marginTop: "0.5rem", padding: "0.3rem 0.65rem" }}
+                        onClick={() => eligeUnidad(sugerida.id)}
+                      >
+                        Vincular a {etiquetaUnidad(sugerida)}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {vinculada && vinculada.estado !== "activa" && (
+                  <span style={{ display: "block", marginTop: 4, fontSize: "0.8rem", color: "var(--pt-alerta)" }}>
+                    Esta unidad está {etiquetaEstadoUnidad(vinculada.estado).texto.toLowerCase()}: asígnale otra a la ruta mientras tanto.
+                  </span>
+                )}
               </div>
 
               <div className="pt-campo">
