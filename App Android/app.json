@@ -3,7 +3,7 @@
     "name": "Morcast",
     "slug": "morcast-app",
     "scheme": "morcast",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -21,8 +21,12 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.CAMERA"
-      ]
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "versionCode": 5,
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,6 +43,26 @@
         "expo-camera",
         {
           "cameraPermission": "Morcast usa la cámara para escanear el QR del contenedor y tomar la foto de la recolección."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Morcast usa tu ubicación solo en el modo chofer: para guardar dónde está un punto de recolección y para mandar tu ubicación al reportar un problema."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2a6a99",
+          "defaultChannel": "avisos"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
         }
       ],
       "./plugins/quitar-permisos.js",

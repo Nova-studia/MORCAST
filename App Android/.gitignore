@@ -38,3 +38,9 @@ yarn-error.*
 
 # generated native folders
 /ios
+
+# Firebase (notificaciones push). Trae los identificadores del proyecto y
+# este repositorio es PÚBLICO: se queda en la PC y en EAS (variable de tipo
+# archivo). Ver README, «Notificaciones push».
+google-services.json
+android/app/google-services.json
