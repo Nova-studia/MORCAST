@@ -8,6 +8,7 @@
  * cerrarlos. Vive junto a la pantalla y no en lib/ porque nadie más lo usa.
  */
 
+import { TIPOS_INCIDENTE as TIPOS_BASE } from "../../../../lib/chofer-reportes.mjs";
 import { fechaEnMatamoros } from "../../../../lib/avisos.mjs";
 
 /**
@@ -18,15 +19,22 @@ import { fechaEnMatamoros } from "../../../../lib/avisos.mjs";
  * URGENTE: puede haber alguien herido. Retraso y falla van en alerta porque
  * le pegan a la ruta del día. Lo del contenedor se arregla con calma.
  */
-export const TIPOS_INCIDENTE = [
-  { id: "accidente", texto: "Accidente", tono: "urgente" },
-  { id: "retraso", texto: "Retraso", tono: "alerta" },
-  { id: "falla-mecanica", texto: "Falla mecánica", tono: "alerta" },
-  { id: "contenedor-danado", texto: "Contenedor dañado", tono: "neutro" },
-  { id: "contenedor-movido", texto: "Contenedor movido", tono: "neutro" },
-  { id: "contenedor-no-esta", texto: "Contenedor no está", tono: "neutro" },
-  { id: "otro", texto: "Otro", tono: "neutro" },
-];
+//
+// La LISTA de tipos es una sola, la del chofer (lib/chofer-reportes.mjs,
+// atada al `check` de db/023): aquí solo se le pone el tono y un nombre más
+// corto para la tabla. Así un tipo nuevo no puede existir en un lado y no
+// en el otro.
+const TONO = { accidente: "urgente", retraso: "alerta", "falla-mecanica": "alerta" };
+const TEXTO_CORTO = {
+  "contenedor-movido": "Contenedor movido",
+  "contenedor-no-esta": "Contenedor no está",
+  otro: "Otro",
+};
+export const TIPOS_INCIDENTE = TIPOS_BASE.map((t) => ({
+  id: t.id,
+  texto: TEXTO_CORTO[t.id] || t.texto,
+  tono: TONO[t.id] || "neutro",
+}));
 
 export const MAX_NOTA = 1000;
 

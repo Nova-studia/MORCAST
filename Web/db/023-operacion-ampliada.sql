@@ -221,6 +221,19 @@ $$;
 revoke all on function public.mis_puntos_de_ruta() from public;
 grant execute on function public.mis_puntos_de_ruta() to authenticated;
 
+-- `actualizado` se pone solo en cada cambio (la pantalla no tiene que acordarse).
+create or replace function public.contenedor_actualizado()
+returns trigger language plpgsql as $$
+begin
+  new.actualizado := now();
+  return new;
+end;
+$$;
+drop trigger if exists contenedor_actualizado_tg on public.contenedores;
+create trigger contenedor_actualizado_tg
+  before update on public.contenedores
+  for each row execute function public.contenedor_actualizado();
+
 drop policy if exists contenedores_personal on public.contenedores;
 create policy contenedores_personal on public.contenedores
   for all to authenticated using (es_personal()) with check (es_personal());
