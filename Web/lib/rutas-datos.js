@@ -40,6 +40,18 @@ export const ESTADOS_SOLICITUD_REC = [
   { id: "en-ruta", texto: "En ruta", clase: "ruta" },
   { id: "completada", texto: "Completada", clase: "ok" },
   { id: "rechazada", texto: "Rechazada", clase: "mal" },
+  // El chofer llegó y no se pudo recoger (otro residuo, cerrado…). Lleva
+  // motivo obligatorio y NO se cobra (db/023).
+  { id: "no-procedio", texto: "No procedió", clase: "mal" },
+];
+
+/** Motivos de "No procedió" que elige el chofer (más "Otro", con detalle). */
+export const MOTIVOS_NO_PROCEDIO = [
+  "El residuo no es el que se agendó",
+  "Cerrado o sin acceso",
+  "El contenedor no estaba",
+  "El cliente canceló en el lugar",
+  "Otro",
 ];
 
 export const USOS_CFDI = [

@@ -13,6 +13,7 @@ import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
+import { MapTrifold, Truck, Package, WarningCircle, Scales, Megaphone } from "@phosphor-icons/react/dist/ssr";
 
 const NAV = [
   { href: "/admin", texto: "Panel", gif: "panel", exacto: true },
@@ -22,6 +23,16 @@ const NAV = [
   // dibujarlos a mano sería trabajo sin significado nuevo.
   { href: "/admin/rutas", texto: "Rutas", gif: "cobertura" },
   { href: "/admin/recolecciones", texto: "Recolecciones", gif: "programados" },
+  // Lo que pidieron los dueños el 4-oct-2026. Llevan icono de Phosphor
+  // (`icono`) mientras Luis no dibuje su GIF: en el rail recogido el icono es
+  // lo único que se ve, y repetir el GIF de otro renglón los confundiría.
+  // Cuando exista el GIF, se cambia `icono` por `gif: "<nombre>"`.
+  { href: "/admin/sectores", texto: "Sectores y puntos", icono: MapTrifold },
+  { href: "/admin/incidentes", texto: "Incidentes", icono: WarningCircle },
+  { href: "/admin/viajes", texto: "Peso real (relleno)", icono: Scales },
+  { href: "/admin/avisos", texto: "Avisos a clientes", icono: Megaphone },
+  { href: "/admin/unidades", texto: "Unidades", icono: Truck },
+  { href: "/admin/contenedores", texto: "Contenedores", icono: Package },
   { href: "/admin/zonas-pedidas", texto: "Zonas pedidas", gif: "zonas-pedidas" },
   { href: "/admin/solicitudes", texto: "Solicitudes", gif: "solicitudes" },
   { href: "/admin/altas", texto: "Altas de clientes", gif: "altas-de-clientes" },
@@ -168,7 +179,11 @@ export default function AdminShell({ children }) {
                   {/* Quieto por omisión; se mueve sólo en el renglón donde
                       estás y en el que traes el cursor encima. Diecinueve
                       dibujos agitándose a la vez dejan de ser un menú. */}
-                  <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
+                  {item.icono ? (
+                    <item.icono size={30} weight={activo(item) ? "fill" : "duotone"} aria-hidden="true" className="mc-icono-anim" />
+                  ) : (
+                    <IconoAnimado nombre={item.gif} activo={activo(item)} tam={30} />
+                  )}
                   <span className="pt-nav-texto">{item.texto}</span>
                 </Link>
               );
