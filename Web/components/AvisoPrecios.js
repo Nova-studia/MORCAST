@@ -9,11 +9,18 @@ import { Info } from "@phosphor-icons/react/dist/ssr";
  * componente para que el texto sea siempre el mismo en todas partes; si los
  * dueños lo quieren cambiar, se cambia aquí.
  *
- * `compacto` es para espacios chicos (junto a una cifra); el normal es para
- * encabezar una página de precios.
+ * `compacto` es para espacios chicos (junto a una cifra) y usa la versión
+ * corta; el normal es para encabezar una página de precios.
+ *
+ * Redacción formal pedida por Luis (5-oct): que el cliente no reclame "es que
+ * me había salido otro precio". Pendiente de revisión por un abogado.
  */
 export const TEXTO_AVISO_PRECIOS =
-  "A pesar de la cotización, los precios pueden tener modificaciones. El monto final depende del tipo de residuo, el volumen y las condiciones del servicio.";
+  "Las cotizaciones y precios mostrados son estimados de referencia y no constituyen una oferta definitiva. El precio final está sujeto a una revisión del servicio por parte de Morcast del Norte (tipo de residuo, volumen, equipo y condiciones de acceso), por lo que puede ser distinto al cotizado. La cotización final es opcional: usted puede aceptarla o rechazarla sin ningún compromiso.";
+
+/** La misma idea en una línea, para junto a una cifra donde no cabe el texto completo. */
+export const TEXTO_AVISO_PRECIOS_CORTO =
+  "Precio estimado: el monto final está sujeto a revisión y usted puede aceptarlo o rechazarlo sin compromiso.";
 
 export default function AvisoPrecios({ compacto = false, style }) {
   return (
@@ -37,7 +44,7 @@ export default function AvisoPrecios({ compacto = false, style }) {
     >
       <Info size={compacto ? 16 : 20} weight="fill" style={{ flexShrink: 0, marginTop: "0.1rem", color: "#2a6a99" }} />
       <div>
-        <strong>Importante:</strong> {TEXTO_AVISO_PRECIOS}
+        <strong>Importante:</strong> {compacto ? TEXTO_AVISO_PRECIOS_CORTO : TEXTO_AVISO_PRECIOS}
       </div>
     </div>
   );
