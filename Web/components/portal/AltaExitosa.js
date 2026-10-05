@@ -11,7 +11,8 @@ import { DownloadSimple, EnvelopeSimple, WarningCircle } from "@phosphor-icons/r
  * para que darse de alta se sienta como un logro. La palomita brota con
  * rebote, salen anillos, el título entra con un salto y cae confeti en TODA
  * la página (canvas-confetti: un lienzo fijo encima de todo que no estorba
- * los clics y se borra solo al terminar). Dura unos 4 s y no se repite.
+ * los clics). La lluvia de confeti NO termina mientras la persona siga en
+ * esta pantalla; se detiene en cuanto sale de ella.
  * Con `prefers-reduced-motion` no hay confeti y todo aparece ya terminado
  * (ver el CSS): el movimiento es para festejar, no para marear a nadie.
  *
@@ -39,8 +40,9 @@ function usarUrlPdf(base64) {
 const COLORES_CONFETI = ["#2a6a99", "#4eb34a", "#265421", "#8fc9ef", "#f2c230", "#ffffff"];
 
 /**
- * El festejo: dos cañonazos desde las esquinas de abajo, lluvia por toda la
- * página y un estallido final. Devuelve con qué cancelarlo (al desmontar).
+ * El festejo: dos cañonazos desde las esquinas de abajo, un estallido al
+ * centro y lluvia por toda la página que sigue mientras la pantalla esté
+ * abierta. Al desmontar se cancela todo y se borra el lienzo.
  */
 function usarConfeti(activo) {
   const yaFue = useRef(false);
@@ -65,21 +67,27 @@ function usarConfeti(activo) {
         confetti({ ...base, particleCount: 140, angle: 120, spread: 70, startVelocity: 62, origin: { x: 1, y: 0.95 } });
       }, 550));
 
-      // 2) Lluvia: desde arriba, en puntos al azar, durante ~3.5 s.
-      const fin = Date.now() + 4000;
+      // 2) Lluvia INFINITA (pedido de Luis y su socio, 5-oct): cae desde
+      //    arriba en puntos al azar mientras la persona siga en esta
+      //    pantalla. Se detiene al salir de ella (limpieza del efecto) y se
+      //    pausa con la pestaña en segundo plano, para no gastar batería en
+      //    algo que nadie está viendo. Pocas piezas por tanda: es lluvia, no
+      //    tormenta, y así un teléfono modesto no se traba.
       relojes.push(setTimeout(function llover() {
-        if (!vivo || Date.now() > fin) return;
-        confetti({
-          ...base,
-          particleCount: 7,
-          startVelocity: 0,
-          ticks: 420,
-          gravity: 0.7,
-          drift: Math.random() * 1.2 - 0.6,
-          scalar: 1.05,
-          origin: { x: Math.random(), y: -0.05 },
-        });
-        relojes.push(setTimeout(llover, 140));
+        if (!vivo) return;
+        if (!document.hidden) {
+          confetti({
+            ...base,
+            particleCount: 7,
+            startVelocity: 0,
+            ticks: 420,
+            gravity: 0.7,
+            drift: Math.random() * 1.2 - 0.6,
+            scalar: 1.05,
+            origin: { x: Math.random(), y: -0.05 },
+          });
+        }
+        relojes[1] = setTimeout(llover, 140); // reusa el lugar: la lista no crece sin fin
       }, 900));
 
       // 3) Estallido final al centro.
