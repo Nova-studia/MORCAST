@@ -584,8 +584,13 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
 
               <div className="pt-card" style={{ marginTop: "1.1rem" }}>
                 <div className="pt-card-head">
-                  <h2>Facturación</h2>
+                  <h2>Facturación <span className="pt-opcional">(opcional)</span></h2>
                 </div>
+                {/* Opcional mientras Morcast define cómo va a facturar (5-oct-2026). */}
+                <p className="pt-ayuda" style={{ marginTop: 0 }}>
+                  Si todavía no tienes estos datos a la mano, déjalos en blanco: te los pediremos
+                  cuando se defina la facturación.
+                </p>
                 <div className="pt-campo">
                   <label htmlFor="razonSocial">Razón social</label>
                   <input id="razonSocial" className="pt-input" value={datos.razonSocial} onChange={campo("razonSocial")} maxLength={160} />
@@ -602,12 +607,14 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
                 <div className="pt-campo">
                   <label htmlFor="usoCFDI">Uso de CFDI</label>
                   <select id="usoCFDI" className="pt-input" value={datos.usoCFDI} onChange={campo("usoCFDI")}>
+                    <option value="">Lo definimos después</option>
                     {USOS_CFDI.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
                 <div className="pt-campo">
                   <label htmlFor="formaPago">Forma de pago preferida</label>
                   <select id="formaPago" className="pt-input" value={datos.formaPago} onChange={campo("formaPago")}>
+                    <option value="">Lo definimos después</option>
                     {FORMAS_PAGO.map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>

@@ -160,18 +160,20 @@ export function validarAlta(entrada = {}, catalogos = {}) {
     return mal("Di cuántas recolecciones al mes necesitas (entre 1 y 200).", "serviciosPorMes");
   }
 
-  // Facturación.
+  // Facturación: OPCIONAL por ahora (Luis, 5-oct-2026). Morcast todavía no
+  // define cómo va a facturar, así que no se le exige a nadie. Lo que sí: si
+  // escriben un RFC, que tenga forma de RFC; uno mal tecleado es peor que
+  // ninguno, porque después se factura con él.
   const razonSocial = texto(e.razonSocial, LIMITES.razonSocial);
   const rfc = texto(e.rfc, 20).toUpperCase().replace(/[\s-]/g, "");
   const domicilioFiscal = texto(e.domicilioFiscal, LIMITES.domicilioFiscal);
-  if (!razonSocial) return mal("Escribe la razón social.", "razonSocial");
-  if (!RFC_RE.test(rfc)) return mal("El RFC no tiene el formato correcto (12 o 13 caracteres).", "rfc");
-  if (!domicilioFiscal) return mal("Escribe el domicilio fiscal.", "domicilioFiscal");
+  if (rfc && !RFC_RE.test(rfc)) return mal("El RFC no tiene el formato correcto (12 o 13 caracteres). Si no lo tienes a la mano, déjalo en blanco.", "rfc");
 
+  // Vacío = "lo definimos después"; si viene algo fuera del catálogo, también.
   let usoCFDI = texto(e.usoCFDI, LIMITES.usoCFDI);
   let formaPago = texto(e.formaPago, LIMITES.formaPago);
-  if (Array.isArray(catalogos.usosCfdi) && !catalogos.usosCfdi.includes(usoCFDI)) usoCFDI = catalogos.usosCfdi[0] || "";
-  if (Array.isArray(catalogos.formasPago) && !catalogos.formasPago.includes(formaPago)) formaPago = catalogos.formasPago[0] || "";
+  if (Array.isArray(catalogos.usosCfdi) && !catalogos.usosCfdi.includes(usoCFDI)) usoCFDI = "";
+  if (Array.isArray(catalogos.formasPago) && !catalogos.formasPago.includes(formaPago)) formaPago = "";
 
   // Lo nuevo del alta "amplia" (5-oct). Todo opcional, pero si viene, bien.
   const facturacionCorreo = texto(e.facturacionCorreo, LIMITES.facturacionCorreo).toLowerCase();

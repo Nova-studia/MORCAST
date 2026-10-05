@@ -97,7 +97,6 @@ test("rechaza lo que falta o viene mal, diciendo qué campo", () => {
     [{ serviciosPorMes: "0" }, "serviciosPorMes"],
     [{ serviciosPorMes: "201" }, "serviciosPorMes"],
     [{ rfc: "XXX" }, "rfc"],
-    [{ razonSocial: " " }, "razonSocial"],
     [{ facturacionCorreo: "no-es-correo" }, "facturacionCorreo"],
     [{ facturacionTelefono: "12" }, "facturacionTelefono"],
   ];
@@ -124,8 +123,9 @@ test("con catálogo, lo que no está en la lista se descarta", () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.limpia.residuos, ["Residuos Peligrosos"]);
   assert.deepEqual(r.limpia.equipo, [{ tipo: "Tolvas", medida: "21", cantidad: 3 }]);
-  assert.equal(r.limpia.usoCFDI, "G03 — Gastos en general");
-  assert.equal(r.limpia.formaPago, "Transferencia");
+  // Fuera del catálogo = "lo definimos después" (la facturación es opcional).
+  assert.equal(r.limpia.usoCFDI, "");
+  assert.equal(r.limpia.formaPago, "");
 });
 
 test("recorta textos larguísimos al límite", () => {
@@ -336,4 +336,19 @@ test("el peor caso del formulario cabe holgado bajo el tope de 4.5 MB de Vercel"
   const peor = MAX_CONSTANCIA_BYTES + MAX_FIRMA_BYTES + MAX_DATOS_JSON + camposSueltos + sobreMultipart;
   assert.ok(peor < LIMITE_CUERPO_VERCEL - 256 * 1024, `el peor caso (${peor} bytes) queda pegado al tope`);
   assert.equal(MAX_CONSTANCIA_BYTES, 3.5 * 1024 * 1024);
+});
+
+test("la facturación es opcional: sin razón social, RFC ni domicilio fiscal, pasa", () => {
+  const r = validarAlta(
+    { ...BUENA, razonSocial: "", rfc: "", domicilioFiscal: "", usoCFDI: "", formaPago: "" },
+    CATALOGOS
+  );
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.limpia.rfc, "");
+});
+
+test("pero un RFC escrito mal no pasa", () => {
+  const r = validarAlta({ ...BUENA, rfc: "ABC123" }, CATALOGOS);
+  assert.equal(r.ok, false);
+  assert.equal(r.campo, "rfc");
 });
