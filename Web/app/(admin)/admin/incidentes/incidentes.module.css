@@ -1,0 +1,79 @@
+/* Bandeja de incidentes: lo que portal.css no trae.
+
+   En el teléfono la tabla de seis columnas enseñaba solo "Tipo" y medio
+   "Fecha": para saber de quién era un accidente había que deslizar de lado.
+   Un accidente se revisa justo desde el teléfono, así que ahí la bandeja
+   pasa a tarjetas, con lo esencial a la vista. */
+
+.tarjetas {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .tabla {
+    display: none;
+  }
+  .tarjetas {
+    display: grid;
+    gap: 0.6rem;
+  }
+  /* En una sola columna el detalle va debajo de la lista; pegado arriba
+     taparía la lista al desplazarse. */
+  .detalle {
+    position: static !important;
+  }
+}
+
+.tarjeta {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--mc-superficie);
+  border: 1px solid var(--mc-linea);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  color: var(--mc-tinta);
+  cursor: pointer;
+  font: inherit;
+}
+.tarjeta:focus-visible {
+  outline: 2px solid var(--pt-accion-txt);
+  outline-offset: 2px;
+}
+.urgente {
+  box-shadow: inset 3px 0 0 var(--pt-error);
+  background: rgba(217, 119, 107, 0.07);
+}
+.activa {
+  border-color: var(--pt-accion-linea);
+  background: var(--pt-accion-tinte);
+}
+
+/* Filtros: en el teléfono el tipo ocupa el renglón y las dos fechas van
+   lado a lado, en vez de cuatro renglones de controles antes de la lista. */
+.filtro {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--mc-gris);
+  flex: 1 1 140px;
+  max-width: 200px;
+  min-width: 0;
+}
+/* El campo de fecha de Chrome trae un ancho mínimo propio que no dejaba
+   juntar las dos fechas en un renglón del teléfono. */
+.filtro input,
+.filtro select {
+  min-width: 0;
+  width: 100%;
+}
+.filtroTipo {
+  flex: 1 1 200px;
+  max-width: 240px;
+}
+@media (max-width: 700px) {
+  .filtro,
+  .filtroTipo {
+    max-width: none;
+  }
+}
