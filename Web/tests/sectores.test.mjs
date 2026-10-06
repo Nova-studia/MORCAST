@@ -154,3 +154,15 @@ test("clavesDeSectores devuelve las letras del cliente sin repetir y en orden", 
   );
   assert.deepEqual(clavesDeSectores([], SECTORES), []);
 });
+
+test("filtrarPuntos por ruta: todas, sin ruta y una ruta", () => {
+  const puntos = [
+    { id: "a", ruta: { clave: "RUTA-1", nombre: "Ruta 1" } },
+    { id: "b", ruta: null },
+    // Suscripción a la que se le quitó la ruta: también es "sin ruta".
+    { id: "c", ruta: { clave: null, nombre: "" } },
+  ];
+  assert.deepEqual(filtrarPuntos(puntos, {}).map((p) => p.id), ["a", "b", "c"]);
+  assert.deepEqual(filtrarPuntos(puntos, { ruta: "ninguna" }).map((p) => p.id), ["b", "c"]);
+  assert.deepEqual(filtrarPuntos(puntos, { ruta: "RUTA-1" }).map((p) => p.id), ["a"]);
+});

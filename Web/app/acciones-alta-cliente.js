@@ -428,6 +428,8 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
     correo: solicitud.correo,
     creadaPor: quien.correo,
     avisoPunto: punto.ok ? "" : punto.motivo,
+    // Para el botón "Asignarle su ruta" de Altas: el punto recién creado.
+    puntoId: punto.ok ? punto.id : null,
   };
 }
 

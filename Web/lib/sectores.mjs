@@ -164,12 +164,18 @@ export function normalizar(texto) {
  * Filtra la lista de puntos.
  * - `ubicacion`: "todos" | "sin" | "chofer" | "panel"
  * - `sector`: "" (todos) | "ninguno" | id de sector (por el sector GUARDADO)
+ * - `ruta`: "" (todas) | "ninguna" | clave de la ruta de su suscripción
  * - `texto`: busca en empresa, folio, alias, calle, colonia y CP
  */
-export function filtrarPuntos(puntos, { ubicacion = "todos", sector = "", texto = "" } = {}) {
+export function filtrarPuntos(puntos, { ubicacion = "todos", sector = "", texto = "", ruta = "" } = {}) {
   const buscado = normalizar(texto);
   return (puntos || []).filter((p) => {
     if (ubicacion !== "todos" && estadoUbicacion(p).id !== ubicacion) return false;
+    // `ruta`: "" (todas) | "ninguna" | clave de ruta. Una suscripción a la
+    // que se le quitó la ruta cuenta como "ninguna".
+    const clave = p.ruta?.clave || null;
+    if (ruta === "ninguna" && clave) return false;
+    if (ruta && ruta !== "ninguna" && clave !== ruta) return false;
     if (sector === "ninguno" && p.sectorId) return false;
     if (sector && sector !== "ninguno" && p.sectorId !== sector) return false;
     if (buscado) {
