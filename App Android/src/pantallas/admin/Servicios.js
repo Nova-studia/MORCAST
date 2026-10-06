@@ -63,7 +63,7 @@ export default function Servicios() {
             <Tarjeta style={{ padding: 14 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.folio}>{x.folio} · {fechaLarga(x.fecha)}</Text>
+                  <Text style={s.folio}>{x.folio} · {fechaLarga(x.fecha)}{x.hora ? ` · ${x.hora}` : ""}</Text>
                   <Text style={s.cli}>{x.cliente}</Text>
                   <Text style={s.det}>{x.tipo} · {x.unidad} · {x.operador}</Text>
                 </View>

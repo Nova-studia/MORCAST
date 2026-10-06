@@ -9,6 +9,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { T } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
+import { pesoRealActivo } from "../../estado-sistema";
 
 const PASOS = ["Escanear", "Foto antes", "Recolectar", "Foto después", "Finalizar"];
 
@@ -157,7 +158,13 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
       return;
     }
     if (!(Number(peso) > 0)) {
-      Alert.alert("Falta el peso estimado", "Anota cuántos kilos calculas que recogiste. El peso real lo registra la oficina con el ticket de la báscula del relleno.");
+      Alert.alert(
+        "Falta el peso estimado",
+        "Anota cuántos kilos calculas que recogiste. " +
+          (pesoRealActivo()
+            ? "El peso real lo registra la oficina con el ticket de la báscula del relleno."
+            : "Es un estimado: calcúlalo lo mejor que puedas.")
+      );
       return;
     }
 
@@ -340,14 +347,18 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
           <Paso icono="check-square" titulo="Cierra el servicio" texto="Registra el peso recolectado y finaliza." />
           {/* ESTIMADO: el chofer no tiene báscula. El real lo pone la oficina
               con el ticket del relleno (db/023, peso_real_kg) y es el que
-              manda en los reportes. Decir "peso" a secas hacía pensar que
+              manda en los reportes; hoy está apagado (`pesoRealActivo()`). Decir "peso" a secas hacía pensar que
               este número era el que se cobraba. */}
           <Text style={s.label}>Peso estimado (kg)</Text>
           {/* KILOS, no toneladas: es lo que guarda la base y lo que muestran la
               web y el comprobante del cliente. Antes decia toneladas y un 1.2
               se grababa como 1.2 kg, mil veces menos de lo recolectado. */}
           <TextInput style={s.input} placeholder="Ej. 1250" placeholderTextColor={T.grisClaro} keyboardType="decimal-pad" value={peso} onChangeText={setPeso} />
-          <Text style={s.ayuda}>El peso real lo registra la oficina con el ticket de la báscula del relleno.</Text>
+          <Text style={s.ayuda}>
+            {pesoRealActivo()
+              ? "El peso real lo registra la oficina con el ticket de la báscula del relleno."
+              : "Es un estimado: calcúlalo lo mejor que puedas."}
+          </Text>
           <Boton onPress={finalizar} disabled={guardando} style={{ marginTop: 14 }}><Feather name="check-circle" size={16} color="#0d1211" /><Text style={s.btnTxt}>  {guardando ? "Guardando evidencia…" : "Finalizar servicio"}</Text></Boton>
         </Tarjeta>
       )}

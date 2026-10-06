@@ -1499,7 +1499,11 @@ export async function agendaServicios() {
       cliente: s.cliente,
       tipo: s.origen === "extra" ? "Recoleccion extra" : "Recoleccion de ruta",
       unidad: s.unidad || "Sin asignar",
+      // El chofer de ESTA recolección (el que eligió la oficina al
+      // confirmar) y, si no hay, el de la ruta: así lo arma la web desde el
+      // 6-oct-2026. Va con la hora acordada, que antes no se enseñaba.
       operador: s.choferEfectivo || "Sin asignar",
+      hora: s.horaConfirmada ? String(s.horaConfirmada).slice(0, 5) : "",
       estatus: ESTATUS_AGENDA[s.estado],
       evidencia: evidenciaPorFolio[s.folio] || null,
     }))

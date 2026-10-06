@@ -58,3 +58,20 @@ export const SIN_CIFRA = "—";
 export function montoCliente(textoFormateado) {
   return enHold() ? SIN_CIFRA : textoFormateado;
 }
+
+/**
+ * PESO REAL (RELLENO) — apagado por ahora. ESPEJO de `PESO_REAL` en
+ * `Web/lib/estado-sistema.js` (6-oct-2026, Luis): "por el momento hay que
+ * eliminar Peso real (relleno); cuando lo pida la empresa lo volvemos a
+ * habilitar".
+ *
+ * Apagado, la app no promete que la oficina registra el peso de la báscula
+ * del relleno: el peso del chofer se sigue guardando como estimado. Para
+ * volver a encenderlo, `activo: true` aquí, en la otra app y en la web.
+ */
+export const PESO_REAL = { activo: false };
+
+/** ¿Está habilitado el peso real del relleno? Usar esto, no `PESO_REAL.activo` suelto. */
+export function pesoRealActivo() {
+  return PESO_REAL.activo === true;
+}
