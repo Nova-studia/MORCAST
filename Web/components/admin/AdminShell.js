@@ -13,7 +13,6 @@ import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
-import { Truck, Package, WarningCircle, Scales, Megaphone } from "@phosphor-icons/react/dist/ssr";
 
 const NAV = [
   { href: "/admin", texto: "Panel", gif: "panel", exacto: true },
@@ -26,15 +25,13 @@ const NAV = [
   // renglón se ilumina en cualquiera de las dos (`tambien`).
   { href: "/admin/rutas", texto: "Rutas, sectores y puntos", gif: "cobertura", tambien: ["/admin/sectores"] },
   { href: "/admin/recolecciones", texto: "Recolecciones", gif: "programados" },
-  // Lo que pidieron los dueños el 4-oct-2026. Llevan icono de Phosphor
-  // (`icono`) mientras Luis no dibuje su GIF: en el rail recogido el icono es
-  // lo único que se ve, y repetir el GIF de otro renglón los confundiría.
-  // Cuando exista el GIF, se cambia `icono` por `gif: "<nombre>"`.
-  { href: "/admin/incidentes", texto: "Incidentes", icono: WarningCircle },
-  { href: "/admin/viajes", texto: "Peso real (relleno)", icono: Scales },
-  { href: "/admin/avisos", texto: "Avisos a clientes", icono: Megaphone },
-  { href: "/admin/unidades", texto: "Unidades", icono: Truck },
-  { href: "/admin/contenedores", texto: "Contenedores", icono: Package },
+  // Lo que pidieron los dueños el 4-oct-2026; sus GIF los entregó Luis el
+  // 6-oct-2026 (antes llevaban un icono de Phosphor provisional).
+  { href: "/admin/incidentes", texto: "Incidentes", gif: "incidentes" },
+  { href: "/admin/viajes", texto: "Peso real (relleno)", gif: "peso-real-relleno" },
+  { href: "/admin/avisos", texto: "Avisos a clientes", gif: "avisos-a-clientes" },
+  { href: "/admin/unidades", texto: "Unidades", gif: "unidades" },
+  { href: "/admin/contenedores", texto: "Contenedores", gif: "contenedores" },
   { href: "/admin/zonas-pedidas", texto: "Zonas pedidas", gif: "zonas-pedidas" },
   { href: "/admin/solicitudes", texto: "Solicitudes", gif: "solicitudes" },
   { href: "/admin/altas", texto: "Altas de clientes", gif: "altas-de-clientes" },
