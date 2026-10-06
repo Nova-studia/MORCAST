@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Check,
   X,
@@ -107,6 +108,9 @@ export default function AltasAdmin() {
 
   const [activando, setActivando] = useState(false);
   const [credencial, setCredencial] = useState(null); // { solicitudId, correo, password, folio }
+  // Lo que sigue después de activar: asignarle ruta a su punto. Vive aparte
+  // de `credencial` porque "Ya la mandé" borra la contraseña, no el pendiente.
+  const [siguiente, setSiguiente] = useState(null); // { solicitudId, puntoId }
 
   /** Contraseña legible por teléfono: sin l/1/O/0, que se confunden al dictarla. */
   const contrasenaNueva = () => {
@@ -125,10 +129,14 @@ export default function AltasAdmin() {
     const r = await activarCuentaRegistrada({ solicitudId: a.id, password });
     setActivando(false);
     if (!r.ok) { setError(r.motivo || "No se pudo activar."); return; }
+    // Activó, pero su punto de recolección no se creó: se dice aquí arriba
+    // para que nadie confirme recolecciones creyendo que traen dirección.
+    if (r.avisoPunto) setError(r.avisoPunto);
     // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
     // Va con el `solicitudId` a cuestas: la tarjeta de abajo se pinta sólo
     // sobre el detalle de ESTA persona.
     setCredencial({ solicitudId: a.id, correo: r.correo, password, folio: r.cliente.folio });
+    if (r.puntoId) setSiguiente({ solicitudId: a.id, puntoId: r.puntoId });
     await recargar();
     setSel((s) => (s && s.id === a.id ? { ...s, estado: "aprobada" } : s));
   };
@@ -401,6 +409,23 @@ export default function AltasAdmin() {
                   >
                     Ya la mandé
                   </button>
+                </div>
+              )}
+              {/* Sin ruta, el cliente recién activado no ve "Día de mi ruta"
+                  en la página ni puede agendar desde la app. */}
+              {siguiente && siguiente.solicitudId === sel.id && (
+                <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
+                  <strong>Siguiente paso: su ruta</strong>
+                  <p style={{ margin: "0.5rem 0 0.7rem", fontSize: "0.9rem" }}>
+                    Ya tiene su punto de recolección con el pin que puso. Revisa el pin y
+                    asígnale la ruta que pasa por ahí para que pueda pedir en sus días.
+                  </p>
+                  <Link
+                    className="pt-btn pt-btn-naranja"
+                    href={`/admin/sectores?ver=puntos&punto=${encodeURIComponent(siguiente.puntoId)}`}
+                  >
+                    Revisar pin y asignarle su ruta
+                  </Link>
                 </div>
               )}
             </div>

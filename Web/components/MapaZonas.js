@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import { MATAMOROS_CENTRO } from "@/lib/rutas-datos";
 import { ZONA } from "@/lib/paleta-datos";
+import { agregarCapasBase } from "@/lib/capas-mapa";
 
 /**
  * Mapa de zonas con Leaflet sobre teselas de OpenStreetMap.
@@ -31,6 +32,10 @@ export default function MapaZonas({
   // Ajusta el zoom para que quepa todo lo dibujado. Sin esto, lo que caiga fuera
   // del encuadre fijo de Matamoros simplemente no se ve.
   encuadrar = false,
+  // [lat, lng] al que acercarse. Cada arreglo NUEVO vuelve a centrar (el
+  // buscador de dirección manda uno por resultado elegido); tocar el mapa
+  // no lo cambia, así que el mapa no brinca bajo el dedo.
+  centrar = null,
 }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
@@ -54,11 +59,8 @@ export default function MapaZonas({
 
       mapa.current = L.map(contenedor.current).setView(MATAMOROS_CENTRO, 13);
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(mapa.current);
+      // Mapa de calles y Satélite, con su selector arriba a la derecha.
+      agregarCapasBase(L, mapa.current);
 
       mapa.current.on("click", (e) => {
         if (alClic.current) alClic.current([e.latlng.lat, e.latlng.lng]);
@@ -150,6 +152,22 @@ export default function MapaZonas({
       cancelado = true;
     };
   }, [pin]);
+
+  useEffect(() => {
+    if (!centrar) return;
+    let cancelado = false;
+    // El mapa se crea en un efecto asíncrono: si el primer `centrar` llega
+    // antes de que exista, se reintenta en el siguiente cuadro.
+    const intentar = () => {
+      if (cancelado) return;
+      if (!mapa.current) return requestAnimationFrame(intentar);
+      mapa.current.setView(centrar, 18);
+    };
+    intentar();
+    return () => {
+      cancelado = true;
+    };
+  }, [centrar]);
 
   return <div ref={contenedor} className="mc-mapa" style={{ height: alto }} />;
 }

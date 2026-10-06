@@ -54,8 +54,9 @@ const csp = [
   "object-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'self'",
-  // Los mapas bajan las teselas de OpenStreetMap; blob: y data: los usa el PDF.
-  "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
+  // Los mapas bajan las teselas de OpenStreetMap y, en la vista Satélite, las
+  // de Esri (lib/capas-mapa.js); blob: y data: los usa el PDF.
+  "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com",
   // accounts.google.com tambien va en style-src: GIS mete su propia hoja de
   // estilo remota para el boton. OJO con la trampa: `unsafe-inline` NO la
   // cubre — eso habilita <style> y atributos style=, no un <link> a otro
@@ -66,8 +67,9 @@ const csp = [
   // boton de "Continuar con Google" y devuelve el token en esta misma pagina.
   `script-src 'self' 'unsafe-inline' https://accounts.google.com${enDesarrollo ? " 'unsafe-eval'" : ""}`,
   "font-src 'self' data:",
-  // Supabase (sesión y consultas) y las teselas.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.tile.openstreetmap.org https://accounts.google.com",
+  // Supabase (sesión y consultas), las teselas y el buscador de dirección de
+  // los mapas (Nominatim, components/BuscadorDireccion.js).
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://accounts.google.com",
   // GIS dibuja su boton y su selector de cuenta dentro de un iframe suyo.
   "frame-src 'self' https://accounts.google.com",
   // `upgrade-insecure-requests` NO va aquí: el navegador lo ignora en una

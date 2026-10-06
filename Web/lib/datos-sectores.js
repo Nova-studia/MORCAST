@@ -68,11 +68,21 @@ const PUNTOS_DEMO_BASE = [
   { id: "demo-p7", clienteFolio: "MOR-2026-0071", empresa: "Ferretera del Golfo", alias: "Sucursal Centro",
     calle: "Calle Morelos #120", colonia: "Zona Centro", cp: "87300", lat: 25.8769, lng: -97.5052,
     origen: "panel", fecha: "2026-10-01T15:30:00Z", referencias: "" },
+  // Un cliente recién dado de alta: el pin lo puso él, sin origen y con fecha
+  // (ver estadoUbicacion). Sale "Por revisar" en la lista.
+  { id: "demo-p8", clienteFolio: "MOR-2026-0090", empresa: "Abarrotes La Esperanza", alias: "Principal",
+    calle: "Calle Sexta #120", colonia: "Zona Centro", cp: "87300", lat: 25.8741, lng: -97.5010,
+    origen: null, fecha: "2026-10-06T15:00:00Z", referencias: "" },
 ];
 
 /** El sector guardado de cada punto demo, calculado con la misma regla que la real. */
 const PUNTOS_DEMO = (() => {
-  const conSector = PUNTOS_DEMO_BASE.map((p) => ({ ...p, sectorId: null }));
+  // Dos puntos con ruta para que en el prototipo se vea el filtro "Sin ruta".
+  const RUTA_DEMO = {
+    "demo-p1": { clave: "RT-INDUSTRIAL", nombre: "Ruta Industrial", serviciosPorMes: 8, porLlamada: false },
+    "demo-p7": { clave: "RT-CENTRO", nombre: "Ruta Centro", serviciosPorMes: 4, porLlamada: false },
+  };
+  const conSector = PUNTOS_DEMO_BASE.map((p) => ({ ...p, sectorId: null, ruta: RUTA_DEMO[p.id] || null }));
   const porId = new Map(cambiosDeSector(conSector, SECTORES_DEMO).map((c) => [c.id, c.despues]));
   return conSector.map((p) => ({ ...p, sectorId: porId.get(p.id) ?? null }));
 })();
@@ -135,6 +145,21 @@ function puntoAPantalla(f) {
     referencias: f.referencias || "",
     origen: f.ubicacion_origen || null,
     fecha: f.ubicacion_fecha || null,
+    // Su suscripción: la ruta que pasa por aquí (6-oct-2026). Hay a lo más
+    // una por punto (índice único cliente+domicilio, db/020).
+    ruta: rutaDeSuscripcion(f.suscripciones),
+  };
+}
+
+/** La suscripción embebida (arreglo de 0 o 1) → { clave, nombre, serviciosPorMes, porLlamada } o null. */
+function rutaDeSuscripcion(subs) {
+  const s = Array.isArray(subs) ? subs[0] : subs;
+  if (!s) return null;
+  return {
+    clave: s.rutas?.clave || null,
+    nombre: s.rutas?.nombre || "",
+    serviciosPorMes: s.servicios_por_mes ?? 4,
+    porLlamada: Boolean(s.por_llamada),
   };
 }
 
@@ -146,7 +171,8 @@ export async function listarPuntos() {
     .from("domicilios")
     .select(
       "id, cliente_id, alias, calle, colonia, cp, lat, lng, sector_id, referencias, " +
-      "ubicacion_origen, ubicacion_fecha, clientes ( folio, empresa )"
+      "ubicacion_origen, ubicacion_fecha, clientes ( folio, empresa ), " +
+      "suscripciones ( servicios_por_mes, por_llamada, rutas ( clave, nombre ) )"
     )
     .order("alias");
 

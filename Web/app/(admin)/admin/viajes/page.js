@@ -37,6 +37,7 @@ import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { fechaConDia, fechaLarga } from "@/lib/portal-datos";
 import { hoyISO } from "@/lib/vencimiento";
 import EnPortal from "./EnPortal";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 
 /**
  * PESO REAL (RELLENO) — pedido 11 de los dueños.
@@ -68,7 +69,28 @@ function formularioNuevo() {
   };
 }
 
+/**
+ * Apagado por ahora (lib/estado-sistema.js, PESO_REAL): si alguien llega por
+ * un enlace viejo, se le dice en vez de enseñarle una pantalla a medias.
+ */
 export default function ViajesAdmin() {
+  if (!pesoRealActivo()) {
+    return (
+      <>
+        <div className="pt-page-head">
+          <h1>Peso real (relleno)</h1>
+        </div>
+        <div className="pt-card pt-vacio" style={{ padding: "2rem 1rem" }}>
+          Esta sección está desactivada por ahora. Mientras tanto, el peso de cada recolección es
+          el estimado que captura el chofer.
+        </div>
+      </>
+    );
+  }
+  return <ViajesActivo />;
+}
+
+function ViajesActivo() {
   const [viajes, setViajes] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [choferes, setChoferes] = useState([]);

@@ -105,6 +105,10 @@ test("estadoUbicacion distingue sin ubicación, chofer y oficina", () => {
   assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: "panel" }).id, "panel");
   // Coordenadas de la carga inicial, sin origen: las puso la oficina.
   assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: null }).id, "panel");
+  // Sin origen pero CON fecha: el pin que puso el cliente en su alta.
+  assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: null, fecha: "2026-10-06T15:00:00Z" }).id, "cliente");
+  // Sin pin no hay nada que revisar, aunque traiga fecha.
+  assert.equal(estadoUbicacion({ origen: null, fecha: "2026-10-06T15:00:00Z" }).id, "sin");
 });
 
 test("filtrarPuntos combina ubicación, sector y búsqueda sin acentos", () => {
@@ -149,4 +153,16 @@ test("clavesDeSectores devuelve las letras del cliente sin repetir y en orden", 
     ["A", "C"]
   );
   assert.deepEqual(clavesDeSectores([], SECTORES), []);
+});
+
+test("filtrarPuntos por ruta: todas, sin ruta y una ruta", () => {
+  const puntos = [
+    { id: "a", ruta: { clave: "RUTA-1", nombre: "Ruta 1" } },
+    { id: "b", ruta: null },
+    // Suscripción a la que se le quitó la ruta: también es "sin ruta".
+    { id: "c", ruta: { clave: null, nombre: "" } },
+  ];
+  assert.deepEqual(filtrarPuntos(puntos, {}).map((p) => p.id), ["a", "b", "c"]);
+  assert.deepEqual(filtrarPuntos(puntos, { ruta: "ninguna" }).map((p) => p.id), ["b", "c"]);
+  assert.deepEqual(filtrarPuntos(puntos, { ruta: "RUTA-1" }).map((p) => p.id), ["a"]);
 });

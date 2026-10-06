@@ -12,6 +12,7 @@ import { reportes } from "@/lib/datos-reportes";
 import { listarCotizaciones } from "@/lib/datos-cotizaciones";
 import { pesos } from "@/lib/portal-datos";
 import { descargarReporteNegocio } from "@/lib/portal-pdf";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 
 /** Toneladas, no pesos. Formatear un peso recolectado como dinero era decir
  *  "$1.25" para 1.25 toneladas: un dato correcto con la etiqueta equivocada. */
@@ -154,13 +155,15 @@ export default function ReportesAdmin() {
           ))}
         </div>
         <div style={{ display: "flex", gap: "1.2rem", flexWrap: "wrap", marginTop: "0.9rem", fontSize: "0.8rem", color: "var(--mc-gris)" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span className="pt-bar naranja" style={{ width: 12, height: 12, minHeight: 0, borderRadius: 3 }} />
-            Real: báscula del relleno
-          </span>
+          {pesoRealActivo() && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="pt-bar naranja" style={{ width: 12, height: 12, minHeight: 0, borderRadius: 3 }} />
+              Real: báscula del relleno
+            </span>
+          )}
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span className="pt-bar naranja" style={{ width: 12, height: 12, minHeight: 0, borderRadius: 3, opacity: 0.38 }} />
-            Estimado del chofer (aún sin peso real)
+            {pesoRealActivo() ? "Estimado del chofer (aún sin peso real)" : "Estimado del chofer"}
           </span>
         </div>
       </div>

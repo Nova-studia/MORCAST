@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { FloppyDisk, MagnifyingGlass, MapPin, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { guardarPunto } from "@/lib/datos-sectores";
@@ -13,6 +13,9 @@ import {
 } from "@/lib/sectores.mjs";
 import { tieneUbicacion, direccionDe, enlaceVerEnMapa } from "@/lib/mapas.mjs";
 import SectorInsignia from "@/components/admin/SectorInsignia";
+import BuscadorDireccion from "@/components/BuscadorDireccion";
+import RutaDelPunto from "@/components/admin/RutaDelPunto";
+import { listarRutas } from "@/lib/datos-rutas";
 
 const SectorMapa = dynamic(() => import("@/components/admin/SectorMapa"), {
   ssr: false,
@@ -23,6 +26,7 @@ const FILTROS_UBICACION = [
   { id: "todos", texto: "Todos" },
   { id: "sin", texto: "Sin ubicación" },
   { id: "chofer", texto: "La puso el chofer" },
+  { id: "cliente", texto: "Por revisar" },
   { id: "panel", texto: "La puso la oficina" },
 ];
 
@@ -53,14 +57,40 @@ function borradorDe(p) {
  * lugar exacto, y el punto queda en su sector.
  */
 export default function PuntoEditor({ sectores, puntos, onGuardado }) {
-  const [filtros, setFiltros] = useState({ ubicacion: "todos", sector: "", texto: "" });
+  const [filtros, setFiltros] = useState({ ubicacion: "todos", sector: "", texto: "", ruta: "" });
   const [seleccion, setSeleccion] = useState("");
+  // Las rutas, para asignarle una al punto (RutaDelPunto) y para filtrar.
+  const [rutas, setRutas] = useState([]);
   const [borrador, setBorrador] = useState(borradorDe(null));
+  // Sube cada vez que se elige una dirección del buscador: cambia la clave
+  // `enfoque` del mapa para que se acerque al pin nuevo.
+  const [vueltaBusqueda, setVueltaBusqueda] = useState(0);
   const [errorCoord, setErrorCoord] = useState("");
   const [guardando, setGuardando] = useState(false);
   // { tipo: "ok" | "error", texto }
   const [mensaje, setMensaje] = useState(null);
   const detalle = useRef(null);
+
+  useEffect(() => {
+    let vivo = true;
+    listarRutas().then((r) => { if (vivo) setRutas(r || []); });
+    return () => { vivo = false; };
+  }, []);
+
+  // `?punto=<id>` (el botón "Asignarle su ruta" de Altas) abre ese punto.
+  // Se espera a que lleguen los puntos; solo se hace una vez.
+  const abrioPedido = useRef(false);
+  useEffect(() => {
+    if (abrioPedido.current || !puntos.length) return;
+    abrioPedido.current = true;
+    const id = new URLSearchParams(window.location.search).get("punto");
+    const p = id && puntos.find((x) => x.id === id);
+    if (p) {
+      setSeleccion(p.id);
+      setBorrador(borradorDe(p));
+      requestAnimationFrame(() => detalle.current?.scrollIntoView({ block: "start" }));
+    }
+  }, [puntos]);
 
   const porId = useMemo(() => new Map(sectores.map((s) => [s.id, s])), [sectores]);
   const punto = puntos.find((p) => p.id === seleccion);
@@ -75,7 +105,14 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
     Boolean(borrador.pin) &&
     (!original.pin || borrador.pin[0] !== original.pin[0] || borrador.pin[1] !== original.pin[1]);
   const refsCambio = punto ? borrador.referencias.trim() !== (punto.referencias || "").trim() : false;
-  const sucio = pinCambio || refsCambio;
+  // Pin que puso el cliente en su alta: la oficina lo puede dar por bueno sin
+  // moverlo ("Confirmar ubicación"), y con eso pasa a ser de la oficina.
+  const porRevisar = Boolean(punto && borrador.pin && estadoUbicacion(punto).id === "cliente");
+  // `editado` = el usuario cambió algo; `sucio` = hay algo que guardar (un
+  // pin por revisar se puede confirmar sin haber cambiado nada, pero eso no
+  // es "cambios sin guardar" ni pide permiso para cambiar de punto).
+  const editado = pinCambio || refsCambio;
+  const sucio = editado || porRevisar;
 
   // El sector que le tocará con el pin del borrador, para decirlo antes de guardar.
   const sectorNuevo = borrador.pin ? sectorDePunto({ lat: borrador.pin[0], lng: borrador.pin[1] }, sectores) : null;
@@ -86,7 +123,7 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
 
   const elegir = (p) => {
     if (p.id === seleccion) return;
-    if (sucio && !window.confirm("Hay cambios sin guardar en este punto. ¿Descartarlos?")) return;
+    if (editado && !window.confirm("Hay cambios sin guardar en este punto. ¿Descartarlos?")) return;
     setSeleccion(p.id);
     setBorrador(borradorDe(p));
     setErrorCoord("");
@@ -136,7 +173,7 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
     setGuardando(true);
     setMensaje(null);
     const r = await guardarPunto(punto.id, {
-      pin: pinCambio ? borrador.pin : undefined,
+      pin: pinCambio || porRevisar ? borrador.pin : undefined,
       referencias: refsCambio ? borrador.referencias : undefined,
       sectorId: mandarSector ? sectorId : undefined,
     });
@@ -221,6 +258,21 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
               <option value="ninguno">Sin sector</option>
             </select>
           </label>
+          <label style={{ flex: "0 0 auto" }}>
+            <span className="pt-solo-lectores">Ruta</span>
+            <select
+              className="pt-input"
+              value={filtros.ruta}
+              onChange={(e) => setFiltros({ ...filtros, ruta: e.target.value })}
+              style={{ width: "auto", minWidth: 170 }}
+            >
+              <option value="">Todas las rutas</option>
+              <option value="ninguna">Sin ruta ({filtrarPuntos(puntos, { ruta: "ninguna" }).length})</option>
+              {rutas.map((r) => (
+                <option key={r.id} value={r.id}>{r.nombre}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="pt-tabla-wrap">
@@ -261,6 +313,16 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
                           {p.alias}
                           {p.calle || p.colonia ? ` · ${[p.calle, p.colonia].filter(Boolean).join(", ")}` : ""}
                         </span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "0.76rem",
+                            marginTop: 2,
+                            color: p.ruta?.clave ? "var(--mc-gris)" : "var(--pt-alerta)",
+                          }}
+                        >
+                          {p.ruta?.clave ? p.ruta.nombre || p.ruta.clave : "Sin ruta"}
+                        </span>
                       </button>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -289,7 +351,7 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
           <div className="pt-vacio" style={{ padding: "2.5rem 1rem" }}>
             <MapPin size={28} aria-hidden="true" />
             <p style={{ margin: "0.6rem 0 0" }}>
-              Elige un punto de la lista para ponerle su ubicación exacta y las referencias para llegar.
+              Elige un punto de la lista para ponerle su ubicación exacta, las referencias para llegar y su ruta.
             </p>
           </div>
         ) : (
@@ -313,7 +375,22 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
               {estado.id !== "sin" && punto.fecha && <span>el {cuando(punto.fecha)}</span>}
             </p>
 
-            <SectorMapa zonas={zonas} pin={borrador.pin} onPin={ponerPin} enfoque={punto.id} alto="340px" />
+            {/* Al elegir una dirección se pone el pin Y se vuelve a encuadrar:
+                `enfoque` es la clave que le dice al mapa que se acerque. */}
+            <BuscadorDireccion
+              id="punto-buscar-direccion"
+              onElegir={(c) => {
+                ponerPin(c);
+                setVueltaBusqueda((n) => n + 1);
+              }}
+            />
+            <SectorMapa
+              zonas={zonas}
+              pin={borrador.pin}
+              onPin={ponerPin}
+              enfoque={`${punto.id}:${vueltaBusqueda}`}
+              alto="340px"
+            />
             <p className="mc-mapa-nota">
               {borrador.pin
                 ? "Arrastra el pin hasta la entrada por donde se recoge, o toca otro lugar del mapa."
@@ -374,14 +451,20 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginTop: "1rem" }}>
               <button type="button" className="pt-btn pt-btn-naranja" onClick={guardar} disabled={!sucio || guardando}>
-                <FloppyDisk /> {guardando ? "Guardando…" : "Guardar"}
+                <FloppyDisk />{" "}
+                {guardando ? "Guardando…" : porRevisar && !editado ? "Confirmar ubicación" : "Guardar"}
               </button>
-              {sucio && (
+              {editado && (
                 <button type="button" className="pt-btn" onClick={descartar} disabled={guardando}>
                   Descartar cambios
                 </button>
               )}
-              {sucio && !mensaje && <span style={{ fontSize: "0.82rem", color: "var(--pt-alerta)" }}>Hay cambios sin guardar</span>}
+              {editado && !mensaje && <span style={{ fontSize: "0.82rem", color: "var(--pt-alerta)" }}>Hay cambios sin guardar</span>}
+              {!editado && porRevisar && !mensaje && (
+                <span style={{ fontSize: "0.82rem", color: "var(--mc-gris)" }}>
+                  El cliente puso este pin: revísalo en Satélite y confírmalo, o muévelo.
+                </span>
+              )}
             </div>
 
             {mensaje && (
@@ -397,6 +480,8 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
                 {mensaje.texto}
               </div>
             )}
+
+            <RutaDelPunto key={punto.id} punto={punto} rutas={rutas} onGuardado={onGuardado} />
           </>
         )}
       </div>

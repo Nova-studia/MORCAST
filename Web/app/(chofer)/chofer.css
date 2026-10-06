@@ -58,6 +58,45 @@
 .ch-llegar svg { font-size: 1.2rem; color: var(--pt-accion-txt); }
 .ch-llegar:hover { background: rgba(42, 106, 153, 0.28); color: #fff; }
 .ch-llegar:active { transform: scale(0.985); transition-duration: 100ms; }
+/* "En camino": la acción principal de una parada pendiente, por eso el
+   único botón RELLENO de la tarjeta (verde de la casa). Al tocarlo se
+   vuelve la línea de confirmación de abajo. */
+.ch-en-camino {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 0.75rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--mc-verde, #265421);
+  color: #fff;
+  font-family: var(--fuente-cuerpo), sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: filter 200ms ease, transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ch-en-camino svg { font-size: 1.25rem; }
+.ch-en-camino:hover { filter: brightness(1.12); }
+.ch-en-camino:active { transform: scale(0.985); transition-duration: 100ms; }
+.ch-en-camino:disabled { opacity: 0.7; cursor: progress; }
+.ch-en-camino-listo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--pt-ok);
+}
+.ch-en-camino-listo svg { font-size: 1.15rem; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ch-en-camino { transition-duration: 0.01ms !important; }
+  .ch-en-camino:active { transform: none; }
+}
 .ch-llegar-nota { font-size: 0.8rem; color: #c3d0cd; text-align: center; margin-top: -0.3rem; }
 
 /* ---------- Guardar la ubicación del punto ---------- */

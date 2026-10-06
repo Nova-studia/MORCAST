@@ -10,6 +10,7 @@ import {
   Scales,
   Camera,
   WarningCircle,
+  PencilSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC } from "@/lib/rutas-datos";
 import { listarSolicitudesPanel, fotoNoProcedio } from "@/lib/datos-solicitudes";
@@ -28,6 +29,7 @@ import {
   hoyISO,
 } from "@/lib/vencimiento";
 import { cambiarEstadoSolicitudAuditado } from "@/app/acciones-auditadas";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 
 export default function RecoleccionesAdmin() {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -45,6 +47,11 @@ export default function RecoleccionesAdmin() {
   // Antes no se decidía nada: se confirmaba con la fecha que hubiera pedido el
   // cliente, sin hora y con el chofer que trajera la ruta.
   const [plan, setPlan] = useState({});
+  // Folios CONFIRMADOS que el admin abrió para cambiarles día, hora o chofer
+  // (6-oct-2026). Antes, una vez confirmada, una recolección ya no se podía
+  // tocar hasta que se vencía: si el chofer faltaba, no había cómo pasarla
+  // a otro.
+  const [editando, setEditando] = useState({});
   // "Poner peso real" de una recolección: { s, kg, error, guardando }.
   const [pesoReal, setPesoReal] = useState(null);
   // Foto de un "No procedió", por folio: "cargando" | url | "sin-foto".
@@ -62,8 +69,10 @@ export default function RecoleccionesAdmin() {
     const vencida = estadoVencimiento(s, hoy).vencida;
     return {
       fecha: vencida ? hoy : s.fechaConfirmada || s.fechaPedida,
-      hora: "",
-      choferId: "",
+      // Al cambiar una confirmada se parte de lo ya acordado, no de cero:
+      // si no, cambiar solo el chofer le quitaría la hora sin avisar.
+      hora: s.horaConfirmada ? String(s.horaConfirmada).slice(0, 5) : "",
+      choferId: s.choferId || "",
     };
   };
   const planDe = (s) => plan[s.folio] || planPorOmision(s);
@@ -95,6 +104,21 @@ export default function RecoleccionesAdmin() {
     };
   }, []);
 
+  // `?cambiar=<folio>` (el enlace "Cambiar" de la Agenda de servicios) abre
+  // esa recolección ya lista para editar.
+  const [pedidoCambiar, setPedidoCambiar] = useState("");
+  useEffect(() => {
+    const folio = new URLSearchParams(window.location.search).get("cambiar");
+    if (!folio) return;
+    setPedidoCambiar(folio);
+    setFiltro("confirmada");
+    setEditando((e) => ({ ...e, [folio]: true }));
+  }, []);
+  useEffect(() => {
+    if (cargando || !pedidoCambiar) return;
+    document.getElementById(`rec-${pedidoCambiar}`)?.scrollIntoView({ block: "center" });
+  }, [cargando, pedidoCambiar]);
+
   const badge = (id) => ESTADOS_SOLICITUD_REC.find((e) => e.id === id) || { texto: id, clase: "prog" };
 
   /**
@@ -112,21 +136,32 @@ export default function RecoleccionesAdmin() {
     if (!r.ok) {
       setError(`No se pudo guardar (${s.folio}). ${r.motivo || "Vuelve a intentarlo."}`);
       setOcupado(null);
-      return;
+      return false;
     }
     setSolicitudes((lista) =>
       lista.map((x) => (x.folio === s.folio ? { ...x, ...cambiosLocales } : x))
     );
     setOcupado(null);
+    return true;
+  };
+
+  /** Cierra el editor de una recolección y olvida lo que se llevaba escrito. */
+  const cerrarEditor = (folio) => {
+    setEditando((e) => ({ ...e, [folio]: false }));
+    setPlan((pl) => {
+      const { [folio]: _, ...resto } = pl;
+      return resto;
+    });
   };
 
   // Van por el servidor (no por el navegador) para que queden en la bitácora
   // y para que se cuenten las filas que devolvió la base: un UPDATE que el
   // RLS bloquea no da error, actualiza cero y responde que todo bien.
-  const confirmar = (s) => {
+  const confirmar = async (s) => {
     const p = planDe(s);
     const chofer = choferes.find((c) => c.id === p.choferId);
-    return aplicar(
+    const cambio = s.estado === "confirmada" && editando[s.folio];
+    const ok = await aplicar(
       s,
       () =>
         cambiarEstadoSolicitudAuditado(
@@ -143,7 +178,9 @@ export default function RecoleccionesAdmin() {
           // porque se nos pasaron?". Con un solo nombre no se puede.
           estadoVencimiento(s, hoy).vencida
             ? "reagendar_recoleccion_vencida"
-            : "confirmar_recoleccion"
+            : cambio
+              ? "cambiar_recoleccion_confirmada"
+              : "confirmar_recoleccion"
         ),
       {
         estado: "confirmada",
@@ -154,6 +191,9 @@ export default function RecoleccionesAdmin() {
         choferEfectivo: chofer?.nombre || s.chofer,
       }
     );
+    // Si falló, el error queda en pantalla y el editor abierto con lo que
+    // se llevaba escrito; si guardó, se cierra.
+    if (ok) cerrarEditor(s.folio);
   };
 
   const rechazar = (s) => {
@@ -293,6 +333,7 @@ export default function RecoleccionesAdmin() {
             return (
               <div
                 key={s.folio}
+                id={`rec-${s.folio}`}
                 className={`pt-recoleccion ${venc.vencida ? "vencida" : ""}`}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "0.7rem", flexWrap: "wrap" }}>
@@ -357,6 +398,19 @@ export default function RecoleccionesAdmin() {
                       : s.chofer
                         ? `${s.chofer} (de la ruta)`
                         : "sin chofer asignado"}
+                    {/* Solo mientras está confirmada: en ruta el chofer ya
+                        la empezó, y moverla le cambiaría la parada en la
+                        mano. Vencida ya trae su propio editor abajo. */}
+                    {s.estado === "confirmada" && !venc.vencida && !editando[s.folio] && (
+                      <button
+                        type="button"
+                        className="pt-btn"
+                        onClick={() => setEditando((e) => ({ ...e, [s.folio]: true }))}
+                        style={{ marginLeft: 10, padding: "0.2rem 0.6rem", fontSize: "0.8rem" }}
+                      >
+                        <PencilSimple aria-hidden="true" /> Cambiar día, hora o chofer
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -423,31 +477,34 @@ export default function RecoleccionesAdmin() {
                           <span style={{ color: "var(--mc-gris)" }}>Estimado del chofer: </span>
                           {s.evidencia.estimadoKg ? textoKg(s.evidencia.estimadoKg) : "sin peso"}
                         </span>
-                        {s.evidencia.realKg && (
+                        {pesoRealActivo() && s.evidencia.realKg && (
                           <span style={{ color: "var(--mc-ok)" }}>
                             Peso real: <strong>{textoKg(s.evidencia.realKg)}</strong>
                           </span>
                         )}
-                        {s.evidencia.viaje && (
+                        {pesoRealActivo() && s.evidencia.viaje && (
                           <Link href="/admin/viajes" style={{ color: "var(--mc-azul-txt, #6ba3cf)" }}>
                             Va en el viaje del {fechaConDia(s.evidencia.viaje.fecha)}
                             {s.evidencia.viaje.pesoRealKg ? ` · ${textoPeso(s.evidencia.viaje.pesoRealKg)} reales en total` : ""}
                             {s.evidencia.viaje.folioTicket ? ` · ticket ${s.evidencia.viaje.folioTicket}` : ""}
                           </Link>
                         )}
-                        <button
-                          type="button"
-                          className="pt-btn"
-                          onClick={() => setPesoReal({ s, kg: s.evidencia.realKg ? String(s.evidencia.realKg) : "", error: "" })}
-                        >
-                          <Scales /> {s.evidencia.realKg ? "Cambiar peso real" : "Poner peso real"}
-                        </button>
+                        {/* Apagado por ahora (lib/estado-sistema.js, PESO_REAL). */}
+                        {pesoRealActivo() && (
+                          <button
+                            type="button"
+                            className="pt-btn"
+                            onClick={() => setPesoReal({ s, kg: s.evidencia.realKg ? String(s.evidencia.realKg) : "", error: "" })}
+                          >
+                            <Scales /> {s.evidencia.realKg ? "Cambiar peso real" : "Poner peso real"}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
                 )}
 
-                {(s.estado === "solicitada" || venc.vencida) && (
+                {(s.estado === "solicitada" || venc.vencida || (s.estado === "confirmada" && editando[s.folio])) && (
                   <>
                   {/* Qué día, a qué hora y con quién. Antes esto no se
                       preguntaba: se confirmaba con la fecha que hubiera
@@ -467,7 +524,7 @@ export default function RecoleccionesAdmin() {
                   <div className="pt-reagenda">
                     <span className="pt-reagenda-tit">
                       <CalendarBlank aria-hidden="true" />
-                      {venc.vencida ? "Reagendar para" : "Agendar para"}
+                      {venc.vencida ? "Reagendar para" : editando[s.folio] ? "Cambiar a" : "Agendar para"}
                     </span>
                     {opcionesReagenda(diasPorRuta[s.rutaId] || [], hoy).map((o) => (
                       <button
@@ -538,8 +595,24 @@ export default function RecoleccionesAdmin() {
                         ? "Guardando…"
                         : venc.vencida
                           ? "Reagendar y confirmar"
-                          : "Confirmar"}
+                          : editando[s.folio]
+                            ? "Guardar cambios"
+                            : "Confirmar"}
                     </button>
+                    {/* Cambiar una confirmada no es rechazarla: ahí solo se
+                        ofrece salir sin guardar. El correo al cliente y al
+                        chofer sale de nuevo con lo nuevo al guardar. */}
+                    {editando[s.folio] && !venc.vencida ? (
+                      <button
+                        type="button"
+                        className="pt-btn"
+                        onClick={() => cerrarEditor(s.folio)}
+                        disabled={ocupado === s.folio}
+                      >
+                        Cancelar
+                      </button>
+                    ) : (
+                    <>
                     <input
                       className="pt-input"
                       placeholder="Motivo del rechazo"
@@ -555,6 +628,8 @@ export default function RecoleccionesAdmin() {
                     >
                       <X /> Rechazar
                     </button>
+                    </>
+                    )}
                   </div>
                   </>
                 )}

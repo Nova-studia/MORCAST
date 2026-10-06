@@ -121,6 +121,9 @@ function aParada(s) {
     ruta: s.rutas?.nombre || "",
     nota: s.nota || "",
     motivoNoProcedio: s.motivo_no_procedio || "",
+    // El estado de la base, tal cual: "confirmada" ofrece el botón "En
+    // camino"; "en-ruta" dice que el cliente ya fue avisado.
+    estado: s.estado,
     // "Completado" es que ya se levantó la evidencia, no solo que el estado
     // diga completada: el chofer necesita ver lo que le falta POR HACER.
     // "No procedió" también sale de los pendientes: ya quedó resuelta.

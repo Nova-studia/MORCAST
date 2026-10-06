@@ -239,6 +239,30 @@ export async function correoRecoleccionConfirmada({ correo, empresa, folio, fech
   });
 }
 
+/**
+ * Al CLIENTE: un cambio en SU recolección (en camino, cambio de fecha,
+ * retraso, realizada, no procedió). El texto lo arma lib/aviso-cliente.mjs
+ * para que el correo y la notificación del teléfono digan lo mismo.
+ */
+export async function correoAvisoRecoleccion({ correo, empresa, folio, asunto, titulo, parrafos = [] }) {
+  if (!correo) return null;
+  return enviar({
+    from: REMITENTE,
+    to: [correo],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:22px;color:#144C4F">${esc(titulo)}</h1>
+      ${empresa ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">${esc(empresa)}:</p>` : ""}
+      ${parrafos.map((t) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">${esc(t)}</p>`).join("")}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+        Folio <strong>${esc(folio)}</strong>. Puedes seguirla en
+        <a href="https://morcast.mx/portal/historial">tu portal</a>.
+      </p>
+      <p style="margin:24px 0 0;font-size:15px">— El equipo de Morcast del Norte</p>`),
+  });
+}
+
 /** Al CLIENTE: no se pudo, y por qué. */
 export async function correoRecoleccionRechazada({ correo, empresa, folio, fecha, motivo }) {
   if (!correo) return null;
