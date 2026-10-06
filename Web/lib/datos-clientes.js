@@ -13,6 +13,7 @@ import { subirComprobante } from "@/lib/datos-archivos";
 import { CLIENTES_ADMIN, USUARIOS_ADMIN } from "@/lib/admin-datos";
 import { sectoresDemoDeCliente } from "@/lib/datos-sectores";
 import { ordenarSectores } from "@/lib/sectores.mjs";
+import { filaClienteNuevo } from "@/lib/admin-app.mjs";
 
 const ROLES_LEGIBLES = {
   dueno: "Dueño",
@@ -111,19 +112,17 @@ export async function crearCliente(datos) {
 
   const supabase = supabaseNavegador();
 
+  // La fila sale de lib/admin-app.mjs (6-oct-2026): la app da de alta por
+  // `/api/app/clientes/crear` con la MISMA regla.
+  const revisado = filaClienteNuevo(datos);
+  if (!revisado.ok) return { ok: false, motivo: revisado.motivo };
+
   // El folio lo pone la BASE (db/014). Calcularlo aquí era una carrera: entre
   // leer el más alto e insertar cabe otra alta, las dos sacan el mismo número
   // y la segunda choca contra la restricción de folio único.
   const { data, error } = await supabase
     .from("clientes")
-    .insert({
-      empresa: datos.empresa,
-      contacto: datos.contacto || null,
-      correo: datos.correo || null,
-      telefono: datos.telefono || null,
-      plan: datos.plan || null,
-      estado: "activo",
-    })
+    .insert(revisado.fila)
     .select()
     .single();
 

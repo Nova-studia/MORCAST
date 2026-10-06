@@ -1,115 +1,195 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, TextInput } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { listarUsuarios } from "../../datos-remoto";
 import { T } from "../../tema";
-import { Tarjeta, TituloTarjeta, Badge, Boton } from "../../ui";
-import { USUARIOS_ADMIN, ROLES, fechaLarga } from "../../datos-admin";
-import { haySupabase } from "../../supabase";
+import { Tarjeta, TituloTarjeta, Badge } from "../../ui";
+import {
+  listarEquipo,
+  invitarUsuario,
+  cambiarActivoUsuario,
+  quienSoy,
+  ROLES_INVITABLES,
+  ROLES_LEGIBLES,
+  puedeDarRol,
+  puedeCambiarActivo,
+  pareceCorreo,
+} from "../../datos-cuentas";
+import { useLista, atenderSegundoPaso, Chip, Aviso, ErrorCarga, Campo, Accion, estilosCuentas as e } from "./piezas-cuentas";
 
-// Los roles que EXISTEN en la base (app_metadata.rol): dueno, admin,
-// operador. Los cinco de `ROLES` (Auxiliar, Facturación, Operaciones…) son
-// de la demostración y no corresponden a ningún permiso real.
+// Los roles que EXISTEN en la base: dueno, admin, operador.
 const ROLES_REALES = [
-  { id: "Dueño", detalle: "Acceso total al panel, la app y la administración de usuarios." },
-  { id: "Administrador", detalle: "Acceso total: solicitudes, clientes, servicios, saldos y reportes." },
-  { id: "Chofer / Operador", detalle: "App móvil: escanea el QR del contenedor y registra la recolección (foto antes/después, peso)." },
+  { id: "dueno", detalle: "Acceso total al panel, la app y la administración de usuarios. No se invita." },
+  { id: "admin", detalle: "Solicitudes, clientes, servicios, saldos y reportes. Sólo el dueño da o quita este acceso." },
+  { id: "operador", detalle: "App del chofer: su ruta, el QR del contenedor y la evidencia de cada recolección." },
 ];
-const ESTATUS = { activo: { texto: "Activo", clase: "ok" }, inactivo: { texto: "Inactivo", clase: "none" }, invitado: { texto: "Invitado", clase: "none" } };
+const CLASE_ROL = { dueno: "ruta", admin: "prog", operador: "ok" };
+const VACIO = { nombre: "", correo: "", rol: "operador" };
 
-export default function Usuarios() {
-  const [lista, setLista] = useState([]);
+/**
+ * USUARIOS Y ROLES (6-oct-2026, paridad con /admin/usuarios): el equipo,
+ * "Invitar usuario" (le llega un correo para escoger su contraseña) y
+ * desactivar o reactivar. Las reglas son las del panel: el dueño invita
+ * administradores y choferes, un administrador sólo choferes; al dueño y a
+ * uno mismo no se les desactiva. El servidor las vuelve a aplicar.
+ */
+export default function Usuarios({ navigation }) {
+  const { lista, setLista, cargando, refrescando, errorCarga, recargar } = useLista(listarEquipo);
+  const [yo, setYo] = useState(null);
+  const [alta, setAlta] = useState(false);
+  const [form, setForm] = useState(VACIO);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState(null); // { tipo, texto }
+  const [cambiando, setCambiando] = useState("");
+  const [errorFila, setErrorFila] = useState({}); // { [id]: motivo }
 
   useEffect(() => {
     let vivo = true;
-    listarUsuarios().then((l) => { if (vivo) setLista(l); });
+    quienSoy().then((q) => { if (vivo) setYo(q); });
     return () => { vivo = false; };
   }, []);
-  const [alta, setAlta] = useState(false);
-  const [form, setForm] = useState({ nombre: "", correo: "", rol: "Auxiliar de administrador" });
 
-  // 🔴 "Invitar" y el bote de basura NUNCA han tocado la base: sólo cambian
-  // la lista del teléfono. Invitar o dar de baja a alguien de verdad (crear
-  // la cuenta, mandar el correo, quitar el acceso) vive en el panel web. Con
-  // base conectada esta pantalla es de sólo lectura.
-  const puedeEditar = !haySupabase();
-  const roles = haySupabase() ? ROLES_REALES : ROLES;
+  // El administrador no ve "Administrador" entre los roles que puede dar.
+  const rolesQuePuedo = Object.keys(ROLES_INVITABLES).filter((r) => puedeDarRol(yo, r));
 
-  const invitar = () => {
-    if (!form.nombre || !form.correo) return;
-    const maxN = Math.max(0, ...lista.map((u) => parseInt(u.id.split("-")[1], 10) || 0));
-    const nuevo = { id: `U-${String(maxN + 1).padStart(3, "0")}`, nombre: form.nombre, correo: form.correo, rol: form.rol, estatus: "invitado", ultimo: "—" };
-    setLista((l) => [...l, nuevo]);
-    setForm({ nombre: "", correo: "", rol: "Auxiliar de administrador" });
+  const invitar = async () => {
+    setAviso(null);
+    if (!form.nombre.trim()) { setAviso({ tipo: "error", texto: "Escribe el nombre completo." }); return; }
+    if (!pareceCorreo(form.correo)) { setAviso({ tipo: "error", texto: "Ese correo no parece válido." }); return; }
+    setEnviando(true);
+    const r = await invitarUsuario(form);
+    setEnviando(false);
+    if (atenderSegundoPaso(r, navigation)) return;
+    if (!r.ok) { setAviso({ tipo: "error", texto: r.motivo || "No se pudo mandar la invitación." }); return; }
+    setAviso({
+      tipo: "ok",
+      texto: `Listo: a ${r.correo || form.correo} le llegó la invitación como ${ROLES_INVITABLES[form.rol]}. Escoge su contraseña con el enlace del correo.`,
+    });
+    setForm(VACIO);
     setAlta(false);
+    recargar();
   };
-  const quitar = (id) => setLista((l) => l.filter((u) => u.id !== id));
 
-  const rolClase = (rol) => rol === "Administrador" ? "ruta" : rol === "Auxiliar de administrador" ? "prog" : rol === "Chofer / Operador" ? "ok" : "none";
+  const alternar = (u) => {
+    const quiere = !u.activo;
+    const hacer = async () => {
+      setCambiando(u.id);
+      setErrorFila((x) => ({ ...x, [u.id]: "" }));
+      const r = await cambiarActivoUsuario(u.id, quiere);
+      setCambiando("");
+      if (atenderSegundoPaso(r, navigation)) return;
+      if (!r.ok) { setErrorFila((x) => ({ ...x, [u.id]: r.motivo || "No se pudo cambiar." })); return; }
+      setLista((l) => l.map((x) => (x.id === u.id ? { ...x, activo: quiere } : x)));
+    };
+    if (quiere) { hacer(); return; }
+    // Desactivar cierra su acceso de inmediato: se confirma.
+    Alert.alert(
+      "Desactivar cuenta",
+      `${u.nombre} ya no podrá entrar a Morcast hasta que lo reactives. ¿Desactivar?`,
+      [{ text: "Cancelar", style: "cancel" }, { text: "Desactivar", style: "destructive", onPress: hacer }]
+    );
+  };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{ flex: 1 }}><Text style={s.h1}>Usuarios y roles</Text><Text style={s.sub}>Administra tu equipo y sus permisos.</Text></View>
-        {puedeEditar && (
-          <Pressable onPress={() => setAlta((v) => !v)} style={s.btnAlta}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: T.fondo }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      // Propiedad de iOS: deja que el sistema recorra el contenido cuando sale
+      // el teclado. En Android se ignora (allí lo resuelve el resize).
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={() => recargar({ jalando: true })} tintColor={T.gris} />}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={e.h1}>Usuarios y roles</Text>
+          <Text style={[e.sub, { marginBottom: 0 }]}>Tu equipo y sus permisos.</Text>
+        </View>
+        {rolesQuePuedo.length > 0 && (
+          <Pressable
+            onPress={() => { setAlta((v) => !v); setAviso(null); }}
+            style={s.btnAlta}
+            accessibilityRole="button"
+            accessibilityLabel={alta ? "Cerrar la invitación" : "Invitar usuario"}
+          >
             <Feather name={alta ? "x" : "user-plus"} size={16} color="#fff" />
             <Text style={s.btnAltaTxt}>{alta ? "Cerrar" : "Invitar"}</Text>
           </Pressable>
         )}
       </View>
 
-      {!puedeEditar && (
-        <Text style={s.nota}>Invitar o dar de baja usuarios se hace desde el panel web (morcast.mx/admin).</Text>
-      )}
-
-      {puedeEditar && alta && (
+      {alta && (
         <Tarjeta style={{ marginTop: 14 }}>
           <TituloTarjeta>Invitar usuario</TituloTarjeta>
-          <Text style={s.label}>Nombre completo</Text>
-          <TextInput style={s.input} value={form.nombre} onChangeText={(v) => setForm({ ...form, nombre: v })} placeholderTextColor={T.grisClaro} />
-          <Text style={s.label}>Correo</Text>
-          <TextInput style={s.input} value={form.correo} onChangeText={(v) => setForm({ ...form, correo: v })} keyboardType="email-address" autoCapitalize="none" placeholderTextColor={T.grisClaro} />
+          <Text style={s.nota}>Le llega un correo con un enlace para escoger su contraseña. Nadie más la ve.</Text>
+          <Campo etiqueta="Nombre completo" valor={form.nombre} onCambio={(v) => setForm({ ...form, nombre: v })} />
+          <Campo
+            etiqueta="Correo"
+            valor={form.correo}
+            onCambio={(v) => setForm({ ...form, correo: v })}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
           <Text style={s.label}>Rol</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-            {ROLES.map((r) => (
-              <Pressable key={r.id} onPress={() => setForm({ ...form, rol: r.id })} style={[s.rolChip, form.rol === r.id && s.rolChipOn]}>
-                <Text style={[s.rolChipTxt, form.rol === r.id && { color: "#fff" }]}>{r.id}</Text>
-              </Pressable>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {rolesQuePuedo.map((r) => (
+              <Chip key={r} on={form.rol === r} onPress={() => setForm({ ...form, rol: r })}>{ROLES_INVITABLES[r]}</Chip>
             ))}
-          </ScrollView>
-          <View style={s.rolDet}><Feather name="shield" size={13} color={T.verdeClaro} /><Text style={s.rolDetTxt}>{ROLES.find((r) => r.id === form.rol)?.detalle}</Text></View>
-          <Boton onPress={invitar} disabled={!form.nombre || !form.correo} style={{ marginTop: 12 }}>Enviar invitación</Boton>
+          </View>
+          {!rolesQuePuedo.includes("admin") && (
+            <Text style={s.nota}>Sólo el dueño puede dar acceso de administrador.</Text>
+          )}
+          <Accion icono="send" onPress={invitar} disabled={enviando || !form.nombre.trim() || !form.correo.trim()} style={{ marginTop: 14 }}>
+            {enviando ? "Enviando…" : "Enviar invitación"}
+          </Accion>
         </Tarjeta>
       )}
 
+      {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
+
       <Tarjeta style={{ marginTop: 14 }}>
         <TituloTarjeta>Equipo ({lista.length})</TituloTarjeta>
-        {lista.map((u, i) => (
-          <View key={u.id} style={[s.uFila, i < lista.length - 1 && s.borde]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.uNom}>{u.nombre}</Text>
-              <Text style={s.uCorreo}>{u.correo || u.telefono || "Sin teléfono registrado"}</Text>
-              <View style={{ flexDirection: "row", gap: 6, marginTop: 5 }}>
-                <Badge clase={rolClase(u.rol)}>{u.rol}</Badge>
-                <Badge clase={ESTATUS[u.estatus]?.clase || "none"}>{ESTATUS[u.estatus]?.texto || u.estatus}</Badge>
+        {cargando && <Text style={e.vacio}>Leyendo el equipo…</Text>}
+        {!cargando && errorCarga && <ErrorCarga que="el equipo" onReintentar={() => recargar()} />}
+        {lista.map((u, i) => {
+          const evaluado = puedeCambiarActivo({ quien: yo, objetivo: u });
+          return (
+            <View key={u.id} style={[s.uFila, i < lista.length - 1 && s.borde]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.uNom}>{u.nombre}{yo?.id === u.id ? " (tú)" : ""}</Text>
+                  <Text style={s.uLinea}>{u.telefono || "Sin teléfono registrado"}</Text>
+                  <View style={{ flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <Badge clase={CLASE_ROL[u.rol] || "none"}>{ROLES_LEGIBLES[u.rol] || u.rol}</Badge>
+                    <Badge clase={u.activo ? "ok" : "none"}>{u.activo ? "Activo" : "Inactivo"}</Badge>
+                  </View>
+                </View>
+                {evaluado.puede && (
+                  <Pressable
+                    onPress={() => alternar(u)}
+                    disabled={cambiando === u.id}
+                    style={[s.btnFila, { opacity: cambiando === u.id ? 0.5 : 1 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={u.activo ? `Desactivar a ${u.nombre}` : `Reactivar a ${u.nombre}`}
+                  >
+                    <Text style={[s.btnFilaTxt, { color: u.activo ? T.error : T.ok }]}>
+                      {cambiando === u.id ? "…" : u.activo ? "Desactivar" : "Reactivar"}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
+              {!!errorFila[u.id] && <Aviso tipo="error">{errorFila[u.id]}</Aviso>}
             </View>
-            {!puedeEditar ? null : u.rol !== "Administrador" ? (
-              <Pressable onPress={() => quitar(u.id)} hitSlop={8} style={{ padding: 4 }}><Feather name="trash-2" size={17} color={T.gris} /></Pressable>
-            ) : (
-              <Text style={s.principal}>Principal</Text>
-            )}
-          </View>
-        ))}
+          );
+        })}
       </Tarjeta>
 
       <Tarjeta>
-        <TituloTarjeta>Roles disponibles</TituloTarjeta>
-        {roles.map((r) => (
+        <TituloTarjeta>Roles</TituloTarjeta>
+        {ROLES_REALES.map((r) => (
           <View key={r.id} style={s.rFila}>
             <View style={s.rIco}><Feather name="shield" size={15} color={T.tealClaro} /></View>
-            <View style={{ flex: 1 }}><Text style={s.rNom}>{r.id}</Text><Text style={s.rDet}>{r.detalle}</Text></View>
+            <View style={{ flex: 1 }}><Text style={s.rNom}>{ROLES_LEGIBLES[r.id]}</Text><Text style={s.rDet}>{r.detalle}</Text></View>
           </View>
         ))}
       </Tarjeta>
@@ -118,23 +198,16 @@ export default function Usuarios() {
 }
 
 const s = StyleSheet.create({
-  h1: { color: T.tinta, fontSize: 22, fontWeight: "800" },
-  sub: { color: T.gris, fontSize: 13.5, marginTop: 3 },
-  nota: { color: T.grisClaro, fontSize: 12, marginTop: 10, lineHeight: 17 },
-  btnAlta: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.verde, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  btnAlta: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.accion, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, minHeight: 44 },
   btnAltaTxt: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
-  label: { color: T.tinta, fontSize: 12.5, fontWeight: "700", marginBottom: 6, marginTop: 10 },
-  input: { backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, color: T.tinta, fontSize: 14 },
-  rolChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel2 },
-  rolChipOn: { backgroundColor: T.verde, borderColor: T.verde },
-  rolChipTxt: { color: T.gris, fontSize: 12, fontWeight: "600" },
-  rolDet: { flexDirection: "row", gap: 7, marginTop: 10, backgroundColor: T.panel2, borderRadius: 9, padding: 9 },
-  rolDetTxt: { color: T.gris, fontSize: 12, flex: 1, lineHeight: 17 },
-  uFila: { flexDirection: "row", alignItems: "center", paddingVertical: 11 },
+  nota: { color: T.grisClaro, fontSize: 12, marginTop: 6, lineHeight: 17 },
+  label: { color: T.tinta, fontSize: 12.5, fontWeight: "700", marginBottom: 6, marginTop: 12 },
+  uFila: { paddingVertical: 11 },
   borde: { borderBottomWidth: 1, borderBottomColor: T.linea },
   uNom: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
-  uCorreo: { color: T.gris, fontSize: 12.5, marginTop: 2 },
-  principal: { color: T.grisClaro, fontSize: 11.5 },
+  uLinea: { color: T.gris, fontSize: 12.5, marginTop: 2 },
+  btnFila: { borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, minHeight: 44, justifyContent: "center" },
+  btnFilaTxt: { fontSize: 13, fontWeight: "700" },
   rFila: { flexDirection: "row", gap: 10, paddingVertical: 8 },
   rIco: { width: 32, height: 32, borderRadius: 9, backgroundColor: "rgba(79,192,197,0.14)", alignItems: "center", justifyContent: "center" },
   rNom: { color: T.tinta, fontSize: 13.5, fontWeight: "700" },

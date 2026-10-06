@@ -17,16 +17,13 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { listarAltas, cambiarEstadoAlta } from "@/lib/datos-altas";
 import { activarCuentaRegistrada, enlacesArchivosAlta } from "@/app/acciones-alta-cliente";
+import { ESTADOS_ALTA, contrasenaLegible } from "@/lib/admin-app.mjs";
 
 // Las clases son las que de verdad existen en portal.css (`ok`, `prog`,
 // `mal`). Aquí decían `verde`, `azul` y `rojo`, que no existen, y todas las
-// insignias salían grises: "Aprobada" y "Rechazada" se veían igual.
-const ESTADOS = [
-  { id: "nueva", texto: "Nueva", clase: "" },
-  { id: "contactada", texto: "Contactada", clase: "prog" },
-  { id: "aprobada", texto: "Aprobada", clase: "ok" },
-  { id: "rechazada", texto: "Rechazada", clase: "mal" },
-];
+// insignias salían grises: "Aprobada" y "Rechazada" se veían igual. La lista
+// vive en lib/admin-app.mjs desde el 6-oct-2026: la app usa la misma.
+const ESTADOS = ESTADOS_ALTA;
 
 /** Fecha y hora de Matamoros, para la evidencia de la firma. */
 const fechaHora = (iso) =>
@@ -117,9 +114,9 @@ export default function AltasAdmin() {
     // Sin `Math.random()`: no es criptográfico y de sus salidas se puede
     // recuperar el estado del generador, así que dos contraseñas seguidas
     // dejan de ser independientes. Esto SÍ es aleatoriedad de verdad.
-    const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    const bytes = crypto.getRandomValues(new Uint8Array(12));
-    return Array.from(bytes, (b) => abc[b % abc.length]).join("");
+    // El alfabeto y la cuenta viven en lib/admin-app.mjs: la app recibe una
+    // hecha igual por el servidor.
+    return contrasenaLegible(crypto.getRandomValues(new Uint8Array(12)));
   };
 
   const activar = async (a) => {

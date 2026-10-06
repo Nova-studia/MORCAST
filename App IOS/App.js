@@ -46,6 +46,11 @@ import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
 import SegundoPaso from "./src/pantallas/admin/SegundoPaso";
+// equipo 3: cuentas y catálogo de la administración (paridad con la web, 6-oct-2026)
+import Altas from "./src/pantallas/admin/Altas";
+import Puntos from "./src/pantallas/admin/Puntos";
+import ZonasPedidas from "./src/pantallas/admin/ZonasPedidas";
+import Unidades from "./src/pantallas/admin/Unidades";
 // Notificaciones (1.1)
 import PermisoNotificaciones from "./src/PermisoNotificaciones";
 import { datosDeLaUltimaNotificacion, alTocarNotificacion } from "./src/notificaciones";
@@ -281,6 +286,17 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
       <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
       <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* equipo 3: cuentas y catálogo */}
+      <Stack.Screen name="Altas" component={Altas} options={{ title: "Altas de clientes" }} />
+      <Stack.Screen name="Puntos" component={Puntos} options={{ title: "Puntos" }} />
+      <Stack.Screen name="ZonasPedidas" component={ZonasPedidas} options={{ title: "Zonas pedidas" }} />
+      <Stack.Screen name="Unidades" component={Unidades} options={{ title: "Unidades" }} />
+      {/* equipo 3: si una acción de administración responde `segundoPaso`
+          (el pase venció o se cerró la sesión en otro lado), se pide el código
+          aquí y se vuelve a la pantalla de donde vino. */}
+      <Stack.Screen name="SegundoPasoAdmin" options={{ headerShown: false, presentation: "modal" }}>
+        {(props) => <SegundoPaso onListo={() => props.navigation.goBack()} onSalir={onLogout} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }
