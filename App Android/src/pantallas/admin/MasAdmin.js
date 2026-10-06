@@ -16,6 +16,9 @@ const MENU = [
   { pantalla: "Servicios", dibujo: "servicios", titulo: "Servicios", sub: "Agenda y comprobante del chofer" },
   { pantalla: "ReportesAdmin", dibujo: "reportes", titulo: "Reportes del negocio", sub: "Ingresos y desempeño" },
   { pantalla: "Usuarios", dibujo: "usuarios-y-roles", titulo: "Usuarios y roles", sub: "Administradores y choferes" },
+  // equipo 2: comunicación y cobranza (6-oct-2026)
+  { pantalla: "AvisosAdmin", dibujo: "avisos-a-clientes", titulo: "Avisos a clientes", sub: "Retrasos, reagendas y avisos generales" },
+  { pantalla: "BitacoraAdmin", dibujo: "documentos", titulo: "Bitácora", sub: "Quién hizo qué y cuándo, por día" },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {

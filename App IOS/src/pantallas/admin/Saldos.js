@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, Dimensions } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, Dimensions, Linking, RefreshControl } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { listarMovimientos, listarClientes, resolverDeposito, enlaceComprobante, folioCorto } from "../../datos-remoto";
 import { T } from "../../tema";
@@ -9,6 +9,9 @@ import { usePerfilSesion } from "../../mi-perfil";
 import { haySupabase } from "../../supabase";
 
 const SCREEN_W = Dimensions.get("window").width;
+
+/** Un comprobante en PDF no cabe en un <Image>: se abre aparte (igual que la web). */
+const esPdf = (nombre) => /\.pdf$/i.test(String(nombre || ""));
 
 export default function Saldos() {
   const [recargas, setRecargas] = useState([]);
@@ -26,6 +29,12 @@ export default function Saldos() {
     recargar().then(() => { if (!vivo) return; });
     return () => { vivo = false; };
   }, []);
+  // Jalar para refrescar: los depósitos llegan mientras la pantalla está abierta.
+  const [refrescando, setRefrescando] = useState(false);
+  const refrescar = async () => {
+    setRefrescando(true);
+    try { await recargar(); } finally { setRefrescando(false); }
+  };
   const [ver, setVer] = useState(null);
   const [zoom, setZoom] = useState(false);
   const [simularAux, setSimularAux] = useState(false);
@@ -77,6 +86,10 @@ export default function Saldos() {
    * Antes esto solo repintaba el renglón: el saldo del cliente nunca se movía
    * y la pantalla decía que sí. Ahora se guarda, se vuelve a leer y, si el
    * permiso de la base no lo deja pasar, se dice en vez de fingir.
+   *
+   * Desde el 6-oct-2026 va por el servidor (`resolverDeposito` →
+   * /api/app/saldos/resolver), igual que la web: queda en la bitácora y al
+   * cliente le llega el correo de "saldo resuelto".
    */
   const resolver = async (r, estado) => {
     if (!puedeVerificar || guardando) return;
@@ -99,7 +112,11 @@ export default function Saldos() {
   const rechazar = (r) => resolver(r, "rechazada");
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: T.fondo }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} />}
+    >
       <Text style={s.h1}>Saldos de clientes</Text>
       <Text style={s.sub}>Verifica los comprobantes y aplica el saldo a la cuenta del cliente.</Text>
 
@@ -180,8 +197,18 @@ export default function Saldos() {
 
                 {/* comprobante — imagen real, toca para ver en grande */}
                 <Text style={s.compLbl}>COMPROBANTE DE PAGO</Text>
-                {urlComprobante ? (
-                  <Pressable onPress={() => setZoom(true)} style={s.compBox}>
+                {urlComprobante && esPdf(ver.comprobanteNombre) ? (
+                  <Pressable
+                    onPress={() => Linking.openURL(urlComprobante).catch(() => {})}
+                    accessibilityRole="button"
+                    style={s.comprobante}
+                  >
+                    <Feather name="file-text" size={30} color={T.tealClaro} />
+                    <Text style={s.compNom}>Abrir el PDF del comprobante</Text>
+                    <Text style={s.compDemo}>Se abre en el visor del teléfono.</Text>
+                  </Pressable>
+                ) : urlComprobante ? (
+                  <Pressable onPress={() => setZoom(true)} style={s.compBox} accessibilityRole="imagebutton" accessibilityLabel="Ver el comprobante en grande">
                     <Image source={{ uri: urlComprobante }} style={s.compImg} resizeMode="contain" />
                     <View style={s.compVer}><Feather name="maximize-2" size={13} color="#fff" /><Text style={s.compVerTxt}>Ver en grande</Text></View>
                   </Pressable>

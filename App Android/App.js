@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Modal } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -49,7 +49,11 @@ import Clientes from "./src/pantallas/admin/Clientes";
 import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
+// equipo 2: comunicación y cobranza
+import AvisosAdmin from "./src/pantallas/admin/AvisosAdmin";
+import BitacoraAdmin from "./src/pantallas/admin/BitacoraAdmin";
 import VerificacionAdmin from "./src/pantallas/admin/VerificacionAdmin";
+import { alPedirSegundoPaso } from "./src/candado-admin";
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
@@ -281,6 +285,11 @@ function TabsAdmin({ onLogout }) {
  */
 function AdminConCandado({ onLogout, alPasar }) {
   const [paso, setPaso] = useState(false);
+  // equipo 2: el servidor pidió el código otra vez con el panel ya abierto
+  // (candado-admin.js). Va ENCIMA, sin desmontar el panel: lo que estaba
+  // escrito sigue ahí al volver.
+  const [otraVez, setOtraVez] = useState(false);
+  useEffect(() => alPedirSegundoPaso(() => setOtraVez(true)), []);
   if (!paso) {
     return (
       <VerificacionAdmin
@@ -293,6 +302,11 @@ function AdminConCandado({ onLogout, alPasar }) {
     <>
       <PermisoPush modo="admin" />
       <AppAdmin onLogout={onLogout} />
+      <Modal visible={otraVez} animationType="slide" onRequestClose={() => {}}>
+        <SafeAreaProvider>
+          {otraVez && <VerificacionAdmin onLogout={onLogout} alPasar={() => setOtraVez(false)} />}
+        </SafeAreaProvider>
+      </Modal>
     </>
   );
 }
@@ -307,6 +321,9 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
       <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
       <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* equipo 2: avisos a clientes y bitácora (paridad con la web, 6-oct-2026). */}
+      <Stack.Screen name="AvisosAdmin" component={AvisosAdmin} options={{ title: "Avisos a clientes" }} />
+      <Stack.Screen name="BitacoraAdmin" component={BitacoraAdmin} options={{ title: "Bitácora" }} />
     </Stack.Navigator>
   );
 }

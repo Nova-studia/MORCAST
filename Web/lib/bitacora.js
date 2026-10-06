@@ -49,25 +49,38 @@ export async function registrar({ accion, tabla, registroId, detalle }) {
 
 /**
  * Lee la bitácora. Solo la ve el personal (lo impone el RLS, no esta función).
+ *
+ * Por día (pedido de Luis, 6-oct-2026): `desde`/`hasta` son los instantes del
+ * día de Matamoros (lib/bitacora-vista.mjs: rangoDelDia) y el filtro va en la
+ * CONSULTA, no en la pantalla. `accion` filtra dentro del día. Devuelve las
+ * filas y `total`, la cuenta exacta del día aunque pase del límite.
  */
-export async function listarBitacora({ limite = 200, desde } = {}) {
-  if (!haySupabase()) return [];
+export async function listarBitacoraDia({ desde, hasta, accion, limite = 300 } = {}) {
+  if (!haySupabase()) return { filas: [], total: 0 };
 
   const { supabaseSesion } = await import("./supabase-sesion");
   let consulta = (await supabaseSesion())
     .from("bitacora")
-    .select("id, actor_correo, accion, tabla, registro_id, detalle, creado")
+    .select("id, actor_correo, accion, tabla, registro_id, detalle, creado", { count: "exact" })
     .order("creado", { ascending: false })
     .limit(limite);
 
   if (desde) consulta = consulta.gte("creado", desde);
+  if (hasta) consulta = consulta.lt("creado", hasta);
+  if (accion) consulta = consulta.eq("accion", accion);
 
-  const { data, error } = await consulta;
+  const { data, error, count } = await consulta;
   if (error) {
     console.error("[bitacora] no se pudo leer:", error.message);
-    return [];
+    return { filas: [], total: 0, error: true };
   }
-  return data ?? [];
+  return { filas: data ?? [], total: count ?? (data?.length || 0) };
+}
+
+/** La lista sin partir por día (para quien la necesite completa). */
+export async function listarBitacora({ limite = 200, desde } = {}) {
+  const { filas } = await listarBitacoraDia({ desde, limite });
+  return filas;
 }
 
 /**

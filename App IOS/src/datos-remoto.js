@@ -15,6 +15,7 @@ import { avisosPorEnseñar, esLecturaDuplicada, DIAS_EN_PORTAL } from "./avisos.
 import { validarNoProcedio, validarReporte } from "./chofer-reportes.mjs";
 import { direccionDe } from "./mapas.mjs";
 import { postWeb } from "./api-web";
+import { postAdmin } from "./api-admin";
 
 /**
  * Consultas de la app contra Supabase.
@@ -549,21 +550,17 @@ export async function listarMovimientos() {
 export async function resolverDeposito(id, estado, notas) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from("movimientos_saldo")
-    .update({ estado, notas: notas || null, verificado_por: user?.id || null })
-    .eq("id", id)
-    .select("id");
-
-  if (error) return { ok: false, motivo: error.message };
-  // Un UPDATE que el RLS bloquea NO da error: cambia CERO filas y responde
-  // 200. Se cuentan las filas devueltas en vez de confiar en `error`.
-  if (!data?.length) {
-    return { ok: false, motivo: "No se aplico nada: el permiso de la base no te deja tocar ese movimiento." };
+  // equipo 2 (6-oct-2026): por el SERVIDOR, con la misma función que el
+  // panel web (Web/lib/saldos-resolver.mjs). Antes era un UPDATE directo
+  // desde el teléfono: el saldo se movía sin renglón en la bitácora y sin el
+  // correo de "saldo resuelto" al cliente. El servidor sigue haciendo el
+  // UPDATE con ESTA sesión (el RLS decide) y cuenta las filas.
+  const r = await postAdmin("saldos/resolver", { id, estado, notas: notas || null });
+  if (r.ok) return { ok: true, yaEstaba: Boolean(r.yaEstaba) };
+  if (r.segundoPaso) {
+    return { ok: false, segundoPaso: true, motivo: "Confirma con el código que te llegó al correo y vuelve a tocar el botón." };
   }
-  return { ok: true };
+  return { ok: false, motivo: r.motivo || "No se pudo guardar. Revisa tu señal e intenta otra vez." };
 }
 
 /* ==================================================================== */

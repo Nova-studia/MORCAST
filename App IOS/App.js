@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Modal } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -45,7 +45,11 @@ import Clientes from "./src/pantallas/admin/Clientes";
 import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
+// equipo 2: comunicación y cobranza
+import AvisosAdmin from "./src/pantallas/admin/AvisosAdmin";
+import BitacoraAdmin from "./src/pantallas/admin/BitacoraAdmin";
 import SegundoPaso from "./src/pantallas/admin/SegundoPaso";
+import { alPedirSegundoPaso } from "./src/candado-admin";
 // Notificaciones (1.1)
 import PermisoNotificaciones from "./src/PermisoNotificaciones";
 import { datosDeLaUltimaNotificacion, alTocarNotificacion } from "./src/notificaciones";
@@ -281,6 +285,9 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
       <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
       <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* equipo 2: avisos a clientes y bitácora (paridad con la web, 6-oct-2026). */}
+      <Stack.Screen name="AvisosAdmin" component={AvisosAdmin} options={{ title: "Avisos a clientes" }} />
+      <Stack.Screen name="BitacoraAdmin" component={BitacoraAdmin} options={{ title: "Bitácora" }} />
     </Stack.Navigator>
   );
 }
@@ -297,11 +304,22 @@ function AdminConPuerta({ onLogout, alAbrir }) {
     if (abierta) alAbrir?.();
   }, [abierta]);
 
+  // equipo 2: el servidor pidió el código otra vez con el panel ya abierto
+  // (candado-admin.js). Va ENCIMA, sin desmontar el panel: lo que estaba
+  // escrito sigue ahí al volver.
+  const [otraVez, setOtraVez] = useState(false);
+  useEffect(() => alPedirSegundoPaso(() => setOtraVez(true)), []);
+
   if (!abierta) return <SegundoPaso onListo={() => setAbierta(true)} onSalir={onLogout} />;
   return (
     <>
       <AppAdmin onLogout={onLogout} />
       <PermisoNotificaciones modo="admin" />
+      <Modal visible={otraVez} animationType="slide" onRequestClose={() => {}}>
+        <SafeAreaProvider>
+          {otraVez && <SegundoPaso onListo={() => setOtraVez(false)} onSalir={onLogout} />}
+        </SafeAreaProvider>
+      </Modal>
     </>
   );
 }

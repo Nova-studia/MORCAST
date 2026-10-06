@@ -33,6 +33,8 @@ const ICONOS_MENU = {
   "usuarios-y-roles": require("../assets/iconos-menu/usuarios-y-roles.png"),
   "programados": require("../assets/iconos-menu/programados.png"),
   "cerra-sesion": require("../assets/iconos-menu/cerra-sesion.png"),
+  // equipo 2: avisos a clientes (6-oct-2026).
+  "avisos-a-clientes": require("../assets/iconos-menu/avisos-a-clientes.png"),
 };
 
 /**

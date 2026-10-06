@@ -1,4 +1,6 @@
-import { listarBitacora, textoDeAccion } from "@/lib/bitacora";
+import { listarBitacoraDia, textoDeAccion, TEXTO_ACCION } from "@/lib/bitacora";
+import { diaEnMatamoros, diaPedido, nombreDelDia, rangoDelDia, resumenBitacora } from "@/lib/bitacora-vista.mjs";
+import SelectorDia from "./SelectorDia";
 
 export const metadata = { title: "Bitácora · Morcast" };
 
@@ -7,35 +9,29 @@ export const metadata = { title: "Bitácora · Morcast" };
 // le devuelve cero filas — no hace falta un candado extra en el código.
 export const dynamic = "force-dynamic";
 
-function cuando(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString("es-MX", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+/** La hora (y nada más: el día ya está arriba), en la hora de Matamoros. */
+function hora(iso) {
+  return new Date(iso).toLocaleTimeString("es-MX", {
+    hour: "2-digit", minute: "2-digit", timeZone: "America/Matamoros",
   });
 }
 
-/** Lo que hace falta saber de un movimiento, sin volcarle el JSON encima. */
-function resumen(fila) {
-  const d = fila.detalle || {};
-  const partes = [];
-  if (d.folio) partes.push(d.folio);
-  if (d.monto != null) {
-    partes.push(
-      new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(d.monto)
-    );
-  }
-  if (d.nombre) partes.push(d.nombre);
-  if (d.rol_nuevo) partes.push(`rol: ${d.rol_nuevo}`);
-  if (d.estado) partes.push(d.estado);
-  if (d.notas) partes.push(`«${d.notas}»`);
-  // Las filas que anota la base (db/022) traen qué columnas cambiaron.
-  if (d.cambios) partes.push(`cambió: ${Object.keys(d.cambios).join(", ")}`);
-  return partes.join(" · ") || "—";
-}
+/**
+ * POR DÍA (pedido de Luis, 6-oct-2026): al abrir se ve solo lo de HOY en
+ * Matamoros; `?dia=AAAA-MM-DD` lleva a otro y `?accion=` filtra dentro del
+ * día. El día se vuelve rango de instantes en lib/bitacora-vista.mjs y la
+ * consulta filtra en la base, no aquí.
+ */
+export default async function Bitacora({ searchParams }) {
+  const p = await searchParams;
+  const hoy = diaEnMatamoros();
+  const dia = diaPedido(typeof p?.dia === "string" ? p.dia : "", hoy);
+  const accion = typeof p?.accion === "string" && TEXTO_ACCION[p.accion] ? p.accion : "";
+  const rango = rangoDelDia(dia);
+  const { filas, total, error } = await listarBitacoraDia({ ...rango, accion, limite: 300 });
 
-export default async function Bitacora() {
-  const filas = await listarBitacora({ limite: 300 });
+  const opciones = Object.keys(TEXTO_ACCION).map((id) => ({ id, texto: textoDeAccion({ accion: id }) }));
+  const nombre = nombreDelDia(dia, hoy);
 
   return (
     <>
@@ -47,23 +43,28 @@ export default async function Bitacora() {
         </p>
       </div>
 
+      <SelectorDia dia={dia} hoy={hoy} accion={accion} opciones={opciones} />
+
       <div className="pt-card">
         <div className="pt-card-head">
-          <h2>Últimos movimientos ({filas.length})</h2>
+          <h2>
+            {nombre}{nombre === "Hoy" || nombre === "Ayer" ? ` · ${nombreDelDia(dia, "")}` : ""} ({total}
+            {total === 1 ? " movimiento" : " movimientos"})
+          </h2>
         </div>
 
-        {filas.length === 0 ? (
+        {error ? (
+          <div className="pt-vacio">No se pudo leer la bitácora. Recarga la página.</div>
+        ) : filas.length === 0 ? (
           <div className="pt-vacio">
-            Todavía no hay movimientos registrados. Aquí van a aparecer las
-            aplicaciones de saldo, las confirmaciones de recolección y los
-            cambios de rol.
+            Sin movimientos este día{accion ? " con esa acción" : ""}.
           </div>
         ) : (
           <div className="pt-tabla-wrap">
             <table className="pt-tabla" style={{ minWidth: 760 }}>
               <thead>
                 <tr>
-                  <th>Cuándo</th>
+                  <th>Hora</th>
                   <th>Quién</th>
                   <th>Qué hizo</th>
                   <th>Detalle</th>
@@ -72,14 +73,19 @@ export default async function Bitacora() {
               <tbody>
                 {filas.map((f) => (
                   <tr key={f.id}>
-                    <td style={{ whiteSpace: "nowrap" }}>{cuando(f.creado)}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{hora(f.creado)}</td>
                     <td>{f.actor_correo || "—"}</td>
                     <td>{textoDeAccion(f)}</td>
-                    <td>{resumen(f)}</td>
+                    <td>{resumenBitacora(f)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {total > filas.length && (
+              <p style={{ fontSize: "0.82rem", color: "var(--mc-gris)", margin: "0.6rem 0 0" }}>
+                Se enseñan los {filas.length} más recientes de {total}. Filtra por acción para ver los demás.
+              </p>
+            )}
           </div>
         )}
       </div>
