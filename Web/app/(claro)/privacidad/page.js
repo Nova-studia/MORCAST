@@ -9,8 +9,10 @@ import { EMPRESA } from "@/lib/datos";
  * exactamente qué datos recoge la app y para qué usa cada permiso del
  * teléfono. Sin esta página no se puede mandar la ficha a revisión.
  *
- * Si cambian los permisos de la app (hoy: cámara y fotos), hay que actualizar
- * la tabla de la sección 3 y volver a declararlo en Play Console.
+ * Si cambian los permisos de la app (desde la 1.1, 6-oct-2026: cámara, fotos,
+ * ubicación solo en el modo chofer y notificaciones), hay que actualizar la
+ * tabla de la sección 3 y volver a declararlo en Play Console ("Seguridad de
+ * los datos") y en App Store Connect ("Privacidad de la app").
  */
 export const metadata = {
   title: "Aviso de Privacidad de la aplicación",
@@ -28,14 +30,26 @@ const PERMISOS = [
     permiso: "Fotos y galería",
     para: "Permitirle elegir y adjuntar el comprobante de pago que usted decida subir.",
   },
+  {
+    permiso: "Ubicación (solo personal operador)",
+    para:
+      "Únicamente en el modo chofer y mientras la app está en uso: registrar en la evidencia el lugar donde se tomaron las fotografías de la recolección, guardar la ubicación exacta del punto de recolección y abrir las indicaciones para llegar. Los clientes y el público no usan este permiso.",
+  },
+  {
+    permiso: "Notificaciones",
+    para:
+      "Avisarle sobre su servicio: recolección confirmada, en camino, cambio de fecha, retraso, realizada o no realizada; al personal, paradas asignadas, solicitudes nuevas e incidentes. No enviamos publicidad.",
+  },
 ];
 
 const DATOS = [
   ["Identificación y contacto", "Nombre de la persona de contacto, razón social, RFC, teléfono y correo electrónico."],
-  ["Cuenta", "Correo electrónico y contraseña para iniciar sesión."],
+  ["Cuenta", "Correo electrónico y contraseña para iniciar sesión, o el nombre y correo que comparte su cuenta de Google o de Apple si elige entrar con ellas."],
   ["Servicio", "Historial de recolecciones, tipo y peso de los residuos, folios, manifiestos y la ubicación del punto de recolección que usted nos indica."],
   ["Facturación", "Saldo, movimientos, montos y los comprobantes de pago que usted decida cargar."],
   ["Fotografías", "Imágenes del comprobante de pago que usted sube y, en el caso del personal operador, fotografías del contenedor antes y después de la recolección."],
+  ["Ubicación del personal operador", "Coordenadas registradas al tomar las fotografías de una recolección, como constancia de que el servicio se realizó en el punto acordado."],
+  ["Identificador del teléfono para notificaciones", "Un código que entrega el sistema del teléfono para poder enviarle avisos de su servicio. Se borra si cierra sesión o retira el permiso."],
 ];
 
 export default function PrivacidadApp() {
@@ -51,7 +65,7 @@ export default function PrivacidadApp() {
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <p style={{ color: "var(--mc-gris)" }}>
-                Última actualización: 23 de septiembre de 2026
+                Última actualización: 6 de octubre de 2026
               </p>
 
               <p>
@@ -102,7 +116,8 @@ export default function PrivacidadApp() {
                 </tbody>
               </table>
               <p>
-                <strong>La aplicación no accede a su ubicación</strong>, no muestra
+                <strong>La ubicación solo se usa en el modo chofer</strong> del personal
+                de Morcast, nunca en las pantallas de clientes. La aplicación no muestra
                 publicidad y no usa herramientas de seguimiento ni de analítica de
                 terceros. Los permisos se piden en el momento en que se necesitan y
                 usted puede negarlos o retirarlos desde los ajustes de su teléfono; en
@@ -125,8 +140,9 @@ export default function PrivacidadApp() {
                 con fines comerciales.</strong> Solo se comparten cuando la autoridad
                 ambiental o fiscal lo requiere conforme a la ley, y con los proveedores
                 que nos prestan servicios de infraestructura (alojamiento de la base de
-                datos y envío de correo), que los tratan únicamente por nuestra
-                instrucción.
+                datos, envío de correo y envío de notificaciones), que los tratan
+                únicamente por nuestra instrucción. Si usted elige entrar con Google o
+                con Apple, ese servicio solo nos confirma su identidad.
               </p>
 
               <h2 className="h4 mt-5">6. Cómo los protegemos</h2>
@@ -148,7 +164,8 @@ export default function PrivacidadApp() {
                 <strong>Más → Eliminar mi cuenta</strong>: se borra su acceso (usuario,
                 contraseña y perfil) en ese momento. Tenga en cuenta que
                 cierta información debe conservarse por obligación fiscal y ambiental
-                aunque usted cancele su cuenta.
+                aunque usted cancele su cuenta. Los pasos completos están en{" "}
+                <a href="/eliminar-cuenta">morcast.mx/eliminar-cuenta</a>.
               </p>
 
               <h2 className="h4 mt-5">8. Cambios a este aviso</h2>
