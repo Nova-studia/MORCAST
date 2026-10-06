@@ -1,9 +1,8 @@
 "use server";
 
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
-import { haySupabase } from "@/lib/supabase";
-import { registrar } from "@/lib/bitacora";
-import { validarAtencion } from "./bandeja.mjs";
+import { haySupabase, supabaseServidor } from "@/lib/supabase";
+import { atenderIncidenteComo } from "@/lib/incidentes-oficina";
 
 /**
  * Cerrar un incidente del chofer.
@@ -13,6 +12,9 @@ import { validarAtencion } from "./bandeja.mjs";
  * actor sacado de la SESIÓN, y para que `atendido_por` no sea lo que diga el
  * navegador. El UPDATE sigue yendo con la sesión del usuario: el RLS
  * (`incidentes_personal`, db/023) sigue siendo el guardia.
+ *
+ * El trabajo vive en lib/incidentes-oficina.js desde el 6-oct-2026: la app
+ * de la oficina (/api/app/incidentes/atender) usa la MISMA función.
  */
 
 const PERSONAL = ["dueno", "admin"];
@@ -25,38 +27,11 @@ export async function atenderIncidente(id, nota) {
   // `sin-verificar` (personal sin el segundo paso) cae aquí también.
   if (!PERSONAL.includes(quien.rol)) return { ok: false, motivo: "No tienes permiso para esto." };
 
-  const v = validarAtencion(nota);
-  if (!v.ok) return { ok: false, motivo: v.motivo };
-
-  const supabase = await supabaseSesion();
-  const { data, error } = await supabase
-    .from("incidentes")
-    .update({
-      estado: "atendido",
-      atendido_por: quien.id,
-      atendido_en: new Date().toISOString(),
-      nota_atencion: v.nota,
-    })
-    .eq("id", id)
-    // Solo si sigue abierto: si otra persona lo cerró hace un minuto desde
-    // otra computadora, no se le pisa su nota.
-    .eq("estado", "abierto")
-    .select("id, tipo, atendido_en");
-
-  if (error) return { ok: false, motivo: error.message };
-  if (!data?.length) {
-    return {
-      ok: false,
-      motivo: "No se cambió nada: alguien más ya lo marcó como atendido, o el permiso de la base no te deja tocarlo. Recarga la página.",
-    };
-  }
-
-  await registrar({
-    accion: "atender_incidente",
-    tabla: "incidentes",
-    registroId: id,
-    detalle: { tipo: data[0].tipo, nota: v.nota },
+  return atenderIncidenteComo({
+    sb: await supabaseSesion(),
+    sbServicio: supabaseServidor(),
+    actor: { id: quien.id, correo: quien.correo, nombre: quien.nombre },
+    id,
+    nota,
   });
-
-  return { ok: true, atendidoEn: data[0].atendido_en, atendio: quien.nombre || quien.correo };
 }

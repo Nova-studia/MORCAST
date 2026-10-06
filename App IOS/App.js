@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, AppState } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -46,9 +46,13 @@ import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
 import SegundoPaso from "./src/pantallas/admin/SegundoPaso";
+// equipo 1: la oficina en el teléfono (recolecciones e incidentes).
+import Recolecciones from "./src/pantallas/admin/Recolecciones";
+import Incidentes from "./src/pantallas/admin/Incidentes";
+import { alPedirSegundoPaso } from "./src/api-admin";
 // Notificaciones (1.1)
 import PermisoNotificaciones from "./src/PermisoNotificaciones";
-import { datosDeLaUltimaNotificacion, alTocarNotificacion } from "./src/notificaciones";
+import { datosDeLaUltimaNotificacion, alTocarNotificacion, alRecibirNotificacion } from "./src/notificaciones";
 import { destinoDeNotificacion } from "./src/push-destino.mjs";
 
 const Tab = createBottomTabNavigator();
@@ -136,6 +140,23 @@ function AppChofer({ onLogout }) {
     return () => { vivo = false; };
   }, []);
 
+  // equipo 1 (6-oct-2026): la ruta se relee SOLA. Luis tuvo que recargar a
+  // mano para ver una parada que la oficina le acababa de poner. Ahora se
+  // relee al volver la app al frente (de otra app, del bloqueo) y en cuanto
+  // llega la notificación de una parada nueva, cambiada o quitada.
+  useEffect(() => {
+    if (!haySupabase()) return undefined;
+    let estado = AppState.currentState;
+    const sub = AppState.addEventListener("change", (nuevo) => {
+      if (estado !== "active" && nuevo === "active") recargarRuta();
+      estado = nuevo;
+    });
+    const dejar = alRecibirNotificacion((datos) => {
+      if (datos?.tipo === "parada") recargarRuta();
+    });
+    return () => { sub.remove(); dejar(); };
+  }, []);
+
   /**
    * Cierra la parada contra la base: sube las fotos, guarda la evidencia y
    * marca el servicio como completado. Devuelve { ok } para que la pantalla
@@ -175,6 +196,7 @@ function AppChofer({ onLogout }) {
   const enRutaLocal = (parada) =>
     setRuta((r) => r.map((sv) => (sv.folio === parada.folio ? { ...sv, estado: "en-ruta", clienteAvisado: true } : sv)));
   return (
+    <>
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
         {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} onEnRuta={enRutaLocal} />}
@@ -190,6 +212,10 @@ function AppChofer({ onLogout }) {
         {(props) => <ReportarProblema {...props} ruta={ruta} />}
       </Stack.Screen>
     </Stack.Navigator>
+    {/* equipo 1 (6-oct-2026): el chofer registra su teléfono para que le
+        llegue la parada nueva (antes solo le llegaba un correo). */}
+    <PermisoNotificaciones modo="chofer" />
+    </>
   );
 }
 
@@ -281,6 +307,9 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
       <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
       <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* equipo 1: recolecciones e incidentes de la oficina. */}
+      <Stack.Screen name="Recolecciones" component={Recolecciones} options={{ title: "Recolecciones" }} />
+      <Stack.Screen name="Incidentes" component={Incidentes} options={{ title: "Incidentes" }} />
     </Stack.Navigator>
   );
 }
@@ -296,6 +325,10 @@ function AdminConPuerta({ onLogout, alAbrir }) {
   useEffect(() => {
     if (abierta) alAbrir?.();
   }, [abierta]);
+
+  // Si el servidor rechaza el pase (venció o se cerró la sesión), se vuelve
+  // a pedir el código aquí mismo (api-admin.js avisa).
+  useEffect(() => alPedirSegundoPaso(() => setAbierta(false)), []);
 
   if (!abierta) return <SegundoPaso onListo={() => setAbierta(true)} onSalir={onLogout} />;
   return (

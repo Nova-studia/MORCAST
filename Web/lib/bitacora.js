@@ -79,6 +79,10 @@ export const TEXTO_ACCION = {
   rechazar_saldo: "Rechazó un depósito",
   confirmar_recoleccion: "Confirmó una recolección",
   rechazar_recoleccion: "Rechazó una recolección",
+  // equipo 1 (6-oct-2026): ya se anotaban y salían con su clave cruda.
+  reagendar_recoleccion_vencida: "Reagendó una recolección que se pasó de fecha",
+  cambiar_recoleccion_confirmada: "Cambió el día, la hora o el chofer de una recolección",
+  aviso_oficina_solicitud: "Pidió una recolección (se avisó a la oficina)",
   cerrar_recoleccion: "Cerró una recolección con evidencia",
   cambiar_rol: "Cambió el rol de un usuario",
   alta_cliente: "Dio de alta un cliente",

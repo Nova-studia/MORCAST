@@ -11,7 +11,7 @@ import { haySupabase } from "../../supabase";
 import DondeEs from "./DondeEs";
 import EnCamino from "./EnCamino";
 
-export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, recargarRuta, onEnRuta }) {
+export default function RutaChofer({ navigation, route, ruta, cargandoRuta, onLogout, recargarRuta, onEnRuta }) {
   const [verComp, setVerComp] = useState(null);
   const [refrescando, setRefrescando] = useState(false);
   const pendientes = ruta.filter((s) => s.estatus === "pendiente");
@@ -27,6 +27,14 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, r
     setRefrescando(true);
     try { await recargarRuta(); } finally { setRefrescando(false); }
   };
+
+  // equipo 1 (6-oct-2026): tocar la notificación de una parada nueva,
+  // cambiada o quitada trae aquí `recargar` (un número distinto cada vez):
+  // se relee la ruta sin que el chofer tenga que jalar hacia abajo.
+  const pedirRecarga = route?.params?.recargar;
+  useEffect(() => {
+    if (pedirRecarga && recargarRuta) refrescar();
+  }, [pedirRecarga]);
 
   // Quién es y qué maneja, de la sesión y de SU ruta en la base. La barra
   // decía "Hola, José · Unidad Roll off 04" —el chofer de demostración— a

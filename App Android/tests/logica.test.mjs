@@ -173,8 +173,9 @@ test("tocar una notificación lleva a la pantalla de su modo", () => {
   assert.deepEqual(destinoDeNotificacion({ tipo: "aviso", id: "a1" }, "cliente"), {
     pila: "TabsCliente", pestana: "Inicio", params: { aviso: "a1" },
   });
+  // Desde el 6-oct-2026 el incidente abre la bandeja de Incidentes, no el Panel.
   assert.deepEqual(destinoDeNotificacion({ tipo: "incidente", id: "i9" }, "admin"), {
-    pila: "TabsAdmin", pestana: "Panel", params: { incidente: "i9" },
+    pila: "Incidentes", params: { id: "i9" },
   });
   assert.equal(destinoDeNotificacion({ tipo: "aviso" }, "admin"), null);
   assert.equal(destinoDeNotificacion({ tipo: "otro" }, "cliente"), null);

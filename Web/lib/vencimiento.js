@@ -155,6 +155,12 @@ export function ordenarPorUrgencia(lista, hoy = hoyISO()) {
  */
 export function opcionesReagenda(diasDeRuta, hoy = hoyISO(), cuantas = 3) {
   const nombres = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+  // La base guarda los días CON acento ("miércoles", "sábado"; ver
+  // scripts/cuaderno/normalizar.mjs) y aquí se comparaban sin él: a una ruta
+  // de miércoles o sábado nunca se le ofrecía "Próximo día de su ruta"
+  // (6-oct-2026). Se comparan los dos lados sin acentos ni mayúsculas.
+  const pelar = (t) => String(t || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+  diasDeRuta = Array.isArray(diasDeRuta) ? diasDeRuta.map(pelar) : diasDeRuta;
   const [a, m, d] = hoy.split("-").map(Number);
   const opciones = [];
 

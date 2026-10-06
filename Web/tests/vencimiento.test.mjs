@@ -32,3 +32,12 @@ test("al ordenar, 'No procedió' va con las cerradas, no arriba con las vencidas
   ];
   assert.deepEqual(ordenarPorUrgencia(lista, HOY).map((s) => s.folio), ["VEN", "PROX", "COMP", "NP"]);
 });
+
+test("el próximo día de su ruta entiende los días con acento de la base", async () => {
+  const { opcionesReagenda } = await import("../lib/vencimiento.js");
+  // 2026-10-06 es martes: el próximo miércoles es el 7 y el sábado el 10.
+  const mier = opcionesReagenda(["miércoles"], "2026-10-06", 3).find((o) => o.id === "ruta");
+  assert.equal(mier?.fecha, undefined, "el 7 ya es 'Mañana': no se repite");
+  const sab = opcionesReagenda(["Sábado"], "2026-10-06", 3).find((o) => o.id === "ruta");
+  assert.equal(sab?.fecha, "2026-10-10");
+});

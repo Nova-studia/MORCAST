@@ -876,3 +876,45 @@ export async function correoAvisoAltaConfirmada({ correo, empresa, folio, pdfBas
     attachments: [adjuntoPdf(nombrePdf, pdfBase64)],
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* equipo 1: recolección pedida (6-oct-2026)                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A MORCAST: un cliente pidió una recolección (portal o app). Antes no se
+ * avisaba de nada y la oficina se enteraba solo si abría Recolecciones.
+ * Los datos llegan ya armados (lib/solicitud-aviso.mjs).
+ */
+export async function correoSolicitudRecoleccion({
+  asunto, empresa, folio, fecha, tipo, residuo, punto, ruta, nota, enlace,
+}) {
+  const fila = (etiqueta, valor) =>
+    valor
+      ? `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7a7c;vertical-align:top;white-space:nowrap">${esc(etiqueta)}</td>
+         <td style="padding:6px 0;font-size:15px;color:#1c2b2d">${esc(valor)}</td></tr>`
+      : "";
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: RESPONDER_A,
+    subject: asunto,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">Recolección pedida</h1>
+      <p style="margin:0 0 14px;font-size:15px;line-height:1.6">
+        <strong>${esc(empresa)}</strong> pidió una recolección. Falta confirmarle
+        el día, la hora y el chofer.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+        ${fila("Folio", folio)}
+        ${fila("Para el", fecha)}
+        ${fila("Tipo", tipo)}
+        ${fila("Residuo", residuo)}
+        ${fila("Punto", punto)}
+        ${fila("Ruta", ruta)}
+      </table>
+      ${nota ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;white-space:pre-line">“${esc(nota)}”</p>` : ""}
+      <p style="margin:20px 0 0;font-size:15px">
+        <a href="${esc(enlace)}" style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px">
+          Confirmar en el panel</a></p>`),
+  });
+}

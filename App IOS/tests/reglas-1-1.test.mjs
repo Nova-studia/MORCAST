@@ -173,7 +173,8 @@ test("los motivos del servidor se dicen en español", () => {
 
 test("el toque de una notificación abre la pantalla del modo correcto", () => {
   assert.deepEqual(destinoDeNotificacion({ tipo: "aviso", id: "x" }, "cliente"), { pantalla: "TabsCliente", params: { screen: "Inicio" } });
-  assert.deepEqual(destinoDeNotificacion({ tipo: "incidente", id: "x" }, "admin"), { pantalla: "TabsAdmin", params: { screen: "Panel" } });
+  // Desde el 6-oct-2026 el incidente abre la bandeja de Incidentes, no el Panel.
+  assert.deepEqual(destinoDeNotificacion({ tipo: "incidente", id: "x" }, "admin"), { pantalla: "Incidentes", params: { id: "x" } });
   assert.equal(destinoDeNotificacion({ tipo: "aviso" }, "chofer"), null);
   assert.equal(destinoDeNotificacion({ tipo: "otra" }, "cliente"), null);
   assert.equal(destinoDeNotificacion(null, "cliente"), null);

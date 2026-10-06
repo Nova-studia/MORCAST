@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, RefreshControl } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, Badge } from "../../ui";
@@ -12,32 +12,49 @@ const FILTROS = [
   { id: "programado", texto: "Programados" },
   { id: "en-ruta", texto: "En ruta" },
   { id: "completado", texto: "Completados" },
+  // equipo 1 (6-oct-2026): el camión fue y no se pudo; se ve con su motivo.
+  { id: "no-procedio", texto: "No procedieron" },
 ];
 
-export default function Servicios() {
+export default function Servicios({ navigation }) {
   // La agenda sale de las paradas reales. Antes era una lista de ejemplo con
   // clientes y unidades que no existen.
   const [agenda, setAgenda] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
 
+  const cargar = useCallback(
+    () => agendaServicios().then((a) => { setAgenda(a); setCargando(false); }),
+    []
+  );
+
+  // Se relee al volver de Recolecciones ("Cambiar"): si se movió el día o el
+  // chofer, la agenda lo enseña ya cambiado.
   useEffect(() => {
-    let vivo = true;
-    agendaServicios().then((a) => {
-      if (!vivo) return;
-      setAgenda(a);
-      setCargando(false);
-    });
-    return () => { vivo = false; };
-  }, []);
+    cargar();
+    return navigation?.addListener ? navigation.addListener("focus", cargar) : undefined;
+  }, [cargar, navigation]);
+
+  const refrescar = async () => {
+    setRefrescando(true);
+    try { await cargar(); } finally { setRefrescando(false); }
+  };
 
   const [filtro, setFiltro] = useState("todos");
   const [ver, setVer] = useState(null);
   const filas = agenda.filter((x) => filtro === "todos" || x.estatus === filtro).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: T.fondo }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} />}
+    >
       <Text style={s.h1}>Agenda de servicios</Text>
-      <Text style={s.sub}>Toca un servicio completado para ver el comprobante fotográfico del chofer.</Text>
+      <Text style={s.sub}>
+        Toca un servicio completado para ver el comprobante fotográfico del chofer. El día, la hora y el chofer de un
+        programado se cambian con «Cambiar».
+      </Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
         {FILTROS.map((f) => (
@@ -66,6 +83,26 @@ export default function Servicios() {
                   <Text style={s.folio}>{x.folio} · {fechaLarga(x.fecha)}{x.hora ? ` · ${x.hora}` : ""}</Text>
                   <Text style={s.cli}>{x.cliente}</Text>
                   <Text style={s.det}>{x.tipo} · {x.unidad} · {x.operador}</Text>
+                  {x.estatus === "no-procedio" && (
+                    <Text style={s.noProc}>
+                      No procedió: {x.motivoNoProcedio || "sin motivo registrado"}
+                      {x.detalleNoProcedio ? ` — ${x.detalleNoProcedio}` : ""} · no se cobra
+                    </Text>
+                  )}
+                  {/* equipo 1: un programado se cambia en Recolecciones,
+                      abierto ya en esa recolección (como "Cambiar" en la web). */}
+                  {x.estatus === "programado" && x.id && navigation && (
+                    <Pressable
+                      onPress={() => navigation.navigate("Recolecciones", { id: x.id })}
+                      style={s.cambiar}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cambiar día, hora o chofer de ${x.folio}`}
+                    >
+                      <Feather name="edit-2" size={13} color={T.accionTxt} />
+                      <Text style={s.cambiarTxt}>Cambiar</Text>
+                    </Pressable>
+                  )}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: 6 }}>
                   <Badge clase={est.clase}>{est.texto}</Badge>
@@ -159,6 +196,9 @@ const s = StyleSheet.create({
   folio: { color: T.gris, fontSize: 11.5 },
   cli: { color: T.tinta, fontSize: 14.5, fontWeight: "700", marginTop: 3 },
   det: { color: T.gris, fontSize: 12, marginTop: 2 },
+  noProc: { color: T.alerta, fontSize: 12, marginTop: 4, lineHeight: 16 },
+  cambiar: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 11, minHeight: 36, borderRadius: 9, borderWidth: 1, borderColor: T.linea },
+  cambiarTxt: { color: T.accionTxt, fontSize: 12.5, fontWeight: "700" },
   modalFondo: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modal: { backgroundColor: T.fondo, borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "92%", borderWidth: 1, borderColor: T.linea },
   modalCab: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

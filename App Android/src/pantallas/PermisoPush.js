@@ -36,8 +36,19 @@ const TEXTOS = {
     puntos: [
       { icono: "alert-triangle", texto: "Cuando un chofer reporte un accidente, un retraso o una falla." },
       { icono: "box", texto: "Cuando un contenedor esté dañado, movido o no esté." },
+      // equipo 1 (6-oct-2026): ahora también llega la recolección pedida.
+      { icono: "inbox", texto: "Cuando un cliente pida una recolección." },
     ],
     pie: "Puedes apagarlas cuando quieras en Ajustes.",
+  },
+  // equipo 1 (6-oct-2026): el chofer también recibe avisos, de SU ruta.
+  chofer: {
+    titulo: "¿Te avisamos de tu ruta?",
+    puntos: [
+      { icono: "map-pin", texto: "Cuando la oficina te ponga una parada nueva." },
+      { icono: "clock", texto: "Si te cambian el día o la hora de una parada, o te la quitan." },
+    ],
+    pie: "Tu ruta se actualiza sola al llegar el aviso. Puedes apagarlos en Ajustes.",
   },
 };
 

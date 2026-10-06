@@ -13,13 +13,14 @@ import { SOLICITUDES_SEED, nombreTipoRuta } from "@/lib/rutas-datos";
 import { enlaceEvidencia } from "@/lib/datos-archivos";
 import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { demoPeso } from "@/lib/datos-viajes";
+import { avisarSolicitudNueva } from "@/app/acciones-solicitud";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
  * consulta por fila. Con 200 solicitudes, lo segundo serían 401 viajes a la
  * base para pintar una sola tabla.
  */
-const CAMPOS = `
+const CAMPOS_BASE = `
   id, folio, origen, fecha_pedida, fecha_confirmada, hora_confirmada, chofer_id,
   estado, nota, motivo_rechazo, creado, tipo_residuo, motivo_no_procedio, detalle_no_procedio,
   clientes ( folio, empresa ),
@@ -27,9 +28,28 @@ const CAMPOS = `
   rutas ( clave, nombre, tipo, unidad, chofer ),
   choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
 `;
+
+/**
+ * Quién la HIZO de verdad: el chofer que cerró la recolección
+ * (`recolecciones.operador_id`). Luis lo encontró el 6-oct-2026: una
+ * completada decía "Marco Antonio" (el chofer de la ruta) y la había hecho
+ * José Medina. `recolecciones` apunta DOS veces a perfiles (`operador_id` y
+ * `peso_real_por`), así que la llave va con nombre. El personal puede leer
+ * perfiles; al cliente el RLS se lo devuelve vacío y se queda lo de antes.
+ */
+const OPERADOR_REAL = "operador:perfiles!recolecciones_operador_id_fkey ( nombre )";
+const CAMPOS = `${CAMPOS_BASE},
+  hecha:recolecciones ( ${OPERADOR_REAL} )
+`;
 // El nombre de la llave va explícito a propósito: esta tabla apunta DOS veces
 // a perfiles (`creada_por` y `chofer_id`). Con solo "perfiles (...)" PostgREST
 // no sabe cuál de las dos quieres y responde con un error de relación ambigua.
+
+/** El chofer que cerró la recolección, o "" si no hay evidencia o no se puede leer. */
+function operadorReal(f) {
+  const ev = (f.hecha || f.recolecciones || [])[0];
+  return ev?.operador?.nombre || "";
+}
 
 /** Fila de la base → el formato que ya usaban las pantallas. */
 function aFormatoPantalla(f) {
@@ -56,7 +76,11 @@ function aFormatoPantalla(f) {
     // ruta, que es como funcionó siempre.
     choferId: f.chofer_id || null,
     choferAsignado: f.choferParada?.nombre || "",
-    choferEfectivo: f.choferParada?.nombre || f.rutas?.chofer || "Sin asignar",
+    // Completada: manda quien la cerró (ver OPERADOR_REAL). Si no, el
+    // asignado a la parada y, al final, el de la ruta.
+    operadorReal: operadorReal(f),
+    choferEfectivo:
+      (f.estado === "completada" && operadorReal(f)) || f.choferParada?.nombre || f.rutas?.chofer || "Sin asignar",
     estado: f.estado,
     nota: f.nota || "",
     motivoRechazo: f.motivo_rechazo || "",
@@ -112,9 +136,9 @@ export async function listarSolicitudes() {
  * camión iba mi basura?": el ticket del viaje es del camión completo, con
  * residuo de otras empresas. Además el RLS no le deja leer `viajes_relleno`.
  */
-const CAMPOS_PANEL = `${CAMPOS},
+const CAMPOS_PANEL = `${CAMPOS_BASE},
   recolecciones (
-    id, peso_kg, peso_real_kg, peso_real_en, viaje_id,
+    id, peso_kg, peso_real_kg, peso_real_en, viaje_id, ${OPERADOR_REAL},
     viajes_relleno ( id, fecha, peso_real_kg, folio_ticket )
   )
 `;
@@ -313,6 +337,14 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
         : error.message,
     };
   }
+
+  // Que se entere la oficina (6-oct-2026): antes nadie avisaba y la
+  // solicitud esperaba a que alguien abriera Recolecciones. No se espera: la
+  // solicitud ya quedó guardada, que es lo importante, y un fallo del aviso
+  // no le puede decir al cliente que no se pidió.
+  avisarSolicitudNueva(folio).catch((e) =>
+    console.warn("[solicitudes] no se pudo avisar a la oficina:", e?.message || e)
+  );
   return { ok: true, folio };
 }
 

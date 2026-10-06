@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, AppState } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -36,7 +36,7 @@ import { rutaDelDia, cerrarRecoleccion, avisarParada } from "./src/datos-remoto"
 import { sesionActiva, sesionPendiente, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
 // Notificaciones push (1.1)
-import { prepararNotificaciones, escucharToques } from "./src/push";
+import { prepararNotificaciones, escucharToques, escucharLlegadas } from "./src/push";
 import { destinoDeNotificacion } from "./src/push-destino.js";
 import PermisoPush from "./src/pantallas/PermisoPush";
 // Admin
@@ -50,6 +50,10 @@ import ReportesAdmin from "./src/pantallas/admin/ReportesAdmin";
 import Usuarios from "./src/pantallas/admin/Usuarios";
 import MasAdmin from "./src/pantallas/admin/MasAdmin";
 import VerificacionAdmin from "./src/pantallas/admin/VerificacionAdmin";
+// equipo 1: la oficina en el teléfono (recolecciones e incidentes).
+import Recolecciones from "./src/pantallas/admin/Recolecciones";
+import Incidentes from "./src/pantallas/admin/Incidentes";
+import { alPedirSegundoPaso } from "./src/api-admin";
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
@@ -142,6 +146,23 @@ function AppChofer({ onLogout }) {
     return () => { vivo = false; };
   }, []);
 
+  // equipo 1 (6-oct-2026): la ruta se relee SOLA. Luis tuvo que recargar a
+  // mano para ver una parada que la oficina le acababa de poner. Ahora se
+  // relee al volver la app al frente (de otra app, del bloqueo) y en cuanto
+  // llega la notificación de una parada nueva, cambiada o quitada.
+  useEffect(() => {
+    if (!haySupabase()) return undefined;
+    let estado = AppState.currentState;
+    const sub = AppState.addEventListener("change", (nuevo) => {
+      if (estado !== "active" && nuevo === "active") recargarRuta();
+      estado = nuevo;
+    });
+    const dejar = escucharLlegadas((datos) => {
+      if (datos?.tipo === "parada") recargarRuta();
+    });
+    return () => { sub.remove(); dejar(); };
+  }, []);
+
   /**
    * Cierra la parada contra la base: sube las fotos, guarda la evidencia y
    * marca el servicio como completado. Devuelve { ok } para que la pantalla
@@ -181,6 +202,7 @@ function AppChofer({ onLogout }) {
   const enRutaLocal = (parada) =>
     setRuta((r) => r.map((sv) => (sv.folio === parada.folio ? { ...sv, estado: "en-ruta", clienteAvisado: true } : sv)));
   return (
+    <>
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
         {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} onEnRuta={enRutaLocal} />}
@@ -197,6 +219,10 @@ function AppChofer({ onLogout }) {
         {(props) => <ReportarProblema {...props} ruta={ruta} />}
       </Stack.Screen>
     </Stack.Navigator>
+    {/* equipo 1 (6-oct-2026): el chofer registra su teléfono para que le
+        llegue la parada nueva (antes solo le llegaba un correo). */}
+    <PermisoPush modo="chofer" />
+    </>
   );
 }
 
@@ -281,6 +307,9 @@ function TabsAdmin({ onLogout }) {
  */
 function AdminConCandado({ onLogout, alPasar }) {
   const [paso, setPaso] = useState(false);
+  // Si el servidor rechaza el pase (venció o se cerró la sesión), se vuelve
+  // a pedir el código aquí mismo (api-admin.js avisa).
+  useEffect(() => alPedirSegundoPaso(() => setPaso(false)), []);
   if (!paso) {
     return (
       <VerificacionAdmin
@@ -307,6 +336,9 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
       <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
       <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* equipo 1: recolecciones e incidentes de la oficina. */}
+      <Stack.Screen name="Recolecciones" component={Recolecciones} options={{ title: "Recolecciones" }} />
+      <Stack.Screen name="Incidentes" component={Incidentes} options={{ title: "Incidentes" }} />
     </Stack.Navigator>
   );
 }
@@ -317,6 +349,9 @@ export default function App() {
   const [revisando, setRevisando] = useState(true);
   // El admin ya pasó el código por correo (solo entonces existe su panel).
   const [adminListo, setAdminListo] = useState(false);
+  // Si el servidor vuelve a pedir el código, el panel deja de existir hasta
+  // que se escriba: una notificación tocada mientras tanto espera.
+  useEffect(() => alPedirSegundoPaso(() => setAdminListo(false)), []);
   // La notificación que se tocó y todavía no se atiende: puede llegar antes
   // de que la sesión se haya recuperado o de que el admin pase su código.
   const [toque, setToque] = useState(null);
@@ -345,9 +380,12 @@ export default function App() {
     setToque(null);
     if (!destino) return;
     // Un respiro para que el navegador de esa sesión termine de montarse.
+    // Sin `pestana` el destino es una pantalla de la pila (Recolecciones,
+    // Incidentes, la Ruta del chofer), no una pestaña.
     setTimeout(() => {
       if (navegacion.isReady()) {
-        navegacion.navigate(destino.pila, { screen: destino.pestana, params: destino.params });
+        if (destino.pestana) navegacion.navigate(destino.pila, { screen: destino.pestana, params: destino.params });
+        else navegacion.navigate(destino.pila, destino.params);
       }
     }, 300);
   }, [toque, sesion, adminListo]);
