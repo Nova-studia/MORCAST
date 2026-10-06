@@ -125,6 +125,9 @@ export default function AltasAdmin() {
     const r = await activarCuentaRegistrada({ solicitudId: a.id, password });
     setActivando(false);
     if (!r.ok) { setError(r.motivo || "No se pudo activar."); return; }
+    // Activó, pero su punto de recolección no se creó: se dice aquí arriba
+    // para que nadie confirme recolecciones creyendo que traen dirección.
+    if (r.avisoPunto) setError(r.avisoPunto);
     // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
     // Va con el `solicitudId` a cuestas: la tarjeta de abajo se pinta sólo
     // sobre el detalle de ESTA persona.

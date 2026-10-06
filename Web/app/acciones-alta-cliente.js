@@ -251,7 +251,7 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
 
   const { data: solicitud, error: errSolicitud } = await sb
     .from("solicitudes_alta")
-    .select("id, folio, empresa, contacto, telefono, correo, usuario_id, origen")
+    .select("id, folio, empresa, contacto, telefono, correo, usuario_id, origen, alias, calle, colonia, cp, referencias, lat, lng")
     .eq("id", solicitudId)
     .single();
 
@@ -386,7 +386,15 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
     };
   }
 
-  // 4) La solicitud queda trabajada. Que esto falle no invalida la activación.
+  // 4) Su punto de recolección, con el pin que el cliente puso en el mapa al
+  //    darse de alta (6-oct-2026). Antes la activación creaba la empresa sin
+  //    ningún domicilio: el pin se quedaba en la solicitud, la recolección
+  //    que pedía el cliente salía sin dirección y el chofer no tenía «Cómo
+  //    llegar». Que falle NO deshace la activación —la cuenta ya sirve—: se
+  //    avisa en la respuesta para que el punto se ponga desde el panel.
+  const punto = await crearPuntoDelAlta(sb, cliente.id, solicitud);
+
+  // 5) La solicitud queda trabajada. Que esto falle no invalida la activación.
   await sb.from("solicitudes_alta").update({ estado: "aprobada" }).eq("id", solicitud.id);
 
   try {
@@ -409,6 +417,7 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
       empresa: cliente.empresa,
       correo: solicitud.correo,
       solicitud: solicitud.folio,
+      punto: punto.ok ? punto.id : null,
       // La contraseña NO se registra. La bitácora la leen varias personas.
     },
   });
@@ -418,7 +427,52 @@ export async function activarCuentaRegistrada({ solicitudId, password }) {
     cliente: { id: cliente.id, folio: cliente.folio, empresa: cliente.empresa },
     correo: solicitud.correo,
     creadaPor: quien.correo,
+    avisoPunto: punto.ok ? "" : punto.motivo,
   };
+}
+
+/**
+ * El domicilio (punto de recolección) que nace de un alta: alias, dirección,
+ * referencias y el pin del mapa. El sector lo calcula la base con los
+ * límites que haya hoy (`sector_de_punto`, db/023); sin límites queda vacío
+ * y se acomoda solo cuando se dibujen, igual que los demás puntos.
+ *
+ * `ubicacion_origen` se deja vacío a propósito: la base solo acepta 'panel'
+ * o 'chofer', y este pin no lo puso ninguno de los dos.
+ */
+async function crearPuntoDelAlta(sb, clienteId, a) {
+  const hayPin = Number.isFinite(a.lat) && Number.isFinite(a.lng);
+  let sectorId = null;
+  if (hayPin) {
+    const { data } = await sb.rpc("sector_de_punto", { p_lat: a.lat, p_lng: a.lng });
+    sectorId = data || null;
+  }
+  const { data, error } = await sb
+    .from("domicilios")
+    .insert({
+      cliente_id: clienteId,
+      alias: (a.alias || "").trim() || "Principal",
+      calle: a.calle || null,
+      colonia: a.colonia || null,
+      cp: a.cp || null,
+      referencias: a.referencias || null,
+      lat: hayPin ? a.lat : null,
+      lng: hayPin ? a.lng : null,
+      ubicacion_fecha: hayPin ? new Date().toISOString() : null,
+      sector_id: sectorId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("[activar] no se pudo crear el punto del alta:", error?.message);
+    return {
+      ok: false,
+      motivo:
+        "La cuenta quedó activa, pero no se pudo crear su punto de recolección " +
+        `(${error?.message || "error desconocido"}). Sus recolecciones saldrán sin dirección hasta que se agregue.`,
+    };
+  }
+  return { ok: true, id: data.id };
 }
 
 /** Contraseña que nadie va a ver. Solo existe para que Supabase acepte crear
