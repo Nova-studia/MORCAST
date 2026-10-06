@@ -31,7 +31,7 @@ import Recoleccion from "./src/pantallas/chofer/Recoleccion";
 import NoProcedio from "./src/pantallas/chofer/NoProcedio";
 import ReportarProblema from "./src/pantallas/chofer/ReportarProblema";
 import { RUTA_HOY } from "./src/datos-chofer";
-import { rutaDelDia, cerrarRecoleccion } from "./src/datos-remoto";
+import { rutaDelDia, cerrarRecoleccion, avisarParada } from "./src/datos-remoto";
 import { sesionActiva, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
 // Admin
@@ -153,16 +153,31 @@ function AppChofer({ onLogout }) {
       rutaAntes: datos.rutaAntes,
       rutaDespues: datos.rutaDespues,
     });
-    if (r.ok) await recargarRuta();
+    if (r.ok) {
+      // El cliente se entera de que ya pasamos (correo y push, desde la web).
+      // No se espera: el servicio ya quedó guardado, que es lo importante, y
+      // la señal de la calle no debe detener al chofer en esta pantalla.
+      avisarParada(parada.id, "completada").then((a) => {
+        if (!a.ok) console.warn("No se pudo avisar al cliente de la recolección:", a.motivo);
+      });
+      await recargarRuta();
+    }
     return r;
   };
+
+  /**
+   * "En camino" ya quedó en la base (y el cliente avisado): se cambia la copia
+   * local de la parada sin volver a leer toda la ruta.
+   */
+  const enRutaLocal = (parada) =>
+    setRuta((r) => r.map((sv) => (sv.folio === parada.folio ? { ...sv, estado: "en-ruta", clienteAvisado: true } : sv)));
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
       <Stack.Screen name="Ruta" options={{ headerShown: false }}>
-        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} />}
+        {(props) => <RutaChofer {...props} ruta={ruta} cargandoRuta={cargandoRuta} onLogout={onLogout} recargarRuta={recargarRuta} onEnRuta={enRutaLocal} />}
       </Stack.Screen>
       <Stack.Screen name="Recoleccion" options={{ title: "Recolección" }}>
-        {(props) => <Recoleccion {...props} completar={completar} />}
+        {(props) => <Recoleccion {...props} completar={completar} onEnRuta={enRutaLocal} />}
       </Stack.Screen>
       {/* 1.1 · lo que el chofer reporta desde la calle (pedidos de los dueños). */}
       <Stack.Screen name="NoProcedio" options={{ title: "No procedió" }}>

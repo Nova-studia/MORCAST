@@ -20,7 +20,7 @@ const FILTROS = [
   { id: "no-procedio", texto: "No procedió" },
 ];
 
-export default function Historial() {
+export default function Historial({ route }) {
   const [filtro, setFiltro] = useState("todos");
   const [abierto, setAbierto] = useState(null);
   const [bajando, setBajando] = useState(null);
@@ -46,15 +46,23 @@ export default function Historial() {
 
   // Los enlaces de las fotos vienen firmados y caducan, así que se piden al
   // abrir la pantalla y no se guardan.
+  //
+  // Si se llega tocando la notificación de una recolección ("Vamos en
+  // camino", "Recolección realizada"…; ver `push-destino.mjs`), la pestaña
+  // puede llevar rato abierta con la lista vieja: se vuelve a leer, y en
+  // "Todos" para que la recolección se vea sea cual sea su estado.
+  const avisoRecoleccion = route?.params?.recoleccion;
+  const avisoEvento = route?.params?.evento;
   useEffect(() => {
     let vivo = true;
+    if (avisoRecoleccion) setFiltro("todos");
     misServicios().then((l) => {
       if (vivo) setServicios(l);
     });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [avisoRecoleccion, avisoEvento]);
 
   // Con base conectada la lista es la REAL aunque venga vacía. Antes, si el
   // cliente no tenía servicios, se le enseñaban los de ejemplo (folios

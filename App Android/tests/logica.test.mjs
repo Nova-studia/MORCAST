@@ -181,6 +181,21 @@ test("tocar una notificación lleva a la pantalla de su modo", () => {
   assert.equal(destinoDeNotificacion(null, "cliente"), null);
 });
 
+test("el aviso de una recolección lleva al cliente a su Historial (6-oct-2026)", () => {
+  assert.deepEqual(
+    destinoDeNotificacion({ tipo: "recoleccion", id: "r1", folio: "REC-0042", evento: "en-camino" }, "cliente"),
+    { pila: "TabsCliente", pestana: "Historial", params: { recoleccion: "r1", evento: "en-camino" } }
+  );
+  // Sin id ni evento igual abre el Historial.
+  assert.deepEqual(destinoDeNotificacion({ tipo: "recoleccion" }, "cliente"), {
+    pila: "TabsCliente", pestana: "Historial", params: { recoleccion: null, evento: null },
+  });
+  // Es del cliente: en otra sesión no se navega a ningún lado.
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1", evento: "completada" }, "chofer"), null);
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1", evento: "completada" }, "admin"), null);
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1" }, null), null);
+});
+
 test("el vencimiento del pase llega en SEGUNDOS Unix y se reconoce bien", () => {
   const ahora = Date.parse("2026-10-05T12:00:00Z");
   const enSegundos = Math.floor(ahora / 1000) + 7 * 24 * 3600; // como lo manda el servidor

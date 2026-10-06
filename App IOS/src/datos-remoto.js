@@ -950,6 +950,32 @@ export async function marcarEnRuta(solicitudId) {
 }
 
 /**
+ * Le avisa al CLIENTE de su recolección (`POST /api/app/parada-aviso`,
+ * 6-oct-2026): "en-camino", "completada" o "no-procedio". El correo y los
+ * tokens del cliente no se leen desde el teléfono: los manda la web.
+ *
+ *   · "en-camino" además pasa la parada de `confirmada` a `en-ruta` en el
+ *     servidor (en vez de `marcarEnRuta`): cambio y aviso van juntos.
+ *   · "completada" y "no-procedio" ya los guardó la app; el servidor solo
+ *     comprueba que la base diga lo mismo y avisa.
+ *
+ * Un reintento no le manda un segundo aviso al cliente: lo cuida el servidor.
+ * Nunca lanza: devuelve `{ ok, estado?, avisado?, motivo? }`.
+ */
+export async function avisarParada(solicitudId, evento) {
+  if (!haySupabase()) return { ok: true, demo: true, avisado: false };
+  if (!solicitudId) return { ok: false, motivo: "Falta la parada." };
+
+  const r = await postWeb("/api/app/parada-aviso", { solicitud_id: solicitudId, evento });
+  if (r.ok) return r;
+  // Ya estaba en camino (otro toque que no alcanzó a contestar, o la web):
+  // para el chofer es lo mismo que si acabara de salir.
+  if (evento === "en-camino" && r.estado === "en-ruta") return { ...r, ok: true };
+  if (r.motivo === "sin_sesion") return { ...r, motivo: "Tu sesión se venció. Vuelve a entrar." };
+  return r;
+}
+
+/**
  * Sube una foto de evidencia.
  *
  * ⚠️ En React Native NO sirve pasarle a Supabase lo que devuelve el selector

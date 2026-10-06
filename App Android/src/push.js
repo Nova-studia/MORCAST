@@ -14,7 +14,7 @@ import { supabase, haySupabase } from "./supabase";
  * Contrato con el servidor (db/026):
  *   · al entrar (y con permiso): `rpc('registrar_push_token', { p_token, p_plataforma: 'android' })`
  *   · al salir:                  `rpc('borrar_push_token', { p_token })`
- *   · cada push trae `data: { tipo: 'aviso' | 'incidente', id }` (ver `push-destino.js`).
+ *   · cada push trae `data: { tipo: 'aviso' | 'incidente' | 'recoleccion', id }` (ver `push-destino.js`).
  * El token es el de Expo (`ExponentPushToken[…]`): el servidor manda por el
  * servicio de Expo, que a su vez usa Firebase en Android.
  *

@@ -179,6 +179,22 @@ test("el toque de una notificación abre la pantalla del modo correcto", () => {
   assert.equal(destinoDeNotificacion(null, "cliente"), null);
 });
 
+test("el aviso de una recolección lleva al cliente a su Historial (6-oct-2026)", () => {
+  assert.deepEqual(
+    destinoDeNotificacion({ tipo: "recoleccion", id: "r1", folio: "REC-0042", evento: "en-camino" }, "cliente"),
+    { pantalla: "TabsCliente", params: { screen: "Historial", params: { recoleccion: "r1", evento: "en-camino" } } }
+  );
+  // Sin id ni evento igual abre el Historial.
+  assert.deepEqual(destinoDeNotificacion({ tipo: "recoleccion" }, "cliente"), {
+    pantalla: "TabsCliente",
+    params: { screen: "Historial", params: { recoleccion: null, evento: null } },
+  });
+  // Es del cliente: en otra sesión no se navega a ningún lado.
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1", evento: "completada" }, "chofer"), null);
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1", evento: "completada" }, "admin"), null);
+  assert.equal(destinoDeNotificacion({ tipo: "recoleccion", id: "r1" }, null), null);
+});
+
 /* ------------------------------ Mapas / GPS ------------------------------ */
 
 test("Cómo llegar va al pin si lo hay y si no a la dirección", () => {

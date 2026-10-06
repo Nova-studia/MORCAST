@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { subirEvidencia, contenedoresDelPunto } from "../../datos-remoto";
 import { revisarContenedor } from "../../contenedores.js";
 import DondeEs from "./DondeEs";
+import EnCamino from "./EnCamino";
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -11,7 +12,7 @@ import { Tarjeta, Boton } from "../../ui";
 
 const PASOS = ["Escanear", "Foto antes", "Recolectar", "Foto después", "Finalizar"];
 
-export default function Recoleccion({ route, navigation, completar }) {
+export default function Recoleccion({ route, navigation, completar, onEnRuta }) {
   // La parada puede ganar su pin aquí mismo ("Guardar la ubicación"): se
   // copia a un estado para que "Cómo llegar" lo use sin recargar la ruta.
   const [servicio, setServicio] = useState(route.params.servicio);
@@ -239,6 +240,16 @@ export default function Recoleccion({ route, navigation, completar }) {
         <DondeEs
           parada={servicio}
           onUbicacionGuardada={({ lat, lng }) => setServicio((sv) => ({ ...sv, punto: { ...sv.punto, lat, lng } }))}
+        />
+        {/* "En camino": si todavía no salió hacia aquí, el primer paso es
+            avisarle al cliente. No bloquea la recolección. */}
+        <EnCamino
+          parada={servicio}
+          onEnRuta={(p) => {
+            setServicio((sv) => ({ ...sv, estado: "en-ruta", clienteAvisado: true }));
+            onEnRuta?.(p);
+          }}
+          style={{ marginTop: 12 }}
         />
       </Tarjeta>
 

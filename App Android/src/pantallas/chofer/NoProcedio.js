@@ -6,7 +6,7 @@ import { T } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
 import { MOTIVOS_NO_PROCEDIO } from "../../rutas-datos.js";
 import { validarNoProcedio, LIMITES_REPORTE } from "../../chofer-reportes.js";
-import { marcarNoProcedio, subirEvidencia } from "../../datos-remoto";
+import { marcarNoProcedio, subirEvidencia, avisarParada } from "../../datos-remoto";
 
 /**
  * "NO PROCEDIÓ": el chofer llegó y no se pudo recoger (el residuo no es el
@@ -69,6 +69,11 @@ export default function NoProcedio({ route, navigation, recargarRuta }) {
       else Alert.alert("No se pudo guardar", r.motivo || "Revisa tu señal e inténtalo otra vez.");
       return;
     }
+    // El cliente se entera de que no se pudo recoger y por qué (correo y
+    // push, desde la web). No se espera: la parada ya quedó cerrada.
+    avisarParada(parada.id, "no-procedio").then((a) => {
+      if (!a.ok) console.warn("No se pudo avisar al cliente del «No procedió»:", a.motivo);
+    });
     await recargarRuta?.();
     Alert.alert("Listo", "Quedó como «No procedió». No se le cobra al cliente y la oficina ya ve el motivo.", [
       { text: "Volver a mi ruta", onPress: () => navigation.popToTop() },

@@ -9,8 +9,9 @@ import { usePerfilSesion } from "../../mi-perfil";
 import { miRutaDeChofer } from "../../datos-remoto";
 import { haySupabase } from "../../supabase";
 import DondeEs from "./DondeEs";
+import EnCamino from "./EnCamino";
 
-export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, recargarRuta }) {
+export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, recargarRuta, onEnRuta }) {
   const [verComp, setVerComp] = useState(null);
   const [refrescando, setRefrescando] = useState(false);
   const pendientes = ruta.filter((s) => s.estatus === "pendiente");
@@ -98,6 +99,9 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, r
               {/* Dirección completa, referencias y "Cómo llegar" desde la
                   lista: casi siempre se navega antes de abrir la parada. */}
               <DondeEs parada={sv} compacto />
+              {/* "En camino" desde la lista (6-oct-2026): el chofer sale a la
+                  parada sin abrirla y el cliente recibe su aviso. */}
+              <EnCamino parada={sv} onEnRuta={onEnRuta} style={{ marginTop: 12 }} />
               <View style={s.scanHint}><Feather name="maximize" size={13} color={T.tealClaro} /><Text style={s.scanHintTxt}>Toca para escanear el QR y recolectar</Text></View>
             </Tarjeta>
           </Pressable>
