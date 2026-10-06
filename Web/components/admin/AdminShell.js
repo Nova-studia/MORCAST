@@ -12,6 +12,7 @@ import { ADMIN_PERFIL } from "@/lib/admin-datos";
 import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -28,7 +29,8 @@ const NAV = [
   // Lo que pidieron los dueños el 4-oct-2026; sus GIF los entregó Luis el
   // 6-oct-2026 (antes llevaban un icono de Phosphor provisional).
   { href: "/admin/incidentes", texto: "Incidentes", gif: "incidentes" },
-  { href: "/admin/viajes", texto: "Peso real (relleno)", gif: "peso-real-relleno" },
+  // Apagado por ahora (lib/estado-sistema.js, PESO_REAL): `soloSi` lo saca del menú.
+  { href: "/admin/viajes", texto: "Peso real (relleno)", gif: "peso-real-relleno", soloSi: pesoRealActivo },
   { href: "/admin/avisos", texto: "Avisos a clientes", gif: "avisos-a-clientes" },
   { href: "/admin/unidades", texto: "Unidades", gif: "unidades" },
   { href: "/admin/contenedores", texto: "Contenedores", gif: "contenedores" },
@@ -51,6 +53,10 @@ const NAV = [
   { href: "/admin/usuarios", texto: "Usuarios y roles", gif: "usuarios-y-roles" },
   { href: "/admin/bitacora", texto: "Bitácora", gif: "documentos" },
 ];
+
+// Los renglones que hoy se enseñan. `soloSi` es para lo que está apagado a
+// propósito (p. ej. el peso real del relleno), no para permisos.
+const MENU = NAV.filter((n) => !n.soloSi || n.soloSi());
 
 export default function AdminShell({ children }) {
   const ruta = usePathname();
@@ -104,7 +110,7 @@ export default function AdminShell({ children }) {
     item.exacto
       ? ruta === item.href
       : [item.href, ...(item.tambien || [])].some((h) => ruta.startsWith(h));
-  const seccion = NAV.find((n) => activo(n)) || NAV[0];
+  const seccion = MENU.find((n) => activo(n)) || MENU[0];
 
   const nombre = sesion?.nombre || ADMIN_PERFIL.nombre;
   const iniciales = nombre
@@ -162,7 +168,7 @@ export default function AdminShell({ children }) {
             <span className="pt-admin-tag">Panel de administración</span>
           </div>
           <nav className="pt-nav">
-            {NAV.map((item) => {
+            {MENU.map((item) => {
               return (
                 <Link
                   key={item.href}

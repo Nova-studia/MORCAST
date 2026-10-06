@@ -29,6 +29,7 @@ import {
   hoyISO,
 } from "@/lib/vencimiento";
 import { cambiarEstadoSolicitudAuditado } from "@/app/acciones-auditadas";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 
 export default function RecoleccionesAdmin() {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -476,25 +477,28 @@ export default function RecoleccionesAdmin() {
                           <span style={{ color: "var(--mc-gris)" }}>Estimado del chofer: </span>
                           {s.evidencia.estimadoKg ? textoKg(s.evidencia.estimadoKg) : "sin peso"}
                         </span>
-                        {s.evidencia.realKg && (
+                        {pesoRealActivo() && s.evidencia.realKg && (
                           <span style={{ color: "var(--mc-ok)" }}>
                             Peso real: <strong>{textoKg(s.evidencia.realKg)}</strong>
                           </span>
                         )}
-                        {s.evidencia.viaje && (
+                        {pesoRealActivo() && s.evidencia.viaje && (
                           <Link href="/admin/viajes" style={{ color: "var(--mc-azul-txt, #6ba3cf)" }}>
                             Va en el viaje del {fechaConDia(s.evidencia.viaje.fecha)}
                             {s.evidencia.viaje.pesoRealKg ? ` · ${textoPeso(s.evidencia.viaje.pesoRealKg)} reales en total` : ""}
                             {s.evidencia.viaje.folioTicket ? ` · ticket ${s.evidencia.viaje.folioTicket}` : ""}
                           </Link>
                         )}
-                        <button
-                          type="button"
-                          className="pt-btn"
-                          onClick={() => setPesoReal({ s, kg: s.evidencia.realKg ? String(s.evidencia.realKg) : "", error: "" })}
-                        >
-                          <Scales /> {s.evidencia.realKg ? "Cambiar peso real" : "Poner peso real"}
-                        </button>
+                        {/* Apagado por ahora (lib/estado-sistema.js, PESO_REAL). */}
+                        {pesoRealActivo() && (
+                          <button
+                            type="button"
+                            className="pt-btn"
+                            onClick={() => setPesoReal({ s, kg: s.evidencia.realKg ? String(s.evidencia.realKg) : "", error: "" })}
+                          >
+                            <Scales /> {s.evidencia.realKg ? "Cambiar peso real" : "Poner peso real"}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

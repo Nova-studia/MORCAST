@@ -1,6 +1,7 @@
 import { hayResend, correoIncidente } from "./correo";
 import { enviarPush, tokensDeUsuarios, usuariosOficina } from "./push.mjs";
 import { datosCorreoIncidente, mensajePushIncidente } from "./incidente-aviso.mjs";
+import { avisarClienteDeIncidente } from "./avisar-cliente";
 
 /**
  * Avisa a la oficina de un incidente: correo al buzón y notificación al
@@ -22,7 +23,7 @@ import { datosCorreoIncidente, mensajePushIncidente } from "./incidente-aviso.mj
 
 /** Lo que necesita el correo, en una sola consulta. */
 const CAMPOS = `
-  id, tipo, descripcion, retraso_min, ubicacion, operador_id, creado, avisado_en,
+  id, tipo, descripcion, retraso_min, ubicacion, operador_id, solicitud_id, creado, avisado_en,
   rutas ( nombre, unidad ),
   unidades ( numero_economico ),
   solicitudes_recoleccion ( folio, clientes ( empresa ), domicilios ( alias ) ),
@@ -89,6 +90,15 @@ export async function avisarOficina({ sb, incidente, chofer, log = console }) {
       return enviarPush(tokens, mensajePushIncidente(incidente, { chofer }), { sb, log });
     })(),
   ]);
+
+  // Si el incidente retrasa la recolección de un cliente (va amarrado a su
+  // parada), también se le avisa a él (6-oct-2026). Ya pasó el candado de
+  // `avisado_en`: sale una sola vez. Nunca lanza.
+  try {
+    await avisarClienteDeIncidente({ sb, incidente, log });
+  } catch (e) {
+    log.error("[incidentes] no se pudo avisar al cliente:", e?.message || e);
+  }
 
   return { correo, notificaciones: push.enviadas };
 }

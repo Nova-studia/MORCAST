@@ -4,6 +4,7 @@ import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { cargarIncidente, avisarOficina } from "@/lib/avisar-incidente";
+import { eventoDeParada } from "@/lib/avisar-cliente";
 import { validarReporte, validarNoProcedio, rutaEnCarpeta } from "@/lib/chofer-reportes.mjs";
 
 /**
@@ -83,7 +84,44 @@ export async function marcarNoProcedio(solicitudId, { motivo, detalle, foto } = 
     },
   });
 
+  // Al cliente: llegamos y no se pudo, y por qué (no se le cobra).
+  await avisarEventoParada(solicitudId, "no-procedio");
+
   return { ok: true };
+}
+
+/**
+ * Lo que el cliente tiene que saber de su parada (6-oct-2026):
+ *   · "en-camino": el botón "En camino" del chofer. La pasa a "En ruta".
+ *   · "completada": después de cerrar la recolección (la cierra el
+ *     navegador, lib/datos-chofer.js; aquí solo se avisa).
+ *   · "no-procedio": la llama marcarNoProcedio.
+ * Solo el chofer de esa parada. Nunca tumba lo que ya se guardó.
+ */
+export async function avisarEventoParada(solicitudId, evento) {
+  if (typeof solicitudId !== "string" || !UUID.test(solicitudId)) {
+    return { ok: false, motivo: "Esa parada no existe." };
+  }
+  if (!haySupabase()) return { ok: true, demo: true, estado: evento === "en-camino" ? "en-ruta" : evento };
+
+  const { quien, error: sinPermiso } = await exigirChofer();
+  if (sinPermiso) return { ok: false, motivo: sinPermiso };
+
+  try {
+    const r = await eventoDeParada({
+      sb: supabaseServidor(),
+      uid: quien.id,
+      correo: quien.correo,
+      solicitudId,
+      evento,
+    });
+    return r.ok
+      ? { ok: true, estado: r.estado, avisado: Boolean(r.aviso?.correo || r.aviso?.notificaciones) }
+      : { ok: false, motivo: r.motivo, estado: r.estado };
+  } catch (e) {
+    console.error("[aviso-cliente] evento de parada:", e?.message || e);
+    return { ok: false, motivo: "No se pudo avisar al cliente." };
+  }
 }
 
 /**

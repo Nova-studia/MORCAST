@@ -20,6 +20,8 @@ import VisorFoto from "@/components/VisorFoto";
 import ChoferDondeEs from "@/components/chofer/ChoferDondeEs";
 import ChoferNoProcedio from "@/components/chofer/ChoferNoProcedio";
 import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
+import { avisarEventoParada } from "@/app/acciones-chofer";
+import { pesoRealActivo } from "@/lib/estado-sistema";
 import { subirEvidencia } from "@/lib/datos-archivos";
 import useUbicacion, { esConfiable } from "@/lib/ubicacion";
 
@@ -192,6 +194,13 @@ export default function RecoleccionChofer() {
       return;
     }
     memoria.borrar(id);   // la parada quedó cerrada: ya no hay nada que retomar
+    // Al cliente: "listo, recogimos tus residuos". La recolección YA quedó
+    // guardada; si el aviso falla (sin señal) no se detiene al chofer.
+    try {
+      await avisarEventoParada(id, "completada");
+    } catch {
+      /* el servidor anota el fallo */
+    }
     router.replace("/chofer");
   };
 
@@ -418,8 +427,9 @@ export default function RecoleccionChofer() {
             <div className="ch-estimado">
               <Scales aria-hidden="true" weight="fill" />
               <span>
-                Es un estimado. El peso real lo registra la oficina con el ticket
-                de la báscula del relleno.
+                {pesoRealActivo()
+                  ? "Es un estimado. El peso real lo registra la oficina con el ticket de la báscula del relleno."
+                  : "Es un estimado: calcúlalo lo mejor que puedas."}
               </span>
             </div>
             <input

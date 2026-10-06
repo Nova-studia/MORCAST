@@ -10,6 +10,7 @@ import {
   correoParadaAsignada,
   correoSaldoResuelto,
 } from "@/lib/correo";
+import { cargarParada, avisarCliente } from "@/lib/avisar-cliente";
 
 /**
  * Los movimientos donde se mueve dinero o cambia el compromiso con el cliente.
@@ -166,16 +167,31 @@ export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
     : "";
 
   if (s.estado === "confirmada") {
-    await avisar("recolección confirmada", () =>
-      correoRecoleccionConfirmada({
-        correo: s.clientes?.correo,
-        empresa: s.clientes?.empresa,
-        folio: s.folio,
-        fecha: s.fecha_confirmada,
-        hora: s.hora_confirmada,
-        domicilio,
-      })
-    );
+    // Un CAMBIO de día, hora o chofer de algo ya acordado (o reagendar una
+    // vencida) se le dice como tal: "cambió tu recolección", no otra
+    // confirmación igual a la primera que lo confunda (6-oct-2026).
+    const esCambio = ["cambiar_recoleccion_confirmada", "reagendar_recoleccion_vencida"].includes(accion);
+    try {
+      const parada = await cargarParada(supabaseServidor(), id);
+      if (esCambio) {
+        await avisarCliente({ sb: supabaseServidor(), parada, evento: "reagendada" });
+      } else {
+        await avisar("recolección confirmada", () =>
+          correoRecoleccionConfirmada({
+            correo: s.clientes?.correo,
+            empresa: s.clientes?.empresa,
+            folio: s.folio,
+            fecha: s.fecha_confirmada,
+            hora: s.hora_confirmada,
+            domicilio,
+          })
+        );
+        // Y al teléfono, si tiene la app. El correo ya salió arriba.
+        await avisarCliente({ sb: supabaseServidor(), parada, evento: "confirmada", soloPush: true });
+      }
+    } catch (e) {
+      console.error("[avisos] aviso al cliente de la confirmación:", e?.message || e);
+    }
 
     // Y al chofer que le toca: el asignado a la parada si lo hay, si no el
     // de la ruta. Su correo vive en auth.users, no en `perfiles`.

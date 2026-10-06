@@ -10,8 +10,10 @@ import {
   Recycle,
   Signpost,
   Prohibit,
+  Truck,
 } from "@phosphor-icons/react/dist/ssr";
 import { rutaDelDia, hoyISO } from "@/lib/datos-chofer";
+import { avisarEventoParada } from "@/app/acciones-chofer";
 import { enlaceComoLlegar } from "@/lib/mapas.mjs";
 
 /**
@@ -34,7 +36,25 @@ function fechaLegible(iso) {
 export default function RutaChofer() {
   const [paradas, setParadas] = useState([]);
   const [cargando, setCargando] = useState(true);
+  // "En camino" en curso o con error, por parada: { [id]: "enviando" | texto de error }.
+  const [camino, setCamino] = useState({});
   const hoy = hoyISO();
+
+  /**
+   * "En camino" (6-oct-2026, Luis): la parada pasa a "En ruta" y al cliente
+   * le llega el aviso por correo y al teléfono. Lo decide el servidor
+   * (app/acciones-chofer.js), que comprueba que la parada sea de este chofer.
+   */
+  const enCamino = async (p) => {
+    setCamino((c) => ({ ...c, [p.id]: "enviando" }));
+    const r = await avisarEventoParada(p.id, "en-camino");
+    if (r.ok || r.estado === "en-ruta") {
+      setParadas((lista) => lista.map((x) => (x.id === p.id ? { ...x, estado: "en-ruta" } : x)));
+      setCamino((c) => ({ ...c, [p.id]: undefined }));
+      return;
+    }
+    setCamino((c) => ({ ...c, [p.id]: r.motivo || "No se pudo avisar. Revisa tu señal y vuelve a intentar." }));
+  };
 
   useEffect(() => {
     let vivo = true;
@@ -131,6 +151,27 @@ export default function RutaChofer() {
                   <CaretRight aria-hidden="true" className="ch-parada-flecha" />
                 </div>
               </Link>
+              {/* Primero "En camino" y después "Cómo llegar": es el orden en
+                  que el chofer los usa al arrancar hacia el cliente. */}
+              {p.estado === "confirmada" && (
+                <button
+                  type="button"
+                  className="ch-en-camino"
+                  onClick={() => enCamino(p)}
+                  disabled={camino[p.id] === "enviando"}
+                >
+                  <Truck aria-hidden="true" weight="fill" />
+                  {camino[p.id] === "enviando" ? "Avisando al cliente…" : "En camino"}
+                </button>
+              )}
+              {p.estado === "en-ruta" && (
+                <p className="ch-en-camino-listo" role="status">
+                  <CheckCircle aria-hidden="true" weight="fill" /> En camino · el cliente ya fue avisado
+                </p>
+              )}
+              {camino[p.id] && camino[p.id] !== "enviando" && (
+                <p className="ch-error" role="alert">{camino[p.id]}</p>
+              )}
               {p.punto && (
                 <a
                   className="ch-llegar"
