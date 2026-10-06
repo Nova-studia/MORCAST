@@ -1,6 +1,7 @@
 import { supabaseServidor, haySupabase } from "./supabase";
 import { pasarFreno } from "./freno";
-import { autenticarApp, tokenDeCabecera, MENSAJES_APP } from "./app-auth.mjs";
+import { autenticarApp, tokenDeCabecera, MENSAJES_APP, ROLES_PERSONAL } from "./app-auth.mjs";
+import { mfaPanelActivo, secretoPanel, verificarPase } from "./mfa.mjs";
 
 /**
  * La entrada común de las rutas `/api/app/...` que llaman las apps.
@@ -59,4 +60,38 @@ export async function entrarApp(peticion, { roles, freno }) {
   }
 
   return { sb, usuario: quien.usuario, perfil: quien.perfil, sesion: quien.sesion, cuerpo };
+}
+
+/**
+ * Lo mismo que `entrarApp`, para las acciones de ADMINISTRACIÓN que la app
+ * hace en nombre del dueño o de un admin (6-oct-2026, paridad con la web).
+ *
+ * Además del rol exige el SEGUNDO PASO, igual que el panel web: el `pase`
+ * que entregó /api/app/segundo-paso/verificar viaja en el cuerpo (`pase`) y
+ * se comprueba aquí contra el usuario y la sesión (lib/mfa.mjs). Sin pase
+ * válido → 403 con `segundoPaso: true`, para que la app pida el código otra
+ * vez. Con `MFA_PANEL=apagado` no se exige, igual que en la web.
+ *
+ * `soloDueno: true` para lo que en la web también es solo del dueño
+ * (invitar o desactivar administradores).
+ */
+export async function entrarAppAdmin(peticion, { freno, soloDueno = false } = {}) {
+  const r = await entrarApp(peticion, { roles: soloDueno ? ["dueno"] : ROLES_PERSONAL, freno });
+  if (r.respuesta) return r;
+  if (mfaPanelActivo()) {
+    const valido = await verificarPase(
+      typeof r.cuerpo.pase === "string" ? r.cuerpo.pase : null,
+      { uid: r.usuario.id, sesion: r.sesion },
+      secretoPanel()
+    );
+    if (!valido) {
+      return {
+        respuesta: responder(
+          { ok: false, segundoPaso: true, motivo: "Vuelve a confirmar con el código que te llega por correo." },
+          403
+        ),
+      };
+    }
+  }
+  return r;
 }

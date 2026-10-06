@@ -40,6 +40,12 @@ async function leerPase() {
   }
 }
 
+/** El pase vigente (texto) para mandarlo con las acciones de administración, o null. */
+export async function paseActual() {
+  const g = await leerPase();
+  return g?.pase || null;
+}
+
 /** Borra el pase guardado. Se llama al cerrar sesión y cuando el servidor lo rechaza. */
 export async function olvidarPase() {
   try {

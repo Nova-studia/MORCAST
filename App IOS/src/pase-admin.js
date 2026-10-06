@@ -38,6 +38,12 @@ async function leerPase() {
   }
 }
 
+/** El pase vigente (texto) para mandarlo con las acciones de administración, o null. */
+export async function paseActual() {
+  const g = await leerPase();
+  return g?.pase || null;
+}
+
 export async function olvidarPase() {
   try { await llaveroApp.removeItem(LLAVE); } catch { /* nada que borrar */ }
 }
