@@ -190,7 +190,12 @@ export function agendaDesdeBase(solicitudes) {
       cliente: s.cliente,
       tipo: s.origen === "extra" ? "Recolección extra" : "Recolección de ruta",
       unidad: s.unidad || "Sin asignar",
-      operador: s.chofer || "Sin asignar",
+      // El chofer de ESTA recolección (el que se eligió al confirmar) y, si
+      // no hay, el de la ruta. Antes se leía solo el de la ruta, y como las
+      // rutas reales no traen chofer, toda la agenda decía "Sin asignar"
+      // aunque la oficina sí hubiera asignado uno (6-oct-2026).
+      operador: s.choferEfectivo || s.chofer || "Sin asignar",
+      hora: s.horaConfirmada ? String(s.horaConfirmada).slice(0, 5) : "",
       estatus: ESTATUS_AGENDA[s.estado],
     }))
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));

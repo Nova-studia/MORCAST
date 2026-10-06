@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   X,
   Camera,
+  PencilSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { AGENDA_SERVICIOS, agendaDesdeBase } from "@/lib/admin-datos";
 import { listarSolicitudes, misServicios } from "@/lib/datos-solicitudes";
@@ -73,7 +75,11 @@ export default function ServiciosAdmin() {
     <>
       <div className="pt-page-head">
         <h1>Agenda de servicios</h1>
-        <p>Todos los servicios programados y realizados de la flota. Abre un servicio completado para ver el comprobante fotográfico del chofer.</p>
+        <p>
+          Todos los servicios programados y realizados de la flota. Abre un servicio completado para
+          ver el comprobante fotográfico del chofer. El día, la hora y el chofer de un programado se
+          cambian en Recolecciones (botón «Cambiar»).
+        </p>
       </div>
 
       <div className="pt-segmento" style={{ marginBottom: "1.1rem", flexWrap: "wrap" }}>
@@ -110,7 +116,10 @@ export default function ServiciosAdmin() {
                       style={{ cursor: conEvi ? "pointer" : "default", background: sel?.folio === s.folio ? "rgba(219,101,45,0.08)" : undefined }}
                     >
                       <td className="folio">{s.folio}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>{fechaLarga(s.fecha)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {fechaLarga(s.fecha)}
+                        {s.hora && <span style={{ color: "var(--mc-gris)" }}> · {s.hora}</span>}
+                      </td>
                       <td>{s.cliente}</td>
                       <td>{s.tipo}</td>
                       <td>{s.unidad}</td>
@@ -119,6 +128,18 @@ export default function ServiciosAdmin() {
                         <span className={`pt-badge ${est.clase}`}>{est.texto}</span>
                         {conEvi && (
                           <Camera title="Con comprobante fotográfico" style={{ marginLeft: 8, verticalAlign: "-2px", color: "var(--mc-verde-claro)" }} />
+                        )}
+                        {/* Esta agenda es de consulta: lo programado se mueve
+                            donde se confirmó, que es donde salen los correos
+                            y queda la bitácora. */}
+                        {s.estatus === "programado" && haySupabaseNavegador() && (
+                          <Link
+                            href={`/admin/recolecciones?cambiar=${encodeURIComponent(s.folio)}`}
+                            className="pt-btn"
+                            style={{ marginLeft: 8, padding: "0.15rem 0.55rem", fontSize: "0.78rem", display: "inline-flex", gap: 4, alignItems: "center" }}
+                          >
+                            <PencilSimple aria-hidden="true" /> Cambiar
+                          </Link>
                         )}
                       </td>
                     </tr>
