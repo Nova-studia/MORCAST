@@ -13,7 +13,7 @@ import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
-import { MapTrifold, Truck, Package, WarningCircle, Scales, Megaphone } from "@phosphor-icons/react/dist/ssr";
+import { Truck, Package, WarningCircle, Scales, Megaphone } from "@phosphor-icons/react/dist/ssr";
 
 const NAV = [
   { href: "/admin", texto: "Panel", gif: "panel", exacto: true },
@@ -21,13 +21,15 @@ const NAV = [
   // Clientes, Reportes, Usuarios y Bitácora se quedan con Feather: una
   // rejilla o un escudo significan lo mismo en cualquier empresa, y
   // dibujarlos a mano sería trabajo sin significado nuevo.
-  { href: "/admin/rutas", texto: "Rutas", gif: "cobertura" },
+  // Rutas, Sectores y Puntos son un solo renglón desde el 6-oct-2026 (Luis):
+  // las dos pantallas llevan arriba las pestañas de PestanasMapa, y el
+  // renglón se ilumina en cualquiera de las dos (`tambien`).
+  { href: "/admin/rutas", texto: "Rutas, sectores y puntos", gif: "cobertura", tambien: ["/admin/sectores"] },
   { href: "/admin/recolecciones", texto: "Recolecciones", gif: "programados" },
   // Lo que pidieron los dueños el 4-oct-2026. Llevan icono de Phosphor
   // (`icono`) mientras Luis no dibuje su GIF: en el rail recogido el icono es
   // lo único que se ve, y repetir el GIF de otro renglón los confundiría.
   // Cuando exista el GIF, se cambia `icono` por `gif: "<nombre>"`.
-  { href: "/admin/sectores", texto: "Sectores y puntos", icono: MapTrifold },
   { href: "/admin/incidentes", texto: "Incidentes", icono: WarningCircle },
   { href: "/admin/viajes", texto: "Peso real (relleno)", icono: Scales },
   { href: "/admin/avisos", texto: "Avisos a clientes", icono: Megaphone },
@@ -102,7 +104,9 @@ export default function AdminShell({ children }) {
   };
 
   const activo = (item) =>
-    item.exacto ? ruta === item.href : ruta.startsWith(item.href);
+    item.exacto
+      ? ruta === item.href
+      : [item.href, ...(item.tambien || [])].some((h) => ruta.startsWith(h));
   const seccion = NAV.find((n) => activo(n)) || NAV[0];
 
   const nombre = sesion?.nombre || ADMIN_PERFIL.nombre;

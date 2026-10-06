@@ -315,7 +315,7 @@ export default function ClientesAdmin() {
                   <td colSpan={enHold() ? 6 : 7} className="pt-vacio">
                     {filtroSector === "ninguno"
                       ? "Todos los clientes tienen sector."
-                      : "Ningún cliente tiene puntos en ese sector. Si los sectores no tienen límites todavía, dibújalos en Sectores y puntos."}
+                      : "Ningún cliente tiene puntos en ese sector. Si los sectores no tienen límites todavía, dibújalos en Rutas, sectores y puntos → Sectores."}
                   </td>
                 </tr>
               )}

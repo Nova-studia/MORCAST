@@ -25,6 +25,7 @@ import {
 } from "@/lib/datos-rutas";
 import { listarUnidades } from "@/lib/datos-unidades";
 import { etiquetaUnidad, etiquetaEstadoUnidad, sugerirUnidad } from "@/lib/unidades.mjs";
+import PestanasMapa from "@/components/admin/PestanasMapa";
 
 const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
   ssr: false,
@@ -206,7 +207,7 @@ export default function RutasAdmin() {
   return (
     <>
       <div className="pt-page-head">
-        <h1>Rutas</h1>
+        <h1>Rutas, sectores y puntos</h1>
         <p>
           Define los días, la unidad y la zona que cubre cada ruta.
           {cuantasSinVincular > 0 && (
@@ -214,6 +215,8 @@ export default function RutasAdmin() {
           )}
         </p>
       </div>
+
+      <PestanasMapa actual="rutas" />
 
       <div className="pt-grid pt-grid-mapa">
         <div className="pt-card">

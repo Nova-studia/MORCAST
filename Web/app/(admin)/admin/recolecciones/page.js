@@ -58,8 +58,7 @@ export default function RecoleccionesAdmin() {
    * "Reagendar y confirmar" sin tocar nada la habría vuelto a confirmar para
    * un día que ya pasó — y el correo al cliente habría salido con esa fecha.
    */
-  const planDe = (s) => {
-    if (plan[s.folio]) return plan[s.folio];
+  const planPorOmision = (s) => {
     const vencida = estadoVencimiento(s, hoy).vencida;
     return {
       fecha: vencida ? hoy : s.fechaConfirmada || s.fechaPedida,
@@ -67,8 +66,12 @@ export default function RecoleccionesAdmin() {
       choferId: "",
     };
   };
-  const setPlanDe = (folio, patch) =>
-    setPlan((p) => ({ ...p, [folio]: { ...(p[folio] || {}), ...patch } }));
+  const planDe = (s) => plan[s.folio] || planPorOmision(s);
+  // El cambio se monta sobre lo que la tarjeta ENSEÑA (con el día sugerido),
+  // no sobre `{}`: antes escribir solo la hora o el chofer borraba el día, y
+  // al confirmar caía a la fecha pedida aunque ya hubiera pasado (3-oct-2026).
+  const setPlanDe = (s, patch) =>
+    setPlan((p) => ({ ...p, [s.folio]: { ...(p[s.folio] || planPorOmision(s)), ...patch } }));
 
   useEffect(() => {
     let vivo = true;
@@ -471,7 +474,7 @@ export default function RecoleccionesAdmin() {
                         key={o.id}
                         type="button"
                         className={`pt-btn ${planDe(s).fecha === o.fecha ? "pt-btn-naranja" : ""}`}
-                        onClick={() => setPlanDe(s.folio, { fecha: o.fecha })}
+                        onClick={() => setPlanDe(s, { fecha: o.fecha })}
                       >
                         {o.texto}
                         <span className="pt-reagenda-fecha">{fechaConDia(o.fecha)}</span>
@@ -485,7 +488,7 @@ export default function RecoleccionesAdmin() {
                         type="date"
                         className="pt-input"
                         value={planDe(s).fecha || ""}
-                        onChange={(e) => setPlanDe(s.folio, { fecha: e.target.value })}
+                        onChange={(e) => setPlanDe(s, { fecha: e.target.value })}
                         /* 150 px no alcanzaban: con el relleno de `.pt-input`
                            y el icono del calendario, la fecha se veia
                            "02/09/202" — con el ano cortado a la mitad. */
@@ -498,7 +501,7 @@ export default function RecoleccionesAdmin() {
                         type="time"
                         className="pt-input"
                         value={planDe(s).hora || ""}
-                        onChange={(e) => setPlanDe(s.folio, { hora: e.target.value })}
+                        onChange={(e) => setPlanDe(s, { hora: e.target.value })}
                         /* Igual que el dia: el icono del reloj se comia el
                            final de la hora. */
                         style={{ marginLeft: 6, width: 155 }}
@@ -510,7 +513,7 @@ export default function RecoleccionesAdmin() {
                       <select
                         className="pt-input"
                         value={planDe(s).choferId || ""}
-                        onChange={(e) => setPlanDe(s.folio, { choferId: e.target.value })}
+                        onChange={(e) => setPlanDe(s, { choferId: e.target.value })}
                         style={{ marginLeft: 6, minWidth: 190 }}
                       >
                         {/* Sin chofer en la ruta salia "El de la ruta ()". */}

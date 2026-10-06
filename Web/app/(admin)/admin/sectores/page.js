@@ -7,6 +7,7 @@ import { cambiosDeSector, tieneZona } from "@/lib/sectores.mjs";
 import { tieneUbicacion } from "@/lib/mapas.mjs";
 import SectorEditor from "@/components/admin/SectorEditor";
 import PuntoEditor from "@/components/admin/PuntoEditor";
+import PestanasMapa from "@/components/admin/PestanasMapa";
 
 /**
  * SECTORES Y PUNTOS (pedido de los dueños, 4-oct-2026).
@@ -54,6 +55,12 @@ export default function SectoresAdmin() {
       setCargando(false);
     });
     return () => { vivo = false; };
+  }, []);
+
+  // `?ver=puntos` (la pestaña "Puntos" desde Rutas) abre directo en Puntos.
+  // Se lee aquí y no con useSearchParams para no partir la página en Suspense.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("ver") === "puntos") setPestana("puntos");
   }, []);
 
   const sinLimites = sectores.filter((s) => !tieneZona(s));
@@ -111,12 +118,21 @@ export default function SectoresAdmin() {
   return (
     <>
       <div className="pt-page-head">
-        <h1>Sectores y puntos</h1>
+        <h1>Rutas, sectores y puntos</h1>
         <p>
           Dibuja los límites de los sectores A, B, C y D, y pon el pin exacto de cada punto de
           recolección. El sector de cada punto se calcula solo.
         </p>
       </div>
+
+      {/* Arriba de los avisos, en el mismo lugar que en Rutas: si quedaran
+          debajo, las pestañas "brincarían" al pasar de una pantalla a otra. */}
+      <PestanasMapa
+        actual={pestana}
+        onCambiar={setPestana}
+        locales={["sectores", "puntos"]}
+        etiquetas={cargando ? {} : { puntos: `Puntos (${puntos.length})` }}
+      />
 
       {cargando && <p style={{ fontSize: "0.86rem", color: "var(--mc-gris)" }}>Cargando sectores y puntos…</p>}
 
@@ -186,23 +202,6 @@ export default function SectoresAdmin() {
             </div>
           )}
 
-          <div className="pt-segmento" role="tablist" aria-label="Sección" style={{ marginBottom: "1.1rem" }}>
-            {[
-              { id: "sectores", texto: "Sectores" },
-              { id: "puntos", texto: `Puntos (${puntos.length})` },
-            ].map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={pestana === t.id}
-                className={pestana === t.id ? "activo" : ""}
-                onClick={() => setPestana(t.id)}
-              >
-                {t.texto}
-              </button>
-            ))}
-          </div>
 
           {/* Solo se monta la pestaña visible: un mapa de Leaflet que nace
               escondido calcula mal su tamaño y sale gris. */}
