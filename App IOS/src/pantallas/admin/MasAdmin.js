@@ -1,19 +1,21 @@
 import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T, SERIES } from "../../tema";
-import { Tarjeta, Boton } from "../../ui";
+import { T } from "../../tema";
+import { Tarjeta } from "../../ui";
+import { IconoMenu } from "../../iconos-menu";
 import { usePerfilSesion, iniciales } from "../../mi-perfil";
 import { haySupabase } from "../../supabase";
 import { VERSION_APP } from "../../version";
 
-// Ver la nota del mismo menu del cliente (`pantallas/Mas.js`).
+// Ver la nota del mismo menu del cliente (`pantallas/Mas.js`). Los dibujos
+// son los del menú de la administración web (`AdminShell.js`).
 // Los subtitulos dicen lo que la pantalla hace CON la base: el alta de
 // clientes y los auxiliares solo existen en el modo de demostracion.
 const MENU = [
-  { pantalla: "Clientes", icono: "users", titulo: "Clientes", sub: "Cuentas y saldos", color: SERIES[0] },
-  { pantalla: "Servicios", icono: "truck", titulo: "Servicios", sub: "Agenda y comprobante del chofer", color: SERIES[1] },
-  { pantalla: "ReportesAdmin", icono: "bar-chart-2", titulo: "Reportes del negocio", sub: "Ingresos y desempeño", color: SERIES[2] },
-  { pantalla: "Usuarios", icono: "shield", titulo: "Usuarios y roles", sub: "Administradores y choferes", color: SERIES[3] },
+  { pantalla: "Clientes", dibujo: "clientes", titulo: "Clientes", sub: "Cuentas y saldos" },
+  { pantalla: "Servicios", dibujo: "servicios", titulo: "Servicios", sub: "Agenda y comprobante del chofer" },
+  { pantalla: "ReportesAdmin", dibujo: "reportes", titulo: "Reportes del negocio", sub: "Ingresos y desempeño" },
+  { pantalla: "Usuarios", dibujo: "usuarios-y-roles", titulo: "Usuarios y roles", sub: "Administradores y choferes" },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {
@@ -41,17 +43,25 @@ export default function MasAdmin({ navigation, onLogout }) {
       <Tarjeta style={{ padding: 6 }}>
         {MENU.map((m, i) => (
           <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla)} style={[s.item, i < MENU.length - 1 && s.borde]}>
-            <View style={[s.ico, { backgroundColor: m.color + "22" }]}><Feather name={m.icono} size={18} color={m.color} /></View>
-            <View style={{ flex: 1 }}><Text style={s.itemTit}>{m.titulo}</Text><Text style={s.itemSub}>{m.sub}</Text></View>
-            <Feather name="chevron-right" size={20} color={T.gris} />
+            {({ pressed }) => (
+              <>
+                <View style={s.ico}><IconoMenu nombre={m.dibujo} activo={pressed} tam={32} /></View>
+                <View style={{ flex: 1 }}><Text style={s.itemTit}>{m.titulo}</Text><Text style={s.itemSub}>{m.sub}</Text></View>
+                <Feather name="chevron-right" size={20} color={T.gris} />
+              </>
+            )}
           </Pressable>
         ))}
       </Tarjeta>
 
-      <Boton variante="linea" onPress={onLogout} style={{ marginTop: 4 }}>
-        <Feather name="log-out" size={16} color={T.tinta} />
-        <Text style={{ color: T.tinta, fontWeight: "700" }}>  Cerrar sesión</Text>
-      </Boton>
+      <Pressable
+        onPress={onLogout}
+        accessibilityRole="button"
+        style={({ pressed }) => [s.salir, { marginTop: 4, opacity: pressed ? 0.85 : 1 }]}
+      >
+        <IconoMenu nombre="cerra-sesion" tam={24} />
+        <Text style={s.salirTxt}>Cerrar sesión</Text>
+      </Pressable>
 
       <Text style={s.version}>Morcast del Norte · Admin v{VERSION_APP}{haySupabase() ? "" : " (demo)"}</Text>
     </ScrollView>
@@ -68,7 +78,10 @@ const s = StyleSheet.create({
   rol: { color: T.gris, fontSize: 12.5, marginTop: 2 },
   item: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   borde: { borderBottomWidth: 1, borderBottomColor: T.linea },
-  ico: { width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  ico: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  // Ver la nota de `salir` en `pantallas/Mas.js`.
+  salir: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 11, borderWidth: 1, borderColor: T.linea, minHeight: 48 },
+  salirTxt: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemTit: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   version: { color: T.grisClaro, fontSize: 11.5, textAlign: "center", marginTop: 18 },

@@ -1,24 +1,26 @@
 import { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { T, SERIES } from "../tema";
-import { Tarjeta, Boton } from "../ui";
+import { T } from "../tema";
+import { Tarjeta } from "../ui";
+import { IconoMenu } from "../iconos-menu";
 import { useMiEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
 import { VERSION_APP } from "../version";
 import { HAY_DATOS_FISCALES } from "../datos";
 import { eliminarMiCuenta } from "../eliminar-cuenta";
 
-// Un color por entrada, para poder encontrarlas de un vistazo. Salen de la
-// paleta validada de `tema.js`, no de tonos sueltos: los que habia (dos
-// verdes casi iguales y un teal) no se distinguian entre si.
+// Cada entrada lleva el MISMO dibujo que en el menú del portal web
+// (`PortalShell.js`): `dibujo` es el nombre del archivo allá. Antes eran
+// iconos de línea en un cuadrito de color; los dibujos ya traen sus colores
+// y se distinguen solos, así que van sin cuadro (igual que en la web).
 const MENU = [
-  { pantalla: "Cobertura", icono: "map", titulo: "Cobertura", sub: "¿Pasamos por tu zona?", color: SERIES[0] },
-  { pantalla: "Agendar", icono: "calendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta", color: SERIES[1] },
-  { pantalla: "Reportes", icono: "bar-chart-2", titulo: "Reportes", sub: "Peso recolectado por periodo", color: SERIES[2] },
+  { pantalla: "Cobertura", dibujo: "cobertura", titulo: "Cobertura", sub: "¿Pasamos por tu zona?" },
+  { pantalla: "Agendar", dibujo: "agendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta" },
+  { pantalla: "Reportes", dibujo: "reportes", titulo: "Reportes", sub: "Peso recolectado por periodo" },
   // Sin el RFC real de Morcast no hay constancia que ofrecer (ver Documentos.js).
-  { pantalla: "Documentos", icono: "file-text", titulo: "Documentos", sub: HAY_DATOS_FISCALES ? "Constancia fiscal y manifiestos" : "Manifiestos de tus servicios", color: SERIES[3] },
-  { pantalla: "Cotizador", icono: "file-plus", titulo: "Cotizador", sub: "Arma y descarga una cotización", color: SERIES[4] },
+  { pantalla: "Documentos", dibujo: "documentos", titulo: "Documentos", sub: HAY_DATOS_FISCALES ? "Constancia fiscal y manifiestos" : "Manifiestos de tus servicios" },
+  { pantalla: "Cotizador", dibujo: "cotizar", titulo: "Cotizador", sub: "Arma y descarga una cotización" },
 ];
 
 export default function Mas({ navigation, onLogout }) {
@@ -92,20 +94,32 @@ export default function Mas({ navigation, onLogout }) {
       <Tarjeta style={{ padding: 6 }}>
         {MENU.map((m, i) => (
           <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla)} style={[s.item, i < MENU.length - 1 && s.borde]}>
-            <View style={[s.ico, { backgroundColor: m.color + "22" }]}><Feather name={m.icono} size={18} color={m.color} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.itemTit}>{m.titulo}</Text>
-              <Text style={s.itemSub}>{m.sub}</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={T.gris} />
+            {/* Como en la web: quieto va un poco apagado y a color pleno
+                mientras el dedo lo tiene presionado. */}
+            {({ pressed }) => (
+              <>
+                <View style={s.ico}><IconoMenu nombre={m.dibujo} activo={pressed} tam={32} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.itemTit}>{m.titulo}</Text>
+                  <Text style={s.itemSub}>{m.sub}</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={T.gris} />
+              </>
+            )}
           </Pressable>
         ))}
       </Tarjeta>
 
-      <Boton variante="linea" onPress={onLogout} disabled={eliminando} style={{ marginTop: 4 }}>
-        <Feather name="log-out" size={16} color={T.tinta} />
-        <Text style={{ color: T.tinta, fontWeight: "700" }}>  Cerrar sesión</Text>
-      </Boton>
+      {/* El mismo dibujo de "Cerrar sesión" del menú web. */}
+      <Pressable
+        onPress={onLogout}
+        disabled={eliminando}
+        accessibilityRole="button"
+        style={({ pressed }) => [s.salir, { marginTop: 4, opacity: eliminando ? 0.5 : pressed ? 0.85 : 1 }]}
+      >
+        <IconoMenu nombre="cerra-sesion" tam={24} />
+        <Text style={s.salirTxt}>Cerrar sesión</Text>
+      </Pressable>
 
       {/* Discreto a propósito (texto en rojo, sin relleno): es una salida
           para quien la busca, no una invitación. */}
@@ -154,7 +168,12 @@ const s = StyleSheet.create({
   infoTxt: { color: T.tinta, fontSize: 13.5, flex: 1 },
   item: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   borde: { borderBottomWidth: 1, borderBottomColor: T.linea },
-  ico: { width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  ico: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  // Mismo trazo que <Boton variante="linea">, pero armado aquí: el Boton
+  // mete a sus hijos dentro de un <Text>, y un dibujo (<Image>) ahí adentro
+  // se alinea distinto en cada sistema.
+  salir: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 11, borderWidth: 1, borderColor: T.linea, minHeight: 48 },
+  salirTxt: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemTit: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   eliminar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, marginTop: 8, minHeight: 44 },

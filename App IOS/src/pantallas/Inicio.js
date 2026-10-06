@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
+import { IconoMenu } from "../iconos-menu";
 import { enHold, SIN_CIFRA } from "../estado-sistema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold, AvisoPrecios } from "../ui";
 import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
@@ -114,9 +115,10 @@ export default function Inicio({ navigation }) {
 
       {/* KPIs */}
       <View style={s.kpis}>
-        <Kpi icono="dollar-sign" color={T.alerta} etiqueta="Por pagar" valor={enHold() ? SIN_CIFRA : pesos(cuenta.porPagar)} />
-        <Kpi icono="truck" color={T.ok} etiqueta="Servicios" valor={cargandoServicios ? "…" : String(completados.length)} />
-        <Kpi icono="calendar" color={T.accionTxt} etiqueta="Próximos" valor={cargandoServicios ? "…" : String(proximos.length)} />
+        {/* Los mismos dibujos que las tarjetas del Panel del portal web. */}
+        <Kpi dibujo="por-pagar" etiqueta="Por pagar" valor={enHold() ? SIN_CIFRA : pesos(cuenta.porPagar)} />
+        <Kpi dibujo="servicios" etiqueta="Servicios" valor={cargandoServicios ? "…" : String(completados.length)} />
+        <Kpi dibujo="programados" etiqueta="Próximos" valor={cargandoServicios ? "…" : String(proximos.length)} />
       </View>
 
       {/* Próximos servicios */}
@@ -184,11 +186,13 @@ export default function Inicio({ navigation }) {
   );
 }
 
-function Kpi({ icono, color, etiqueta, valor }) {
+function Kpi({ dibujo, etiqueta, valor }) {
   return (
     <View style={s.kpi}>
-      <View style={[s.kpiIco, { backgroundColor: color + "22" }]}>
-        <Feather name={icono} size={16} color={color} />
+      {/* Sin cuadrito de color detrás, como en la web: un fondo detrás de
+          una ilustración a color le ensucia los bordes. */}
+      <View style={s.kpiIco}>
+        <IconoMenu nombre={dibujo} tam={32} />
       </View>
       <Text style={s.kpiEt}>{etiqueta}</Text>
       <Text style={s.kpiVal} numberOfLines={1} adjustsFontSizeToFit>{valor}</Text>
@@ -206,7 +210,7 @@ const s = StyleSheet.create({
   saldoInfo: { color: "#a9d3cf", fontSize: 12.5 },
   kpis: { flexDirection: "row", gap: 10, marginBottom: 2 },
   kpi: { flex: 1, backgroundColor: T.panel, borderWidth: 1, borderColor: T.linea, borderRadius: 14, padding: 12, marginBottom: 14 },
-  kpiIco: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  kpiIco: { width: 32, height: 32, justifyContent: "center", marginBottom: 8 },
   kpiEt: { color: T.gris, fontSize: 11.5 },
   kpiVal: { color: T.tinta, fontSize: 16, fontWeight: "800", marginTop: 2 },
   link: { color: T.verdeClaro, fontSize: 13, fontWeight: "600" },

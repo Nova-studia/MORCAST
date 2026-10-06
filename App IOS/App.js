@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import { T } from "./src/tema";
+import { IconoMenu } from "./src/iconos-menu";
 // Cliente
 import Login from "./src/pantallas/Login";
 import Inicio from "./src/pantallas/Inicio";
@@ -60,6 +61,19 @@ const AuthStack = createNativeStackNavigator();
 const temaNav = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: T.fondo, card: T.panel, text: T.tinta, border: T.linea, primary: T.verde },
+};
+
+/**
+ * El icono de una pestaña. Las que tienen dibujo en la web (Panel, Historial,
+ * Saldo, Solicitudes, Saldos) llevan el MISMO dibujo de Luis: apagado si no
+ * es la pestaña activa, a color pleno si lo es, igual que el menú de
+ * morcast.mx. "Más" no tiene equivalente en la web (allá el menú se ve
+ * entero), así que se queda con su icono de línea, teñido como siempre.
+ */
+const iconoPestana = (iconos) => (route) => ({ focused, color, size }) => {
+  const icono = iconos[route.name];
+  if (icono.dibujo) return <IconoMenu nombre={icono.dibujo} activo={focused} tam={26} />;
+  return <Feather name={icono.feather} size={size - 2} color={color} />;
 };
 
 const tabBar = (color, insets) => ({
@@ -162,13 +176,20 @@ function AppChofer({ onLogout }) {
 }
 
 /* ---------- Cliente ---------- */
-const ICONOS_CLI = { Inicio: "home", Historial: "clock", Saldo: "plus-circle", Mas: "grid" };
+// Los nombres de los dibujos son los del menú del portal (PortalShell.js).
+const ICONOS_CLI = {
+  Inicio: { dibujo: "panel" },
+  Historial: { dibujo: "historial-de-servicios" },
+  Saldo: { dibujo: "agregar-saldo" },
+  Mas: { feather: "grid" },
+};
+const iconoCliente = iconoPestana(ICONOS_CLI);
 
 function TabsCliente({ onLogout }) {
   const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
-      <Tab.Navigator screenOptions={({ route }) => ({ ...tabBar(T.verde, insets), tabBarIcon: ({ color, size }) => <Feather name={ICONOS_CLI[route.name]} size={size - 2} color={color} /> })}>
+      <Tab.Navigator screenOptions={({ route }) => ({ ...tabBar(T.verde, insets), tabBarIcon: iconoCliente(route) })}>
         <Tab.Screen name="Inicio" component={Inicio} />
         <Tab.Screen name="Historial" component={Historial} />
         <Tab.Screen name="Saldo" component={AgregarSaldo} options={{ title: "Saldo" }} />
@@ -206,13 +227,21 @@ function AppClienteConAvisos({ onLogout }) {
 }
 
 /* ---------- Admin ---------- */
-const ICONOS_ADM = { Panel: "grid", Solicitudes: "inbox", Saldos: "dollar-sign", MasA: "menu" };
+// Los del menú de la administración web (AdminShell.js): "Saldos de
+// clientes" allá lleva el dibujo `por-pagar`.
+const ICONOS_ADM = {
+  Panel: { dibujo: "panel" },
+  Solicitudes: { dibujo: "solicitudes" },
+  Saldos: { dibujo: "por-pagar" },
+  MasA: { feather: "menu" },
+};
+const iconoAdmin = iconoPestana(ICONOS_ADM);
 
 function TabsAdmin({ onLogout }) {
   const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
-      <AdminTab.Navigator screenOptions={({ route }) => ({ ...tabBar(T.naranja, insets), tabBarIcon: ({ color, size }) => <Feather name={ICONOS_ADM[route.name]} size={size - 2} color={color} /> })}>
+      <AdminTab.Navigator screenOptions={({ route }) => ({ ...tabBar(T.naranja, insets), tabBarIcon: iconoAdmin(route) })}>
         <AdminTab.Screen name="Panel" component={PanelAdmin} />
         <AdminTab.Screen name="Solicitudes" component={Solicitudes} />
         <AdminTab.Screen name="Saldos" component={Saldos} />
