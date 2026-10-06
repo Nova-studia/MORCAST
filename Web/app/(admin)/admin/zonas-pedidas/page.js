@@ -4,18 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { listarZonasPedidas, cambiarEstadoZona } from "@/lib/datos-zonas";
 import { listarRutas } from "@/lib/datos-rutas";
+import { ESTADOS_ZONA } from "@/lib/admin-app.mjs";
 
 const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
   ssr: false,
   loading: () => <div className="mc-mapa" style={{ height: 420 }} />,
 });
 
-const ESTADOS_ZONA = [
-  { id: "nueva", texto: "Nueva", clase: "prog" },
-  { id: "en-evaluacion", texto: "En evaluación", clase: "ruta" },
-  { id: "aprobada", texto: "Aprobada", clase: "ok" },
-  { id: "descartada", texto: "Descartada", clase: "mal" },
-];
+// Los estados viven en lib/admin-app.mjs (6-oct-2026): la app los usa igual.
 
 export default function ZonasPedidasAdmin() {
   const [pedidas, setPedidas] = useState([]);

@@ -37,6 +37,10 @@ const ICONOS_MENU = {
   "cerra-sesion": require("../assets/iconos-menu/cerra-sesion.png"),
   // equipo 2: avisos a clientes (6-oct-2026).
   "avisos-a-clientes": require("../assets/iconos-menu/avisos-a-clientes.png"),
+  // equipo 3 (6-oct-2026): los de Altas, Zonas pedidas y Unidades.
+  "altas-de-clientes": require("../assets/iconos-menu/altas-de-clientes.png"),
+  "zonas-pedidas": require("../assets/iconos-menu/zonas-pedidas.png"),
+  "unidades": require("../assets/iconos-menu/unidades.png"),
 };
 
 /**

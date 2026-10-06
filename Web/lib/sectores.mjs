@@ -219,3 +219,29 @@ export function clavesDeSectores(sectorIds, sectores) {
   }
   return ordenarSectores([...vistos.values()]);
 }
+
+/**
+ * Lo que se escribe en `domicilios` al guardar un punto, sólo con lo que se
+ * movió (6-oct-2026: la usan la pestaña Puntos de la web y la app, que la
+ * guarda por `/api/app/puntos/guardar`; antes vivía dentro de
+ * `guardarPunto()` de lib/datos-sectores.js).
+ *
+ * Si la oficina nada más escribe las referencias de un pin que puso el
+ * chofer, el origen tiene que seguir diciendo "chofer": origen y fecha se
+ * reescriben únicamente cuando viene un pin (moverlo, o CONFIRMAR el que puso
+ * el cliente: se manda el mismo pin y con eso pasa a ser de la oficina).
+ *
+ * @param {{ pin?: [number, number], referencias?: string, sectorId?: string|null }} cambios
+ */
+export function filaDePunto({ pin, referencias, sectorId } = {}, ahora = new Date()) {
+  const fila = {};
+  if (pin) {
+    fila.lat = pin[0];
+    fila.lng = pin[1];
+    fila.ubicacion_origen = "panel";
+    fila.ubicacion_fecha = ahora.toISOString();
+  }
+  if (referencias !== undefined) fila.referencias = String(referencias ?? "").trim() || null;
+  if (sectorId !== undefined) fila.sector_id = sectorId;
+  return fila;
+}

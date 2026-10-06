@@ -15,13 +15,18 @@ const MENU = [
   // equipo 1: la operación del día desde el teléfono (6-oct-2026).
   { pantalla: "Recolecciones", dibujo: "programados", titulo: "Recolecciones", sub: "Confirmar, reagendar y asignar chofer" },
   { pantalla: "Incidentes", dibujo: "incidentes", titulo: "Incidentes", sub: "Lo que reporta el chofer desde la calle" },
-  { pantalla: "Clientes", dibujo: "clientes", titulo: "Clientes", sub: "Cuentas y saldos" },
+  { pantalla: "Clientes", dibujo: "clientes", titulo: "Clientes", sub: "Altas, acceso al portal y sectores" },
   { pantalla: "Servicios", dibujo: "servicios", titulo: "Servicios", sub: "Agenda y comprobante del chofer" },
   { pantalla: "ReportesAdmin", dibujo: "reportes", titulo: "Reportes del negocio", sub: "Ingresos y desempeño" },
-  { pantalla: "Usuarios", dibujo: "usuarios-y-roles", titulo: "Usuarios y roles", sub: "Administradores y choferes" },
+  { pantalla: "Usuarios", dibujo: "usuarios-y-roles", titulo: "Usuarios y roles", sub: "Invitar, activar y desactivar" },
   // equipo 2: comunicación y cobranza (6-oct-2026)
   { pantalla: "AvisosAdmin", dibujo: "avisos-a-clientes", titulo: "Avisos a clientes", sub: "Retrasos, reagendas y avisos generales" },
   { pantalla: "BitacoraAdmin", dibujo: "documentos", titulo: "Bitácora", sub: "Quién hizo qué y cuándo, por día" },
+  // equipo 3: cuentas y catálogo (6-oct-2026)
+  { pantalla: "Altas", dibujo: "altas-de-clientes", titulo: "Altas de clientes", sub: "Activar cuentas y ver el alta firmada" },
+  { pantalla: "Puntos", dibujo: "cobertura", titulo: "Puntos de recolección", sub: "Ubicación, referencias y ruta" },
+  { pantalla: "ZonasPedidas", dibujo: "zonas-pedidas", titulo: "Zonas pedidas", sub: "Fuera de cobertura" },
+  { pantalla: "Unidades", dibujo: "unidades", titulo: "Unidades", sub: "Camiones: activa, taller o baja" },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {

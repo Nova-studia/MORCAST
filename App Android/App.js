@@ -57,6 +57,11 @@ import { alPedirSegundoPaso } from "./src/candado-admin";
 // equipo 1: la oficina en el teléfono (recolecciones e incidentes).
 import Recolecciones from "./src/pantallas/admin/Recolecciones";
 import Incidentes from "./src/pantallas/admin/Incidentes";
+// equipo 3: cuentas y catálogo de la administración (paridad con la web, 6-oct-2026)
+import Altas from "./src/pantallas/admin/Altas";
+import Puntos from "./src/pantallas/admin/Puntos";
+import ZonasPedidas from "./src/pantallas/admin/ZonasPedidas";
+import Unidades from "./src/pantallas/admin/Unidades";
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
@@ -358,6 +363,17 @@ function AppAdmin({ onLogout }) {
       {/* equipo 1: recolecciones e incidentes de la oficina. */}
       <Stack.Screen name="Recolecciones" component={Recolecciones} options={{ title: "Recolecciones" }} />
       <Stack.Screen name="Incidentes" component={Incidentes} options={{ title: "Incidentes" }} />
+      {/* equipo 3: cuentas y catálogo */}
+      <Stack.Screen name="Altas" component={Altas} options={{ title: "Altas de clientes" }} />
+      <Stack.Screen name="Puntos" component={Puntos} options={{ title: "Puntos" }} />
+      <Stack.Screen name="ZonasPedidas" component={ZonasPedidas} options={{ title: "Zonas pedidas" }} />
+      <Stack.Screen name="Unidades" component={Unidades} options={{ title: "Unidades" }} />
+      {/* equipo 3: si una acción de administración responde `segundoPaso`
+          (el pase venció o se cerró la sesión en otro lado), se pide el código
+          aquí y se vuelve a la pantalla de donde vino. */}
+      <Stack.Screen name="SegundoPasoAdmin" options={{ headerShown: false, presentation: "modal" }}>
+        {(props) => <VerificacionAdmin alPasar={() => props.navigation.goBack()} onLogout={onLogout} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

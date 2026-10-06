@@ -6,6 +6,7 @@ import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { hayResend } from "@/lib/correo";
 import { resolverDepositoServidor } from "@/lib/saldos-servidor";
 import { cambiarEstadoSolicitudComo } from "@/lib/recolecciones-oficina";
+import { asignarRutaAPuntoCon, revisarAsignacion } from "@/lib/puntos-servidor";
 
 /**
  * Los movimientos donde se mueve dinero o cambia el compromiso con el cliente.
@@ -109,91 +110,20 @@ export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
 /**
  * ASIGNAR UN PUNTO DE RECOLECCIÓN A UNA RUTA (6-oct-2026, Luis).
  *
- * Antes ninguna pantalla creaba `suscripciones`: solo el cargador del
- * cuaderno. Un cliente dado de alta desde la página se quedaba sin ruta para
- * siempre, y sin ruta el portal no le ofrece "Día de mi ruta" y la app no le
- * deja agendar. La suscripción es justo esa liga: cliente + punto + ruta.
- *
- * Hay a lo más UNA por punto (índice único cliente+domicilio, db/020): si ya
- * existe se actualiza, si no se crea. `rutaClave` vacío quita la ruta pero
- * conserva la fila (y su historia de precio, db/023).
- *
- * Va con la sesión del usuario (el RLS `suscripciones_personal` es el
- * guardia), cuenta las filas y queda en la bitácora con el antes y el después.
+ * El trabajo vive en `lib/puntos-servidor.js` (ahí está la historia): es el
+ * MISMO que llama la app desde `/api/app/puntos/ruta`. Aquí queda la puerta
+ * de la web, y el UPDATE sigue yendo con la SESIÓN del usuario: el RLS
+ * `suscripciones_personal` es el guardia, también desde el teléfono.
  */
-export async function asignarRutaAPunto({ domicilioId, rutaClave, serviciosPorMes, porLlamada }) {
-  const n = Number(serviciosPorMes);
-  if (!Number.isInteger(n) || n < 1 || n > 200) {
-    return { ok: false, motivo: "Las recolecciones al mes deben ser un número entero de 1 a 200." };
-  }
-  const resultado = {
-    rutaClave: rutaClave || null,
-    serviciosPorMes: n,
-    porLlamada: Boolean(porLlamada),
-  };
-  if (!haySupabase()) return { ok: true, demo: true, suscripcion: resultado };
+export async function asignarRutaAPunto(datos) {
+  const revisado = revisarAsignacion(datos || {});
+  if (!revisado.ok) return revisado;
+  if (!haySupabase()) return { ok: true, demo: true, suscripcion: revisado.resultado };
 
   const { error: sinPermiso } = await exigirPersonal();
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
-  const supabase = await supabaseSesion();
-
-  const { data: dom } = await supabase
-    .from("domicilios").select("id, cliente_id, alias").eq("id", domicilioId).maybeSingle();
-  if (!dom) return { ok: false, motivo: "No se encontró ese punto de recolección." };
-
-  let ruta = null;
-  if (rutaClave) {
-    const { data } = await supabase
-      .from("rutas").select("id, clave, nombre, activa").eq("clave", rutaClave).maybeSingle();
-    if (!data) return { ok: false, motivo: "No se encontró esa ruta." };
-    if (!data.activa) return { ok: false, motivo: `La ruta ${data.nombre} está desactivada.` };
-    ruta = data;
-  }
-
-  const { data: previa } = await supabase
-    .from("suscripciones")
-    .select("id, ruta_id, servicios_por_mes, por_llamada, estado")
-    .eq("cliente_id", dom.cliente_id)
-    .eq("domicilio_id", dom.id)
-    .maybeSingle();
-
-  const cambios = {
-    ruta_id: ruta?.id ?? null,
-    servicios_por_mes: n,
-    por_llamada: Boolean(porLlamada),
-    // Asignarle ruta es ponerla a trabajar: una pausada o cancelada vuelve.
-    ...(ruta ? { estado: "activa" } : {}),
-  };
-
-  const { data, error } = previa
-    ? await supabase.from("suscripciones").update(cambios).eq("id", previa.id).select("id")
-    : await supabase
-        .from("suscripciones")
-        .insert({ cliente_id: dom.cliente_id, domicilio_id: dom.id, frecuencia: "mensual", estado: "activa", ...cambios })
-        .select("id");
-
-  if (error) return { ok: false, motivo: error.message };
-  if (!data?.length) {
-    return { ok: false, motivo: "No se guardó nada: el permiso de la base no te deja tocar ese punto." };
-  }
-
-  await registrar({
-    accion: "asignar_ruta_punto",
-    tabla: "suscripciones",
-    registroId: data[0].id,
-    detalle: {
-      domicilio_id: dom.id,
-      punto: dom.alias,
-      cliente_id: dom.cliente_id,
-      antes: previa
-        ? { ruta_id: previa.ruta_id, servicios_por_mes: previa.servicios_por_mes, por_llamada: previa.por_llamada, estado: previa.estado }
-        : null,
-      despues: { ruta: ruta?.clave ?? null, ...cambios },
-    },
-  });
-
-  return { ok: true, suscripcion: { ...resultado, rutaNombre: ruta?.nombre || "" } };
+  return asignarRutaAPuntoCon({ sb: await supabaseSesion(), anotar: registrar }, datos || {});
 }
 
 // PENDIENTE: el cambio de rol. Va aquí en cuanto la pantalla de "Usuarios y

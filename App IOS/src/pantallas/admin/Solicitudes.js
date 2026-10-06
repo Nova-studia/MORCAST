@@ -6,8 +6,11 @@ import { T } from "../../tema";
 import { Tarjeta, Badge, Boton } from "../../ui";
 import { SOLICITUDES, ESTADOS_SOLICITUD, infoEstado, fechaLarga } from "../../datos-admin";
 import { abrirWhatsApp } from "../../whatsapp";
+// equipo 3: activar la cuenta del cliente aquí mismo (antes mandaba a la web).
+import { activarCuentaCotizacion, existeCuenta, mensajeCredenciales, telefonoWhatsApp, pareceCorreo } from "../../datos-cuentas";
+import { atenderSegundoPaso, Campo, Accion, Aviso } from "./piezas-cuentas";
 
-export default function Solicitudes() {
+export default function Solicitudes({ navigation }) {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   // La pestaña se monta una sola vez por sesión: si esa primera lectura
@@ -64,6 +67,53 @@ export default function Solicitudes() {
   };
 
   const abrir = (url) => Linking.openURL(url).catch(() => {});
+
+  /**
+   * ACTIVAR LA CUENTA DEL CLIENTE de una solicitud ganada (6-oct-2026).
+   *
+   * Antes este bloque mandaba al panel de la página: crear una cuenta
+   * necesita la llave de servicio, que no puede vivir en el teléfono. Ahora
+   * lo hace el servidor (`/api/app/solicitudes/activar`) con el MISMO código
+   * que el botón de la web: usuario, empresa, perfil, solicitud ganada y
+   * bitácora (sin la contraseña).
+   *
+   * `activada` refleja que de verdad existe una cuenta con ese correo (se le
+   * pregunta al servidor al abrir la ficha), no una casilla en memoria.
+   * La contraseña se enseña una sola vez y no se guarda en ningún lado.
+   */
+  const [activaciones, setActivaciones] = useState({});
+  const actDe = (x) => ({ correo: x.correo, password: "", activada: false, ...(activaciones[x.id] || {}) });
+  const setAct = (id, patch) => setActivaciones((a) => ({ ...a, [id]: { ...(a[id] || {}), ...patch } }));
+
+  useEffect(() => {
+    let vivo = true;
+    if (!sel || sel.estado !== "ganada" || activaciones[sel.id]?.activada || !sel.correo) return;
+    existeCuenta(sel.correo).then((r) => {
+      if (vivo && r.ok && r.existe) setAct(sel.id, { activada: true, yaExistia: true });
+    });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel]);
+
+  const activar = async (x) => {
+    const a = actDe(x);
+    if (!pareceCorreo(a.correo)) { setAct(x.id, { error: "El correo no es válido." }); return; }
+    if (a.password && a.password.length < 8) { setAct(x.id, { error: "La contraseña debe tener al menos 8 caracteres." }); return; }
+    setAct(x.id, { creando: true, error: "" });
+    const r = await activarCuentaCotizacion({
+      cotizacionId: x.id,
+      empresa: x.empresa,
+      contacto: x.contacto || x.nombre,
+      telefono: x.telefono,
+      correo: a.correo,
+      // Vacía = la genera el servidor, legible por teléfono.
+      password: a.password || undefined,
+    });
+    if (atenderSegundoPaso(r, navigation)) { setAct(x.id, { creando: false }); return; }
+    if (!r.ok) { setAct(x.id, { creando: false, error: r.motivo || "No se pudo crear la cuenta." }); return; }
+    setAct(x.id, { creando: false, error: "", activada: true, password: r.password || a.password, correo: r.correo || a.correo, folio: r.cliente?.folio });
+    setLista((l) => l.map((y) => (y.id === x.id ? { ...y, estado: "ganada" } : y)));
+  };
 
   return (
     <ScrollView
@@ -132,7 +182,7 @@ export default function Solicitudes() {
         <View style={s.modalFondo}>
           <View style={s.modal}>
             {sel && (
-              <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
+              <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
                 <View style={s.modalCab}>
                   <Text style={s.modalFolio}>{sel.folio || sel.id}</Text>
                   <Pressable onPress={() => setSel(null)} hitSlop={10}><Feather name="x" size={22} color={T.gris} /></Pressable>
@@ -170,37 +220,85 @@ export default function Solicitudes() {
                   </View>
                 )}
 
-                {/*
-                  El acceso del cliente NO se crea desde aquí.
-
-                  Crear una cuenta necesita la llave de servicio de la base, y
-                  esa llave no puede vivir dentro de una app: quien descargue
-                  el archivo la tendría. Antes este bloque pintaba "cuenta
-                  activada" sin crear nada, y a la empresa se le mandaban al
-                  cliente un correo y una contraseña que no servían para
-                  entrar. Se hace desde el panel de administración de la web,
-                  donde sí hay servidor.
-                */}
-                {sel.estado === "ganada" && (
-                  <View style={s.activar}>
-                    <View style={s.actTit}>
-                      <Feather name="user-check" size={16} color={T.verdeClaro} />
-                      <Text style={s.actTitTxt}>Falta darle su acceso al portal</Text>
+                {sel.estado === "ganada" && (() => {
+                  const a = actDe(sel);
+                  const nombre = sel.nombre || sel.contacto || sel.empresa;
+                  return (
+                    <View style={s.activar}>
+                      {a.activada ? (
+                        <>
+                          <View style={s.actTit}>
+                            <Feather name="check-circle" size={16} color={T.verdeClaro} />
+                            <Text style={s.actTitTxt}>Cuenta de cliente activada{a.folio ? ` — ${a.folio}` : ""}</Text>
+                          </View>
+                          {a.password ? (
+                            <>
+                              <Text style={s.actP}>Envíale estas credenciales para que entre al portal y a la app:</Text>
+                              <Text style={s.cred} selectable>{a.correo}</Text>
+                              <Text style={[s.cred, { fontSize: 17, letterSpacing: 1 }]} selectable>{a.password}</Text>
+                              <Text style={s.actNota}>
+                                Mándala antes de salir de esta pantalla: no se guarda en ningún lado y ya no se puede
+                                volver a ver.
+                              </Text>
+                              <Accion
+                                icono="message-square"
+                                onPress={() => abrirWhatsApp(telefonoWhatsApp(sel.telefono), mensajeCredenciales(nombre, a.correo, a.password))}
+                              >
+                                Mandar por WhatsApp
+                              </Accion>
+                              <Accion
+                                icono="mail"
+                                variante="linea"
+                                onPress={() => abrir(`mailto:${a.correo}?subject=${encodeURIComponent("Acceso a su Portal de Clientes — Morcast del Norte")}&body=${encodeURIComponent(mensajeCredenciales(nombre, a.correo, a.password))}`)}
+                              >
+                                Mandar por correo
+                              </Accion>
+                              <Accion variante="linea" onPress={() => setAct(sel.id, { password: "" })}>Ya la mandé</Accion>
+                            </>
+                          ) : (
+                            // Ya existía una cuenta con ese correo (o ya se mandó): la
+                            // contraseña no la sabe nadie aquí, y decir una sería mentir.
+                            <Text style={s.actP}>
+                              {a.yaExistia
+                                ? `Ya existe una cuenta con ${a.correo}. No se creó otra. Si el cliente no puede entrar, que use "¿Olvidaste tu contraseña?" en vez de darlo de alta de nuevo.`
+                                : `La cuenta de ${a.correo} quedó activa. La contraseña ya no se puede volver a ver.`}
+                            </Text>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <View style={s.actTit}>
+                            <Feather name="user-check" size={16} color={T.verdeClaro} />
+                            <Text style={s.actTitTxt}>Activar cuenta de cliente</Text>
+                          </View>
+                          <Text style={s.actP}>Crea el acceso al portal y a la app para {sel.empresa}.</Text>
+                          <Campo
+                            etiqueta="Correo de acceso"
+                            valor={a.correo}
+                            onCambio={(v) => setAct(sel.id, { correo: v, error: "" })}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                          />
+                          <Campo
+                            etiqueta="Contraseña (opcional)"
+                            valor={a.password}
+                            onCambio={(v) => setAct(sel.id, { password: v, error: "" })}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            placeholder="Déjala vacía y se genera una"
+                            ayuda="Si la dejas vacía, Morcast genera una fácil de dictar (sin l, 1, O ni 0)."
+                          />
+                          {!!a.error && <Aviso tipo="error">{a.error}</Aviso>}
+                          <Accion icono="key" onPress={() => activar(sel)} disabled={!a.correo || a.creando}>
+                            {a.creando ? "Creando la cuenta…" : "Activar cuenta de cliente"}
+                          </Accion>
+                          <Text style={s.actNota}>La empresa envía estas credenciales al cliente por WhatsApp o correo.</Text>
+                        </>
+                      )}
                     </View>
-                    <Text style={s.actP}>
-                      El acceso de {sel.empresa} se crea desde el panel de administración de la
-                      página, en Solicitudes → Activar cuenta de cliente. Desde ahí sale la
-                      contraseña, que solo se puede ver una vez.
-                    </Text>
-                    <Boton
-                      variante="linea"
-                      onPress={() => abrir("https://morcast.mx/admin/solicitudes")}
-                      style={{ marginTop: 12 }}
-                    >
-                      Abrir el panel de la página
-                    </Boton>
-                  </View>
-                )}
+                  );
+                })()}
               </ScrollView>
             )}
           </View>
@@ -253,5 +351,7 @@ const s = StyleSheet.create({
   activar: { marginTop: 16, backgroundColor: "rgba(78,179,74,0.08)", borderWidth: 1, borderColor: "rgba(78,179,74,0.3)", borderRadius: 12, padding: 13 },
   actTit: { flexDirection: "row", alignItems: "center", gap: 7 },
   actTitTxt: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
-  actP: { color: T.gris, fontSize: 12.5, marginTop: 5, marginBottom: 6 },
+  actP: { color: T.gris, fontSize: 12.5, marginTop: 5, marginBottom: 6, lineHeight: 18 },
+  actNota: { color: T.grisClaro, fontSize: 11.5, marginTop: 8, lineHeight: 16 },
+  cred: { color: T.tinta, fontSize: 15, fontWeight: "700", marginTop: 6 },
 });

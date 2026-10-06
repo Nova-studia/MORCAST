@@ -15,7 +15,7 @@
  */
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
-import { agruparCambios, cambiosDeSector, clavesDeSectores } from "@/lib/sectores.mjs";
+import { agruparCambios, cambiosDeSector, clavesDeSectores, filaDePunto } from "@/lib/sectores.mjs";
 
 /* ==================================================================== */
 /* DATOS DE DEMOSTRACIÓN (modo prototipo, sin Supabase)                  */
@@ -224,15 +224,8 @@ export async function guardarZonaSector(sectorId, zona) {
  * @param {{ pin?: [number, number], referencias?: string, sectorId?: string|null }} cambios
  */
 export async function guardarPunto(puntoId, { pin, referencias, sectorId } = {}) {
-  const fila = {};
-  if (pin) {
-    fila.lat = pin[0];
-    fila.lng = pin[1];
-    fila.ubicacion_origen = "panel";
-    fila.ubicacion_fecha = new Date().toISOString();
-  }
-  if (referencias !== undefined) fila.referencias = referencias.trim() || null;
-  if (sectorId !== undefined) fila.sector_id = sectorId;
+  // La regla de qué se escribe vive en sectores.mjs: la app la usa igual.
+  const fila = filaDePunto({ pin, referencias, sectorId });
 
   if (!Object.keys(fila).length) return { ok: true, fila };
   if (!haySupabaseNavegador()) return { ok: true, demo: true, fila };
