@@ -7,6 +7,7 @@ import CampoClave from "../CampoClave";
 import { entrar as entrarSesion } from "../sesion";
 import BotonesSociales from "../BotonesSociales";
 import OlvideClave from "../OlvideClave";
+import { abrirEnNavegador, URL_ALTA } from "../enlaces-web";
 
 /**
  * `onEntrar(modo)` abre la app en el modo que le toca a la cuenta:
@@ -78,16 +79,26 @@ export default function Login({ onEntrar, navigation }) {
           onError={setError}
         />
 
-        {/* Para quien todavía no es cliente: cotizar y ver la cobertura sin
-            cuenta (ver pantallas/explorar/Explorar.js). */}
-        <Text style={s.noCliente}>¿Todavía no eres cliente?</Text>
+        {/* Para quien todavía no es cliente: darse de alta (en morcast.mx,
+            dentro de la app: el formulario con mapa y firma vive en la web)
+            o cotizar y ver la cobertura sin cuenta (pantallas/explorar). */}
+        <Text style={s.noCliente}>¿Aún no eres cliente?</Text>
+        <Pressable
+          onPress={() => abrirEnNavegador(URL_ALTA)}
+          style={({ pressed }) => [s.explorar, pressed && { opacity: 0.8 }]}
+          accessibilityRole="link"
+          accessibilityLabel="Date de alta en morcast.mx"
+        >
+          <Feather name="user-plus" size={17} color={T.accionTxt} />
+          <Text style={s.explorarTxt}>Date de alta</Text>
+        </Pressable>
         <Pressable
           onPress={() => navigation.navigate("Explorar")}
-          style={({ pressed }) => [s.explorar, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [s.explorar, s.explorarSec, pressed && { opacity: 0.8 }]}
           accessibilityRole="button"
         >
-          <Feather name="compass" size={17} color={T.accionTxt} />
-          <Text style={s.explorarTxt}>Explorar sin cuenta</Text>
+          <Feather name="compass" size={17} color={T.gris} />
+          <Text style={[s.explorarTxt, { color: T.tinta }]}>Explorar sin cuenta</Text>
         </Pressable>
 
         <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
@@ -127,6 +138,7 @@ const s = StyleSheet.create({
     borderRadius: 11, paddingVertical: 13, marginBottom: 6,
   },
   explorarTxt: { color: T.accionTxt, fontSize: 14.5, fontWeight: "700" },
+  explorarSec: { borderColor: T.linea, backgroundColor: "transparent", marginTop: 4 },
   acceso: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingVertical: 11 },
   accesoTxt: { color: T.gris, fontSize: 13.5, fontWeight: "600" },
   pie: { color: T.grisClaro, fontSize: 12, textAlign: "center", marginTop: 24 },

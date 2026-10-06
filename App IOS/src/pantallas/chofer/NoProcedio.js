@@ -89,7 +89,7 @@ export default function NoProcedio({ route, navigation, recargarRuta }) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <Tarjeta style={{ padding: 14 }}>
           <Text style={s.cliente}>{parada.cliente}</Text>
-          <Text style={s.sub}>{parada.folio} · {parada.tipo}</Text>
+          <Text style={s.sub}>{parada.folio} · {parada.tipoResiduo || "Residuo sin especificar"}</Text>
         </Tarjeta>
 
         <Text style={s.label}>¿Qué pasó?</Text>
@@ -99,6 +99,13 @@ export default function NoProcedio({ route, navigation, recargarRuta }) {
             <Text style={[s.opcionTxt, motivo === m && { color: T.tinta, fontWeight: "700" }]}>{m}</Text>
           </Pressable>
         ))}
+        {/* Contra qué comparar: lo que el cliente dijo al agendar (como la web
+            y la app de Android). */}
+        {motivo === "El residuo no es el que se agendó" && parada.tipoResiduo ? (
+          <Text style={s.ayuda}>
+            Se agendó: <Text style={{ color: T.tinta, fontWeight: "700" }}>{parada.tipoResiduo}</Text>. Escribe abajo qué encontraste.
+          </Text>
+        ) : null}
         {error.motivo ? <Text style={s.error}>{error.motivo}</Text> : null}
 
         <Text style={s.label}>{motivo === "Otro" ? "Explica qué pasó (obligatorio)" : "Detalle (opcional)"}</Text>
@@ -150,6 +157,7 @@ const s = StyleSheet.create({
   opcionTxt: { color: T.gris, fontSize: 14, flex: 1 },
   input: { backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, padding: 12, color: T.tinta, fontSize: 14.5, minHeight: 80, textAlignVertical: "top" },
   error: { color: T.error, fontSize: 12.5, marginTop: 4 },
+  ayuda: { color: T.gris, fontSize: 12.5, lineHeight: 18, marginTop: 2 },
   fotoFila: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: T.panel, borderRadius: 11, borderWidth: 1, borderColor: T.linea, padding: 10 },
   thumb: { width: 56, height: 70, borderRadius: 8, backgroundColor: "#000" },
   fotoOk: { color: T.ok, fontSize: 13, flex: 1 },

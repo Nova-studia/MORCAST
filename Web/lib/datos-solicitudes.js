@@ -13,6 +13,8 @@ import { SOLICITUDES_SEED, nombreTipoRuta } from "@/lib/rutas-datos";
 import { enlaceEvidencia } from "@/lib/datos-archivos";
 import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { demoPeso } from "@/lib/datos-viajes";
+import { mezclarChoferes } from "@/lib/chofer-servicio.mjs";
+import { choferesDeMisServicios } from "@/app/acciones-portal";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
@@ -324,8 +326,13 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
  * se encarga `enlaceEvidencia`.
  */
 /**
- * @param {{conFotos?: boolean}} opciones
+ * @param {{conFotos?: boolean, conChoferes?: boolean}} opciones
  *   `conFotos: false` trae los servicios SIN pedir los enlaces de las fotos.
+ *
+ *   `conChoferes` (6-oct-2026): el chofer de cada servicio lo dice el
+ *   SERVIDOR (quien levantó la evidencia; `app/acciones-portal.js`), no el
+ *   texto libre de la ruta, que decía otro nombre. Solo sirve con sesión de
+ *   cliente; la agenda del admin pasa `false` y se queda como estaba.
  *
  *   Cada servicio con evidencia cuesta DOS llamadas más a Storage para firmar
  *   sus dos fotos. El panel y la pantalla de Documentos no enseñan fotos —solo
@@ -333,7 +340,7 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
  *   recolecciones disparaba 100 peticiones que nadie iba a mirar. Solo el
  *   Historial y la agenda del admin abren el comprobante.
  */
-export async function misServicios({ conFotos = true } = {}) {
+export async function misServicios({ conFotos = true, conChoferes = true } = {}) {
   if (!haySupabaseNavegador()) return [];
 
   const { data, error } = await supabaseNavegador()
@@ -354,7 +361,13 @@ export async function misServicios({ conFotos = true } = {}) {
 
   const soloHora = (t) => (t ? new Date(t).toTimeString().slice(0, 5) : "—");
 
-  return Promise.all(
+  // El chofer de verdad, en paralelo con las fotos. Si falla, "—" (ver
+  // `mezclarChoferes`): nunca detiene la lista.
+  const choferes = conChoferes
+    ? choferesDeMisServicios().then((r) => (r?.ok ? r.choferes : null)).catch(() => null)
+    : null;
+
+  const lista = await Promise.all(
     (data || []).map(async (s) => {
       const ev = s.recolecciones?.[0] || null;
       const [urlAntes, urlDespues] = ev && conFotos
@@ -409,6 +422,8 @@ export async function misServicios({ conFotos = true } = {}) {
       };
     })
   );
+
+  return conChoferes ? mezclarChoferes(lista, await choferes) : lista;
 }
 
 /** Morcast confirma la recolección para la fecha que pidió el cliente. */

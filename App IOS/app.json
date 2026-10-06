@@ -66,7 +66,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Morcast usa tu ubicación solo cuando tú lo pides en el modo chofer: para guardar el punto exacto de la entrada de un cliente y para que un reporte de incidente diga dónde pasó. No te sigue ni la usa en segundo plano.",
+          "locationWhenInUsePermission": "Morcast usa tu ubicación solo en el modo chofer y mientras usas la app: para sellar con el lugar las fotos de evidencia de cada recolección, guardar el punto exacto de la entrada de un cliente y decir dónde pasó un incidente. No te sigue ni la usa en segundo plano.",
           "locationAlwaysAndWhenInUsePermission": "Morcast usa tu ubicación solo mientras usas la app (modo chofer), para guardar el punto de la entrada de un cliente y ubicar un reporte de incidente. No la usa en segundo plano.",
           "locationAlwaysPermission": "Morcast usa tu ubicación solo mientras usas la app (modo chofer). No la usa en segundo plano.",
           "motionUsagePermission": "Morcast no usa el sensor de actividad física del teléfono.",

@@ -161,6 +161,12 @@ function AppChofer({ onLogout }) {
       uriDespues: datos.despues,
       rutaAntes: datos.rutaAntes,
       rutaDespues: datos.rutaDespues,
+      // Cuándo y dónde se tomó cada foto (6-oct-2026): el sello del
+      // comprobante, como en la web. Sin GPS van null y se cierra igual.
+      horaAntes: datos.horaAntesISO || null,
+      horaDespues: datos.horaDespuesISO || null,
+      ubicacionAntes: datos.ubicacionAntes || null,
+      ubicacionDespues: datos.ubicacionDespues || null,
     });
     if (r.ok) {
       // El cliente se entera de que ya pasamos (correo y push, desde la web).

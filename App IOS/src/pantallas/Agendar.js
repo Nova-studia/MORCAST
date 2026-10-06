@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, TextInput } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, TextInput, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, EncabezadoPantalla } from "../ui";
-import { miSuscripcion, misSolicitudes, pedirRecoleccion } from "../datos-remoto";
+import { miSuscripcion, leerMisSolicitudes, pedirRecoleccion } from "../datos-remoto";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "../rutas-datos";
 import { TIPOS_RESIDUO } from "../cotizar-whatsapp";
 import { validarSolicitudAgenda } from "../agendar.mjs";
 import { textoNoProcedio } from "../estado-servicio.mjs";
-
-/**
- * Fecha en YYYY-MM-DD con la hora LOCAL.
- * No usar `toISOString()`: pasa a UTC y, según la zona horaria, devuelve el día
- * anterior. Aquí las fechas son de calendario, no instantes.
- */
-function aISO(f) {
-  const mes = String(f.getMonth() + 1).padStart(2, "0");
-  const dia = String(f.getDate()).padStart(2, "0");
-  return `${f.getFullYear()}-${mes}-${dia}`;
-}
+import { aISO, limitesExtra, revisarFechaExtra, fechaConDia } from "../calendario.mjs";
+import CalendarioFecha from "../CalendarioFecha";
 
 /** Próximas fechas (hasta 6) en que pasa la ruta, a partir de mañana. */
 function proximasFechas(dias, cuantas = 6) {
@@ -37,6 +29,10 @@ function proximasFechas(dias, cuantas = 6) {
 export default function Agendar() {
   const [suscripcion, setSuscripcion] = useState(null);
   const [mias, setMias] = useState([]);
+  // "ruta" = un día de los que pasa su ruta; "extra" = cualquier día de hoy
+  // a un año (6-oct-2026, como `/portal/agendar`). Antes la app solo pedía
+  // días de ruta y mandaba a WhatsApp a quien no tenía ruta.
+  const [modo, setModo] = useState("ruta");
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
   // Sin valor por defecto A PROPÓSITO (igual que la web): si viniera puesto
@@ -49,46 +45,74 @@ export default function Agendar() {
   // Mientras no vuelve `miSuscripcion()` no se sabe si hay ruta: antes
   // decía "Aún no tienes una ruta asignada" y un segundo después cambiaba.
   const [cargando, setCargando] = useState(true);
+  // "No pude leer tus solicitudes" no es "no has pedido ninguna".
+  const [errorLista, setErrorLista] = useState("");
+  const [refrescando, setRefrescando] = useState(false);
+  const turno = useRef(0);
 
   const ruta = suscripcion?.ruta || null;
+  const hoy = aISO(new Date());
+  const limites = limitesExtra(hoy);
 
   // Las solicitudes que llegan ya son solo las de esta empresa: el RLS las
   // filtró en la base, no hace falta filtrarlas aquí.
-  const recargar = () =>
-    Promise.all([miSuscripcion(), misSolicitudes()])
-      .then(([su, li]) => {
-        setSuscripcion(su);
-        setMias(li);
-      })
-      .catch(() => {})
-      .finally(() => setCargando(false));
-
-  useEffect(() => {
-    let vivo = true;
-    recargar().then(() => { if (!vivo) return; });
-    return () => { vivo = false; };
+  const recargar = useCallback(async () => {
+    const n = ++turno.current;
+    try {
+      const [su, li] = await Promise.all([miSuscripcion().catch(() => undefined), leerMisSolicitudes()]);
+      if (n !== turno.current) return;
+      if (su !== undefined) setSuscripcion(su);
+      setMias(li.solicitudes);
+      setErrorLista(li.ok ? "" : li.motivo || "No pudimos leer tus solicitudes.");
+    } finally {
+      if (n === turno.current) setCargando(false);
+    }
   }, []);
+
+  // Se relee al volver a la pestaña: Morcast confirma o reprograma desde la
+  // oficina y el estado tiene que verse sin cerrar la app.
+  useFocusEffect(useCallback(() => { recargar(); }, [recargar]));
+
+  // Sin ruta asignada solo se puede pedir una extra: se abre directo ahí.
+  useEffect(() => {
+    if (!cargando && !ruta) setModo("extra");
+  }, [cargando, ruta]);
+
+  const refrescar = async () => {
+    setRefrescando(true);
+    try { await recargar(); } finally { setRefrescando(false); }
+  };
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
 
-  // Obligatorio desde la 1.1 (db/023); con «Otro», la nota también.
+  // Obligatorio desde la 1.1 (db/023); con «Otro», la nota también. En la
+  // extra, además, la fecha tiene que caer de hoy a un año (db/013).
   const revision = validarSolicitudAgenda({ fecha, tipoResiduo, nota }, TIPOS_RESIDUO);
   const faltaDescribirOtro = tipoResiduo === "Otro" && !nota.trim();
+
+  const cambiarModo = (m) => {
+    if (m === modo) return;
+    setModo(m);
+    setFecha("");
+    setError("");
+  };
 
   const enviar = async () => {
     if (enviando) return;
     if (!revision.ok) { setError(revision.mensaje); return; }
+    if (modo === "extra") {
+      const malFecha = revisarFechaExtra(fecha, hoy);
+      if (malFecha) { setError(malFecha); return; }
+    }
     setEnviando(true);
     setError("");
 
-    // En la app solo se piden días de la ruta; el servicio extra se pide por
-    // teléfono, que es como opera hoy el negocio.
     const r = await pedirRecoleccion({
       rutaClave: ruta?.clave || null,
       domicilioId: suscripcion?.domicilioId || null,
       fecha,
       nota,
-      origen: "ruta",
+      origen: modo,
       tipoResiduo,
     });
 
@@ -121,10 +145,11 @@ export default function Agendar() {
       // se queda tapado. En Android se ignora (alli lo resuelve el resize).
       automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} />}
     >
       <EncabezadoPantalla
         titulo="Agendar recolección"
-        sub="Pide tu servicio en uno de los días de tu ruta."
+        sub="Pide tu servicio en el día de tu ruta, o una recolección extra si se te juntó de más."
       />
 
       <Tarjeta>
@@ -139,21 +164,64 @@ export default function Agendar() {
           <Text style={s.intro}>Leyendo tu ruta…</Text>
         ) : (
           <Text style={s.intro}>
-            Aún no tienes una ruta asignada. Morcast te la asigna al activar tu servicio; mientras, pide tu recolección por WhatsApp al 868 384 9478.
+            Aún no tienes una ruta asignada. Mientras Morcast te la asigna, puedes pedir una recolección extra para el día que la necesites.
           </Text>
         )}
 
-        <View style={s.fechas}>
-          {fechas.map((f) => (
-            <Pressable
-              key={f}
-              onPress={() => setFecha(f)}
-              style={[s.chip, fecha === f && s.chipActivo]}
-            >
-              <Text style={[s.chipTxt, fecha === f && s.chipTxtActivo]}>{f}</Text>
-            </Pressable>
-          ))}
+        {/* Igual que el portal: día de ruta o extra. Sin ruta, solo extra. */}
+        <View style={s.modos} accessibilityRole="tablist">
+          <Pressable
+            onPress={() => cambiarModo("ruta")}
+            disabled={!ruta}
+            style={[s.modo, modo === "ruta" && s.modoOn, !ruta && { opacity: 0.45 }]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: modo === "ruta", disabled: !ruta }}
+          >
+            <Feather name="calendar" size={15} color={modo === "ruta" ? "#fff" : T.tinta} />
+            <Text style={[s.modoTxt, modo === "ruta" && { color: "#fff" }]}>Día de mi ruta</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => cambiarModo("extra")}
+            style={[s.modo, modo === "extra" && s.modoOn]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: modo === "extra" }}
+          >
+            <Feather name="plus-circle" size={15} color={modo === "extra" ? "#fff" : T.tinta} />
+            <Text style={[s.modoTxt, modo === "extra" && { color: "#fff" }]}>Recolección extra</Text>
+          </Pressable>
         </View>
+
+        {modo === "ruta" ? (
+          <View style={s.fechas}>
+            {fechas.map((f) => (
+              <Pressable
+                key={f}
+                onPress={() => { setFecha(f); setError(""); }}
+                style={[s.chip, fecha === f && s.chipActivo]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: fecha === f }}
+              >
+                {/* "martes 7 de octubre", no "2026-10-07": la pregunta es
+                    "¿el martes o el viernes?" (como el portal). */}
+                <Text style={[s.chipTxt, fecha === f && s.chipTxtActivo]}>{fechaConDia(f)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <>
+            <Text style={s.label}>¿Qué día? <Text style={{ color: T.error }}>*</Text></Text>
+            <CalendarioFecha
+              valor={fecha}
+              onCambiar={(f) => { setFecha(f); setError(""); }}
+              min={limites.min}
+              max={limites.max}
+              hoy={hoy}
+            />
+            <Text style={s.elegida}>
+              {fecha ? <>Elegiste el <Text style={s.fuerte}>{fechaConDia(fecha)}</Text>.</> : "Toca un día, de hoy a un año."}
+            </Text>
+          </>
+        )}
 
         {/* El tipo de residuo: es lo que le dice al chofer con qué ir. */}
         <Text style={s.label}>¿Qué residuo vas a entregar? <Text style={{ color: T.error }}>*</Text></Text>
@@ -170,6 +238,10 @@ export default function Agendar() {
             </Pressable>
           ))}
         </View>
+        <Text style={s.ayuda}>
+          Si al llegar el residuo es otro, el chofer no lo puede recoger y la
+          visita queda como «No procedió» (sin cobro).
+        </Text>
 
         <TextInput
           style={[s.input, faltaDescribirOtro && { borderColor: T.alerta }]}
@@ -187,7 +259,7 @@ export default function Agendar() {
         {/* Se deja tocar aunque falte algo: así se dice QUÉ falta, en vez de
             un botón apagado sin explicación. */}
         <Boton onPress={enviar} disabled={!fecha || enviando}>
-          <Text style={s.botonTxt}>{enviando ? "Enviando…" : "Enviar solicitud"}</Text>
+          <Text style={s.botonTxt}>{enviando ? "Enviando…" : modo === "extra" ? "Pedir recolección extra" : "Enviar solicitud"}</Text>
         </Boton>
 
         {error ? <Text style={s.error}>{error}</Text> : null}
@@ -202,19 +274,30 @@ export default function Agendar() {
 
       <Tarjeta>
         <TituloTarjeta>Mis solicitudes</TituloTarjeta>
+        {errorLista ? (
+          <View style={s.errorCaja} accessibilityLiveRegion="polite">
+            <Text style={s.errorCajaTxt}>{errorLista}</Text>
+            <Pressable onPress={refrescar} style={s.reintentar} accessibilityRole="button" hitSlop={6}>
+              <Feather name="refresh-cw" size={14} color={T.tinta} />
+              <Text style={s.reintentarTxt}>Reintentar</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {mias.length === 0 ? (
-          <Text style={s.vacio}>{cargando ? "Leyendo tus solicitudes…" : "Todavía no has pedido ninguna recolección."}</Text>
+          errorLista ? null : (
+            <Text style={s.vacio}>{cargando ? "Leyendo tus solicitudes…" : "Todavía no has pedido ninguna recolección."}</Text>
+          )
         ) : (
           mias.map((sol, i) => {
             const b = badge(sol.estado);
             return (
-              <View key={sol.folio} style={[s.fila, i > 0 && s.filaBorde]}>
+              <View key={sol.folio} style={[s.fila, i > 0 && s.filaBorde, { alignItems: "flex-start" }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.folio}>{sol.folio}</Text>
                   <Text style={s.filaDato}>
-                    {sol.fechaPedida} · {sol.origen === "extra" ? "Extra" : "De ruta"}
-                    {sol.tipoResiduo ? ` · ${sol.tipoResiduo}` : ""}
+                    {fechaConDia(sol.fechaPedida)} · {sol.origen === "extra" ? "Extra" : "De ruta"}
                   </Text>
+                  <Text style={s.filaResiduo}>{sol.tipoResiduo || "Residuo sin especificar"}</Text>
                   {sol.estado === "no-procedio" ? (
                     <Text style={s.noProc}>{textoNoProcedio(sol.motivoNoProcedio, sol.detalleNoProcedio)}</Text>
                   ) : null}
@@ -233,8 +316,14 @@ const s = StyleSheet.create({
   intro: { color: T.gris, fontSize: 13, lineHeight: 19, marginBottom: 12 },
   label: { color: T.tinta, fontSize: 13, fontWeight: "700", marginBottom: 8 },
   aviso: { color: T.alerta, fontSize: 12.5, marginTop: -4, marginBottom: 10 },
-  noProc: { color: T.tinta, fontSize: 12.5, marginTop: 4, lineHeight: 18 },
+  ayuda: { color: T.gris, fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 12 },
+  elegida: { color: T.gris, fontSize: 12.5, marginTop: -4, marginBottom: 14 },
+  noProc: { color: T.error, fontSize: 12.5, marginTop: 6, lineHeight: 18 },
   fuerte: { color: T.tinta, fontWeight: "700" },
+  modos: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  modo: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel2, paddingHorizontal: 8 },
+  modoOn: { backgroundColor: T.verde, borderColor: T.verde },
+  modoTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
   fechas: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 12 },
   chip: {
     paddingVertical: 7,
@@ -267,4 +356,9 @@ const s = StyleSheet.create({
   filaBorde: { borderTopWidth: 1, borderTopColor: T.linea },
   folio: { color: T.tinta, fontSize: 14, fontWeight: "700" },
   filaDato: { color: T.gris, fontSize: 12.5, marginTop: 3 },
+  filaResiduo: { color: T.tinta, fontSize: 12.5, marginTop: 2 },
+  errorCaja: { padding: 11, borderRadius: 10, marginBottom: 6, backgroundColor: "rgba(217,119,107,0.10)", borderWidth: 1, borderColor: "rgba(217,119,107,0.35)" },
+  errorCajaTxt: { color: T.tinta, fontSize: 13, lineHeight: 18 },
+  reintentar: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel, minHeight: 40 },
+  reintentarTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
 });

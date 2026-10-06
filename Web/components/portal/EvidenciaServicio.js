@@ -123,7 +123,7 @@ export default function EvidenciaServicio({ evidencia, compacto = false }) {
       {!compacto && (
         <div className="pt-evi-datos">
           <div><span>Peso recolectado</span><strong>{despues.peso || "—"}</strong></div>
-          <div><span>Firma del operador</span><strong><PencilSimple aria-hidden="true" /> {despues.firma || "—"}</strong></div>
+          <div><span>Chofer</span><strong><PencilSimple aria-hidden="true" /> {despues.firma || "—"}</strong></div>
           <div>
             <span>Ubicación del servicio</span>
             <strong>{(() => {

@@ -29,7 +29,9 @@ export default function ServiciosAdmin() {
 
   useEffect(() => {
     let vivo = true;
-    Promise.all([listarSolicitudes(), misServicios()]).then(([l, ev]) => {
+    // `conChoferes: false`: los nombres de chofer por servicio son una
+    // acción SOLO de clientes (app/acciones-portal.js); aquí no aplica.
+    Promise.all([listarSolicitudes(), misServicios({ conChoferes: false })]).then(([l, ev]) => {
       if (!vivo) return;
       setSolicitudes(l);
       setConEvidencia(ev);

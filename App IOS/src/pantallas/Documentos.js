@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta } from "../ui";
 import { SERVICIOS_CLIENTE, fechaLarga, HAY_DATOS_FISCALES } from "../datos";
-import { misServicios } from "../datos-remoto";
+import { leerMisServicios } from "../datos-remoto";
 import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto, descargarConstancia } from "../pdf";
@@ -14,17 +15,34 @@ export default function Documentos() {
   const [servicios, setServicios] = useState(null);
   const { empresa, puedeImprimir, cargando } = useMiEmpresa();
 
-  useEffect(() => {
-    let vivo = true;
-    misServicios().then((l) => { if (vivo) setServicios(l); });
-    return () => { vivo = false; };
+  // "No se pudo leer" no es "no hay manifiestos" (6-oct-2026).
+  const [error, setError] = useState("");
+  const [refrescando, setRefrescando] = useState(false);
+  const turno = useRef(0);
+
+  // Se relee cada vez que se vuelve a esta pantalla: un servicio recién
+  // completado trae su manifiesto, y antes no aparecía hasta cerrar la app.
+  // Sin fotos: aquí no se enseñan.
+  const leer = useCallback(async () => {
+    const n = ++turno.current;
+    const r = await leerMisServicios({ conFotos: false });
+    if (n !== turno.current) return;
+    if (r.ok) { setServicios(r.servicios); setError(""); }
+    else setError(r.motivo || "No pudimos leer tus servicios.");
   }, []);
+  useFocusEffect(useCallback(() => { leer(); }, [leer]));
+
+  const refrescar = async () => {
+    setRefrescando(true);
+    try { await leer(); } finally { setRefrescando(false); }
+  };
 
   // Con base conectada la lista es la REAL aunque venga vacía. Antes, si el
   // cliente no tenía servicios, se le enseñaban los de ejemplo (folios
   // SRV-2026-07xx, chofer "J. Medina"): una empresa recién dada de alta veía
   // recolecciones que nunca le hicieron. Los de ejemplo sólo valen sin base.
-  const cargandoLista = haySupabase() && servicios === null;
+  const cargandoLista = haySupabase() && servicios === null && !error;
+  const sinLeer = haySupabase() && servicios === null && !!error;
   const lista = servicios || (haySupabase() ? [] : SERVICIOS_CLIENTE);
   const manifiestos = lista.filter((x) => x.manifiesto);
 
@@ -47,7 +65,11 @@ export default function Documentos() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: T.fondo }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      refreshControl={haySupabase() ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
+    >
       <Text style={s.h1}>Documentos</Text>
       <Text style={s.sub}>
         {HAY_DATOS_FISCALES
@@ -74,8 +96,17 @@ export default function Documentos() {
       )}
 
       <Tarjeta>
-        <TituloTarjeta>Manifiestos{cargandoLista ? "" : ` (${manifiestos.length})`}</TituloTarjeta>
-        {manifiestos.length === 0 && (
+        <TituloTarjeta>Manifiestos{cargandoLista || sinLeer ? "" : ` (${manifiestos.length})`}</TituloTarjeta>
+        {error ? (
+          <View style={s.error} accessibilityLiveRegion="polite">
+            <Text style={s.errorTxt}>{sinLeer ? error : "No se pudo actualizar. Lo que ves puede no estar al día."}</Text>
+            <Pressable onPress={refrescar} style={s.reintentar} accessibilityRole="button" hitSlop={6}>
+              <Feather name="refresh-cw" size={14} color={T.tinta} />
+              <Text style={s.reintentarTxt}>Reintentar</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {manifiestos.length === 0 && !sinLeer && (
           <Text style={s.vacio}>
             {cargandoLista
               ? "Leyendo tus servicios…"
@@ -120,4 +151,8 @@ const s = StyleSheet.create({
   filaTit: { color: T.tinta, fontSize: 14, fontWeight: "700" },
   filaSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   vacio: { color: T.gris, fontSize: 13, lineHeight: 19, paddingVertical: 6 },
+  error: { padding: 11, borderRadius: 10, marginBottom: 6, backgroundColor: "rgba(217,119,107,0.10)", borderWidth: 1, borderColor: "rgba(217,119,107,0.35)" },
+  errorTxt: { color: T.tinta, fontSize: 13, lineHeight: 18 },
+  reintentar: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel, minHeight: 40 },
+  reintentarTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
 });

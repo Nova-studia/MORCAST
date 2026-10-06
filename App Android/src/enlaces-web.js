@@ -17,6 +17,12 @@ const SITIO = EMPRESA_COTIZACION.sitio.replace(/\/+$/, "");
 export const URL_RECUPERAR = `${SITIO}/portal/recuperar`;
 /** El login del portal: desde ahí "Continuar con Google" lleva al alta. */
 export const URL_PORTAL_LOGIN = `${SITIO}/portal/login`;
+/**
+ * El alta de cliente nuevo (datos, mapa del domicilio y firma; 6-oct-2026).
+ * Se abre la web en vez de copiar el formulario: la firma y el PDF del alta
+ * viven ahí y tienen que ser los mismos para todos.
+ */
+export const URL_ALTA = `${SITIO}/portal/alta`;
 
 /**
  * Abre la página DENTRO de la app (Safari / pestaña de Chrome encima de la

@@ -3,6 +3,8 @@ import { subirEvidencia, contenedoresDelPunto } from "../../datos-remoto";
 import { revisarContenedor } from "../../contenedores.js";
 import DondeEs from "./DondeEs";
 import EnCamino from "./EnCamino";
+import useUbicacionFoto from "../../useUbicacionFoto";
+import { selloFoto, esConfiable } from "../../evidencia.js";
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -30,6 +32,25 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
   const [rutaDespues, setRutaDespues] = useState(null);
   const [peso, setPeso] = useState("");
 
+  // El sello de cada foto (6-oct-2026, como la web): cuándo (ISO, para la
+  // base; `horaAntes` es solo lo que se enseña) y dónde. La ubicación NUNCA
+  // detiene nada: si no hay, la foto y el cierre siguen sin sello.
+  const gps = useUbicacionFoto();
+  const [horaAntesISO, setHoraAntesISO] = useState(null);
+  const [horaDespuesISO, setHoraDespuesISO] = useState(null);
+  const [ubicacionAntes, setUbicacionAntes] = useState(null);
+  const [ubicacionDespues, setUbicacionDespues] = useState(null);
+  // Si la foto se tomó antes de que el GPS diera su primera lectura, la que
+  // llegue en el siguiente minuto se le pega: el chofer sigue parado ahí.
+  const momentoFoto = useRef({ antes: 0, despues: 0 });
+  useEffect(() => {
+    if (!gps.lectura) return;
+    const reciente = (t) => t && Date.now() - t < 60000;
+    if (fotoAntes && !ubicacionAntes && reciente(momentoFoto.current.antes)) setUbicacionAntes(gps.lectura);
+    if (fotoDespues && !ubicacionDespues && reciente(momentoFoto.current.despues)) setUbicacionDespues(gps.lectura);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gps.lectura]);
+
   // Los contenedores registrados en este punto (inventario de db/023), para
   // revisar que el QR escaneado sea de aquí. `null` = no se pudo leer (sin
   // señal): en ese caso no se avisa nada, porque no hay contra qué comparar.
@@ -56,6 +77,10 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
    * Mismos textos que la app de iPhone.
    */
   const identificar = (codigo) => {
+    // El permiso de ubicación se pide AHORA, con el contenedor ya
+    // identificado y antes de la primera foto: en el momento de la foto el
+    // diálogo se pelearía con la cámara. No se espera la respuesta.
+    gps.pedir();
     const r = revisarContenedor(codigo, contenedores);
     const leido = r.codigo || String(codigo || "").trim();
     setQrCodigo(leido);
@@ -127,8 +152,12 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
     setProcesando(true);
     const foto = r.assets[0];
     try {
-      if (cual === "antes") { setFotoAntes(foto); setHoraAntes(horaAhora()); setPaso(2); }
-      else { setFotoDespues(foto); setHoraDespues(horaAhora()); setPaso(4); }
+      // La hora y el lugar se toman al disparar, no al cerrar el servicio.
+      const cuando = new Date().toISOString();
+      const donde = gps.ahora();
+      momentoFoto.current[cual] = Date.now();
+      if (cual === "antes") { setFotoAntes(foto); setHoraAntes(horaAhora()); setHoraAntesISO(cuando); setUbicacionAntes(donde); setPaso(2); }
+      else { setFotoDespues(foto); setHoraDespues(horaAhora()); setHoraDespuesISO(cuando); setUbicacionDespues(donde); setPaso(4); }
 
       // La foto se SUBE aquí, no al cerrar el servicio. Guardarlas las dos
       // para el final es jugarse toda la evidencia a la señal que haya en ese
@@ -182,6 +211,10 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
       rutaDespues,
       horaAntes,
       horaDespues,
+      horaAntesISO,
+      horaDespuesISO,
+      ubicacionAntes,
+      ubicacionDespues,
     });
 
     setGuardando(false);
@@ -316,12 +349,13 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
       {paso === 1 && (
         <Tarjeta>
           <Paso icono="camera" titulo="Foto ANTES (contenedor lleno)" texto="Toma la foto del contenedor lleno como evidencia." />
+          <EstadoGps gps={gps} />
           <Boton variante="teal" onPress={() => tomarFoto("antes")} style={{ marginTop: 6 }}><Feather name="camera" size={16} color="#0d1211" /><Text style={s.btnTxt}>  Tomar foto</Text></Boton>
         </Tarjeta>
       )}
 
       {paso >= 2 && fotoAntes && (
-        <FotoHecha etiqueta="Antes (lleno)" uri={fotoAntes.uri} color="#e0a94d" onCambiar={() => tomarFoto("antes")} />
+        <FotoHecha etiqueta="Antes (lleno)" uri={fotoAntes.uri} color="#e0a94d" ubicacion={ubicacionAntes} onCambiar={() => tomarFoto("antes")} />
       )}
 
       {paso === 2 && (
@@ -334,12 +368,13 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
       {paso === 3 && (
         <Tarjeta>
           <Paso icono="camera" titulo="Foto DESPUÉS (contenedor vacío)" texto="Toma la foto del contenedor vacío." />
+          <EstadoGps gps={gps} />
           <Boton variante="teal" onPress={() => tomarFoto("despues")} style={{ marginTop: 6 }}><Feather name="camera" size={16} color="#0d1211" /><Text style={s.btnTxt}>  Tomar foto</Text></Boton>
         </Tarjeta>
       )}
 
       {paso >= 4 && fotoDespues && (
-        <FotoHecha etiqueta="Después (vacío)" uri={fotoDespues.uri} color={T.verdeClaro} onCambiar={() => tomarFoto("despues")} />
+        <FotoHecha etiqueta="Después (vacío)" uri={fotoDespues.uri} color={T.verdeClaro} ubicacion={ubicacionDespues} onCambiar={() => tomarFoto("despues")} />
       )}
 
       {paso === 4 && (
@@ -405,7 +440,35 @@ function Paso({ icono, titulo, texto }) {
   );
 }
 
-function FotoHecha({ etiqueta, uri, color, onCambiar }) {
+/**
+ * Cómo va el GPS antes de la foto. Informa, no detiene: con cualquier
+ * estado el botón de la foto funciona igual.
+ */
+function EstadoGps({ gps }) {
+  const l = gps.lectura;
+  let icono = "map-pin";
+  let color = T.gris;
+  let texto = "La foto se sella con tu ubicación.";
+  if (gps.estado === "lista" && l) {
+    if (esConfiable(l)) { color = T.verdeClaro; texto = `Ubicación lista · ±${l.precision_m} m`; }
+    else { color = T.alerta; texto = `Señal débil · ±${l.precision_m ?? "?"} m. La foto se guarda igual.`; }
+  } else if (gps.estado === "pidiendo") {
+    icono = "loader"; texto = "Buscando señal de GPS…";
+  } else if (gps.estado === "negada") {
+    icono = "slash"; color = T.alerta; texto = "Sin permiso de ubicación: la foto se guarda igual, sin sello.";
+  } else if (gps.estado === "sin-senal" || gps.estado === "no-disponible") {
+    icono = "slash"; color = T.alerta; texto = "Sin ubicación: la foto se guarda igual, sin sello.";
+  }
+  return (
+    <View style={s.gps} accessibilityLiveRegion="polite">
+      <Feather name={icono} size={13} color={color} />
+      <Text style={[s.gpsTxt, { color }]}>{texto}</Text>
+    </View>
+  );
+}
+
+function FotoHecha({ etiqueta, uri, color, ubicacion, onCambiar }) {
+  const sello = selloFoto(ubicacion);
   return (
     <Tarjeta style={{ padding: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -413,6 +476,9 @@ function FotoHecha({ etiqueta, uri, color, onCambiar }) {
         <View style={{ flex: 1 }}>
           <View style={[s.etq, { backgroundColor: color + "22" }]}><Text style={[s.etqTxt, { color }]}>{etiqueta}</Text></View>
           <Text style={s.fotoOk}>Foto tomada ✓</Text>
+          <Text style={[s.fotoSello, sello.estado !== "ok" && { color: T.alerta }]}>
+            <Feather name={sello.estado === "sin" ? "slash" : "map-pin"} size={11} /> {sello.texto}
+          </Text>
         </View>
         <Pressable onPress={onCambiar} hitSlop={8} style={{ padding: 6 }}><Feather name="refresh-cw" size={16} color={T.gris} /></Pressable>
       </View>
@@ -458,6 +524,9 @@ const s = StyleSheet.create({
   etq: { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
   etqTxt: { fontSize: 11, fontWeight: "700" },
   fotoOk: { color: T.verdeClaro, fontSize: 12.5, marginTop: 5 },
+  fotoSello: { color: T.gris, fontSize: 11.5, marginTop: 3 },
+  gps: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4, marginBottom: 8 },
+  gpsTxt: { fontSize: 12, flex: 1, lineHeight: 16 },
   // escáner
   scan: { flex: 1, backgroundColor: "#000" },
   scanTop: { position: "absolute", top: 50, left: 0, right: 0, alignItems: "center", zIndex: 10 },

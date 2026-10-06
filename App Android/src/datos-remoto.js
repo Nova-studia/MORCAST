@@ -1,6 +1,8 @@
 import { File } from "expo-file-system";
 import { supabase, haySupabase } from "./supabase";
 import { postApp } from "./api-web";
+import { mezclarChoferes } from "./chofer-servicio.js";
+import { evidenciaDeParada, textoUbicacionServicio, ubicacionParaGuardar } from "./evidencia.js";
 import { RUTAS_SEED, nombreTipoRuta } from "./rutas-datos";
 import { direccionDe } from "./mapas.js";
 import { validarSolicitud } from "./solicitudes.js";
@@ -173,8 +175,8 @@ export async function miSuscripcion() {
   };
 }
 
-export async function misSolicitudes() {
-  if (!haySupabase()) return [];
+export async function leerMisSolicitudes() {
+  if (!haySupabase()) return { ok: true, solicitudes: [] };
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
@@ -185,8 +187,12 @@ export async function misSolicitudes() {
   // se guardó en la base, ver pedirRecoleccion).
   const pedidasAqui = esCuentaDeMuestra() ? solicitudesDeMuestra() : [];
 
-  if (error) return pedidasAqui;
-  return pedidasAqui.concat((data || []).map((s) => ({
+  // "No pude leer" no es "no has pedido ninguna" (6-oct-2026): la pantalla
+  // ofrece "Reintentar" en vez de decir que no hay nada.
+  if (error) {
+    return { ok: false, solicitudes: pedidasAqui, motivo: "No pudimos leer tus solicitudes. Revisa tu señal e inténtalo de nuevo." };
+  }
+  return { ok: true, solicitudes: pedidasAqui.concat((data || []).map((s) => ({
     id: s.id,
     folio: s.folio,
     origen: s.origen,
@@ -203,7 +209,13 @@ export async function misSolicitudes() {
     detalleNoProcedio: s.detalle_no_procedio || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
-  })));
+  }))) };
+}
+
+/** La lista a secas (`[]` si falla), para quien no necesita distinguir. */
+export async function misSolicitudes() {
+  const r = await leerMisSolicitudes();
+  return r.solicitudes;
 }
 
 /**
@@ -529,31 +541,77 @@ const ESTATUS_PANTALLA = {
   "no-procedio": "no-procedio",
 };
 
-export async function misServicios() {
-  if (!haySupabase()) return [];
+/**
+ * Quién es el chofer de cada servicio, por folio (`/api/app/mis-choferes`,
+ * 6-oct-2026). El historial decía el del TEXTO de la ruta y no el que hizo
+ * la recolección (Luis lo vio en el iPhone: "Marco Antonio" en un servicio
+ * de José Medina). El nombre real está en `perfiles`, que el cliente no puede
+ * leer: lo arma la web. Devuelve el mapa o null; nunca lanza.
+ */
+export async function misChoferes() {
+  if (!haySupabase()) return null;
+  try {
+    const r = await postApp("mis-choferes", {});
+    return r?.ok && r.choferes && typeof r.choferes === "object" ? r.choferes : null;
+  } catch {
+    return null;
+  }
+}
 
-  const { data, error } = await supabase
-    .from("solicitudes_recoleccion")
-    .select(`
-      id, folio, fecha_pedida, fecha_confirmada, origen, estado,
-      tipo_residuo, motivo_no_procedio, detalle_no_procedio,
-      rutas ( nombre, tipo, unidad, chofer ),
-      recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues )
-    `)
-    // Antes esto pedía SOLO las completadas, y la pantalla de Inicio filtra
-    // "las que no están completadas" para armar Próximos servicios: con esa
-    // consulta ese bloque no podía mostrar nada nunca, y los filtros
-    // "Programados" y "En ruta" del Historial tampoco. Se traen todas menos
-    // las rechazadas, que para el cliente no son un servicio.
-    .neq("estado", "rechazada")
-    .order("fecha_confirmada", { ascending: false, nullsFirst: false });
+/**
+ * Los servicios del cliente, diciendo si se pudieron LEER.
+ *
+ * `{ ok: true, servicios }` o `{ ok: false, motivo, servicios: [] }`. Antes
+ * un error devolvía `[]` y la pantalla decía "Todavía no tienes servicios
+ * registrados" a quien sí los tenía y solo se quedó sin señal (Luis, iPhone,
+ * 6-oct-2026). "No pude leer" y "no hay" son cosas distintas.
+ *
+ * @param {{conFotos?: boolean, conChoferes?: boolean}} opciones
+ *   `conFotos: false` no firma los enlaces de las fotos: Inicio y Documentos
+ *   no las enseñan, y el Historial las firma al abrir cada comprobante
+ *   (`FotosEvidencia`). Como las pantallas releen al volver a ellas, firmar
+ *   todo cada vez serían dos llamadas por servicio que nadie mira.
+ *   `conChoferes: false` no pregunta el chofer al servidor (la agenda del
+ *   admin, que no es cliente).
+ */
+export async function leerMisServicios({ conFotos = true, conChoferes = true } = {}) {
+  if (!haySupabase()) return { ok: true, servicios: [] };
 
-  if (error) return [];
+  const FALLO = "No pudimos leer tus servicios. Revisa tu señal e inténtalo de nuevo.";
+  let data;
+  let choferes = null;
+  try {
+    const consulta = supabase
+      .from("solicitudes_recoleccion")
+      .select(`
+        id, folio, fecha_pedida, fecha_confirmada, origen, estado,
+        tipo_residuo, motivo_no_procedio, detalle_no_procedio,
+        rutas ( nombre, tipo, unidad, chofer ),
+        recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
+      `)
+      // Antes esto pedía SOLO las completadas, y la pantalla de Inicio filtra
+      // "las que no están completadas" para armar Próximos servicios: con esa
+      // consulta ese bloque no podía mostrar nada nunca, y los filtros
+      // "Programados" y "En ruta" del Historial tampoco. Se traen todas menos
+      // las rechazadas, que para el cliente no son un servicio.
+      .neq("estado", "rechazada")
+      .order("fecha_confirmada", { ascending: false, nullsFirst: false });
+    // El chofer se pide en paralelo: si tarda o falla, la lista sale igual.
+    const [res, ch] = await Promise.all([consulta, conChoferes ? misChoferes() : Promise.resolve(null)]);
+    if (res.error) {
+      console.warn("[servicios] no se pudieron leer:", res.error.message);
+      return { ok: false, servicios: [], motivo: FALLO };
+    }
+    data = res.data || [];
+    choferes = ch;
+  } catch {
+    return { ok: false, servicios: [], motivo: FALLO };
+  }
 
-  return Promise.all(
-    (data || []).map(async (s) => {
+  const lista = await Promise.all(
+    data.map(async (s) => {
       const ev = s.recolecciones?.[0] || null;
-      const [urlAntes, urlDespues] = ev
+      const [urlAntes, urlDespues] = ev && conFotos
         ? await Promise.all([enlaceEvidencia(ev.foto_antes), enlaceEvidencia(ev.foto_despues)])
         : [null, null];
 
@@ -561,17 +619,23 @@ export async function misServicios() {
         folio: s.folio,
         fecha: s.fecha_confirmada || s.fecha_pedida,
         tipo: nombreTipoRuta(s.rutas?.tipo) || "Recolección",
-        // El residuo que pidió al agendar (db/023); las viejas no lo traen.
+        // Lo que el cliente dijo al agendar (db/023). Las viejas no lo traen.
         residuo: s.tipo_residuo || (s.origen === "extra" ? "Recolección extra" : "Residuos de ruta"),
-        motivoNoProcedio: s.motivo_no_procedio || "",
-        detalleNoProcedio: s.detalle_no_procedio || "",
+        origen: s.origen || "ruta",
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "—",
+        // ESTIMADO del chofer: no tiene báscula (el real, `peso_real_kg`,
+        // está apagado). La pantalla lo dice "Peso estimado".
         peso: ev?.peso_kg ? `${ev.peso_kg} kg` : "—",
         unidad: s.rutas?.unidad || "—",
+        // El texto de la ruta solo se queda si NO se pregunta al servidor
+        // (agenda del admin). Para el cliente lo pone `mezclarChoferes`.
         operador: s.rutas?.chofer || "—",
         // El estado sale de la base, no fijo: si no, todo se pintaría como
-        // completado aunque apenas estuviera programado.
+        // completado aunque apenas estuviera programado. "no-procedio"
+        // (db/023) tiene su propio estado: no es un próximo servicio.
         estatus: ESTATUS_PANTALLA[s.estado] || s.estado,
+        motivoNoProcedio: s.motivo_no_procedio || "",
+        detalleNoProcedio: s.detalle_no_procedio || "",
         // El manifiesto se firma con la recolección hecha. Antes se ofrecía
         // para TODOS los servicios, también los programados: el cliente podía
         // bajar un manifiesto de algo que todavía no pasaba. La pantalla ya
@@ -580,22 +644,42 @@ export async function misServicios() {
         evidencia: ev
           ? {
               contenedor: ev.qr ? `Contenedor ${ev.qr}` : "—",
-              // La app todavía no manda `ubicacion` al cerrar la parada;
-              // decir "Registrado" era mentira.
-              gps: "Sin ubicación registrada",
-              antes: { hora: soloHora(ev.hora_antes), etiqueta: "Contenedor lleno", url: urlAntes },
+              // La ubicación de cada foto (db/016), como la web. Desde el
+              // 6-oct-2026 la app del chofer también la guarda; "Sin
+              // ubicación registrada" solo cuando de verdad falta.
+              gps: textoUbicacionServicio(ev.ubicacion),
+              antes: {
+                hora: soloHora(ev.hora_antes),
+                etiqueta: "Contenedor lleno",
+                url: urlAntes,
+                ruta: ev.foto_antes || null,
+                ubicacion: ev.ubicacion?.antes || null,
+              },
               despues: {
                 hora: soloHora(ev.hora_despues),
                 etiqueta: "Contenedor vacío",
                 peso: ev.peso_kg ? `${ev.peso_kg} kg` : "—",
                 firma: s.rutas?.chofer || "—",
                 url: urlDespues,
+                ruta: ev.foto_despues || null,
+                ubicacion: ev.ubicacion?.despues || null,
               },
             }
           : null,
       };
     })
   );
+
+  return { ok: true, servicios: conChoferes ? mezclarChoferes(lista, choferes) : lista };
+}
+
+/**
+ * La lista a secas (`[]` si falla), para quien no necesita distinguir: la
+ * agenda del admin, que solo le pega a cada parada su comprobante.
+ */
+export async function misServicios() {
+  const r = await leerMisServicios({ conChoferes: false });
+  return r.servicios;
 }
 
 /* ==================================================================== */
@@ -624,7 +708,7 @@ export async function rutaDelDia(fecha = hoyISO()) {
       clientes ( empresa ),
       domicilios ( id, alias, calle, colonia, cp, lat, lng, referencias ),
       rutas ( nombre, unidad, unidades ( numero_economico ) ),
-      recolecciones ( id, qr, peso_kg )
+      recolecciones ( id, qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
     `)
     .in("estado", ["confirmada", "en-ruta", "completada", "no-procedio"])
     .or(`fecha_confirmada.eq.${fecha},and(fecha_confirmada.is.null,fecha_pedida.eq.${fecha})`)
@@ -669,7 +753,9 @@ export async function rutaDelDia(fecha = hoyISO()) {
           : s.estado === "completada" && ev
             ? "completado"
             : "pendiente",
-      evidencia: ev,
+      // Con las RUTAS de las fotos (antes la fila iba cruda, sin ellas, y el
+      // chofer abría una parada completada y no veía nada). Ver evidencia.
+      evidencia: evidenciaDeParada(ev),
     };
   });
 }
@@ -1036,7 +1122,15 @@ export async function subirEvidencia(solicitudId, momento, uri, tipoMime = "imag
  * registro que las apunta, y al final el servicio como completado. Al revés,
  * un fallo a media subida dejaría un servicio "completado" sin evidencia.
  */
-export async function cerrarRecoleccion({ solicitudId, qr, pesoKg, uriAntes, uriDespues, rutaAntes: yaAntes, rutaDespues: yaDespues }) {
+export async function cerrarRecoleccion({
+  solicitudId, qr, pesoKg, uriAntes, uriDespues, rutaAntes: yaAntes, rutaDespues: yaDespues,
+  // Cuándo se tomó cada foto (ISO). Antes se guardaba la hora de CERRAR para
+  // las dos, y el sello de "antes" decía la misma hora que el de "después".
+  horaAntes = null, horaDespues = null,
+  // Una lectura de GPS POR FOTO, o null (6-oct-2026, como la web). Que falte
+  // NO es un error: sin señal o sin permiso se cierra igual, sin sello.
+  ubicacionAntes = null, ubicacionDespues = null,
+}) {
   if (!haySupabase()) return { ok: true, demo: true };
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -1066,8 +1160,11 @@ export async function cerrarRecoleccion({ solicitudId, qr, pesoKg, uriAntes, uri
     peso_kg: pesoKg ? Number(pesoKg) : null,
     foto_antes: rutaAntes,
     foto_despues: rutaDespues,
-    hora_antes: uriAntes ? new Date().toISOString() : null,
-    hora_despues: uriDespues ? new Date().toISOString() : null,
+    hora_antes: horaAntes || (rutaAntes ? new Date().toISOString() : null),
+    hora_despues: horaDespues || (rutaDespues ? new Date().toISOString() : null),
+    // Misma forma que la web (`{ antes, despues }` con lat, lng, precision_m
+    // y capturada); null si no hay ninguna, no un objeto vacío.
+    ubicacion: ubicacionParaGuardar(ubicacionAntes, ubicacionDespues),
   });
 
   if (error) return { ok: false, motivo: error.message };

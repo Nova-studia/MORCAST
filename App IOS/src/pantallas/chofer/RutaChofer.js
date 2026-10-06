@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, RefreshControl } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
@@ -10,6 +10,8 @@ import { miRutaDeChofer } from "../../datos-remoto";
 import { haySupabase } from "../../supabase";
 import DondeEs from "./DondeEs";
 import EnCamino from "./EnCamino";
+import FotosEvidencia from "../../FotosEvidencia";
+import { textoUbicacionServicio } from "../../evidencia.mjs";
 
 export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, recargarRuta, onEnRuta }) {
   const [verComp, setVerComp] = useState(null);
@@ -164,14 +166,21 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, r
                 </View>
 
                 <View style={s.evCab}><Feather name="camera" size={15} color={T.tealClaro} /><Text style={s.evCabTxt}>Comprobante de la recolección</Text></View>
+                {/* Las fotos de la base se firman al abrir (la ruta viene de
+                    `rutaDelDia`); la que el chofer acaba de tomar se ve del
+                    teléfono. Si no carga: "Foto no disponible", sin tumbar
+                    nada (Luis, iPhone, 6-oct-2026: no se veían nunca). */}
                 <View style={s.fotos}>
-                  <FotoComp etiqueta="Antes" hora={verComp.evidencia?.horaAntes} uri={verComp.evidencia?.antes} color="#e0a94d" />
-                  <FotoComp etiqueta="Después" hora={verComp.evidencia?.horaDespues} uri={verComp.evidencia?.despues} color={T.verdeClaro} />
+                  <FotosEvidencia
+                    antes={{ uri: verComp.evidencia?.antes, ruta: verComp.evidencia?.rutaAntes, hora: verComp.evidencia?.horaAntes, ubicacion: verComp.evidencia?.ubicacion?.antes || verComp.evidencia?.ubicacionAntes }}
+                    despues={{ uri: verComp.evidencia?.despues, ruta: verComp.evidencia?.rutaDespues, hora: verComp.evidencia?.horaDespues, ubicacion: verComp.evidencia?.ubicacion?.despues || verComp.evidencia?.ubicacionDespues }}
+                  />
                 </View>
 
                 <View style={s.evDatos}>
                   <Dato k="Peso estimado" v={verComp.evidencia?.peso || (verComp.evidencia?.peso_kg ? `${verComp.evidencia.peso_kg} kg` : "—")} />
                   <Dato k="Contenedor (QR)" v={verComp.evidencia?.qr || verComp.qr} />
+                  <Dato k="Ubicación" v={textoUbicacionServicio(verComp.evidencia?.ubicacion || { antes: verComp.evidencia?.ubicacionAntes, despues: verComp.evidencia?.ubicacionDespues })} />
                   <Dato k="Estatus" v="Recolectado ✓" ok />
                 </View>
                 <Text style={s.nota}>Este comprobante también lo ven el cliente y el administrador.</Text>
@@ -181,20 +190,6 @@ export default function RutaChofer({ navigation, ruta, cargandoRuta, onLogout, r
         </View>
       </Modal>
     </SafeAreaView>
-  );
-}
-
-function FotoComp({ etiqueta, hora, uri, color }) {
-  return (
-    <View style={s.fotoBox}>
-      <View style={[s.fotoTag, { backgroundColor: color }]}><Text style={s.fotoTagTxt}>{etiqueta}</Text></View>
-      {uri ? (
-        <Image source={{ uri }} style={s.fotoImg} resizeMode="cover" />
-      ) : (
-        <View style={s.fotoPlaceholder}><Feather name="camera" size={24} color={T.grisClaro} /><Text style={s.fotoPlTxt}>Foto registrada</Text></View>
-      )}
-      {hora ? <View style={s.fotoHora}><Feather name="clock" size={10} color="#fff" /><Text style={s.fotoHoraTxt}>{hora}</Text></View> : null}
-    </View>
   );
 }
 
@@ -232,7 +227,7 @@ const s = StyleSheet.create({
   modalFolio: { color: T.gris, fontSize: 12, marginTop: 2 },
   evCab: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16 },
   evCabTxt: { color: T.tinta, fontSize: 13, fontWeight: "600" },
-  fotos: { flexDirection: "row", gap: 10, marginTop: 10 },
+  fotos: { marginTop: 10 },
   fotoBox: { flex: 1, aspectRatio: 0.82, borderRadius: 12, borderWidth: 1, borderColor: T.linea, overflow: "hidden", backgroundColor: "#0d1211" },
   fotoTag: { position: "absolute", top: 8, left: 8, zIndex: 2, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
   fotoTagTxt: { color: "#0d1211", fontSize: 10.5, fontWeight: "700" },

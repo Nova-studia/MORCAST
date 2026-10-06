@@ -6,7 +6,7 @@ import { Boton } from "../ui";
 import { sesionPendiente } from "../sesion";
 import { miSolicitud, revisarAlta } from "../entrar-social";
 import { textoPendiente } from "../entrada-social.mjs";
-import { abrirEnNavegador, URL_PORTAL_LOGIN } from "../enlaces-web";
+import { abrirEnNavegador, URL_PORTAL_LOGIN, URL_ALTA } from "../enlaces-web";
 import { EMPRESA_COTIZACION } from "../cotizacion-datos";
 import { abrirWhatsApp } from "../whatsapp";
 
@@ -110,6 +110,19 @@ export default function AltaPendiente({ onActivo, onSalir }) {
             Completar mi alta en morcast.mx
           </Boton>
         ) : null}
+        {/* La puerta directa al formulario de alta (6-oct-2026), por si no
+            quiere pasar por el login de la web. Solo cuando todavía falta el
+            alta: si ya la mandó, otra solo duplicaría la solicitud. */}
+        {texto.pedirAlta ? (
+          <Pressable
+            onPress={() => abrirEnNavegador(URL_ALTA)}
+            style={({ pressed }) => [s.alta, pressed && { opacity: 0.8 }]}
+            accessibilityRole="link"
+            accessibilityLabel="¿Aún no eres cliente? Date de alta en morcast.mx"
+          >
+            <Text style={s.altaTxt}>¿Aún no eres cliente? <Text style={s.altaFuerte}>Date de alta</Text></Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           onPress={revisar}
@@ -163,6 +176,9 @@ const s = StyleSheet.create({
   },
   revisarTxt: { color: T.accionTxt, fontSize: 14.5, fontWeight: "700" },
   aviso: { color: T.gris, fontSize: 13, textAlign: "center", marginTop: 10 },
+  alta: { alignItems: "center", paddingVertical: 12, marginTop: 4 },
+  altaTxt: { color: T.gris, fontSize: 13.5 },
+  altaFuerte: { color: T.accionTxt, fontWeight: "700", textDecorationLine: "underline" },
   dudas: { color: T.gris, fontSize: 13, textAlign: "center", marginTop: 22, marginBottom: 8 },
   contacto: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingVertical: 11 },
   contactoTxt: { color: T.gris, fontSize: 13.5, fontWeight: "600" },

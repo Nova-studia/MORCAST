@@ -1,44 +1,80 @@
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { IconoMenu } from "../iconos-menu";
 import { enHold, SIN_CIFRA } from "../estado-sistema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold, AvisoPrecios } from "../ui";
 import { CUENTA, MOVIMIENTOS, SERVICIOS_CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
-import { miSaldo, misMovimientos, misServicios } from "../datos-remoto";
+import { miSaldo, misMovimientos, leerMisServicios } from "../datos-remoto";
 import { useMiEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
-import { esProximo } from "../solicitudes.js";
 import AvisosCliente from "./AvisosCliente";
+import { esProximo, textoNoProcedio } from "../solicitudes.js";
+import { fechaLocal } from "../avisos.js";
+
+/** Cuántos días se sigue enseñando en el Inicio una visita que no procedió. */
+const DIAS_NO_PROCEDIO = 14;
+
+/** La fecha de hace `n` días, en calendario de Matamoros ("2026-09-21"). */
+function haceDias(n) {
+  return fechaLocal(new Date(Date.now() - n * 24 * 60 * 60 * 1000));
+}
 
 export default function Inicio({ navigation, route }) {
   const [saldo, setSaldo] = useState(null);
-  // Cada vez que cambia se vuelven a leer los avisos: al regresar a esta
-  // pestaña y al tocar una notificación de aviso (llega `route.params.aviso`).
-  // Sin esto, un aviso que llega con la app abierta no aparecía hasta
-  // cerrarla y volver a abrirla.
-  const [recargaAvisos, setRecargaAvisos] = useState(0);
-  useEffect(() => navigation.addListener("focus", () => setRecargaAvisos((n) => n + 1)), [navigation]);
-  useEffect(() => {
-    if (route?.params?.aviso) setRecargaAvisos((n) => n + 1);
-  }, [route?.params?.aviso]);
   const [movs, setMovs] = useState(null);
   const [servicios, setServicios] = useState(null);
   const { empresa } = useMiEmpresa();
+  const [refrescando, setRefrescando] = useState(false);
+  // Sube cada vez que hay que releer los avisos: al volver a la pestaña, al
+  // jalar para refrescar y al tocar la notificación de un aviso.
+  const [vuelta, setVuelta] = useState(0);
+  // "No se pudieron leer tus servicios" NO es "no hay servicios programados".
+  const [errorServicios, setErrorServicios] = useState("");
+  // Solo vale la respuesta de la ÚLTIMA lectura (volver dos veces seguidas
+  // a la pestaña no deja que una respuesta vieja pise a la nueva).
+  const turno = useRef(0);
 
-  useEffect(() => {
-    let vivo = true;
-    Promise.all([miSaldo(), misMovimientos(), misServicios()]).then(([sa, mo, se]) => {
-      if (!vivo) return;
-      setSaldo(sa);
-      setMovs(mo);
-      setServicios(se);
-    });
-    return () => {
-      vivo = false;
-    };
+  const leer = useCallback(async () => {
+    const n = ++turno.current;
+    const [sa, mo, se] = await Promise.all([
+      miSaldo().catch(() => null),
+      misMovimientos().catch(() => null),
+      leerMisServicios({ conFotos: false }),
+    ]);
+    if (n !== turno.current) return;
+    if (sa) setSaldo(sa);
+    if (mo) setMovs(mo);
+    if (se.ok) {
+      setServicios(se.servicios);
+      setErrorServicios("");
+    } else {
+      setErrorServicios(se.motivo || "No pudimos leer tus servicios.");
+    }
   }, []);
+
+  // Se relee CADA VEZ que se vuelve a la pestaña (6-oct-2026). Las pestañas
+  // se quedan montadas: antes se leía una sola vez y una recolección recién
+  // programada no aparecía en "Próximos" hasta cerrar la app.
+  useFocusEffect(
+    useCallback(() => {
+      setVuelta((v) => v + 1);
+      leer();
+    }, [leer])
+  );
+
+  // Al tocar la notificación de un aviso (llega `route.params.aviso`).
+  useEffect(() => {
+    if (route?.params?.aviso) setVuelta((v) => v + 1);
+  }, [route?.params?.aviso]);
+
+  const refrescar = async () => {
+    setRefrescando(true);
+    setVuelta((v) => v + 1);
+    try { await leer(); } catch { /* se queda lo que había */ } finally { setRefrescando(false); }
+  };
 
   // Con base conectada TODO es real, aunque esté vacío. Antes, un cliente sin
   // movimientos veía los de ejemplo ("Pago recibido — transferencia SPEI",
@@ -48,22 +84,31 @@ export default function Inicio({ navigation, route }) {
   const cuenta = saldo || (conBase ? { saldoActual: 0, porPagar: 0, limiteCredito: 0, diasCredito: 0 } : CUENTA);
   const cargandoMovs = conBase && movs === null;
   const movimientos = movs || (conBase ? [] : MOVIMIENTOS);
-  const cargandoServicios = conBase && servicios === null;
+  const cargandoServicios = conBase && servicios === null && !errorServicios;
+  const sinLeerServicios = conBase && servicios === null && !!errorServicios;
   const listaServicios = servicios || (conBase ? [] : SERVICIOS_CLIENTE);
 
   const completados = listaServicios.filter((x) => x.estatus === "completado");
-  // Solo lo que todavía va a pasar. Un "No procedió" ya pasó (el chofer fue y
-  // no se pudo): no es un próximo servicio, aunque tampoco esté completado.
+  // Solo lo que todavía espera camión. Antes era "todo lo que no está
+  // completado", y una visita que NO PROCEDIÓ salía aquí como pendiente.
   const proximos = listaServicios.filter(esProximo);
+  // Las que no procedieron hace poco: el cliente tiene que saber por qué no
+  // le recogieron y que no se le cobra (ver solicitudes.js).
+  const desde = haceDias(DIAS_NO_PROCEDIO);
+  const noProcedieron = listaServicios.filter((x) => x.estatus === "no-procedio" && (x.fecha || "") >= desde);
   const nombre = (empresa.contacto || empresa.empresa || "").split(" ").slice(-1)[0];
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: T.fondo }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      refreshControl={haySupabase() ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
+    >
       <Text style={s.hola}>Hola{nombre ? `, ${nombre}` : ""} 👋</Text>
       <Text style={s.sub}>Resumen de {empresa.empresa}.</Text>
-      {/* Lo primero que se ve: si la ruta va tarde o se cambió el día, el
-          cliente tiene que enterarse antes que de su saldo. */}
-      <AvisosCliente recarga={recargaAvisos} />
+      {/* Los avisos de Morcast van ARRIBA de todo: un "hoy la ruta va tarde"
+          es lo primero que el cliente tiene que leer. Sin avisos no ocupa nada. */}
+      <AvisosCliente recarga={vuelta} />
       <AvisoHold />
 
       {/* Saldo */}
@@ -88,26 +133,35 @@ export default function Inicio({ navigation, route }) {
           <Text style={{ color: "#0d3b2e", fontWeight: "700", fontSize: 14.5 }}>  Agregar saldo</Text>
         </Boton>
       </View>
+      {/* Junto a cifras de dinero, el aviso de que el precio puede cambiar
+          (como el portal: solo cuando de verdad se enseñan cifras). */}
+      {!enHold() && <AvisoPrecios compacto style={{ marginTop: 0, marginBottom: 14 }} />}
 
       {/* KPIs */}
       <View style={s.kpis}>
         {/* Los mismos dibujos que las tarjetas del Panel del portal web. */}
         <Kpi dibujo="por-pagar" etiqueta="Por pagar" valor={enHold() ? SIN_CIFRA : pesos(cuenta.porPagar)} />
-        <Kpi dibujo="servicios" etiqueta="Servicios" valor={cargandoServicios ? "…" : String(completados.length)} />
-        <Kpi dibujo="programados" etiqueta="Próximos" valor={cargandoServicios ? "…" : String(proximos.length)} />
+        <Kpi dibujo="servicios" etiqueta="Servicios" valor={cargandoServicios ? "…" : sinLeerServicios ? "—" : String(completados.length)} />
+        <Kpi dibujo="programados" etiqueta="Próximos" valor={cargandoServicios ? "…" : sinLeerServicios ? "—" : String(proximos.length)} />
       </View>
-
-      {/* Pedido de los dueños (4-oct-2026): junto a toda cifra de dinero, el
-          aviso de que el precio puede cambiar. En Hold no hay cifras (todo
-          dice "—"), así que no hay nada que matizar. Igual que el portal. */}
-      {!enHold() && <AvisoPrecios compacto />}
 
       {/* Próximos servicios */}
       <Tarjeta>
         <TituloTarjeta derecha={<Pressable onPress={() => navigation.navigate("Historial")}><Text style={s.link}>Ver todos</Text></Pressable>}>
           Próximos servicios
         </TituloTarjeta>
-        {proximos.length === 0 ? (
+        {errorServicios ? (
+          <View style={s.error} accessibilityLiveRegion="polite">
+            <Text style={s.errorTxt}>
+              {sinLeerServicios ? errorServicios : "No se pudo actualizar. Lo que ves puede no estar al día."}
+            </Text>
+            <Pressable onPress={refrescar} style={s.reintentar} accessibilityRole="button" hitSlop={6}>
+              <Feather name="refresh-cw" size={14} color={T.tinta} />
+              <Text style={s.reintentarTxt}>Reintentar</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {sinLeerServicios ? null : proximos.length === 0 ? (
           <Text style={s.vacio}>{cargandoServicios ? "Leyendo tus servicios…" : "No hay servicios programados."}</Text>
         ) : (
           proximos.map((x, i) => {
@@ -124,6 +178,23 @@ export default function Inicio({ navigation, route }) {
           })
         )}
       </Tarjeta>
+
+      {/* Visitas que no procedieron */}
+      {noProcedieron.length > 0 && (
+        <Tarjeta>
+          <TituloTarjeta>Visitas que no procedieron</TituloTarjeta>
+          {noProcedieron.map((x, i) => (
+            <View key={x.folio} style={[s.fila, { alignItems: "flex-start" }, i < noProcedieron.length - 1 && s.filaBorde]}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.filaTit}>{x.tipo}</Text>
+                <Text style={s.filaSub}>{fechaLarga(x.fecha)} · {x.folio}</Text>
+                <Text style={s.noProc}>{textoNoProcedio(x)}</Text>
+              </View>
+              <Badge clase="mal">No procedió</Badge>
+            </View>
+          ))}
+        </Tarjeta>
+      )}
 
       {/* Movimientos */}
       <Tarjeta>
@@ -184,4 +255,9 @@ const s = StyleSheet.create({
   filaSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   mov: { fontSize: 13.5, fontWeight: "700" },
   vacio: { color: T.gris, textAlign: "center", paddingVertical: 16 },
+  noProc: { color: T.tinta, fontSize: 12.5, marginTop: 5, lineHeight: 18 },
+  error: { padding: 11, borderRadius: 10, marginBottom: 6, backgroundColor: "rgba(217,119,107,0.10)", borderWidth: 1, borderColor: "rgba(217,119,107,0.35)" },
+  errorTxt: { color: T.tinta, fontSize: 13, lineHeight: 18 },
+  reintentar: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel, minHeight: 40 },
+  reintentarTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
 });
