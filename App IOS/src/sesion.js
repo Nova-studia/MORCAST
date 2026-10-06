@@ -3,6 +3,7 @@ import { CREDENCIALES_DEMO, CLIENTE } from "./datos";
 import { ADMIN_DEMO, ADMIN_PERFIL } from "./datos-admin";
 import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
 import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
+import { modoDeRol } from "./entrada-social.mjs";
 import { borrarTokenAlSalir } from "./notificaciones";
 import { olvidarPase } from "./pase-admin";
 
@@ -65,6 +66,17 @@ export async function entrar(modo, correo, password) {
   }
 
   const rol = data.user.app_metadata?.rol;
+
+  // Cuenta SIN sello por la puerta de clientes: alguien que entró con Google
+  // o Apple y luego se creó una contraseña en morcast.mx, pero a quien Morcast
+  // todavía no activa. Antes se le cerraba la sesión con "todavía no tiene
+  // acceso" y se quedaba sin saber qué hacer; ahora va a la sala de espera,
+  // igual que en la web (/portal/pendiente).
+  if (modo === "cliente" && modoDeRol(rol) === "pendiente") {
+    olvidarCuentaDeMuestra();
+    return { ok: true, modo: "pendiente", perfil: perfilPendiente(data.user) };
+  }
+
   if (!cfg.acepta.includes(rol)) {
     // Credenciales buenas, puerta equivocada. Se cierra para no dejar la
     // sesión a medias.
@@ -72,7 +84,52 @@ export async function entrar(modo, correo, password) {
     return { ok: false, mensaje: mensajePuertaEquivocada(rol) };
   }
 
-  return { ok: true, perfil: await perfilDe(data.user, modo) };
+  return { ok: true, modo, perfil: await perfilDe(data.user, modo) };
+}
+
+/**
+ * Después de entrar con Google o con Apple: a qué modo va esta cuenta y con
+ * qué perfil. Devuelve `{ modo, perfil }` con modo "cliente", "admin",
+ * "chofer" o "pendiente".
+ *
+ * Aquí NO hay puerta equivocada: el botón está en el login de clientes, pero
+ * si quien entra es del personal se le lleva a SU modo (el admin, detrás de su
+ * código por correo, como siempre). A dónde va cada rol lo decide
+ * `modoDeRol`, el espejo de `casaDe()` de la web.
+ */
+export async function destinoDeUsuario(usuario) {
+  const modo = modoDeRol(usuario?.app_metadata?.rol);
+  if (modo === "pendiente") {
+    olvidarCuentaDeMuestra();
+    return { modo, perfil: perfilPendiente(usuario) };
+  }
+  return { modo, perfil: await perfilDe(usuario, modo) };
+}
+
+/** Lo poco que se sabe de una cuenta que todavía no tiene alta. */
+function perfilPendiente(usuario) {
+  const meta = usuario?.user_metadata || {};
+  return {
+    id: usuario?.id,
+    correo: usuario?.email || "",
+    nombre: meta.nombre || meta.full_name || meta.name || usuario?.email || "",
+  };
+}
+
+/**
+ * La sesión guardada de una cuenta SIN sello (entró con Google o Apple y
+ * Morcast todavía no la activa), o null. La usa el arranque de la app para
+ * volver a la sala de espera en vez de enseñar el login con la sesión viva
+ * por debajo. Igual que `sesionActiva`: `getSession()`, sin red.
+ */
+export async function sesionPendiente() {
+  if (!haySupabase()) return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user || modoDeRol(user.app_metadata?.rol) !== "pendiente") return null;
+  return perfilPendiente(user);
 }
 
 function mensajePuertaEquivocada(rol) {

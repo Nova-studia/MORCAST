@@ -48,6 +48,40 @@ Servicios (evidencia antes/después), Clientes, Reportes, Usuarios y roles.
 **Chofer:** Ruta del día, **escanear QR del contenedor** (cámara), **foto antes/después** de la
 recolección, ver sus servicios completados con las fotos.
 
+## Entrar con Google y con Apple (1.1)
+
+En el login de clientes, debajo del correo y la contraseña: "o", **Continuar con Google** y
+**Continuar con Apple** (obligatorio en la App Store en cuanto hay Google, guía 4.8).
+Igual que la web: el token se canjea con `supabase.auth.signInWithIdToken`, así que la pantalla
+de Google dice Morcast. A dónde va cada quien lo decide `modoDeRol` (espejo de `casaDe()` de la
+web): cliente → portal, dueño/admin → panel (con su código por correo), operador → chofer, y
+**sin rol → sala de espera** (`src/pantallas/AltaPendiente.js`), que manda a completar el alta en
+morcast.mx con la misma cuenta y tiene "Ya me activaron — revisar".
+
+Archivos: `src/entrada-social.mjs` (lógica pura, con pruebas), `src/entrar-social.js` (Google y sala de
+espera), `src/entrar-apple.js` (Apple), `src/BotonesSociales.js`, `src/OlvideClave.js`
+("¿Olvidaste tu contraseña? / Crear mi contraseña", abre morcast.mx/portal/recuperar).
+
+**Lo que hay que poner (si falta, el botón de Google simplemente NO sale; nunca truena):**
+
+- En `.env` (no se versiona) **y** en EAS (`eas env:create`, entornos preview y production):
+  - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — el ID **web** de Google Cloud (el de `Web/lib/google-datos.mjs`).
+  - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` — un cliente OAuth de tipo **iOS** con bundle `mx.morcast.app`.
+- En `app.json`, plugin `@react-native-google-signin/google-signin`: cambiar
+  `com.googleusercontent.apps.PENDIENTE-IOS` por el ID de iOS **invertido**
+  (`com.googleusercontent.apps.<lo que va antes de .apps.googleusercontent.com>`). 🔴 Si no
+  coincide, Google cierra la app al tocar el botón; por eso la app lo compara y, si no
+  coincide, esconde el botón.
+- Apple: `ios.usesAppleSignIn` ya está en `app.json`; en developer.apple.com el App ID
+  `mx.morcast.app` debe tener "Sign in with Apple" (EAS lo activa al compilar). En Supabase →
+  Auth → Providers → **Apple**: encenderlo y poner `mx.morcast.app` en Client IDs (y
+  `host.exp.Exponent` para probar en Expo Go).
+- En Supabase → Auth → Providers → **Google**: en "Client IDs" deben estar el ID web **y** el de iOS
+  (separados por coma). Si el iPhone falla con un error de *nonce*, encender "Skip nonce check"
+  (el SDK de Google para iOS mete un nonce propio que la versión gratuita no deja leer).
+- Expo Go **no** trae el módulo de Google: ahí el botón no sale (Apple sí funciona). Se prueba con una
+  compilación propia.
+
 ## Estructura
 
 - `App.js` — navegación (3 sesiones: cliente / admin / chofer) y tema

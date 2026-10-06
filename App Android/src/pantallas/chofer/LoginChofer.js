@@ -5,6 +5,7 @@ import { T } from "../../tema";
 import { Boton } from "../../ui";
 import CampoClave from "../../CampoClave";
 import { entrar as entrarSesion } from "../../sesion";
+import OlvideClave from "../../OlvideClave";
 
 export default function LoginChofer({ navigation, onLogin }) {
   const [correo, setCorreo] = useState("");
@@ -48,6 +49,8 @@ export default function LoginChofer({ navigation, onLogin }) {
         <CampoClave style={s.input} value={password} onChangeText={(v) => { setPassword(v); setError(""); }} onSubmitEditing={entrar} />
 
         <Boton variante="teal" onPress={entrar} style={{ marginTop: 20 }}>Entrar</Boton>
+
+        <OlvideClave />
 
         <Pressable onPress={() => navigation.goBack()} style={s.volver}>
           <Feather name="arrow-left" size={15} color={T.gris} />

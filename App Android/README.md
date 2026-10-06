@@ -88,6 +88,34 @@ simplemente no recibe push** (el registro del token falla en silencio).
 El token que se registra es el de Expo (`ExponentPushToken[…]`); el servidor manda por el
 servicio de Expo con `channelId: "avisos"` y `data: { tipo: "aviso" | "incidente", id }`.
 
+## Entrar con Google (1.1)
+
+En el login de clientes, debajo del correo y la contraseña: "o", **Continuar con Google**.
+Igual que la web: el token se canjea con `supabase.auth.signInWithIdToken`, así que la pantalla
+de Google dice Morcast. A dónde va cada quien lo decide `modoDeRol` (espejo de `casaDe()` de la
+web): cliente → portal, dueño/admin → panel (con su código por correo), operador → chofer, y
+**sin rol → sala de espera** (`src/pantallas/AltaPendiente.js`), que manda a completar el alta en
+morcast.mx con la misma cuenta y tiene "Ya me activaron — revisar".
+
+Archivos: `src/entrada-social.js` (lógica pura, con pruebas), `src/entrar-social.js` (Google y sala de
+espera), `src/entrar-apple.js` (de mentiras: en Android no hay Apple), `src/BotonesSociales.js`, `src/OlvideClave.js`
+("¿Olvidaste tu contraseña? / Crear mi contraseña", abre morcast.mx/portal/recuperar).
+
+**Lo que hay que poner (si falta, el botón de Google simplemente NO sale; nunca truena):**
+
+- En `.env` (no se versiona) **y** en EAS (`eas env:create`, entornos preview y production):
+  - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — el ID **web** de Google Cloud (el de `Web/lib/google-datos.mjs`).
+  - (`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` no se usa en Android.)
+- En Google Cloud: un cliente OAuth de tipo **Android** con paquete `mx.morcast.app` y la huella
+  **SHA-1** de la llave con que se firma (la de subida y la de Play App Signing, de
+  Play Console → Integridad de la app). Sin eso Google responde `DEVELOPER_ERROR`.
+- **No se tocó `android/`**: la librería se enlaza sola (autolinking de Gradle) y entrar con
+  Google **no** necesita `google-services.json` (el `webClientId` va en JavaScript). Por eso
+  su plugin **no** va en `app.json`: sin opciones activaría el modo Firebase en un prebuild.
+- En Supabase → Auth → Providers → **Google**: en "Client IDs" deben estar el ID web.
+- Expo Go **no** trae el módulo de Google: ahí el botón no sale. Se prueba con una
+  compilación propia.
+
 ## Estructura
 
 - `android/` — proyecto nativo de Android (Gradle) generado con `expo prebuild`

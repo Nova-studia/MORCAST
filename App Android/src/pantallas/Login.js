@@ -5,8 +5,15 @@ import { T } from "../tema";
 import { Boton } from "../ui";
 import CampoClave from "../CampoClave";
 import { entrar as entrarSesion } from "../sesion";
+import BotonesSociales from "../BotonesSociales";
+import OlvideClave from "../OlvideClave";
 
-export default function Login({ onLogin, navigation }) {
+/**
+ * `onEntrar(modo)` abre la app en el modo que le toca a la cuenta:
+ * "cliente" con contraseña; con Google o Apple puede ser también "admin",
+ * "chofer" o "pendiente" (la sala de espera de quien todavía no tiene alta).
+ */
+export default function Login({ onEntrar, navigation }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +30,7 @@ export default function Login({ onLogin, navigation }) {
       setEntrando(false);
       return;
     }
-    onLogin(r.perfil);
+    onEntrar(r.modo || "cliente");
   };
 
   return (
@@ -60,6 +67,16 @@ export default function Login({ onLogin, navigation }) {
         <Boton onPress={entrar} style={{ marginTop: 20 }}>
           Entrar al portal
         </Boton>
+
+        <OlvideClave paraClientes />
+
+        {/* "o" + Google (las dos apps) + Apple (sólo iPhone). Si no se pueden
+            ofrecer en este teléfono, no se pinta nada (ver el archivo). */}
+        <BotonesSociales
+          deshabilitado={entrando}
+          onEntrar={(r) => onEntrar(r.modo)}
+          onError={setError}
+        />
 
         {/* Para quien todavía no es cliente: cotizar y ver la cobertura sin
             cuenta (ver pantallas/explorar/Explorar.js). */}

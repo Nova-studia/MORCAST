@@ -11,6 +11,7 @@ import { T } from "./src/tema";
 import { IconoMenu } from "./src/iconos-menu";
 // Cliente
 import Login from "./src/pantallas/Login";
+import AltaPendiente from "./src/pantallas/AltaPendiente";
 import Inicio from "./src/pantallas/Inicio";
 import Historial from "./src/pantallas/Historial";
 import AgregarSaldo from "./src/pantallas/AgregarSaldo";
@@ -32,7 +33,7 @@ import NoProcedio from "./src/pantallas/chofer/NoProcedio";
 import ReportarProblema from "./src/pantallas/chofer/ReportarProblema";
 import { RUTA_HOY } from "./src/datos-chofer";
 import { rutaDelDia, cerrarRecoleccion, avisarParada } from "./src/datos-remoto";
-import { sesionActiva, salir as salirDeSesion } from "./src/sesion";
+import { sesionActiva, sesionPendiente, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
 // Admin
 import LoginAdmin from "./src/pantallas/admin/LoginAdmin";
@@ -91,11 +92,13 @@ const tabBar = (color, insets) => ({
 });
 
 /* ---------- Autenticación ---------- */
-function AuthFlow({ onCliente, onAdmin, onChofer }) {
+// `onEntrar(modo)`: el login de clientes puede abrir cualquier modo cuando se
+// entra con Google o Apple (ver Login.js); los otros dos, sólo el suyo.
+function AuthFlow({ onEntrar, onAdmin, onChofer }) {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: T.fondo } }}>
       <AuthStack.Screen name="LoginCliente">
-        {(props) => <Login {...props} onLogin={onCliente} />}
+        {(props) => <Login {...props} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginAdmin">
         {(props) => <LoginAdmin {...props} onLogin={onAdmin} />}
@@ -304,7 +307,8 @@ function AdminConPuerta({ onLogout, alAbrir }) {
 }
 
 export default function App() {
-  const [sesion, setSesion] = useState(null); // null | "cliente" | "admin" | "chofer"
+  // "pendiente": entró con Google o Apple y Morcast todavía no activa su alta.
+  const [sesion, setSesion] = useState(null); // null | "cliente" | "admin" | "chofer" | "pendiente"
   const [revisando, setRevisando] = useState(true);
 
   /**
@@ -380,12 +384,19 @@ export default function App() {
 
     (async () => {
       try {
+        let encontrada = false;
         for (const modo of ["admin", "chofer", "cliente"]) {
           const p = await sesionActiva(modo);
           if (p) {
             if (vivo) setSesion(modo);
+            encontrada = true;
             break;
           }
+        }
+        // Una cuenta de Google o Apple sin alta activada: a su sala de espera,
+        // no al login con la sesión viva por debajo.
+        if (!encontrada && (await sesionPendiente())) {
+          if (vivo) setSesion("pendiente");
         }
       } catch (e) {
         // Un fallo buscando la sesión no puede dejar la app sin abrir.
@@ -425,11 +436,15 @@ export default function App() {
           <AdminConPuerta onLogout={salir} alAbrir={() => setTimeout(intentarNavegar, 0)} />
         ) : sesion === "chofer" ? (
           <AppChofer onLogout={salir} />
+        ) : sesion === "pendiente" ? (
+          <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
+            <AltaPendiente onActivo={(modo) => setSesion(modo)} onSalir={salir} />
+          </SafeAreaView>
         ) : sesion === "cliente" ? (
           <AppClienteConAvisos onLogout={salir} />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
-            <AuthFlow onCliente={() => setSesion("cliente")} onAdmin={() => setSesion("admin")} onChofer={() => setSesion("chofer")} />
+            <AuthFlow onEntrar={(modo) => setSesion(modo)} onAdmin={() => setSesion("admin")} onChofer={() => setSesion("chofer")} />
           </SafeAreaView>
         )}
       </NavigationContainer>
