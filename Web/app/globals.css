@@ -1874,6 +1874,11 @@ section {
 .mc-mapa .leaflet-tile-pane {
   filter: brightness(0.72) saturate(0.85) contrast(1.05);
 }
+/* La foto aérea va tal cual: el filtro de arriba solo la ensucia
+   (lib/capas-mapa.js pone la clase al cambiar a Satélite). */
+.mc-mapa.mc-mapa-satelite .leaflet-tile-pane {
+  filter: none;
+}
 .mc-mapa .leaflet-control-attribution {
   background: rgba(13, 21, 20, 0.82);
   color: var(--mc-gris);

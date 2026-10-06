@@ -105,6 +105,10 @@ test("estadoUbicacion distingue sin ubicación, chofer y oficina", () => {
   assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: "panel" }).id, "panel");
   // Coordenadas de la carga inicial, sin origen: las puso la oficina.
   assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: null }).id, "panel");
+  // Sin origen pero CON fecha: el pin que puso el cliente en su alta.
+  assert.equal(estadoUbicacion({ lat: 25.8, lng: -97.5, origen: null, fecha: "2026-10-06T15:00:00Z" }).id, "cliente");
+  // Sin pin no hay nada que revisar, aunque traiga fecha.
+  assert.equal(estadoUbicacion({ origen: null, fecha: "2026-10-06T15:00:00Z" }).id, "sin");
 });
 
 test("filtrarPuntos combina ubicación, sector y búsqueda sin acentos", () => {

@@ -68,6 +68,11 @@ const PUNTOS_DEMO_BASE = [
   { id: "demo-p7", clienteFolio: "MOR-2026-0071", empresa: "Ferretera del Golfo", alias: "Sucursal Centro",
     calle: "Calle Morelos #120", colonia: "Zona Centro", cp: "87300", lat: 25.8769, lng: -97.5052,
     origen: "panel", fecha: "2026-10-01T15:30:00Z", referencias: "" },
+  // Un cliente recién dado de alta: el pin lo puso él, sin origen y con fecha
+  // (ver estadoUbicacion). Sale "Por revisar" en la lista.
+  { id: "demo-p8", clienteFolio: "MOR-2026-0090", empresa: "Abarrotes La Esperanza", alias: "Principal",
+    calle: "Calle Sexta #120", colonia: "Zona Centro", cp: "87300", lat: 25.8741, lng: -97.5010,
+    origen: null, fecha: "2026-10-06T15:00:00Z", referencias: "" },
 ];
 
 /** El sector guardado de cada punto demo, calculado con la misma regla que la real. */

@@ -139,6 +139,15 @@ export function estadoUbicacion(punto) {
   // `corto` es para la tabla, donde en el teléfono no cabe la frase entera.
   if (!tieneUbicacion(punto)) return { id: "sin", texto: "Sin ubicación", corto: "Sin ubicación", clase: "mal" };
   if (punto.origen === "chofer") return { id: "chofer", texto: "La puso el chofer", corto: "Del chofer", clase: "ruta" };
+  // El pin que puso el CLIENTE al darse de alta (6-oct-2026): la base solo
+  // acepta 'panel' o 'chofer' en el origen, así que llega sin origen pero CON
+  // fecha (activarCuentaRegistrada la llena). Las coordenadas de la carga
+  // inicial no traen ninguna de las dos y siguen contando como de la oficina.
+  // El cliente se puede equivocar: queda "por revisar" hasta que la oficina
+  // la confirme o la mueva (eso la vuelve 'panel').
+  if (!punto.origen && punto.fecha) {
+    return { id: "cliente", texto: "La puso el cliente: por revisar", corto: "Por revisar", clase: "prog" };
+  }
   return { id: "panel", texto: "La puso la oficina", corto: "De la oficina", clase: "ok" };
 }
 

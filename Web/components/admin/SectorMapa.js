@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import { MATAMOROS_CENTRO } from "@/lib/rutas-datos";
+import { agregarCapasBase } from "@/lib/capas-mapa";
 
 /**
  * Mapa de /admin/sectores: los cuatro sectores, los puntos de recolección, y
@@ -100,11 +101,8 @@ export default function SectorMapa({
       if (cancelado || !contenedor.current || mapa.current) return;
       leaflet.current = L;
       mapa.current = L.map(contenedor.current).setView(MATAMOROS_CENTRO, 12);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(mapa.current);
+      // Mapa de calles y Satélite: en la foto se ve el portón exacto.
+      agregarCapasBase(L, mapa.current);
 
       mapa.current.on("click", (e) => {
         const c = [e.latlng.lat, e.latlng.lng];

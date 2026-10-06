@@ -13,6 +13,7 @@ import {
 } from "@/lib/sectores.mjs";
 import { tieneUbicacion, direccionDe, enlaceVerEnMapa } from "@/lib/mapas.mjs";
 import SectorInsignia from "@/components/admin/SectorInsignia";
+import BuscadorDireccion from "@/components/BuscadorDireccion";
 
 const SectorMapa = dynamic(() => import("@/components/admin/SectorMapa"), {
   ssr: false,
@@ -23,6 +24,7 @@ const FILTROS_UBICACION = [
   { id: "todos", texto: "Todos" },
   { id: "sin", texto: "Sin ubicación" },
   { id: "chofer", texto: "La puso el chofer" },
+  { id: "cliente", texto: "Por revisar" },
   { id: "panel", texto: "La puso la oficina" },
 ];
 
@@ -56,6 +58,9 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
   const [filtros, setFiltros] = useState({ ubicacion: "todos", sector: "", texto: "" });
   const [seleccion, setSeleccion] = useState("");
   const [borrador, setBorrador] = useState(borradorDe(null));
+  // Sube cada vez que se elige una dirección del buscador: cambia la clave
+  // `enfoque` del mapa para que se acerque al pin nuevo.
+  const [vueltaBusqueda, setVueltaBusqueda] = useState(0);
   const [errorCoord, setErrorCoord] = useState("");
   const [guardando, setGuardando] = useState(false);
   // { tipo: "ok" | "error", texto }
@@ -75,7 +80,10 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
     Boolean(borrador.pin) &&
     (!original.pin || borrador.pin[0] !== original.pin[0] || borrador.pin[1] !== original.pin[1]);
   const refsCambio = punto ? borrador.referencias.trim() !== (punto.referencias || "").trim() : false;
-  const sucio = pinCambio || refsCambio;
+  // Pin que puso el cliente en su alta: la oficina lo puede dar por bueno sin
+  // moverlo ("Confirmar ubicación"), y con eso pasa a ser de la oficina.
+  const porRevisar = Boolean(punto && borrador.pin && estadoUbicacion(punto).id === "cliente");
+  const sucio = pinCambio || refsCambio || porRevisar;
 
   // El sector que le tocará con el pin del borrador, para decirlo antes de guardar.
   const sectorNuevo = borrador.pin ? sectorDePunto({ lat: borrador.pin[0], lng: borrador.pin[1] }, sectores) : null;
@@ -136,7 +144,7 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
     setGuardando(true);
     setMensaje(null);
     const r = await guardarPunto(punto.id, {
-      pin: pinCambio ? borrador.pin : undefined,
+      pin: pinCambio || porRevisar ? borrador.pin : undefined,
       referencias: refsCambio ? borrador.referencias : undefined,
       sectorId: mandarSector ? sectorId : undefined,
     });
@@ -313,7 +321,22 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
               {estado.id !== "sin" && punto.fecha && <span>el {cuando(punto.fecha)}</span>}
             </p>
 
-            <SectorMapa zonas={zonas} pin={borrador.pin} onPin={ponerPin} enfoque={punto.id} alto="340px" />
+            {/* Al elegir una dirección se pone el pin Y se vuelve a encuadrar:
+                `enfoque` es la clave que le dice al mapa que se acerque. */}
+            <BuscadorDireccion
+              id="punto-buscar-direccion"
+              onElegir={(c) => {
+                ponerPin(c);
+                setVueltaBusqueda((n) => n + 1);
+              }}
+            />
+            <SectorMapa
+              zonas={zonas}
+              pin={borrador.pin}
+              onPin={ponerPin}
+              enfoque={`${punto.id}:${vueltaBusqueda}`}
+              alto="340px"
+            />
             <p className="mc-mapa-nota">
               {borrador.pin
                 ? "Arrastra el pin hasta la entrada por donde se recoge, o toca otro lugar del mapa."
@@ -374,7 +397,8 @@ export default function PuntoEditor({ sectores, puntos, onGuardado }) {
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginTop: "1rem" }}>
               <button type="button" className="pt-btn pt-btn-naranja" onClick={guardar} disabled={!sucio || guardando}>
-                <FloppyDisk /> {guardando ? "Guardando…" : "Guardar"}
+                <FloppyDisk />{" "}
+                {guardando ? "Guardando…" : porRevisar && !pinCambio && !refsCambio ? "Confirmar ubicación" : "Guardar"}
               </button>
               {sucio && (
                 <button type="button" className="pt-btn" onClick={descartar} disabled={guardando}>

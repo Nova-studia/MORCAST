@@ -28,6 +28,7 @@ import { CLAUSULAS, NOTA_BORRADOR, VERSION_TERMINOS, RUTA_AVISO_PRIVACIDAD } fro
 import { zonasDeCobertura } from "@/app/acciones-alta";
 import FirmaDibujada from "@/components/portal/FirmaDibujada";
 import AltaExitosa from "@/components/portal/AltaExitosa";
+import BuscadorDireccion from "@/components/BuscadorDireccion";
 
 // Leaflet solo corre en el navegador.
 const MapaZonas = dynamic(() => import("@/components/MapaZonas"), {
@@ -101,6 +102,8 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
     correo: quien?.correo || "",
   }));
   const [pin, setPin] = useState(null);
+  // A dónde acercar el mapa cuando se elige una dirección del buscador.
+  const [centrar, setCentrar] = useState(null);
   const [residuos, setResiduos] = useState([]);
   const [equipo, setEquipo] = useState({}); // "Tolvas|30" -> cantidad
   const [constancia, setConstancia] = useState(null); // { archivo, nombre, url, esImagen }
@@ -418,11 +421,19 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
               <div className="pt-card-head">
                 <h2>¿Dónde recogemos?</h2>
               </div>
+              <BuscadorDireccion
+                id="alta-buscar-direccion"
+                onElegir={(c) => {
+                  setPin(c);
+                  setCentrar(c);
+                }}
+              />
               <div id="alta-mapa" tabIndex={-1}>
-                <MapaZonas zonas={zonas} pin={pin} onPin={setPin} alto="440px" />
+                <MapaZonas zonas={zonas} pin={pin} onPin={setPin} centrar={centrar} alto="440px" />
               </div>
               <p className="mc-mapa-nota">
-                <MapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio.
+                <MapPin aria-hidden="true" /> Toca el mapa para colocar tu domicilio, o afínalo en la
+                vista Satélite (arriba a la derecha) para que el pin quede en tu entrada.
               </p>
 
               {pin && cubren.length > 0 && (
