@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
-import { Tarjeta, TituloTarjeta } from "../../ui";
-import { embudoSolicitudes, pesos } from "../../datos-admin";
+import { Tarjeta, TituloTarjeta, Badge } from "../../ui";
+import { embudoSolicitudes, pesos, infoEstado, fechaLarga } from "../../datos-admin";
 import { kpisAdmin, cobranza12Meses, listarCotizaciones } from "../../datos-remoto";
 
 const KPIS_VACIOS = {
@@ -19,7 +19,7 @@ const KPIS_VACIOS = {
  * nuevas sin contactar y la bandeja de Solicitudes salia vacia, porque la
  * bandeja si consultaba la base y el panel no.
  */
-export default function PanelAdmin() {
+export default function PanelAdmin({ navigation }) {
   const [kpis, setKpis] = useState(KPIS_VACIOS);
   const [cobranza, setCobranza] = useState({ serie: [], hayDatos: false });
   const [solicitudes, setSolicitudes] = useState([]);
@@ -45,6 +45,8 @@ export default function PanelAdmin() {
   const embudo = embudoSolicitudes(solicitudes);
   const maxE = Math.max(...embudo.map((e) => e.total), 1);
   const delta = kpis.ingresosMes - kpis.ingresosMesAnterior;
+  // equipo 2: las cinco más nuevas, como "Solicitudes recientes" de la web.
+  const recientes = [...solicitudes].sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0)).slice(0, 5);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -95,6 +97,40 @@ export default function PanelAdmin() {
           </View>
         ))}
       </Tarjeta>
+
+      {/* equipo 2: Solicitudes recientes (paridad con el panel web, 6-oct-2026).
+          Cada renglón lleva a la bandeja de Solicitudes, donde se atiende. */}
+      <Tarjeta>
+        <TituloTarjeta
+          derecha={
+            <Pressable onPress={() => navigation?.navigate("Solicitudes")} hitSlop={10} style={s.verTodas} accessibilityRole="button" accessibilityLabel="Ver todas las solicitudes">
+              <Text style={s.verTodasTxt}>Ver todas</Text>
+              <Feather name="arrow-right" size={14} color={T.accionTxt} />
+            </Pressable>
+          }
+        >
+          Solicitudes recientes
+        </TituloTarjeta>
+        {!cargando && recientes.length === 0 && <Text style={s.vacio}>Todavía no llega ninguna solicitud por el sitio.</Text>}
+        {recientes.map((x, i) => {
+          const est = infoEstado(x.estado);
+          return (
+            <Pressable
+              key={x.id}
+              onPress={() => navigation?.navigate("Solicitudes")}
+              style={[s.recFila, i < recientes.length - 1 && s.recBorde]}
+              accessibilityRole="button"
+              accessibilityLabel={`${x.empresa}, ${x.servicio || "sin servicio"}, ${est.texto}, ${fechaLarga(x.fecha)}`}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.recEmp} numberOfLines={1}>{x.empresa}</Text>
+                <Text style={s.recSub} numberOfLines={1}>{[x.folio, fechaLarga(x.fecha), x.servicio].filter(Boolean).join(" · ")}</Text>
+              </View>
+              <Badge clase={est.clase}>{est.texto}</Badge>
+            </Pressable>
+          );
+        })}
+      </Tarjeta>
     </ScrollView>
   );
 }
@@ -134,5 +170,11 @@ const s = StyleSheet.create({
   embTxt: { color: T.tinta, fontSize: 13, width: 84 },
   embTrack: { flex: 1, height: 10, backgroundColor: T.panel2, borderRadius: 5, overflow: "hidden" },
   embBar: { height: 10, backgroundColor: T.naranja, borderRadius: 5, minWidth: 2 },
+  verTodas: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
+  verTodasTxt: { color: T.accionTxt, fontSize: 13, fontWeight: "700" },
+  recFila: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, minHeight: 52 },
+  recBorde: { borderBottomWidth: 1, borderBottomColor: T.linea },
+  recEmp: { color: T.tinta, fontSize: 14, fontWeight: "700" },
+  recSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   embNum: { color: T.tinta, fontSize: 13, fontWeight: "700", width: 22, textAlign: "right" },
 });

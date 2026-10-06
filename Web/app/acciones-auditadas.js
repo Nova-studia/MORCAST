@@ -8,8 +8,8 @@ import {
   correoRecoleccionConfirmada,
   correoRecoleccionRechazada,
   correoParadaAsignada,
-  correoSaldoResuelto,
 } from "@/lib/correo";
+import { resolverDepositoServidor } from "@/lib/saldos-servidor";
 import { cargarParada, avisarCliente } from "@/lib/avisar-cliente";
 
 /**
@@ -73,51 +73,28 @@ async function exigirPersonal() {
   return { quien };
 }
 
-/** Aplica o rechaza un depósito del cliente. Aquí se mueve dinero. */
+/**
+ * Aplica o rechaza un depósito del cliente. Aquí se mueve dinero.
+ *
+ * El UPDATE, la cuenta de filas, la bitácora y el correo de "saldo resuelto"
+ * viven en lib/saldos-resolver.mjs: la MISMA copia que usa la app
+ * (/api/app/saldos/resolver, 6-oct-2026), que antes aplicaba sin dejar
+ * huella ni avisar al cliente.
+ */
 export async function resolverDepositoAuditado(id, estado, notas) {
   if (!haySupabase()) return { ok: true, demo: true };
 
   const { quien, error: sinPermiso } = await exigirPersonal();
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
-  const supabase = await supabaseSesion();
-  const { data, error } = await supabase
-    .from("movimientos_saldo")
-    .update({ estado, notas: notas || null, verificado_por: quien.id })
-    .eq("id", id)
-    .select("id, folio, monto, cliente_id, clientes ( empresa, correo )");
-
-  if (error) return { ok: false, motivo: error.message };
-  if (!data?.length) {
-    return {
-      ok: false,
-      motivo: "No se cambió nada: el permiso de la base no te deja tocar ese movimiento.",
-    };
-  }
-
-  await registrar({
-    accion: estado === "aplicada" ? "aplicar_saldo" : "rechazar_saldo",
-    tabla: "movimientos_saldo",
-    registroId: id,
-    detalle: {
-      folio: data[0].folio,
-      monto: Number(data[0].monto),
-      cliente_id: data[0].cliente_id,
-      notas: notas || null,
-    },
+  return resolverDepositoServidor({
+    sb: await supabaseSesion(),
+    actorId: quien.id,
+    id,
+    estado,
+    notas,
+    anotar: registrar,
   });
-
-  await avisar("saldo resuelto", () =>
-    correoSaldoResuelto({
-      correo: data[0].clientes?.correo,
-      empresa: data[0].clientes?.empresa,
-      monto: Number(data[0].monto),
-      aplicado: estado === "aplicada",
-      notas,
-    })
-  );
-
-  return { ok: true };
 }
 
 /** Cambia el estado de una solicitud de recolección (confirmar, rechazar…). */
