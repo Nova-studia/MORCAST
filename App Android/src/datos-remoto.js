@@ -306,6 +306,15 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
           : msg,
     };
   }
+
+  // equipo 1 (6-oct-2026): que se entere la oficina (correo y notificación
+  // al dueño y a los administradores). Antes nadie avisaba y la solicitud
+  // esperaba a que alguien abriera Recolecciones. No se espera: la solicitud
+  // ya quedó guardada, y un fallo del aviso no puede decirle al cliente que
+  // no se pidió. El servidor solo avisa de una propia, reciente y una vez.
+  postApp("solicitud-avisada", { folio }).then((r) => {
+    if (!r?.ok) console.warn("No se pudo avisar a la oficina de la solicitud:", r?.motivo);
+  });
   return { ok: true, folio };
 }
 
@@ -1254,10 +1263,11 @@ export async function listarSolicitudesRecoleccion() {
     // relacion ambigua.
     .select(`
       id, folio, origen, fecha_pedida, fecha_confirmada, hora_confirmada, chofer_id,
-      estado, nota,
+      estado, nota, motivo_no_procedio, detalle_no_procedio,
       clientes ( empresa ),
       rutas ( nombre, chofer, unidad ),
-      choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
+      choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre ),
+      recolecciones ( operador:perfiles!recolecciones_operador_id_fkey ( nombre ) )
     `)
     .order("fecha_pedida", { ascending: false });
 
@@ -1274,10 +1284,19 @@ export async function listarSolicitudesRecoleccion() {
     horaConfirmada: s.hora_confirmada || "",
     choferId: s.chofer_id || null,
     choferAsignado: s.choferParada?.nombre || "",
+    // Quien la CERRÓ (recolecciones.operador_id). En una completada manda
+    // él: el 6-oct-2026 una salía con "Marco Antonio", el de la ruta, y la
+    // había hecho José Medina. La llave va con nombre porque `recolecciones`
+    // apunta dos veces a perfiles (operador_id y peso_real_por).
+    operadorReal: s.recolecciones?.[0]?.operador?.nombre || "",
     // El de la ruta es el de siempre; el asignado a la parada manda sobre el.
-    choferEfectivo: s.choferParada?.nombre || s.rutas?.chofer || "",
+    choferEfectivo:
+      (s.estado === "completada" && s.recolecciones?.[0]?.operador?.nombre) ||
+      s.choferParada?.nombre || s.rutas?.chofer || "",
     estado: s.estado,
     nota: s.nota || "",
+    motivoNoProcedio: s.motivo_no_procedio || "",
+    detalleNoProcedio: s.detalle_no_procedio || "",
   }));
 }
 
@@ -1581,12 +1600,20 @@ export async function cobranza12Meses() {
   return { serie, hayDatos: (data || []).length > 0 };
 }
 
-/** Como se llama en la agenda cada estado de la base. */
+/**
+ * Como se llama en la agenda cada estado de la base. Igual que la web
+ * (`agendaDesdeBase`, Web/lib/admin-datos.js): una SOLICITADA no es un
+ * servicio programado —nadie la ha confirmado ni le ha puesto camión— y
+ * aquí salía como "Programado" (6-oct-2026). Esas se atienden en
+ * Recolecciones. "No procedió" sí entra: el camión fue, y la oficina tiene
+ * que verlo en la agenda con su motivo (en la web no sale; aquí lleva su
+ * propio filtro).
+ */
 const ESTATUS_AGENDA = {
-  solicitada: "programado",
   confirmada: "programado",
   "en-ruta": "en-ruta",
   completada: "completado",
+  "no-procedio": "no-procedio",
 };
 
 /**
@@ -1596,6 +1623,11 @@ const ESTATUS_AGENDA = {
  * el comprobante fotografico del chofer: sin esto la promesa seria falsa.
  * Se cruzan por folio, que es lo unico que comparten las dos consultas.
  */
+function conFirmaReal(evidencia, operador) {
+  if (!evidencia || !operador) return evidencia;
+  return { ...evidencia, despues: { ...evidencia.despues, firma: operador } };
+}
+
 export async function agendaServicios() {
   const [solicitudes, servicios] = await Promise.all([
     listarSolicitudesRecoleccion(),
@@ -1607,6 +1639,8 @@ export async function agendaServicios() {
   return solicitudes
     .filter((s) => ESTATUS_AGENDA[s.estado])
     .map((s) => ({
+      // El id abre la recolección en la pantalla Recolecciones ("Cambiar").
+      id: s.id,
       folio: s.folio,
       fecha: s.fechaConfirmada || s.fechaPedida,
       cliente: s.cliente,
@@ -1618,7 +1652,11 @@ export async function agendaServicios() {
       operador: s.choferEfectivo || "Sin asignar",
       hora: s.horaConfirmada ? String(s.horaConfirmada).slice(0, 5) : "",
       estatus: ESTATUS_AGENDA[s.estado],
-      evidencia: evidenciaPorFolio[s.folio] || null,
+      motivoNoProcedio: s.motivoNoProcedio,
+      detalleNoProcedio: s.detalleNoProcedio,
+      // La "firma del operador" del comprobante es quien la cerró, no el
+      // chofer de la ruta que trae `misServicios`.
+      evidencia: conFirmaReal(evidenciaPorFolio[s.folio] || null, s.estado === "completada" ? s.operadorReal : ""),
     }))
     // Se compara con </> y se devuelve 0 en el empate. Nunca restar fechas ni
     // usar un comparador que jamas devuelva 0: da un orden inestable.

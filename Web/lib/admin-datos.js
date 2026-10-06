@@ -194,7 +194,12 @@ export function agendaDesdeBase(solicitudes) {
       // no hay, el de la ruta. Antes se leía solo el de la ruta, y como las
       // rutas reales no traen chofer, toda la agenda decía "Sin asignar"
       // aunque la oficina sí hubiera asignado uno (6-oct-2026).
-      operador: s.choferEfectivo || s.chofer || "Sin asignar",
+      // Y en una COMPLETADA, quien la cerró de verdad (`operadorReal`, de
+      // recolecciones.operador_id): ya viene resuelto en `choferEfectivo`
+      // (lib/datos-solicitudes.js); se pide explícito para que no dependa
+      // del orden de allá.
+      operador:
+        (s.estado === "completada" && s.operadorReal) || s.choferEfectivo || s.chofer || "Sin asignar",
       hora: s.horaConfirmada ? String(s.horaConfirmada).slice(0, 5) : "",
       estatus: ESTATUS_AGENDA[s.estado],
     }))

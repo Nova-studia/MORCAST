@@ -23,3 +23,6 @@ export async function postAdmin(nombre, cuerpo = {}, opciones) {
   }
   return r;
 }
+
+// El equipo 1 escuchaba aquí; quedó un solo avisador (candado-admin.js).
+export { alPedirSegundoPaso } from "./candado-admin";

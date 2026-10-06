@@ -158,3 +158,20 @@ export function alTocarNotificacion(fn) {
   });
   return () => sub.remove();
 }
+
+/**
+ * equipo 1 (6-oct-2026): escucha las notificaciones que LLEGAN con la app
+ * abierta (sin tocarlas). La usa la ruta del chofer para releerse sola
+ * cuando la oficina le pone o le cambia una parada (`tipo: "parada"`).
+ * Devuelve cómo dejar de escuchar. Nunca lanza.
+ */
+export function alRecibirNotificacion(fn) {
+  try {
+    const sub = Notifications.addNotificationReceivedListener((n) => {
+      fn(n?.request?.content?.data || null);
+    });
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
+}

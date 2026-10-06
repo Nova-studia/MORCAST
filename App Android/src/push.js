@@ -223,3 +223,21 @@ export function escucharToques(alTocar) {
     sub?.remove?.();
   };
 }
+
+/**
+ * equipo 1 (6-oct-2026): escucha las notificaciones que LLEGAN con la app
+ * abierta (sin tocarlas). La usa la ruta del chofer para releerse sola
+ * cuando la oficina le pone o le cambia una parada (`tipo: "parada"`).
+ * Devuelve cómo dejar de escuchar. Nunca lanza.
+ */
+export function escucharLlegadas(alLlegar) {
+  try {
+    const sub = Notifications.addNotificationReceivedListener((n) => {
+      alLlegar(n?.request?.content?.data || {});
+    });
+    return () => sub?.remove?.();
+  } catch (e) {
+    console.warn("[push] No se pueden escuchar las notificaciones:", e?.message || e);
+    return () => {};
+  }
+}

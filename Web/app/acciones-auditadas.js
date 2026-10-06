@@ -3,14 +3,9 @@
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
-import {
-  hayResend,
-  correoRecoleccionConfirmada,
-  correoRecoleccionRechazada,
-  correoParadaAsignada,
-} from "@/lib/correo";
+import { hayResend } from "@/lib/correo";
 import { resolverDepositoServidor } from "@/lib/saldos-servidor";
-import { cargarParada, avisarCliente } from "@/lib/avisar-cliente";
+import { cambiarEstadoSolicitudComo } from "@/lib/recolecciones-oficina";
 
 /**
  * Los movimientos donde se mueve dinero o cambia el compromiso con el cliente.
@@ -55,17 +50,6 @@ async function avisar(que, fn) {
   }
 }
 
-/** Correo de un usuario del equipo. Vive en auth.users, no en `perfiles`. */
-async function correoDe(uid) {
-  if (!uid) return null;
-  try {
-    const { data } = await supabaseServidor().auth.admin.getUserById(uid);
-    return data?.user?.email || null;
-  } catch {
-    return null;
-  }
-}
-
 async function exigirPersonal() {
   const quien = await usuarioActual();
   if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
@@ -97,110 +81,29 @@ export async function resolverDepositoAuditado(id, estado, notas) {
   });
 }
 
-/** Cambia el estado de una solicitud de recolección (confirmar, rechazar…). */
+/**
+ * Cambia el estado de una solicitud de recolección (confirmar, rechazar…).
+ *
+ * El trabajo de verdad (UPDATE contado, bitácora, correos y notificaciones al
+ * cliente y al chofer) vive en lib/recolecciones-oficina.js desde el
+ * 6-oct-2026: la app de la oficina (/api/app/recolecciones/*) llama a esa
+ * MISMA función con su token, y así las dos puertas no se separan nunca.
+ */
 export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal();
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
-  const supabase = await supabaseSesion();
-  const { data, error } = await supabase
-    .from("solicitudes_recoleccion")
-    .update(cambios)
-    .eq("id", id)
-    .select(`
-      id, folio, estado, cliente_id, fecha_confirmada, hora_confirmada,
-      chofer_id, motivo_rechazo,
-      clientes ( empresa, correo ),
-      domicilios ( alias, calle, colonia ),
-      rutas ( chofer_id ),
-      choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
-    `);
-
-  if (error) return { ok: false, motivo: error.message };
-  if (!data?.length) {
-    return {
-      ok: false,
-      motivo: "No se cambió nada: el permiso de la base no te deja tocar esa solicitud.",
-    };
-  }
-
-  await registrar({
-    accion: accion || "cambiar_estado_solicitud",
-    tabla: "solicitudes_recoleccion",
-    registroId: id,
-    detalle: {
-      folio: data[0].folio,
-      estado: data[0].estado,
-      cliente_id: data[0].cliente_id,
-      cambios,
-    },
+  const r = await cambiarEstadoSolicitudComo({
+    sb: await supabaseSesion(),
+    sbServicio: supabaseServidor(),
+    actor: { id: quien.id, correo: quien.correo },
+    id,
+    cambios,
+    accion,
   });
-
-  const s = data[0];
-  const domicilio = s.domicilios
-    ? [s.domicilios.alias, s.domicilios.calle, s.domicilios.colonia].filter(Boolean).join(" · ")
-    : "";
-
-  if (s.estado === "confirmada") {
-    // Un CAMBIO de día, hora o chofer de algo ya acordado (o reagendar una
-    // vencida) se le dice como tal: "cambió tu recolección", no otra
-    // confirmación igual a la primera que lo confunda (6-oct-2026).
-    const esCambio = ["cambiar_recoleccion_confirmada", "reagendar_recoleccion_vencida"].includes(accion);
-    try {
-      const parada = await cargarParada(supabaseServidor(), id);
-      if (esCambio) {
-        await avisarCliente({ sb: supabaseServidor(), parada, evento: "reagendada" });
-      } else {
-        await avisar("recolección confirmada", () =>
-          correoRecoleccionConfirmada({
-            correo: s.clientes?.correo,
-            empresa: s.clientes?.empresa,
-            folio: s.folio,
-            fecha: s.fecha_confirmada,
-            hora: s.hora_confirmada,
-            domicilio,
-          })
-        );
-        // Y al teléfono, si tiene la app. El correo ya salió arriba.
-        await avisarCliente({ sb: supabaseServidor(), parada, evento: "confirmada", soloPush: true });
-      }
-    } catch (e) {
-      console.error("[avisos] aviso al cliente de la confirmación:", e?.message || e);
-    }
-
-    // Y al chofer que le toca: el asignado a la parada si lo hay, si no el
-    // de la ruta. Su correo vive en auth.users, no en `perfiles`.
-    const choferId = s.chofer_id || s.rutas?.chofer_id;
-    await avisar("parada asignada", async () => {
-      const correo = await correoDe(choferId);
-      if (!correo) return;
-      await correoParadaAsignada({
-        correo,
-        nombre: s.choferParada?.nombre,
-        folio: s.folio,
-        cliente: s.clientes?.empresa || "un cliente",
-        domicilio,
-        fecha: s.fecha_confirmada,
-        hora: s.hora_confirmada,
-      });
-    });
-  }
-
-  if (s.estado === "rechazada") {
-    await avisar("recolección rechazada", () =>
-      correoRecoleccionRechazada({
-        correo: s.clientes?.correo,
-        empresa: s.clientes?.empresa,
-        folio: s.folio,
-        fecha: s.fecha_confirmada || cambios?.fecha_confirmada,
-        motivo: s.motivo_rechazo,
-      })
-    );
-  }
-
-  return { ok: true };
+  return r.ok ? { ok: true } : { ok: false, motivo: r.motivo };
 }
 
 /**

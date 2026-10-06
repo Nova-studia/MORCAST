@@ -55,7 +55,14 @@ export default function ServiciosAdmin() {
     const porFolio = Object.fromEntries(conEvidencia.map((s) => [s.folio, s]));
     const base = agendaDesdeBase(solicitudes).map((s) => {
       const ev = porFolio[s.folio];
-      return ev ? { ...s, evidencia: ev.evidencia, peso: ev.peso } : s;
+      if (!ev) return s;
+      // La "firma del operador" del comprobante es quien la cerró
+      // (`s.operador`, ver agendaDesdeBase), no el chofer de la ruta que trae
+      // `misServicios` (6-oct-2026: salía Marco Antonio y la hizo José Medina).
+      const evidencia = ev.evidencia && s.estatus === "completado" && s.operador && s.operador !== "Sin asignar"
+        ? { ...ev.evidencia, despues: { ...ev.evidencia.despues, firma: s.operador } }
+        : ev.evidencia;
+      return { ...s, evidencia, peso: ev.peso };
     });
     return haySupabaseNavegador() ? base : [...base, ...AGENDA_SERVICIOS];
   }, [solicitudes, conEvidencia]);

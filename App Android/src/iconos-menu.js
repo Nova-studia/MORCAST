@@ -32,6 +32,8 @@ const ICONOS_MENU = {
   "servicios": require("../assets/iconos-menu/servicios.png"),
   "usuarios-y-roles": require("../assets/iconos-menu/usuarios-y-roles.png"),
   "programados": require("../assets/iconos-menu/programados.png"),
+  // equipo 1: la bandeja de incidentes del chofer (6-oct-2026).
+  "incidentes": require("../assets/iconos-menu/incidentes.png"),
   "cerra-sesion": require("../assets/iconos-menu/cerra-sesion.png"),
   // equipo 2: avisos a clientes (6-oct-2026).
   "avisos-a-clientes": require("../assets/iconos-menu/avisos-a-clientes.png"),

@@ -12,6 +12,9 @@ import { VERSION_APP } from "../../version";
 // Los subtitulos dicen lo que la pantalla hace CON la base: el alta de
 // clientes y los auxiliares solo existen en el modo de demostracion.
 const MENU = [
+  // equipo 1: la operación del día desde el teléfono (6-oct-2026).
+  { pantalla: "Recolecciones", dibujo: "programados", titulo: "Recolecciones", sub: "Confirmar, reagendar y asignar chofer" },
+  { pantalla: "Incidentes", dibujo: "incidentes", titulo: "Incidentes", sub: "Lo que reporta el chofer desde la calle" },
   { pantalla: "Clientes", dibujo: "clientes", titulo: "Clientes", sub: "Cuentas y saldos" },
   { pantalla: "Servicios", dibujo: "servicios", titulo: "Servicios", sub: "Agenda y comprobante del chofer" },
   { pantalla: "ReportesAdmin", dibujo: "reportes", titulo: "Reportes del negocio", sub: "Ingresos y desempeño" },
