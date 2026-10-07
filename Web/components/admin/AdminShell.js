@@ -7,7 +7,7 @@ import Image from "next/image";
 import {
   List,
 } from "@phosphor-icons/react/dist/ssr";
-import { obtenerSesionAdmin, cerrarSesionAdmin } from "@/lib/admin-sesion";
+import { obtenerSesionAdmin, cerrarSesionAdmin, sesionPuede } from "@/lib/admin-sesion";
 import { ADMIN_PERFIL } from "@/lib/admin-datos";
 import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
@@ -48,6 +48,8 @@ const NAV = [
   { href: "/admin/empleo", texto: "Trabaja con nosotros", gif: "trabaja-con-nosotros" },
   { href: "/admin/clientes", texto: "Clientes", gif: "clientes" },
   { href: "/admin/saldos", texto: "Saldos de clientes", gif: "por-pagar" },
+  // Precios reales (7-oct-2026): solo el dueño y quien tenga el permiso.
+  { href: "/admin/precios", texto: "Precios", gif: "agregar-saldo", soloPermiso: "precios" },
   { href: "/admin/servicios", texto: "Servicios", gif: "servicios" },
   { href: "/admin/reportes", texto: "Reportes", gif: "reportes" },
   { href: "/admin/usuarios", texto: "Usuarios y roles", gif: "usuarios-y-roles" },
@@ -55,14 +57,16 @@ const NAV = [
 ];
 
 // Los renglones que hoy se enseñan. `soloSi` es para lo que está apagado a
-// propósito (p. ej. el peso real del relleno), no para permisos.
-const MENU = NAV.filter((n) => !n.soloSi || n.soloSi());
+// propósito (p. ej. el peso real del relleno); `soloPermiso` sí es permiso
+// (db/027) y se resuelve con la sesión, dentro del componente.
+const NAV_ENCENDIDO = NAV.filter((n) => !n.soloSi || n.soloSi());
 
 export default function AdminShell({ children }) {
   const ruta = usePathname();
   const router = useRouter();
   const [listo, setListo] = useState(false);
   const [sesion, setSesion] = useState(null);
+  const MENU = NAV_ENCENDIDO.filter((n) => !n.soloPermiso || sesionPuede(sesion, n.soloPermiso));
   const [abierto, setAbierto] = useState(false);
 
   // El cajon tambien se arrastra con el dedo: deslizar desde el borde

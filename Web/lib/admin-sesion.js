@@ -102,6 +102,7 @@ export async function iniciarSesionAdmin(correo, password) {
       nombre: data.user.user_metadata?.nombre || data.user.email,
       rol: NOMBRE_ROL[rol] || rol,
       rolId: rol,
+      permisos: await permisosDe(supabase, data.user.id),
     },
   };
 }
@@ -128,7 +129,25 @@ export async function obtenerSesionAdmin() {
     nombre: user.user_metadata?.nombre || user.email,
     rol: NOMBRE_ROL[rol] || rol,
     rolId: rol,
+    permisos: await permisosDe(supabase, user.id),
   };
+}
+
+/**
+ * Los permisos finos de la cuenta (db/027), p. ej. ["precios"]. Solo sirven
+ * para PINTAR el menú y los botones: quien decide de verdad es la base
+ * (`tiene_permiso`) y las acciones del servidor.
+ */
+async function permisosDe(supabase, id) {
+  const { data } = await supabase.from("perfiles").select("permisos").eq("id", id).maybeSingle();
+  return Array.isArray(data?.permisos) ? data.permisos : [];
+}
+
+/** ¿Esta sesión puede ver/usar algo que pide el permiso `p`? (el dueño, todo) */
+export function sesionPuede(sesion, p) {
+  if (!sesion) return false;
+  if (sesion.demo) return true;
+  return sesion.rolId === "dueno" || (sesion.permisos || []).includes(p);
 }
 
 /** Cierra la sesión. */

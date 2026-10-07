@@ -49,7 +49,7 @@ export async function listarClientes() {
   const [{ data: clientes, error }, { data: saldos }, { data: conAcceso }, { data: puntosConSector }] = await Promise.all([
     supabase
       .from("clientes")
-      .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito, nota_interna")
+      .select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, dias_credito, limite_credito, nota_interna, requiere_factura, es_prueba")
       .order("empresa"),
     supabase.from("saldos_clientes").select("cliente_id, saldo, cargos, por_verificar"),
     // `puedeRecibirAcceso()` (estado-cliente.mjs) necesita saber si el
@@ -95,6 +95,9 @@ export async function listarClientes() {
     saldo: Number(porId[c.id]?.saldo ?? 0),
     porPagar: Number(porId[c.id]?.cargos ?? 0),
     tieneAcceso: conAccesoIds.has(c.id),
+    // db/027: "¿Requiere factura?" y las cuentas de revisión de Apple/Google.
+    requiereFactura: Boolean(c.requiere_factura),
+    esPrueba: Boolean(c.es_prueba),
     sectores: ordenarSectores([...(sectoresPorCliente[c.id]?.values() || [])]),
   }));
 }

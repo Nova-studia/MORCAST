@@ -596,6 +596,8 @@
 .pt-badge.ruta { background: var(--pt-ruta-tinte); color: var(--pt-ruta); }
 /* Rechazada / cancelada. La usan las solicitudes de recolección. */
 .pt-badge.mal { background: var(--pt-error-tinte); color: var(--pt-error); }
+/* Falta un dato (p. ej. un concepto sin precio, 7-oct-2026): no es error, es pendiente. */
+.pt-badge.alerta { background: var(--pt-alerta-tinte); color: var(--pt-alerta); }
 
 /* Movimiento de cuenta (abono/cargo) */
 /* Monto. Mono y ancho fijo para que la columna cuadre por la derecha. */
