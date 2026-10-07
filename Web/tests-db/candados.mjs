@@ -540,6 +540,30 @@ igual("el cliente NO ve el precio especial de otra empresa (le sale el de lista)
 igual("…pero sí el suyo", (await comoCliente(`select public.precio_de($1, $2) as p`, [cli1.id, con.id])).p, "1000.00");
 igual("el cliente NO sabe si otra empresa factura",
   (await comoCliente(`select public.iva_de_cliente($1) as i`, [cli2.id])).i, "null");
+// Revisión final (7-oct): las funciones no se abren a anónimos ni a quien no es cliente.
+await debeFallar("un anónimo NO consulta precio_de", "anon",
+  `select public.precio_de($1, $2) as p`, [cli2.id, con.id]);
+await debeFallar("un anónimo NO consulta iva_de_cliente", "anon",
+  `select public.iva_de_cliente($1) as i`, [cli1.id]);
+igual("el chofer NO sabe si una empresa factura",
+  (await como("chofer", `select public.iva_de_cliente($1) as i`, [cli1.id])).rows[0].i, "null");
+igual("el chofer NO ve el precio especial de una empresa (le sale el de lista)",
+  (await como("chofer", `select public.precio_de($1, $2) as p`, [cli2.id, con.id])).rows[0].p, "1000.00");
+await debeFallar("un admin SIN permiso NO crea un cliente marcado de prueba", "admin",
+  `insert into public.clientes (folio, empresa, es_prueba) values ('MOR-T-9','Nueve', true)`);
+await debeFallar("un admin SIN permiso NO crea un cliente con factura", "admin",
+  `insert into public.clientes (folio, empresa, requiere_factura) values ('MOR-T-8','Ocho', true)`);
+await debePasar("un admin SIN permiso sí crea un cliente normal", "admin",
+  `insert into public.clientes (folio, empresa) values ('MOR-T-7','Siete')`, [], 1);
+// Borrar un cliente (o la cuenta de quien capturó precios) no debe trabarse
+// por el candado de "los precios no se tocan": el FK hace su trabajo.
+const { rows: [cli3] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-3','Tres') returning id`);
+await db.query(`insert into public.precios (concepto_id, cliente_id, precio, creado_por) values ($1, $2, 700, $3)`,
+  [con.id, cli3.id, U.adminPrecios]);
+try {
+  await db.query(`delete from public.clientes where id = $1`, [cli3.id]);
+  console.log("  ✓ se puede borrar un cliente con precio especial (su historial se va con él)");
+} catch (e) { fallas++; console.log("  ✖ borrar un cliente con precio especial falló —", e.message); }
 await debeFallar("un admin NO se da permisos a sí mismo", "admin",
   `update public.perfiles set permisos = '{precios}' where id = $1`, [U.admin]);
 await debeFallar("el admin con permiso NO se lo da a otro", "adminPrecios",

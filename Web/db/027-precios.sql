@@ -81,6 +81,11 @@ create policy precios_insertan on public.precios for insert to authenticated
 create or replace function public.precios_no_se_tocan()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+  -- pg_trigger_depth() > 1: el cambio lo dispara una llave foránea (on delete
+  -- cascade / set null) al borrar un cliente o una cuenta, no una persona.
+  if pg_trigger_depth() > 1 then
+    return coalesce(new, old);
+  end if;
   raise exception 'Los precios no se editan ni se borran: captura un precio nuevo.';
 end;
 $$;
@@ -94,7 +99,7 @@ returns numeric language sql stable security definer set search_path = public as
   -- Es security definer: un cliente solo puede preguntar por SU empresa. Si
   -- pregunta por otra, se le contesta el precio de lista (nunca el especial ajeno).
   with quien as (
-    select case when auth.uid() is null or es_personal() or p_cliente = mi_cliente()
+    select case when auth.uid() is null or es_personal() or coalesce(p_cliente = mi_cliente(), false)
                 then p_cliente end as cliente
   ), especial as (
     select precio, quitado from public.precios
@@ -115,7 +120,7 @@ $$;
 create or replace function public.iva_de_cliente(p_cliente uuid)
 returns numeric language sql stable security definer set search_path = public as $$
   select case
-    when not (auth.uid() is null or es_personal() or p_cliente = mi_cliente()) then null
+    when not (auth.uid() is null or es_personal() or coalesce(p_cliente = mi_cliente(), false)) then null
     when coalesce((select requiere_factura from public.clientes where id = p_cliente), false) then 0.16
     else 0 end
 $$;
@@ -126,6 +131,15 @@ create or replace function public.cliente_campos_de_precio()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if auth.uid() is null then return new; end if;
+  if tg_op = 'INSERT' then
+    if new.es_prueba then
+      raise exception 'La marca de cuenta de revisión no se pone desde el sistema.';
+    end if;
+    if new.requiere_factura and not tiene_permiso('precios') then
+      raise exception 'No tienes permiso para cambiar precios ni facturación.';
+    end if;
+    return new;
+  end if;
   if new.es_prueba is distinct from old.es_prueba then
     raise exception 'La marca de cuenta de revisión no se cambia desde el sistema.';
   end if;
@@ -136,7 +150,7 @@ begin
 end;
 $$;
 drop trigger if exists cliente_campos_de_precio_tg on public.clientes;
-create trigger cliente_campos_de_precio_tg before update on public.clientes
+create trigger cliente_campos_de_precio_tg before insert or update on public.clientes
   for each row execute function public.cliente_campos_de_precio();
 
 create or replace function public.permisos_solo_dueno()
@@ -166,7 +180,11 @@ drop trigger if exists bitacora_factura_tg on public.clientes;
 create trigger bitacora_factura_tg after update of requiere_factura on public.clientes
   for each row execute function public.bitacora_desde_la_base();
 
-revoke all on function public.precio_de(uuid, uuid, timestamptz) from anon;
-revoke all on function public.iva_de_cliente(uuid) from anon;
+-- Toda función nueva nace ejecutable por PUBLIC (anónimos incluidos): se
+-- cierra y se abre solo a sesiones y al servidor (revisión final, 7-oct).
+revoke all on function public.precio_de(uuid, uuid, timestamptz) from public, anon;
+revoke all on function public.iva_de_cliente(uuid) from public, anon;
+grant execute on function public.precio_de(uuid, uuid, timestamptz) to authenticated, service_role;
+grant execute on function public.iva_de_cliente(uuid) to authenticated, service_role;
 
 commit;
