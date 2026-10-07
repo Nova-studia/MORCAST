@@ -145,6 +145,15 @@ completa, o no entra nada.
 | `014` | Detalles: saldos fuera del chofer, rutas acotadas, folio sin carrera |
 | `015` | La cobertura completa |
 | `016` | `recolecciones.ubicacion` (jsonb): la lectura de GPS por foto |
+| `027` | **Precios** (7-oct-2026): `conceptos`, `precios` (solo inserción, nunca se edita ni se borra), `clientes.requiere_factura`, `clientes.es_prueba` (MOR-DEMO), `perfiles.permisos` (`{precios}`), funciones `tiene_permiso`, `precio_de(cliente, concepto, fecha)` e `iva_de_cliente`. **Se corre ANTES de desplegar la web que la usa** (si no, Clientes y Saldos salen vacíos). Ver `docs/superpowers/specs/2026-10-07-precios-design.md` |
+
+**Precios (027).** La regla de qué precio toca vive en la base (`precio_de`): el
+último precio especial vigente del cliente; si no tiene o se le quitó, el último de
+lista vigente; si no hay, `null`. `lib/precios.mjs` tiene el espejo en JS
+(`precioVigente`) y las pruebas de los dos están en `tests/precios.test.mjs` y
+`tests-db/candados.mjs` (sección 21). El IVA (16 %) solo se suma si
+`clientes.requiere_factura`. Las apps leen precios y el estado del Hold en
+`POST /api/app/precios` (`lib/precios-app.mjs`).
 
 **Saca un respaldo antes de cualquier migración que borre o cambie datos**
 (`node respaldo/respaldar.mjs`). Las que solo agregan columnas o tablas son

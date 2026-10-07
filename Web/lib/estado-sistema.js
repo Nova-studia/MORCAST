@@ -12,11 +12,12 @@
  * propio sistema, en vez de dejarlo en la memoria de quien lo construyo.
  *
  * COMO SE APAGA
- * Se apaga en el MISMO commit en que entran los precios reales a
- * `CATALOGO_COTIZADOR` (lib/portal-datos.js). No antes: apagar el Hold sin
- * precios cargados devuelve al cotizador los montos inventados. Por eso el
- * interruptor vive en un archivo y no en una tabla con un boton en el panel:
- * el boton daria una libertad que en realidad no existe.
+ * Desde el 7-oct-2026 los precios reales NO van en el codigo: se capturan en
+ * /admin/precios (tablas `conceptos` y `precios`, db/027). El Hold se apaga
+ * aqui el dia que la lista real este capturada, junto con Luis. No antes:
+ * apagar el Hold sin precios deja el cotizador con todo "Precio por
+ * confirmar". El interruptor sigue en un archivo y no en un boton del panel.
+ * Las apps 1.1.1 lo leen de /api/app/precios, asi que lo siguen solas.
  */
 export const HOLD = {
   activo: true,

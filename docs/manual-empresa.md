@@ -446,6 +446,61 @@ la hizo y cuándo**, así que siempre se puede saber quién dio por bueno un pag
 
 ---
 
+## Precios
+
+Aquí vive **la lista general de precios** y el **precio especial de cada cliente**.
+Lo que se captura aquí es lo que ve el cliente en su cotizador y en el PDF de su
+cotización, y lo que leerán las apps.
+
+> Los precios se capturan **sin IVA**. A los clientes que **requieren factura** se les
+> suma el **16 %**; a los que pagan en efectivo, no.
+
+### Quién puede cambiar precios
+
+El **dueño**, y los administradores a los que el dueño les marque **"Puede cambiar
+precios"** en **Usuarios y roles**. Los demás ven la pantalla en modo de solo lectura.
+Cada cambio queda en la **Bitácora** con quién lo hizo y cuándo.
+
+### Cómo funciona un cambio de precio
+
+**Un precio nunca se borra ni se corrige encima.** Cada cambio es un precio nuevo que
+**vale desde ese momento**. Lo que ya se cobró conserva su precio. Por eso cada
+concepto tiene **Historial**: ahí se ve qué precio tuvo y desde cuándo.
+
+Si te equivocaste, captura el precio bueno: el equivocado queda en el historial, pero
+ya no cuenta.
+
+### La lista general
+
+1. **Nuevo concepto**: nombre (lo que ve el cliente), unidad (por ejemplo "por
+   recolección") y **cómo se cobra**: por recolección, semanal, mensual o por tonelada.
+   El precio puedes ponerlo ahí mismo o después.
+2. **Cambiar precio**: escribe el precio nuevo (acepta `1250`, `1,250.50` o `$1,250`).
+   Antes de guardar te dice "De $A a $B, vale desde ahora".
+3. **Desactivar**: el concepto deja de ofrecerse, pero no se borra (su historial se
+   queda). Se puede volver a activar.
+4. Un concepto en ámbar **"Sin precio"** no se puede cotizar: el cliente lo ve como
+   "Precio por confirmar".
+
+### El precio de un cliente y "¿Requiere factura?"
+
+Busca al cliente en **Precio por cliente y factura** (o dale a **Precios** en su renglón
+de **Clientes**). Ahí:
+
+- **¿Requiere factura? Sí / No.** Con Sí, a todos sus precios se les suma 16 % de IVA.
+- Por cada concepto ves el **precio de lista** y el que **le toca**. Con **Precio
+  especial** le pones uno distinto solo a él; con **Volver a lista** se lo quitas y
+  desde ese momento paga el de lista.
+- Si cambias el precio de lista, **los clientes con precio especial siguen con el suyo**.
+
+### Las cuentas de revisión
+
+En **Clientes** verás una o dos empresas con la etiqueta **"Cuenta de revisión"**
+(folios `MOR-DEMO-…`). Son las cuentas con las que Apple y Google revisan las apps:
+**no las borres**. No cuentan en el Panel, en Reportes, en Saldos ni en Servicios.
+
+---
+
 ## Servicios (la agenda)
 
 Aquí ves **todo junto**: los servicios de siempre y las recolecciones que tú confirmaste
