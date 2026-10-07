@@ -67,3 +67,12 @@ test("redondear a centavos", () => {
   assert.equal(redondear(0.125), 0.13);
   assert.equal(redondear(373.3328), 373.33);
 });
+
+import { lineasDeCotizador } from "../lib/precios.mjs";
+test("lineasDeCotizador cruza cantidades con el catálogo y deja fuera lo que vale 0", () => {
+  const catalogo = [{ id: "c1", nombre: "A", unidad: "u", precio: 10 }, { id: "c2", nombre: "B", unidad: "u", precio: null }];
+  assert.deepEqual(lineasDeCotizador(catalogo, { c1: 2, c2: 1, c9: 5 }), [
+    { conceptoId: "c1", nombre: "A", unidad: "u", precio: 10, cantidad: 2 },
+    { conceptoId: "c2", nombre: "B", unidad: "u", precio: null, cantidad: 1 },
+  ]);
+});

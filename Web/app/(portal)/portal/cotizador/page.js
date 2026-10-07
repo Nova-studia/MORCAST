@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Minus,
@@ -8,11 +8,9 @@ import {
   FileText,
   Trash,
 } from "@phosphor-icons/react/dist/ssr";
-import {
-  CATALOGO_COTIZADOR,
-  IVA,
-  pesos,
-} from "@/lib/portal-datos";
+import { IVA, pesos } from "@/lib/portal-datos";
+import { catalogoDelCliente } from "@/lib/datos-precios";
+import { cotizar, lineasDeCotizador } from "@/lib/precios.mjs";
 import { descargarCotizacion, descargarConstanciaFiscal } from "@/lib/portal-pdf";
 import {
   CONDICIONES_COMERCIALES,
@@ -33,6 +31,12 @@ export default function CotizadorPortal() {
 
   const [cantidades, setCantidades] = useState({}); // id -> cantidad
   const [bajando, setBajando] = useState(null);
+  // Precios reales de la base (db/027), con el precio especial del cliente
+  // si lo tiene. El IVA solo se suma si el cliente requiere factura.
+  const [catalogo, setCatalogo] = useState(null);
+  useEffect(() => { catalogoDelCliente().then(setCatalogo); }, []);
+  const conceptos = catalogo?.ok ? catalogo.conceptos : [];
+  const requiereFactura = Boolean(catalogo?.requiereFactura);
 
   const cambia = (id, delta) =>
     setCantidades((c) => {
@@ -42,25 +46,19 @@ export default function CotizadorPortal() {
       return copia;
     });
 
-  const items = useMemo(
-    () =>
-      CATALOGO_COTIZADOR.filter((s) => cantidades[s.id]).map((s) => ({
-        ...s,
-        cantidad: cantidades[s.id],
-      })),
-    [cantidades]
+  const cuenta = useMemo(
+    () => cotizar(lineasDeCotizador(conceptos, cantidades), { requiereFactura }),
+    [conceptos, cantidades, requiereFactura]
   );
-
-  const subtotal = items.reduce((a, it) => a + it.precio * it.cantidad, 0);
-  const iva = subtotal * IVA;
-  const total = subtotal + iva;
+  const items = cuenta.lineas.map((l) => ({ ...l, id: l.conceptoId, servicio: l.nombre }));
+  const { subtotal, iva, total } = cuenta;
 
   const bajarCotizacion = async () => {
     if (!items.length) return;
     setBajando("cot");
     try {
       const yo = await clienteActual();
-      if (yo) await descargarCotizacion({ items, subtotal, iva, total }, yo);
+      if (yo) await descargarCotizacion({ items, subtotal, iva, total, requiereFactura }, yo);
     } finally {
       setBajando(null);
     }
@@ -90,8 +88,15 @@ export default function CotizadorPortal() {
         {/* Catálogo */}
         <div className="pt-card">
           <div className="pt-card-head"><h2>Servicios</h2></div>
-          {CATALOGO_COTIZADOR.map((s) => {
+          {!catalogo && <div className="pt-vacio">Cargando precios…</div>}
+          {catalogo && !catalogo.ok && <div className="pt-vacio">{catalogo.motivo}</div>}
+          {catalogo?.ok && conceptos.length === 0 && (
+            <div className="pt-vacio">Todavía no hay servicios con precio. Escríbenos y te cotizamos.</div>
+          )}
+          {conceptos.map((s) => {
             const n = cantidades[s.id] || 0;
+            // Un concepto sin precio no se cotiza: se dice, no se suma $0.
+            const sinPrecio = s.precio == null;
             return (
               <div
                 key={s.id}
@@ -104,12 +109,12 @@ export default function CotizadorPortal() {
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: "0.92rem" }}>{s.servicio}</strong>
+                  <strong style={{ fontSize: "0.92rem" }}>{s.nombre}</strong>
                   <div style={{ color: "var(--mc-gris)", fontSize: "0.8rem" }}>
-                    {pesos(s.precio)} · {s.unidad}
+                    {sinPrecio ? "Precio por confirmar" : pesos(s.precio)} · {s.unidad}
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                {!sinPrecio && <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <button className="pt-btn" style={{ padding: "0.4rem 0.55rem" }} onClick={() => cambia(s.id, -1)} disabled={n === 0} aria-label="Quitar uno">
                     <Minus />
                   </button>
@@ -117,7 +122,7 @@ export default function CotizadorPortal() {
                   <button className="pt-btn" style={{ padding: "0.4rem 0.55rem" }} onClick={() => cambia(s.id, 1)} aria-label="Agregar uno">
                     <Plus />
                   </button>
-                </div>
+                </div>}
               </div>
             );
           })}
@@ -143,16 +148,22 @@ export default function CotizadorPortal() {
                   <span style={{ color: "var(--mc-gris)" }}>
                     {it.cantidad} × {it.servicio}
                   </span>
-                  <span style={{ whiteSpace: "nowrap", fontWeight: 600 }}>{pesos(it.precio * it.cantidad)}</span>
+                  <span style={{ whiteSpace: "nowrap", fontWeight: 600 }}>{pesos(it.importe)}</span>
                 </div>
               ))}
               <div style={{ borderTop: "1px solid var(--mc-linea)", marginTop: "0.6rem", paddingTop: "0.7rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "0.35rem", color: "var(--mc-gris)" }}>
                   <span>Subtotal</span><span>{pesos(subtotal)}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "0.55rem", color: "var(--mc-gris)" }}>
-                  <span>IVA ({IVA * 100}%)</span><span>{pesos(iva)}</span>
-                </div>
+                {requiereFactura ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", marginBottom: "0.55rem", color: "var(--mc-gris)" }}>
+                    <span>IVA ({IVA * 100}%)</span><span>{pesos(iva)}</span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.8rem", marginBottom: "0.55rem", color: "var(--mc-gris)" }}>
+                    Sin IVA: tu cuenta no requiere factura.
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.2rem" }}>
                   <span>Total</span><span>{pesos(total)}</span>
                 </div>

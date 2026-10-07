@@ -77,3 +77,10 @@ export function cotizar(lineas, { requiereFactura }) {
   const iva = requiereFactura ? redondear(subtotal * IVA_FACTURA) : 0;
   return { lineas: conPrecio, subtotal, iva, total: redondear(subtotal + iva), sinPrecio };
 }
+
+/** Del estado del cotizador ({ conceptoId: cantidad }) a las líneas de `cotizar`. */
+export function lineasDeCotizador(catalogo, cantidades) {
+  return (catalogo || [])
+    .filter((k) => Number(cantidades?.[k.id]) > 0)
+    .map((k) => ({ conceptoId: k.id, nombre: k.nombre, unidad: k.unidad, precio: k.precio, cantidad: Number(cantidades[k.id]) }));
+}

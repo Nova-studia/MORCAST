@@ -15,6 +15,7 @@ import {
   DATOS_TRANSFERENCIA,
 } from "@/lib/cotizacion-datos";
 import { TEXTO_AVISO_PRECIOS } from "@/components/AvisoPrecios";
+import { enHold } from "@/lib/estado-sistema";
 
 const PENDIENTE = "Pendiente de confirmar";
 
@@ -342,7 +343,7 @@ export async function descargarCotizacion(cotizacion, cliente) {
       it.unidad,
       String(it.cantidad),
       pesos(it.precio),
-      pesos(it.precio * it.cantidad),
+      pesos(it.importe ?? it.precio * it.cantidad),
     ]),
     theme: "striped",
     headStyles: { fillColor: TEAL, textColor: 255, fontSize: 9 },
@@ -369,7 +370,9 @@ export async function descargarCotizacion(cotizacion, cliente) {
     y += bold ? 20 : 16;
   };
   fila("Subtotal", pesos(cotizacion.subtotal));
-  fila(`IVA (${IVA * 100}%)`, pesos(cotizacion.iva));
+  // El 16 % solo a quien requiere factura (7-oct-2026). Si no viene el dato
+  // (llamadas viejas), se imprime como antes.
+  if (cotizacion.requiereFactura !== false) fila(`IVA (${IVA * 100}%)`, pesos(cotizacion.iva));
   doc.setDrawColor(225, 230, 229);
   doc.line(x, y - 6, W - 40, y - 6);
   fila("Total", pesos(cotizacion.total), true);
@@ -417,6 +420,7 @@ export async function descargarCotizacion(cotizacion, cliente) {
 /* ====================== EXPORTAR REPORTE =========================== */
 
 export async function descargarReportePDF(titulo, filas, cliente, totales) {
+  const sinMonto = enHold();
   const doc = await nuevoDoc();
   const autoTable = (await import("jspdf-autotable")).default;
   const W = doc.internal.pageSize.getWidth();
@@ -432,10 +436,17 @@ export async function descargarReportePDF(titulo, filas, cliente, totales) {
 
   autoTable(doc, {
     startY: y,
-    head: [["Periodo", "Volumen (m³)", "Monto"]],
-    body: filas.map((f) => [f.periodo, f.volumen.toLocaleString("es-MX"), pesos(f.monto)]),
+    // Con el Hold activo NO sale ninguna cifra de dinero (la pantalla ya
+    // ponía "—"; el PDF imprimía la columna igual. Hueco cerrado 7-oct-2026).
+    head: [sinMonto ? ["Periodo", "Volumen (m³)"] : ["Periodo", "Volumen (m³)", "Monto"]],
+    body: filas.map((f) => {
+      const fila = [f.periodo, f.volumen.toLocaleString("es-MX")];
+      return sinMonto ? fila : [...fila, pesos(f.monto)];
+    }),
     foot: totales
-      ? [["Total", totales.volumen.toLocaleString("es-MX"), pesos(totales.monto)]]
+      ? [sinMonto
+          ? ["Total", totales.volumen.toLocaleString("es-MX")]
+          : ["Total", totales.volumen.toLocaleString("es-MX"), pesos(totales.monto)]]
       : undefined,
     theme: "striped",
     headStyles: { fillColor: TEAL, textColor: 255, fontSize: 9 },

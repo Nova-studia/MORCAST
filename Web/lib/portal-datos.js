@@ -128,10 +128,10 @@ export const DOCUMENTOS_FISCALES = [
 ];
 
 /**
- * Catálogo de precios de referencia para el cotizador (MXN, sin IVA).
- * Precios de ejemplo.
- */
-/**
+ * ⚠️ SOLO MODO DEMOSTRACIÓN SIN BASE (desarrollo local). Desde el 7-oct-2026
+ * los precios reales viven en la base (db/027) y se capturan en /admin/precios;
+ * el portal los lee con `lib/datos-precios.js`. Estos montos son inventados.
+ *
  * Catálogo del cotizador. El EQUIPO refleja lo que el cliente confirmó el
  * 6-ago-2026 (ver `cotizacion-datos.js`): contenedores 1.5/3/6 m³,
  * tolvas 21 y 30, compactadores 21 y 30.
@@ -154,7 +154,8 @@ export const CATALOGO_COTIZADOR = [
   { id: "reciclaje", servicio: "Recolección de Reciclables", unidad: "por evento", precio: 1500 },
 ];
 
-export const IVA = 0.16;
+// El 16 % vive en un solo lugar de la web: lib/precios.mjs (7-oct-2026).
+export { IVA_FACTURA as IVA } from "./precios.mjs";
 
 /** Formatea un número como moneda MXN. */
 export function pesos(n) {
