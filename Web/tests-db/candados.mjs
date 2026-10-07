@@ -478,13 +478,100 @@ await debePasar("sin eso, sigue reportando normal", "chofer",
   `insert into public.incidentes (tipo, operador_id) values ('otro', $1)`, [U.chofer], 1);
 await debeFallar("y NO lo marca como avisado después", "chofer", `update public.incidentes set avisado_en = now()`);
 
+console.log("\n21 · 027: precios");
+// El admin de prueba NO tiene el permiso; se crea otro que sí.
+const U_PREC = "00000000-0000-0000-0000-0000000000a2";
+await alta(U_PREC, "ap@t.mx", { rol: "admin" });
+await db.query(`update public.perfiles set permisos = '{precios}' where id = $1`, [U_PREC]);
+U.adminPrecios = U_PREC;
+const { rows: [con] } = await db.query(
+  `insert into public.conceptos (clave, nombre, unidad, modalidad, orden)
+   values ('cont-3m3','Contenedor 3 m³','por recolección','por-recoleccion',1) returning id`);
+const { rows: [con2] } = await db.query(
+  `insert into public.conceptos (clave, nombre, unidad, modalidad, orden)
+   values ('renta','Renta mensual','mensual','mensual',2) returning id`);
+
+await debePasar("el dueño pone precio de lista", "dueno",
+  `insert into public.precios (concepto_id, precio, creado_por) values ($1, 1000, $2)`, [con.id, U.dueno], 1);
+await debeFallar("un admin SIN permiso NO pone precios", "admin",
+  `insert into public.precios (concepto_id, precio, creado_por) values ($1, 900, $2)`, [con.id, U.admin]);
+await debePasar("un admin CON permiso sí", "adminPrecios",
+  `insert into public.precios (concepto_id, cliente_id, precio, creado_por) values ($1, $2, 800, $3)`,
+  [con.id, cli1.id, U.adminPrecios], 1);
+await debeFallar("NO se firma a nombre de otro", "adminPrecios",
+  `insert into public.precios (concepto_id, precio, creado_por) values ($1, 950, $2)`, [con.id, U.dueno]);
+await debeFallar("NO se ponen precios con fecha pasada", "dueno",
+  `insert into public.precios (concepto_id, precio, creado_por, vale_desde) values ($1, 1, $2, now() - interval '2 days')`,
+  [con.id, U.dueno]);
+await debeFallar("NADIE edita un precio (ni el dueño)", "dueno", `update public.precios set precio = 1`);
+await debeFallar("NADIE borra un precio (ni el dueño)", "dueno", `delete from public.precios`);
+await debeFallar("el cliente NO pone precios", "cliente",
+  `insert into public.precios (concepto_id, precio, creado_por) values ($1, 1, $2)`, [con.id, U.cliente]);
+await debePasar("el cliente ve la lista y SU especial (2 renglones)", "cliente",
+  `select * from public.precios`, [], 2);
+await debePasar("la otra empresa NO ve el especial ajeno (1 renglón)", "otro",
+  `select * from public.precios`, [], 1);
+await debeFallar("el chofer NO ve precios", "chofer", `select * from public.precios`);
+
+const precioDe = async (cliente, concepto) =>
+  (await db.query(`select public.precio_de($1, $2) as p`, [cliente, concepto])).rows[0].p;
+const igual = (titulo, real, esperado) => {
+  if (String(real) === String(esperado)) console.log(`  ✓ ${titulo}`);
+  else { fallas++; console.log(`  ✖ ${titulo} — esperaba ${esperado}, salió ${real}`); }
+};
+igual("precio_de: cliente con especial → 800", await precioDe(cli1.id, con.id), "800.00");
+igual("precio_de: cliente sin especial → lista 1000", await precioDe(cli2.id, con.id), "1000.00");
+igual("precio_de: concepto sin precio → null", await precioDe(cli1.id, con2.id), "null");
+await db.query(`insert into public.precios (concepto_id, cliente_id, quitado, creado_por) values ($1, $2, true, $3)`,
+  [con.id, cli1.id, U.dueno]);
+igual("precio_de: especial quitado → vuelve a lista 1000", await precioDe(cli1.id, con.id), "1000.00");
+await db.query(`insert into public.precios (concepto_id, precio, creado_por, vale_desde) values ($1, 1200, $2, now() + interval '1 day')`,
+  [con.id, U.dueno]);
+igual("precio_de: un cambio futuro NO cuenta hoy", await precioDe(cli2.id, con.id), "1000.00");
+igual("precio_de: …y sí cuenta en su fecha",
+  (await db.query(`select public.precio_de($1, $2, now() + interval '2 days') as p`, [cli2.id, con.id])).rows[0].p, "1200.00");
+
+// Las funciones son security definer: sin candado, un cliente vería el precio ajeno.
+await db.query(`insert into public.precios (concepto_id, cliente_id, precio, creado_por) values ($1, $2, 500, $3)`,
+  [con.id, cli2.id, U.dueno]);
+const comoCliente = async (sql, params) => (await como("cliente", sql, params)).rows[0];
+igual("el cliente NO ve el precio especial de otra empresa (le sale el de lista)",
+  (await comoCliente(`select public.precio_de($1, $2) as p`, [cli2.id, con.id])).p, "1000.00");
+igual("…pero sí el suyo", (await comoCliente(`select public.precio_de($1, $2) as p`, [cli1.id, con.id])).p, "1000.00");
+igual("el cliente NO sabe si otra empresa factura",
+  (await comoCliente(`select public.iva_de_cliente($1) as i`, [cli2.id])).i, "null");
+await debeFallar("un admin NO se da permisos a sí mismo", "admin",
+  `update public.perfiles set permisos = '{precios}' where id = $1`, [U.admin]);
+await debeFallar("el admin con permiso NO se lo da a otro", "adminPrecios",
+  `update public.perfiles set permisos = '{precios}' where id = $1`, [U.admin]);
+await debePasar("el dueño SÍ da el permiso", "dueno",
+  `update public.perfiles set permisos = '{precios}' where id = $1`, [U.admin], 1);
+await debeFallar("permiso inventado NO entra", "dueno",
+  `update public.perfiles set permisos = '{todo}' where id = $1`, [U.admin]);
+await db.query(`update public.perfiles set permisos = '{}' where id = $1`, [U.admin]);
+
+await debeFallar("un admin SIN permiso NO cambia requiere_factura", "admin",
+  `update public.clientes set requiere_factura = true where id = $1`, [cli1.id]);
+await debePasar("un admin CON permiso sí", "adminPrecios",
+  `update public.clientes set requiere_factura = true where id = $1`, [cli1.id], 1);
+igual("iva_de_cliente con factura → 0.16",
+  (await db.query(`select public.iva_de_cliente($1) as i`, [cli1.id])).rows[0].i, "0.16");
+igual("iva_de_cliente sin factura → 0",
+  (await db.query(`select public.iva_de_cliente($1) as i`, [cli2.id])).rows[0].i, "0");
+await debeFallar("NADIE marca es_prueba desde la sesión (ni el dueño)", "dueno",
+  `update public.clientes set es_prueba = true where id = $1`, [cli2.id]);
+const b = (await db.query(`select count(*)::int n from public.bitacora where tabla in ('precios','clientes')`)).rows[0].n;
+if (b > 0) console.log("  ✓ los cambios de precios y factura quedan en la bitácora");
+else { fallas++; console.log("  ✖ la bitácora no anotó precios/factura"); }
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "024-ajustes-de-la-revision.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "025-alta-con-firma.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "026-app-1-1.sql"), "utf8"));
-  console.log("✓ 022, 023, 024, 025 y 026 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022/023/024/025/026 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "027-precios.sql"), "utf8"));
+  console.log("✓ 022 a 027 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 027 no son idempotentes:", e.message); }
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);
