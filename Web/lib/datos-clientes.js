@@ -8,6 +8,8 @@
  * fila, la suya, sin que este archivo haga nada.
  */
 
+import { sinPruebasEnConsulta } from "@/lib/cuentas-prueba.mjs";
+import { idsCuentasPrueba } from "@/lib/cuentas-prueba-datos";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { subirComprobante } from "@/lib/datos-archivos";
 import { CLIENTES_ADMIN, USUARIOS_ADMIN } from "@/lib/admin-datos";
@@ -161,13 +163,16 @@ export async function crearCliente(datos) {
 /* ==================================================================== */
 
 /** Movimientos de saldo visibles para la sesión (todos, o los de su empresa). */
-export async function listarMovimientos() {
+export async function listarMovimientos({ sinPruebas = false } = {}) {
   if (!haySupabaseNavegador()) return [];
 
-  const { data, error } = await supabaseNavegador()
-    .from("movimientos_saldo")
-    .select("id, folio, tipo, concepto, monto, estado, fecha, banco, referencia, comprobante, comprobante_nombre, notas, clientes ( folio, empresa )")
-    .order("fecha", { ascending: false });
+  const ids = sinPruebas ? await idsCuentasPrueba() : null;
+  const { data, error } = await sinPruebasEnConsulta(
+    supabaseNavegador()
+      .from("movimientos_saldo")
+      .select("id, folio, tipo, concepto, monto, estado, fecha, banco, referencia, comprobante, comprobante_nombre, notas, clientes ( folio, empresa )"),
+    ids
+  ).order("fecha", { ascending: false });
 
   if (error) {
     console.error("[saldos] No se pudieron leer:", error.message);

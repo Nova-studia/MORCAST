@@ -31,7 +31,7 @@ export default function ServiciosAdmin() {
     let vivo = true;
     // `conChoferes: false`: los nombres de chofer por servicio son una
     // acción SOLO de clientes (app/acciones-portal.js); aquí no aplica.
-    Promise.all([listarSolicitudes(), misServicios({ conChoferes: false })]).then(([l, ev]) => {
+    Promise.all([listarSolicitudes({ sinPruebas: true }), misServicios({ conChoferes: false, sinPruebas: true })]).then(([l, ev]) => {
       if (!vivo) return;
       setSolicitudes(l);
       setConEvidencia(ev);

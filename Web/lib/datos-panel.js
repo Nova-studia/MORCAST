@@ -8,6 +8,8 @@
  * conectarlo: es la diferencia entre un sistema honesto y uno bonito.
  */
 
+import { sinPruebasEnConsulta } from "@/lib/cuentas-prueba.mjs";
+import { idsCuentasPrueba } from "@/lib/cuentas-prueba-datos";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { ADMIN_KPIS } from "@/lib/admin-datos";
 
@@ -22,15 +24,18 @@ export async function kpisAdmin() {
   // Dos conteos (activos y pendientes) van en el MISMO Promise.all porque los
   // dos usan `head: true` — no traen filas — y separarlos en una llamada
   // aparte agregaria un viaje de red por cada carga del tablero.
+  // Las cuentas de revisión de Apple/Google NO cuentan (db/027, pedido de
+  // Luis el 7-oct-2026: "tiene que estar todo en 0").
+  const prueba = await idsCuentasPrueba();
   const [clientes, clientesPend, cotizaciones, servicios, saldos] = await Promise.all([
-    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
-    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente-info"),
+    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").eq("es_prueba", false),
+    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente-info").eq("es_prueba", false),
     supabase.from("cotizaciones").select("id", { count: "exact", head: true }).eq("estado", "nueva"),
-    supabase
-      .from("solicitudes_recoleccion")
-      .select("id", { count: "exact", head: true })
-      .gte("fecha_pedida", primeroDeMes),
-    supabase.from("saldos_clientes").select("cargos, saldo"),
+    sinPruebasEnConsulta(
+      supabase.from("solicitudes_recoleccion").select("id", { count: "exact", head: true }),
+      prueba
+    ).gte("fecha_pedida", primeroDeMes),
+    sinPruebasEnConsulta(supabase.from("saldos_clientes").select("cargos, saldo"), prueba),
   ]);
 
   const porCobrar = (saldos.data || []).reduce((t, s) => t + Number(s.cargos || 0), 0);
@@ -78,9 +83,10 @@ export async function cobranza12Meses() {
   const desde = serie[0];
   const primerDia = `${desde.año}-${String(desde.mes + 1).padStart(2, "0")}-01`;
 
-  const { data, error } = await supabaseNavegador()
-    .from("movimientos_saldo")
-    .select("fecha, monto, tipo, estado")
+  const { data, error } = await sinPruebasEnConsulta(
+    supabaseNavegador().from("movimientos_saldo").select("fecha, monto, tipo, estado"),
+    await idsCuentasPrueba()
+  )
     .eq("tipo", "abono")
     .eq("estado", "aplicada")
     .gte("fecha", primerDia);

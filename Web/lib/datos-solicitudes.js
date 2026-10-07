@@ -8,6 +8,8 @@
  * porque quién ve qué lo decide el RLS dentro de Postgres, no este archivo.
  */
 
+import { sinPruebasEnConsulta } from "@/lib/cuentas-prueba.mjs";
+import { idsCuentasPrueba } from "@/lib/cuentas-prueba-datos";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { SOLICITUDES_SEED, nombreTipoRuta } from "@/lib/rutas-datos";
 import { enlaceEvidencia } from "@/lib/datos-archivos";
@@ -107,7 +109,7 @@ const RESIDUOS_DEMO = [TIPOS_RESIDUO[1], TIPOS_RESIDUO[0], TIPOS_RESIDUO[6]];
  * El admin las ve todas; un cliente, solo las suyas. La consulta es la misma:
  * la diferencia la pone el RLS.
  */
-export async function listarSolicitudes() {
+export async function listarSolicitudes({ sinPruebas = false } = {}) {
   if (!haySupabaseNavegador()) {
     return SOLICITUDES_SEED.map((s, i) => ({
       tipoResiduo: RESIDUOS_DEMO[i % RESIDUOS_DEMO.length],
@@ -115,10 +117,13 @@ export async function listarSolicitudes() {
     }));
   }
 
-  const { data, error } = await supabaseNavegador()
-    .from("solicitudes_recoleccion")
-    .select(CAMPOS)
-    .order("fecha_pedida", { ascending: false });
+  // Desde el panel no cuentan las cuentas de revisión (db/027); el cliente
+  // ve lo suyo siempre.
+  const ids = sinPruebas ? await idsCuentasPrueba() : null;
+  const { data, error } = await sinPruebasEnConsulta(
+    supabaseNavegador().from("solicitudes_recoleccion").select(CAMPOS),
+    ids
+  ).order("fecha_pedida", { ascending: false });
 
   if (error) {
     console.error("[solicitudes] No se pudieron leer:", error.message);
@@ -154,10 +159,11 @@ export async function listarSolicitudesPanel() {
     return [...SOLICITUDES_SEED, ...demoPeso().solicitudes.map((s) => ({ ...s }))];
   }
 
-  const { data, error } = await supabaseNavegador()
-    .from("solicitudes_recoleccion")
-    .select(CAMPOS_PANEL)
-    .order("fecha_pedida", { ascending: false });
+  // Las cuentas de revisión (Apple/Google) no aparecen en el panel (db/027).
+  const { data, error } = await sinPruebasEnConsulta(
+    supabaseNavegador().from("solicitudes_recoleccion").select(CAMPOS_PANEL),
+    await idsCuentasPrueba()
+  ).order("fecha_pedida", { ascending: false });
 
   if (error) {
     console.error("[solicitudes] No se pudieron leer (panel):", error.message);
@@ -372,17 +378,18 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
  *   recolecciones disparaba 100 peticiones que nadie iba a mirar. Solo el
  *   Historial y la agenda del admin abren el comprobante.
  */
-export async function misServicios({ conFotos = true, conChoferes = true } = {}) {
+export async function misServicios({ conFotos = true, conChoferes = true, sinPruebas = false } = {}) {
   if (!haySupabaseNavegador()) return [];
 
-  const { data, error } = await supabaseNavegador()
+  const ids = sinPruebas ? await idsCuentasPrueba() : null;
+  const { data, error } = await sinPruebasEnConsulta(supabaseNavegador()
     .from("solicitudes_recoleccion")
     .select(`
       id, folio, estado, fecha_pedida, fecha_confirmada, origen,
       clientes ( empresa ),
       rutas ( nombre, tipo, unidad, chofer ),
       recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
-    `)
+    `), ids)
     .eq("estado", "completada")
     .order("fecha_confirmada", { ascending: false });
 

@@ -25,7 +25,7 @@ export default function ReportesAdmin() {
 
   useEffect(() => {
     let vivo = true;
-    Promise.all([reportes(), listarCotizaciones()]).then(([r, c]) => {
+    Promise.all([reportes({ sinPruebas: true }), listarCotizaciones()]).then(([r, c]) => {
       if (!vivo) return;
       setRep(r);
       setCotizaciones(c);

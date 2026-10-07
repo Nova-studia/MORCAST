@@ -1,5 +1,7 @@
 "use client";
 
+import { sinPruebasEnConsulta } from "@/lib/cuentas-prueba.mjs";
+import { idsCuentasPrueba } from "@/lib/cuentas-prueba-datos";
 import { colorDe } from "@/lib/paleta-datos";
 import { aportesConMejorDato } from "@/lib/peso.mjs";
 import { demoPeso } from "@/lib/datos-viajes";
@@ -104,7 +106,7 @@ function serie(filas, cuantos, paso) {
  * que sus recolecciones caen solas a su peso real propio o a su estimado:
  * el ticket del viaje es del camión entero, no de su empresa.
  */
-async function serviciosPesados() {
+async function serviciosPesados(sinPruebas = false) {
   if (!haySupabaseNavegador()) {
     // En la demo, las mismas recolecciones y viajes que /admin/viajes, para
     // que se vea la parte real y la estimada del total.
@@ -118,10 +120,13 @@ async function serviciosPesados() {
 
   const supabase = supabaseNavegador();
   const [solicitudes, viajes] = await Promise.all([
-    supabase
-      .from("solicitudes_recoleccion")
-      .select("fecha_pedida, fecha_confirmada, rutas ( tipo ), recolecciones ( peso_kg, peso_real_kg, viaje_id )")
-      .eq("estado", "completada"),
+    // Desde el panel, sin las cuentas de revisión (db/027).
+    sinPruebasEnConsulta(
+      supabase
+        .from("solicitudes_recoleccion")
+        .select("fecha_pedida, fecha_confirmada, rutas ( tipo ), recolecciones ( peso_kg, peso_real_kg, viaje_id )"),
+      sinPruebas ? await idsCuentasPrueba() : null
+    ).eq("estado", "completada"),
     supabase.from("viajes_relleno").select("id, fecha, peso_real_kg"),
   ]);
 
@@ -167,8 +172,8 @@ function aFilas(totales) {
 }
 
 /** Series listas para las tres vistas, más el reparto por tipo de ruta. */
-export async function reportes() {
-  const { filas, totales } = await serviciosPesados();
+export async function reportes({ sinPruebas = false } = {}) {
+  const { filas, totales } = await serviciosPesados(sinPruebas);
 
   const porTipo = {};
   let total = 0;

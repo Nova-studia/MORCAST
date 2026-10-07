@@ -32,9 +32,10 @@ export default function SaldosAdmin() {
   // Los depositos reportados son los movimientos de tipo abono: el cliente
   // sube su comprobante y aqui se verifican.
   const recargar = () =>
-    Promise.all([listarMovimientos(), listarClientes()]).then(([m, c]) => {
+    Promise.all([listarMovimientos({ sinPruebas: true }), listarClientes()]).then(([m, c]) => {
       setRecargas(m.filter((x) => x.tipo === "abono"));
-      setClientes(c);
+      // Las cuentas de revisión de Apple/Google no son clientes de verdad (db/027).
+      setClientes(c.filter((x) => !x.esPrueba));
     });
 
   useEffect(() => {
