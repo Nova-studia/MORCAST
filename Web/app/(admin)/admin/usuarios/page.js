@@ -15,6 +15,8 @@ import { ROLES_INVITABLES } from "@/lib/equipo.mjs";
 import { listarUsuarios } from "@/lib/datos-clientes";
 import { fechaLarga } from "@/lib/portal-datos";
 import { invitarUsuarioEquipo, cambiarActivoUsuario } from "@/app/acciones-equipo";
+import { cambiarPermisoAccion } from "@/app/acciones-precios";
+import { obtenerSesionAdmin } from "@/lib/admin-sesion";
 
 /**
  * EL EQUIPO DE MORCAST.
@@ -34,6 +36,21 @@ export default function UsuariosAdmin() {
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState(null); // { tipo: "ok" | "error", texto }
   const [cambiando, setCambiando] = useState(null); // uid en curso
+  // Permisos finos (db/027): solo el dueño los asigna. Hoy, "precios".
+  const [yo, setYo] = useState(null);
+  useEffect(() => { obtenerSesionAdmin().then(setYo); }, []);
+  const soyDueno = yo?.rolId === "dueno" || Boolean(yo?.demo);
+  const permisoPrecios = async (u, valor) => {
+    setCambiando(u.uid);
+    setAviso(null);
+    const r = await cambiarPermisoAccion({ perfilId: u.uid, precios: valor });
+    setCambiando(null);
+    if (!r.ok) { setAviso({ tipo: "error", texto: r.motivo || "No se guardó el permiso." }); return; }
+    setLista((l) => l.map((x) => (x.uid === u.uid
+      ? { ...x, permisos: valor ? [...(x.permisos || []).filter((p) => p !== "precios"), "precios"] : (x.permisos || []).filter((p) => p !== "precios") }
+      : x)));
+    setAviso({ tipo: "ok", texto: valor ? `${u.nombre} ya puede cambiar precios.` : `${u.nombre} ya no puede cambiar precios.` });
+  };
 
   const recargar = () => listarUsuarios().then(setLista);
 
@@ -158,6 +175,7 @@ export default function UsuariosAdmin() {
                 <th>Rol</th>
                 <th>Estatus</th>
                 <th>Alta</th>
+                <th>Precios</th>
                 <th></th>
               </tr>
             </thead>
@@ -173,6 +191,21 @@ export default function UsuariosAdmin() {
                     </span>
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>{!u.ultimo || u.ultimo === "—" ? "—" : fechaLarga(u.ultimo)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {u.rolId === "dueno" ? (
+                      <span style={{ color: "var(--mc-gris-claro)", fontSize: "0.78rem" }}>Todos los permisos</span>
+                    ) : u.rolId === "admin" && u.uid ? (
+                      <label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: "0.82rem" }}
+                        title={soyDueno ? "Marcar para que pueda cambiar precios y facturación" : "Solo el dueño puede cambiarlo"}>
+                        <input type="checkbox" checked={(u.permisos || []).includes("precios")}
+                          disabled={!soyDueno || cambiando === u.uid}
+                          onChange={(e) => permisoPrecios(u, e.target.checked)} />
+                        Puede cambiar precios
+                      </label>
+                    ) : (
+                      <span style={{ color: "var(--mc-gris-claro)" }}>—</span>
+                    )}
+                  </td>
                   <td>
                     {u.rolId === "dueno" || !u.uid ? (
                       <span style={{ color: "var(--mc-gris-claro)", fontSize: "0.78rem" }}>Principal</span>

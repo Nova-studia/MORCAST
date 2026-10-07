@@ -14,6 +14,8 @@ import { etiquetaEstado, loQueFalta, puedeRecibirAcceso } from "@/lib/estado-cli
 import { enHold } from "@/lib/estado-sistema";
 import { listarSectores } from "@/lib/datos-sectores";
 import SectorInsignia from "@/components/admin/SectorInsignia";
+import CajonPreciosCliente from "@/components/admin/CajonPreciosCliente";
+import { obtenerSesionAdmin, sesionPuede } from "@/lib/admin-sesion";
 
 /** Por qué no se puede pulsar el botón, en el mismo texto que va en el `title`. */
 const MOTIVO_TEXTO = {
@@ -35,6 +37,11 @@ const ETIQUETA_CORTA_TABLA = {
 
 export default function ClientesAdmin() {
   const [lista, setLista] = useState([]);
+  // Precios del cliente (7-oct-2026): el cajón y quién puede cambiarlos.
+  const [precioDe, setPrecioDe] = useState(null);
+  const [yo, setYo] = useState(null);
+  useEffect(() => { obtenerSesionAdmin().then(setYo); }, []);
+  const puedePrecios = sesionPuede(yo, "precios");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   // Filtro por sector (db/023): "" = todos, una clave ("A"…) o "ninguno".
@@ -200,6 +207,7 @@ export default function ClientesAdmin() {
                 <th>Estatus</th>
                 <th>Desde</th>
                 <th style={{ textAlign: "center" }}>Acceso</th>
+                <th>Precios</th>
               </tr>
             </thead>
             <tbody>
@@ -207,6 +215,9 @@ export default function ClientesAdmin() {
                 <tr key={c.id}>
                   <td>
                     <strong style={{ display: "block" }}>{c.empresa}</strong>
+                    {/* Apple y Google revisan las apps con estas cuentas:
+                        se ven aquí, pero no cuentan en totales (db/027). */}
+                    {c.esPrueba && <span className="pt-badge prog" style={{ marginBottom: 4, display: "inline-block" }}>Cuenta de revisión</span>}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                       <span className="folio" style={{ fontSize: "0.8rem" }}>{c.id}</span>
                       {/* La(s) letra(s) del sector de sus puntos, del color
@@ -308,11 +319,20 @@ export default function ClientesAdmin() {
                       );
                     })()}
                   </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <span style={{ display: "block", color: "var(--mc-gris)", fontSize: "0.78rem" }}>
+                      {c.requiereFactura ? "Factura: sí (+16 %)" : "Factura: no"}
+                    </span>
+                    <button type="button" className="pt-btn" onClick={() => setPrecioDe(c.uuid)}
+                      aria-label={`Precios de ${c.empresa}`}>
+                      {puedePrecios ? "Precios" : "Ver precios"}
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtroSector && !visibles.length && (
                 <tr>
-                  <td colSpan={enHold() ? 6 : 7} className="pt-vacio">
+                  <td colSpan={enHold() ? 7 : 8} className="pt-vacio">
                     {filtroSector === "ninguno"
                       ? "Todos los clientes tienen sector."
                       : "Ningún cliente tiene puntos en ese sector. Si los sectores no tienen límites todavía, dibújalos en Rutas, sectores y puntos → Sectores."}
@@ -323,6 +343,10 @@ export default function ClientesAdmin() {
           </table>
         </div>
       </div>
+      {precioDe && (
+        <CajonPreciosCliente clienteId={precioDe} puedeEditar={puedePrecios}
+          onCerrar={() => { setPrecioDe(null); listarClientes().then(setLista); }} />
+      )}
     </>
   );
 }

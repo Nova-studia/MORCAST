@@ -347,7 +347,7 @@ export async function listarUsuarios() {
 
   const { data, error } = await supabaseNavegador()
     .from("perfiles")
-    .select("id, nombre, rol, activo, creado, telefono")
+    .select("id, nombre, rol, activo, creado, telefono, permisos")
     // ⚠️ `pendiente` NO va aquí. Esta pantalla es el PERSONAL de Morcast —el
     // dueño, los administradores y los choferes—, y `pendiente` era un estado
     // teórico hasta que se abrió el registro con Google: hoy es todo el que
@@ -376,5 +376,7 @@ export async function listarUsuarios() {
     rol: ROLES_LEGIBLES[p.rol] || p.rol,
     estatus: p.activo ? "activo" : "inactivo",
     ultimo: (p.creado || "").slice(0, 10),
+    // Permisos finos (db/027). Hoy solo "precios".
+    permisos: Array.isArray(p.permisos) ? p.permisos : [],
   }));
 }
