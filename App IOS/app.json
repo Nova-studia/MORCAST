@@ -2,7 +2,7 @@
   "expo": {
     "name": "Morcast",
     "slug": "morcast-app",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -94,6 +94,14 @@
         "projectId": "52f57e01-9209-404a-bb45-f25bab58f105"
       }
     },
-    "owner": "morcastmx"
+    "owner": "morcastmx",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/52f57e01-9209-404a-bb45-f25bab58f105",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
