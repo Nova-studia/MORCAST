@@ -560,9 +560,11 @@ await debePasar("un admin SIN permiso sí crea un cliente normal", "admin",
 const { rows: [cli3] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-3','Tres') returning id`);
 await db.query(`insert into public.precios (concepto_id, cliente_id, precio, creado_por) values ($1, $2, 700, $3)`,
   [con.id, cli3.id, U.adminPrecios]);
+// Desde la 028 ya no hay cascada: el servidor borra primero sus precios.
 try {
+  await db.query(`delete from public.precios where cliente_id = $1`, [cli3.id]);
   await db.query(`delete from public.clientes where id = $1`, [cli3.id]);
-  console.log("  ✓ se puede borrar un cliente con precio especial (su historial se va con él)");
+  console.log("  ✓ se puede borrar un cliente con precio especial (el servidor borra antes sus precios)");
 } catch (e) { fallas++; console.log("  ✖ borrar un cliente con precio especial falló —", e.message); }
 await debeFallar("un admin NO se da permisos a sí mismo", "admin",
   `update public.perfiles set permisos = '{precios}' where id = $1`, [U.admin]);
@@ -588,6 +590,49 @@ const b = (await db.query(`select count(*)::int n from public.bitacora where tab
 if (b > 0) console.log("  ✓ los cambios de precios y factura quedan en la bitácora");
 else { fallas++; console.log("  ✖ la bitácora no anotó precios/factura"); }
 
+console.log("\n22 · 028: estados del cliente y borrado");
+const ponerEstado = (id, est) => db.query(`update public.clientes set estado = $2 where id = $1`, [id, est]);
+const pedir = (fecha = "current_date") =>
+  `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, fecha_pedida, estado)
+   values ('REC-T-' || floor(random()*1e9)::text, $1, $2, ${fecha}, 'solicitada')`;
+const abono = `insert into public.movimientos_saldo (cliente_id, tipo, concepto, monto, estado)
+   values ($1, 'abono', 'Depósito', 100, 'por-verificar')`;
+
+await ponerEstado(cli1.id, "suspendido");
+await debeFallar("suspendido: NO agenda", "cliente", pedir(), [cli1.id, dom1.id]);
+await debePasar("suspendido: SÍ reporta un depósito (falta de pago)", "cliente", abono, [cli1.id], 1);
+await ponerEstado(cli1.id, "baja");
+await debeFallar("baja: NO agenda", "cliente", pedir(), [cli1.id, dom1.id]);
+await debeFallar("baja: NO reporta depósitos", "cliente", abono, [cli1.id]);
+await ponerEstado(cli1.id, "pendiente-info");
+await debePasar("pendiente-info: sí agenda (opera normal)", "cliente", pedir(), [cli1.id, dom1.id], 1);
+await ponerEstado(cli1.id, "activo");
+await debePasar("activo: agenda", "cliente", pedir(), [cli1.id, dom1.id], 1);
+
+const { rows: [cliB] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-B','Borrable') returning id`);
+await db.query(abono, [cliB.id]);
+await debeFallar("un admin NO borra clientes", "admin", `delete from public.clientes where id = $1`, [cliB.id]);
+try {
+  await db.query(`delete from public.clientes where id = $1`, [cliB.id]);
+  fallas++; console.log("  ✖ con movimientos, el borrado en cascada NO debía pasar (restrict)");
+} catch (e) { console.log(`  ✓ con movimientos no se borra en cascada → ${e.message.slice(0, 70)}`); }
+await db.query(`delete from public.movimientos_saldo where cliente_id = $1`, [cliB.id]);
+await debePasar("el dueño SÍ borra (ya sin dinero colgando)", "dueno", `delete from public.clientes where id = $1`, [cliB.id], 1);
+
+const { rows: [cliC] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-C','Borrable 2') returning id`);
+await db.query(`update public.perfiles set permisos = '{eliminar_clientes}' where id = $1`, [U.adminPrecios]);
+await debePasar("un admin CON permiso eliminar_clientes sí borra", "adminPrecios", `delete from public.clientes where id = $1`, [cliC.id], 1);
+await db.query(`update public.perfiles set permisos = '{precios}' where id = $1`, [U.adminPrecios]);
+
+const { rows: [cliD] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-D','Con precio') returning id`);
+await db.query(`insert into public.precios (concepto_id, cliente_id, precio, creado_por) values ($1, $2, 10, $3)`, [con.id, cliD.id, U.dueno]);
+await debeFallar("con sesión, nadie borra precios", "dueno", `delete from public.precios where cliente_id = $1`, [cliD.id]);
+try {
+  await db.query(`delete from public.precios where cliente_id = $1`, [cliD.id]);
+  console.log("  ✓ el servidor (llave de servicio) sí borra los precios de un cliente que se elimina");
+} catch (e) { fallas++; console.log("  ✖ el servidor no pudo borrar precios —", e.message); }
+await db.query(`delete from public.clientes where id = $1`, [cliD.id]);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -595,7 +640,8 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "025-alta-con-firma.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "026-app-1-1.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "027-precios.sql"), "utf8"));
-  console.log("✓ 022 a 027 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 027 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "028-clientes-estados.sql"), "utf8"));
+  console.log("✓ 022 a 028 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 028 no son idempotentes:", e.message); }
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);
