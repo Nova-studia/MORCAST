@@ -10,6 +10,7 @@
  * conserva el acceso de ejemplo, para que el sitio siga navegable.
  */
 
+import { permisosDeEstado } from "./estado-cliente.mjs";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { CREDENCIALES_DEMO, CLIENTE } from "@/lib/portal-datos";
 
@@ -68,7 +69,7 @@ async function perfilDelCliente(supabase, id) {
     .from("perfiles")
     .select(
       "nombre, cliente_id, clientes ( folio, empresa, contacto, correo, telefono," +
-      " rfc, regimen, uso_cfdi, domicilio_fiscal, codigo_postal, plan, desde )"
+      " rfc, regimen, uso_cfdi, domicilio_fiscal, codigo_postal, plan, desde, estado )"
     )
     .eq("id", id)
     .single();
@@ -98,6 +99,9 @@ function expediente(perfil) {
     codigoPostal: c.codigo_postal || "",
     cuenta: c.plan || "Cliente",
     desde: c.desde || "",
+    // Entrega 1 (8-oct-2026): suspendido = solo lectura + Agregar saldo;
+    // baja = no entra. Ver lib/estado-cliente.mjs (permisosDeEstado).
+    estado: c.estado || "activo",
   };
 }
 
@@ -152,6 +156,10 @@ export async function iniciarSesion(correo, password) {
   }
 
   const cliente = expediente(await perfilDelCliente(supabase, data.user.id));
+  if (!permisosDeEstado(cliente.estado).entra) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { ok: false, mensaje: permisosDeEstado(cliente.estado).aviso };
+  }
   return {
     ok: true,
     sesion: {
@@ -200,6 +208,12 @@ export async function obtenerSesion() {
   // adelantado y se pide el bueno.
   const perfil = idProbable === user.id ? perfilAdelantado : await perfilDelCliente(supabase, user.id);
   const cliente = expediente(perfil);
+  // Dado de baja: fuera, aunque su sesión siguiera abierta.
+  if (!permisosDeEstado(cliente.estado).entra) {
+    expedienteEnMemoria = null;
+    await supabase.auth.signOut({ scope: "local" });
+    return null;
+  }
   expedienteEnMemoria = { usuarioId: user.id, datos: cliente };
 
   return {

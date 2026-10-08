@@ -8,6 +8,8 @@ import {
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "@/lib/rutas-datos";
 import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { fechaConDia } from "@/lib/portal-datos";
+import { clienteActual } from "@/lib/portal-sesion";
+import { permisosDeEstado } from "@/lib/estado-cliente.mjs";
 import { estadoVencimiento, ordenarPorUrgencia, textoAtraso, hoyISO } from "@/lib/vencimiento";
 import {
   miSuscripcion,
@@ -65,6 +67,12 @@ export default function AgendarPortal() {
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+  // Cuenta suspendida (Entrega 1): ve sus solicitudes, pero no pide nuevas.
+  // La base también lo rechaza (db/028); esto solo lo explica.
+  const [puedeOperar, setPuedeOperar] = useState(true);
+  useEffect(() => {
+    clienteActual().then((c) => setPuedeOperar(permisosDeEstado(c?.estado).puedeOperar)).catch(() => {});
+  }, []);
 
   const ruta = suscripcion?.ruta || null;
 
@@ -91,7 +99,7 @@ export default function AgendarPortal() {
   const puedeEnviar = Boolean(fecha && tipoResiduo && !faltaDescribirOtro);
 
   const enviar = async () => {
-    if (!puedeEnviar || enviando) return;
+    if (!puedeEnviar || enviando || !puedeOperar) return;
     setEnviando(true);
     setError("");
 
@@ -133,6 +141,11 @@ export default function AgendarPortal() {
       <div className="pt-grid pt-grid-2" style={{ alignItems: "start" }}>
         <div className="pt-card">
           <div className="pt-card-head"><h2>Nueva solicitud</h2></div>
+          {!puedeOperar && (
+            <div className="pt-login-error" role="alert" style={{ marginBottom: "0.9rem" }}>
+              Tu cuenta está suspendida: por ahora no puedes pedir recolecciones. Contáctanos para restablecerla.
+            </div>
+          )}
 
           <div style={{ fontSize: "0.86rem", color: "var(--mc-gris)", marginBottom: "0.9rem" }}>
             {ruta ? (
@@ -224,7 +237,7 @@ export default function AgendarPortal() {
             style={{ width: "100%", marginBottom: "1rem" }}
           />
 
-          <button type="button" className="pt-btn pt-btn-verde" style={{ width: "100%", justifyContent: "center" }} onClick={enviar} disabled={!puedeEnviar || enviando}>
+          <button type="button" className="pt-btn pt-btn-verde" style={{ width: "100%", justifyContent: "center" }} onClick={enviar} disabled={!puedeEnviar || enviando || !puedeOperar}>
             {enviando ? 'Enviando…' : 'Enviar solicitud'}
           </button>
 

@@ -12,6 +12,7 @@ import { CLIENTE } from "@/lib/portal-datos";
 import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
+import AvisoSuspendido from "@/components/portal/AvisoSuspendido";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -198,6 +199,9 @@ export default function PortalShell({ children }) {
         />
 
         <div className="pt-main">
+          {sesion?.cliente?.estado === "suspendido" && (
+            <AvisoSuspendido folio={sesion.cliente.id} empresa={sesion.cliente.empresa} />
+          )}
           <header className="pt-topbar">
             <div style={{ display: "flex", alignItems: "center", gap: "0.9rem" }}>
               <button
