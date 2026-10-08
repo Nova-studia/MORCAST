@@ -186,7 +186,7 @@ export function textoPendiente(solicitud) {
   return {
     titulo: "Falta tu alta",
     cuerpo:
-      "Tu cuenta ya quedó registrada. Para usar Morcast falta tu alta: complétala en morcast.mx con esta misma cuenta (mapa de tu domicilio y firma). Cuando Morcast la active, entra aquí.",
+      "Tu cuenta ya quedó registrada. Para usar Morcast falta tu alta: complétala en morcast.mx: se abre con tu misma cuenta, sin contraseña (mapa de tu domicilio y firma). Cuando Morcast la active, entra aquí.",
     nota: "Si ya la completaste, Morcast la está revisando: te avisamos por correo en cuanto quede activa.",
     folio: "",
     pedirAlta: true,

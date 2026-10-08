@@ -6,7 +6,7 @@ import { Boton } from "../ui";
 import { sesionPendiente } from "../sesion";
 import { miSolicitud, revisarAlta } from "../entrar-social";
 import { textoPendiente } from "../entrada-social.js";
-import { abrirEnNavegador, URL_PORTAL_LOGIN, URL_ALTA } from "../enlaces-web";
+import { abrirAltaEnWeb } from "../puente-web";
 import { EMPRESA_COTIZACION } from "../cotizacion-datos";
 import { abrirWhatsApp } from "../whatsapp";
 
@@ -26,6 +26,17 @@ export default function AltaPendiente({ onActivo, onSalir }) {
   const [solicitud, setSolicitud] = useState(null);
   const [revisando, setRevisando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [abriendo, setAbriendo] = useState(false);
+
+  /** Abre su alta en la web con la MISMA cuenta (sin contraseña). */
+  const completarAlta = async () => {
+    if (abriendo) return;
+    setAbriendo(true);
+    setAviso("");
+    const r = await abrirAltaEnWeb();
+    setAbriendo(false);
+    if (!r.ok) setAviso(r.motivo);
+  };
 
   /** Qué hacer con lo que contestó `revisarAlta()`. */
   const atender = (r, { callado = false } = {}) => {
@@ -106,23 +117,13 @@ export default function AltaPendiente({ onActivo, onSalir }) {
         ) : null}
 
         {texto.pedirAlta ? (
-          <Boton onPress={() => abrirEnNavegador(URL_PORTAL_LOGIN)} style={{ marginTop: 18 }}>
-            Completar mi alta en morcast.mx
+          <Boton onPress={completarAlta} disabled={abriendo} style={{ marginTop: 18 }}>
+            {abriendo ? "Abriendo…" : "Completar mi alta en morcast.mx"}
           </Boton>
         ) : null}
-        {/* La puerta directa al formulario de alta (6-oct-2026), por si no
-            quiere pasar por el login de la web. Solo cuando todavía falta el
-            alta: si ya la mandó, otra solo duplicaría la solicitud. */}
-        {texto.pedirAlta ? (
-          <Pressable
-            onPress={() => abrirEnNavegador(URL_ALTA)}
-            style={({ pressed }) => [s.alta, pressed && { opacity: 0.8 }]}
-            accessibilityRole="link"
-            accessibilityLabel="¿Aún no eres cliente? Date de alta en morcast.mx"
-          >
-            <Text style={s.altaTxt}>¿Aún no eres cliente? <Text style={s.altaFuerte}>Date de alta</Text></Text>
-          </Pressable>
-        ) : null}
+        {/* Aquí ya NO va "¿Aún no eres cliente? Date de alta" (8-oct-2026):
+            ese formulario público pide nombre y correo, y Apple rechazó la
+            1.1.0 justo por pedírselos a quien entró con Apple. */}
 
         <Pressable
           onPress={revisar}
@@ -176,9 +177,6 @@ const s = StyleSheet.create({
   },
   revisarTxt: { color: T.accionTxt, fontSize: 14.5, fontWeight: "700" },
   aviso: { color: T.gris, fontSize: 13, textAlign: "center", marginTop: 10 },
-  alta: { alignItems: "center", paddingVertical: 12, marginTop: 4 },
-  altaTxt: { color: T.gris, fontSize: 13.5 },
-  altaFuerte: { color: T.accionTxt, fontWeight: "700", textDecorationLine: "underline" },
   dudas: { color: T.gris, fontSize: 13, textAlign: "center", marginTop: 22, marginBottom: 8 },
   contacto: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingVertical: 11 },
   contactoTxt: { color: T.gris, fontSize: 13.5, fontWeight: "600" },

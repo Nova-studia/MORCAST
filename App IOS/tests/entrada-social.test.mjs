@@ -141,7 +141,7 @@ test("sin señal tampoco es 'todavía no'", () => {
 test("sin solicitud pide completar el alta en morcast.mx", () => {
   const t = textoPendiente(null);
   assert.equal(t.pedirAlta, true);
-  assert.match(t.cuerpo, /complétala en morcast\.mx con esta misma cuenta/);
+  assert.match(t.cuerpo, /complétala en morcast\.mx: se abre con tu misma cuenta/);
 });
 
 test("con solicitud dice que está en revisión y da el folio", () => {
@@ -149,4 +149,11 @@ test("con solicitud dice que está en revisión y da el folio", () => {
   assert.equal(t.titulo, "Tu alta está en revisión");
   assert.equal(t.folio, "MOR-2026-0042");
   assert.equal(t.pedirAlta, false);
+});
+
+import { textoPendiente as textoPendiente111 } from "../src/entrada-social.mjs";
+test("1.1.1: la sala de espera dice que la web se abre con la misma cuenta, sin contraseña", () => {
+  const t = textoPendiente111(null);
+  assert.match(t.cuerpo, /misma cuenta, sin contraseña/);
+  assert.equal(t.pedirAlta, true);
 });
