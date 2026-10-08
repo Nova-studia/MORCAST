@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { correoCuentaActivada, correoAccesoCliente } from "./correo";
 import { puedeRecibirAcceso, puedeSellarUsuarioExistente } from "./estado-cliente.mjs";
+import { esCuentaApple, selloDeActivacion } from "./cuenta-apple.mjs";
 
 /**
  * LAS CUENTAS DE LOS CLIENTES, DEL LADO DEL SERVIDOR (6-oct-2026).
@@ -208,9 +209,6 @@ export async function existeCuentaCon(sb, correo) {
  * —la empresa y el sello— y el usuario no se toca nunca.
  */
 export async function activarCuentaRegistradaCon({ sb, anotar }, { solicitudId, password }) {
-  if (!password || String(password).length < 8) {
-    return { ok: false, motivo: "La contraseña debe tener al menos 8 caracteres." };
-  }
 
   const { data: solicitud, error: errSolicitud } = await sb
     .from("solicitudes_alta")
@@ -229,6 +227,14 @@ export async function activarCuentaRegistradaCon({ sb, anotar }, { solicitudId, 
   }
 
   const uid = solicitud.usuario_id;
+
+  // Cuentas de "Continuar con Apple" (8-oct-2026, Apple guía 4): se activan
+  // SIN contraseña. La de Google o correo se sigue exigiendo, y se revisa
+  // aquí, antes de crear nada.
+  const { data: cuenta } = await sb.auth.admin.getUserById(uid);
+  const apple = esCuentaApple(cuenta?.user);
+  const previo = selloDeActivacion({ apple, password, clienteId: null });
+  if (!previo.ok) return previo;
 
   // ¿Ya estaba activada? Volver a hacerlo crearía una empresa duplicada.
   const { data: perfilPrevio } = await sb
@@ -316,10 +322,10 @@ export async function activarCuentaRegistradaCon({ sb, anotar }, { solicitudId, 
   //    `sincronizar_perfil()` (db/003) ve cambiar el app_metadata y acomoda
   //    `perfiles` solo. Va DESPUÉS de crear la empresa porque ese disparador
   //    ignora un rol 'cliente' sin `cliente_id`: sería incoherente.
-  const { error: errSello } = await sb.auth.admin.updateUserById(uid, {
-    password: String(password),
-    app_metadata: { rol: "cliente", cliente_id: cliente.id },
-  });
+  const { error: errSello } = await sb.auth.admin.updateUserById(
+    uid,
+    selloDeActivacion({ apple, password, clienteId: cliente.id }).cambios
+  );
 
   if (errSello) {
     await deshacer();
@@ -366,6 +372,7 @@ export async function activarCuentaRegistradaCon({ sb, anotar }, { solicitudId, 
       contacto: solicitud.contacto || solicitud.empresa,
       empresa: cliente.empresa,
       folio: cliente.folio,
+      apple,
     });
   } catch (e) {
     console.error("[activar] aviso al cliente falló:", e?.message);
@@ -392,6 +399,8 @@ export async function activarCuentaRegistradaCon({ sb, anotar }, { solicitudId, 
     avisoPunto: punto.ok ? "" : punto.motivo,
     // Para el botón "Asignarle su ruta" de Altas: el punto recién creado.
     puntoId: punto.ok ? punto.id : null,
+    // Cuenta de Apple: no se le puso contraseña; el panel no enseña ninguna.
+    sinContrasena: apple,
   };
 }
 

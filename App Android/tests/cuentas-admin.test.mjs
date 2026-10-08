@@ -122,3 +122,11 @@ test("clases de insignia: las que no existen en la app caen a una que sí", () =
   assert.equal(app.claseBadge(""), "none");
   assert.equal(app.claseBadge("ok"), "ok");
 });
+
+import { mensajeCuentaActivadaApple } from "../src/cuentas-admin.js";
+test("cuenta de Apple activada: el WhatsApp no lleva contraseña y dice cómo entrar", () => {
+  const m = mensajeCuentaActivadaApple();
+  assert.match(m, /Ya me activaron/);
+  assert.match(m, /Apple/);
+  assert.doesNotMatch(m, /contraseña:|\/ /);
+});

@@ -42,5 +42,6 @@ export async function POST(peticion) {
     { solicitudId, password }
   );
   if (!res.ok) return responder({ ok: false, motivo: res.motivo });
-  return responder({ ...res, password });
+  // Cuenta de Apple: se activó sin contraseña, así que no se manda ninguna.
+  return responder(res.sinContrasena ? res : { ...res, password });
 }

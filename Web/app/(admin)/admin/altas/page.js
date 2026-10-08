@@ -132,7 +132,13 @@ export default function AltasAdmin() {
     // Se enseña UNA vez: no se guarda en ningún lado ni entra a la bitácora.
     // Va con el `solicitudId` a cuestas: la tarjeta de abajo se pinta sólo
     // sobre el detalle de ESTA persona.
-    setCredencial({ solicitudId: a.id, correo: r.correo, password, folio: r.cliente.folio });
+    // Cuenta de Apple (8-oct-2026): se activó SIN contraseña; no hay nada
+    // que enseñar ni mandar, solo avisarle que abra la app.
+    setCredencial(
+      r.sinContrasena
+        ? { solicitudId: a.id, correo: r.correo, folio: r.cliente.folio, sinContrasena: true }
+        : { solicitudId: a.id, correo: r.correo, password, folio: r.cliente.folio }
+    );
     if (r.puntoId) setSiguiente({ solicitudId: a.id, puntoId: r.puntoId });
     await recargar();
     setSel((s) => (s && s.id === a.id ? { ...s, estado: "aprobada" } : s));
@@ -377,7 +383,26 @@ export default function AltasAdmin() {
                   era. Se comprueba al pintar y no al cambiar de selección
                   porque así quedan cubiertos TODOS los caminos que mueven
                   `sel`, no sólo el clic en la tabla. */}
-              {credencial && credencial.solicitudId === sel.id && (
+              {credencial && credencial.solicitudId === sel.id && credencial.sinContrasena && (
+                <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
+                  <strong>Cuenta activada — cliente {credencial.folio}</strong>
+                  <p style={{ margin: "0.5rem 0", fontSize: "0.9rem" }}>
+                    <strong>Entra con Apple: no necesita contraseña.</strong> Avísale que abra
+                    la app y toque “Ya me activaron — revisar”.
+                  </p>
+                  <a
+                    className="pt-btn"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://wa.me/${whatsappMx(sel.telefono)}?text=${encodeURIComponent(
+                      'Tu cuenta de Morcast del Norte ya está activa. Abre la app y toca "Ya me activaron — revisar" (entras con Apple, sin contraseña).'
+                    )}`}
+                  >
+                    Mandar por WhatsApp
+                  </a>
+                </div>
+              )}
+              {credencial && credencial.solicitudId === sel.id && !credencial.sinContrasena && (
                 <div className="pt-card" style={{ marginTop: "1rem", padding: "0.9rem" }}>
                   <strong>Cuenta activada — cliente {credencial.folio}</strong>
                   <p style={{ margin: "0.5rem 0", fontSize: "0.9rem" }}>

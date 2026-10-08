@@ -13,7 +13,7 @@ import {
   estadoDe,
   claseBadge,
   telefonoWhatsApp,
-  mensajeCuentaActivada,
+  mensajeCuentaActivadaApple, mensajeCuentaActivada,
 } from "../../datos-cuentas";
 import {
   useLista, atenderSegundoPaso, Chip, Chips, Hoja, Aviso, ErrorCarga, Dato, Seccion, Accion, estilosCuentas as e,
@@ -84,7 +84,10 @@ export default function Altas({ navigation }) {
     // Activó, pero su punto no se creó: se dice para que nadie confirme
     // recolecciones creyendo que traen dirección.
     if (r.avisoPunto) setError(r.avisoPunto);
-    if (r.password) {
+    if (r.sinContrasena) {
+      // Cuenta de Apple: activada SIN contraseña (Apple guía 4).
+      setCredencial({ solicitudId: a.id, correo: r.correo, folio: r.cliente?.folio, telefono: a.telefono, sinContrasena: true });
+    } else if (r.password) {
       setCredencial({ solicitudId: a.id, correo: r.correo, password: r.password, folio: r.cliente?.folio, telefono: a.telefono });
     }
     if (r.puntoId) setSiguiente({ solicitudId: a.id, puntoId: r.puntoId });
@@ -174,7 +177,23 @@ export default function Altas({ navigation }) {
             {!!error && <Aviso tipo="error">{error}</Aviso>}
 
             {/* La contraseña sólo sobre la ficha de ESTA persona. */}
-            {credencial && credencial.solicitudId === sel.id && (
+            {credencial && credencial.solicitudId === sel.id && credencial.sinContrasena && (
+              <View style={st.cred}>
+                <Text style={st.credTit}>Cuenta activada{credencial.folio ? ` — cliente ${credencial.folio}` : ""}</Text>
+                <Text style={st.credP}>
+                  <Text style={{ fontWeight: "800" }}>Entra con Apple: no necesita contraseña.</Text> Avísale que abra la
+                  app y toque “Ya me activaron — revisar”.
+                </Text>
+                <Accion
+                  icono="message-square"
+                  onPress={() => abrirWhatsApp(telefonoWhatsApp(credencial.telefono), mensajeCuentaActivadaApple())}
+                >
+                  Mandar por WhatsApp
+                </Accion>
+                <Accion variante="linea" onPress={() => setCredencial(null)}>Listo</Accion>
+              </View>
+            )}
+            {credencial && credencial.solicitudId === sel.id && !credencial.sinContrasena && (
               <View style={st.cred}>
                 <Text style={st.credTit}>Cuenta activada{credencial.folio ? ` — cliente ${credencial.folio}` : ""}</Text>
                 <Text style={st.credP}>

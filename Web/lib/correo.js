@@ -410,7 +410,7 @@ export async function correoAcuseRegistro(datos) {
  * Una contraseña dentro de un correo se queda ahí para siempre, en el buzón
  * del cliente y en el de quien reenvíe el hilo.
  */
-export async function correoCuentaActivada({ correo, contacto, empresa, folio }) {
+export async function correoCuentaActivada({ correo, contacto, empresa, folio, apple = false }) {
   return enviar({
     from: REMITENTE,
     to: [correo],
@@ -421,9 +421,11 @@ export async function correoCuentaActivada({ correo, contacto, empresa, folio })
         Hola ${esc(contacto)}, ya puedes entrar al portal de
         <strong>${esc(empresa)}</strong>. Tu número de cliente es
         <strong>${esc(folio)}</strong>.</p>
-      <p style="margin:0 0 14px;font-size:14px">
-        Entra en <a href="https://morcast.mx/portal/login" style="color:#144C4F">morcast.mx/portal/login</a>
-        con el mismo botón de Google que usaste para registrarte.</p>
+      <p style="margin:0 0 14px;font-size:14px">${apple
+        ? `Abre la app de Morcast y toca <strong>“Ya me activaron — revisar”</strong>.
+        Entras con Apple, igual que cuando te registraste: no necesitas contraseña.`
+        : `Entra en <a href="https://morcast.mx/portal/login" style="color:#144C4F">morcast.mx/portal/login</a>
+        con el mismo botón de Google que usaste para registrarte.`}</p>
       <p style="margin:0 0 14px;font-size:14px">
         Ahí puedes agendar recolecciones, ver tu historial, descargar tus
         manifiestos y consultar tu saldo.</p>

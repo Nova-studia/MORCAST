@@ -316,6 +316,14 @@ export function mensajeCuentaActivada(correo, password) {
 }
 
 /** El mensaje de credenciales al activar desde una solicitud de cotización (el de la web). */
+/**
+ * Cuenta de "Continuar con Apple" activada (8-oct-2026, Apple guía 4): se
+ * activó SIN contraseña, así que el WhatsApp solo le dice cómo entrar.
+ */
+export function mensajeCuentaActivadaApple() {
+  return 'Tu cuenta de Morcast del Norte ya está activa. Abre la app y toca "Ya me activaron — revisar" (entras con Apple, sin contraseña).';
+}
+
 export function mensajeCredenciales(nombre, correo, password) {
   return (
     `Hola ${nombre}, su cuenta del Portal de Clientes de Morcast del Norte ya está activa.\n\n` +
