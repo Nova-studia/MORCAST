@@ -24,7 +24,7 @@ clientes sin SQL.
 |---|---|---|
 | `pendiente-info` | Le falta un dato | Opera normal (como hoy) |
 | `activo` | Normal | — |
-| `suspendido` | Temporal (adeudo, pausa) | Sus usuarios **sí entran**, pero en **solo lectura**: ven todo, con un aviso fijo "Tu cuenta está suspendida, comunícate con Morcast" y su teléfono. **Lo único que pueden hacer es Agregar saldo** (reportar un depósito), porque la causa típica es la falta de pago. **No pueden** agendar, cancelar, reagendar ni cambiar datos (también en la base). Sus servicios se **pausan**. Las paradas futuras **no** se tocan; la oficina decide. (Decisión de Luis, 8-oct.) |
+| `suspendido` | Temporal (adeudo, pausa) | Sus usuarios **sí entran**, pero en **solo lectura**: ven todo, con un **aviso ROJO fijo hasta arriba de toda pantalla** (web y app): "Tu cuenta está suspendida. Contáctanos para restablecerla." con botones de WhatsApp y llamada (Luis, 8-oct). **Lo único que pueden hacer es Agregar saldo** (reportar un depósito), porque la causa típica es la falta de pago. **No pueden** agendar, cancelar, reagendar ni cambiar datos (también en la base). Sus servicios se **pausan**. Las paradas futuras **no** se tocan; la oficina decide. (Decisión de Luis, 8-oct.) |
 | `baja` | Dejó de ser cliente | Sus usuarios **no entran** (ven "Tu cuenta fue dada de baja, comunícate con Morcast"). Además: servicios **cancelados**, solicitudes futuras **canceladas** (con aviso al chofer si ya estaban asignadas), contenedores **liberados**, tokens de notificaciones borrados. Sale de las listas de operación (rutas, agenda, puntos). Su historial **se conserva**. |
 | Reactivar | Volver a `activo` | Le regresa el acceso. Sus servicios vuelven como **pausados** para que la oficina los revise. |
 
