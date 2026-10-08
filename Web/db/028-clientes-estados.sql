@@ -17,6 +17,9 @@ begin;
 alter table public.clientes add column if not exists estado_motivo text;
 alter table public.clientes add column if not exists estado_fecha timestamptz;
 alter table public.clientes add column if not exists estado_por uuid references public.perfiles (id) on delete set null;
+-- A quién bloqueó la baja: al reactivar se desbloquea SOLO a ellos (no a quien
+-- ya le habían quitado el acceso a propósito).
+alter table public.clientes add column if not exists bloqueados_por_baja uuid[] not null default '{}';
 
 -- ---------------------------------------------------------- qué puede hacer el cliente
 create or replace function public.mi_cliente_estado()

@@ -609,9 +609,11 @@ await debePasar("pendiente-info: sí agenda (opera normal)", "cliente", pedir(),
 await ponerEstado(cli1.id, "activo");
 await debePasar("activo: agenda", "cliente", pedir(), [cli1.id, dom1.id], 1);
 
+const { rows: [cliLimpio] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-L','Limpio') returning id`);
+await debeFallar("un admin NO borra clientes (aunque no tengan dinero)", "admin", `delete from public.clientes where id = $1`, [cliLimpio.id]);
+await db.query(`delete from public.clientes where id = $1`, [cliLimpio.id]);
 const { rows: [cliB] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-B','Borrable') returning id`);
 await db.query(abono, [cliB.id]);
-await debeFallar("un admin NO borra clientes", "admin", `delete from public.clientes where id = $1`, [cliB.id]);
 try {
   await db.query(`delete from public.clientes where id = $1`, [cliB.id]);
   fallas++; console.log("  ✖ con movimientos, el borrado en cascada NO debía pasar (restrict)");
@@ -632,6 +634,9 @@ try {
   console.log("  ✓ el servidor (llave de servicio) sí borra los precios de un cliente que se elimina");
 } catch (e) { fallas++; console.log("  ✖ el servidor no pudo borrar precios —", e.message); }
 await db.query(`delete from public.clientes where id = $1`, [cliD.id]);
+const { rows: [{ bloq }] } = await db.query(`select bloqueados_por_baja as bloq from public.clientes where id = $1`, [cli1.id]);
+if (Array.isArray(bloq) && bloq.length === 0) console.log("  ✓ clientes.bloqueados_por_baja existe y nace vacío");
+else { fallas++; console.log("  ✖ falta clientes.bloqueados_por_baja", bloq); }
 
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));

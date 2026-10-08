@@ -227,3 +227,21 @@ test("puedeEliminarCliente: el dueño o quien tenga el permiso", () => {
   assert.equal(puedeEliminarCliente({ rol: "admin", permisos: ["precios"] }), false);
   assert.equal(puedeEliminarCliente({ rol: "cliente", permisos: ["eliminar_clientes"] }), false);
 });
+
+// ---- Revisión final Entrega 1 ----
+import { mensajeErrorLogin, PERMISOS_ASIGNABLES, aplicarPermiso } from "../lib/estado-cliente.mjs";
+
+test("revisión: a un usuario bloqueado se le dice que su cuenta fue dada de baja, no 'contraseña incorrecta'", () => {
+  assert.match(mensajeErrorLogin({ message: "User is banned", code: "user_banned" }), /dada de baja/);
+  assert.match(mensajeErrorLogin({ message: "User is banned" }), /dada de baja/);
+  assert.equal(mensajeErrorLogin({ message: "Invalid login credentials" }), "Correo o contraseña incorrectos.");
+  assert.equal(mensajeErrorLogin(null), "Correo o contraseña incorrectos.");
+});
+
+test("revisión: el dueño puede dar precios y eliminar_clientes", () => {
+  assert.deepEqual(PERMISOS_ASIGNABLES.map((p) => p.clave), ["precios", "eliminar_clientes"]);
+  assert.deepEqual(aplicarPermiso(["precios"], "eliminar_clientes", true), ["precios", "eliminar_clientes"]);
+  assert.deepEqual(aplicarPermiso(["precios", "eliminar_clientes"], "precios", false), ["eliminar_clientes"]);
+  assert.deepEqual(aplicarPermiso(["precios"], "precios", true), ["precios"]);
+  assert.throws(() => aplicarPermiso([], "todo", true));
+});

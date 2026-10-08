@@ -10,7 +10,7 @@
  * conserva el acceso de ejemplo, para que el sitio siga navegable.
  */
 
-import { permisosDeEstado } from "./estado-cliente.mjs";
+import { permisosDeEstado, mensajeErrorLogin } from "./estado-cliente.mjs";
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { CREDENCIALES_DEMO, CLIENTE } from "@/lib/portal-datos";
 
@@ -140,7 +140,8 @@ export async function iniciarSesion(correo, password) {
   });
 
   if (error || !data?.user) {
-    return { ok: false, mensaje: "Correo o contraseña incorrectos." };
+    // Una cuenta bloqueada (dada de baja) se explica; no es "contraseña mala".
+    return { ok: false, mensaje: mensajeErrorLogin(error) };
   }
 
   const rol = data.user.app_metadata?.rol;

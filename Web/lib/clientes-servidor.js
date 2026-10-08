@@ -14,14 +14,13 @@ import { validarCambioEstado, estadoPorCompletitud } from "./estado-cliente.mjs"
 
 const BLOQUEO = "876000h"; // igual que lib/equipo-servidor.js (100 años)
 const SIN_BLOQUEO = "none";
-const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 const fallo = (que, error) => ({ ok: false, motivo: `${que}: ${error?.message || error}` });
 
 async function leerCliente(sb, clienteId) {
   const { data, error } = await sb
     .from("clientes")
-    .select("id, folio, empresa, contacto, correo, telefono, estado")
+    .select("id, folio, empresa, contacto, correo, telefono, estado, bloqueados_por_baja")
     .eq("id", clienteId)
     .maybeSingle();
   if (error) return { error };
@@ -34,20 +33,40 @@ async function idsDe(sb, tabla, columna, valor) {
   return (data || []).map((x) => x.id);
 }
 
+/** Usuarios CLIENTE de la empresa (nunca personal), opcionalmente solo los activos. */
+async function usuariosCliente(sb, clienteId, { soloActivos = false } = {}) {
+  let q = sb.from("perfiles").select("id").eq("cliente_id", clienteId).eq("rol", "cliente");
+  if (soloActivos) q = q.eq("activo", true);
+  const { data, error } = await q;
+  if (error) throw new Error(`leer usuarios: ${error.message}`);
+  return (data || []).map((x) => x.id);
+}
+
+/** Un paso que escribe: si falla, se detiene todo (el estado se guarda al final). */
+async function paso(que, promesa) {
+  const { error } = await promesa;
+  if (error) throw new Error(`${que}: ${error.message}`);
+}
+
 /** Bloquea o desbloquea en Auth y marca el perfil. */
 async function accesoDeUsuarios(sb, ids, activo) {
   for (const id of ids) {
     const { error } = await sb.auth.admin.updateUserById(id, { ban_duration: activo ? SIN_BLOQUEO : BLOQUEO });
     if (error) throw new Error(`${activo ? "desbloquear" : "bloquear"} usuario: ${error.message}`);
   }
-  if (ids.length) {
-    const { error } = await sb.from("perfiles").update({ activo }).in("id", ids).select("id");
-    if (error) throw new Error(`perfiles: ${error.message}`);
-  }
+  if (ids.length) await paso("perfiles", sb.from("perfiles").update({ activo }).in("id", ids).select("id"));
 }
+
+const hoyMatamoros = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Matamoros" }).format(new Date());
 
 /* ------------------------------------------------------------------ estado */
 
+/**
+ * Los EFECTOS van primero y el estado se guarda al final: si algo falla a la
+ * mitad, el cliente sigue en su estado anterior y el botón se puede volver a
+ * pulsar (revisión final de la Entrega 1).
+ */
 export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId, estado, motivo }) {
   const { cliente, error } = await leerCliente(sb, clienteId);
   if (error) return fallo("No se pudo leer el cliente", error);
@@ -56,47 +75,58 @@ export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId
   const v = validarCambioEstado({ actual: cliente.estado, nuevo: estado, motivo });
   if (!v.ok) return v;
 
+  const extra = {};
   try {
-    const { error: e1 } = await sb
-      .from("clientes")
-      .update({ estado, estado_motivo: String(motivo || "").trim() || null, estado_fecha: new Date().toISOString(), estado_por: actor?.id || null })
-      .eq("id", clienteId)
-      .select("id");
-    if (e1) throw new Error(`estado: ${e1.message}`);
-
-    const usuarios = await idsDe(sb, "perfiles", "cliente_id", clienteId);
-
     if (estado === "suspendido") {
       // Solo lectura: sus usuarios siguen entrando (la base ya no les deja
       // agendar). Los servicios se pausan; las paradas las decide la oficina.
-      await sb.from("suscripciones").update({ estado: "pausada" }).eq("cliente_id", clienteId).eq("estado", "activa").select("id");
+      await paso("servicios", sb.from("suscripciones").update({ estado: "pausada" }).eq("cliente_id", clienteId).eq("estado", "activa").select("id"));
     }
 
     if (estado === "baja") {
-      await accesoDeUsuarios(sb, usuarios, false);
-      await sb.from("suscripciones").update({ estado: "cancelada" }).eq("cliente_id", clienteId).neq("estado", "cancelada").select("id");
-      await sb
-        .from("solicitudes_recoleccion")
-        .update({ estado: "rechazada", motivo_rechazo: "Cliente dado de baja" })
-        .eq("cliente_id", clienteId)
-        .in("estado", ["solicitada", "confirmada"])
-        .gte("fecha_pedida", hoyISO())
-        .select("id");
+      // Solo a los que tenían acceso: a quien ya se lo habían quitado no se le
+      // devolverá al reactivar.
+      const activos = await usuariosCliente(sb, clienteId, { soloActivos: true });
+      await accesoDeUsuarios(sb, activos, false);
+      extra.bloqueados_por_baja = activos;
+      await paso("servicios", sb.from("suscripciones").update({ estado: "cancelada" }).eq("cliente_id", clienteId).neq("estado", "cancelada").select("id"));
+      await paso(
+        "recolecciones futuras",
+        sb.from("solicitudes_recoleccion")
+          .update({ estado: "rechazada", motivo_rechazo: "Cliente dado de baja" })
+          .eq("cliente_id", clienteId)
+          .in("estado", ["solicitada", "confirmada"])
+          .gte("fecha_pedida", hoyMatamoros())
+          .select("id")
+      );
       const domicilios = await idsDe(sb, "domicilios", "cliente_id", clienteId);
       if (domicilios.length) {
-        await sb.from("contenedores").update({ domicilio_id: null, estado: "en-bodega" }).in("domicilio_id", domicilios).select("id");
+        await paso("contenedores", sb.from("contenedores").update({ domicilio_id: null, estado: "en-bodega" })
+          .in("domicilio_id", domicilios).eq("estado", "en-servicio").select("id"));
       }
-      if (usuarios.length) await sb.from("push_tokens").delete().in("usuario_id", usuarios);
+      if (activos.length) await paso("avisos del teléfono", sb.from("push_tokens").delete().in("usuario_id", activos));
     }
 
     if (estado === "activo") {
-      // Reactivar: vuelven a entrar; sus servicios regresan PAUSADOS para que
-      // la oficina los revise antes de mandar camiones.
-      await accesoDeUsuarios(sb, usuarios, true);
-      await sb.from("suscripciones").update({ estado: "pausada" }).eq("cliente_id", clienteId).neq("estado", "activa").select("id");
+      // Reactivar: de una BAJA se desbloquea solo a quien bloqueó la baja; de
+      // una suspensión no hay nada que desbloquear (nunca se bloqueó a nadie).
+      if (cliente.estado === "baja") {
+        await accesoDeUsuarios(sb, cliente.bloqueados_por_baja || [], true);
+        extra.bloqueados_por_baja = [];
+      }
+      // Sus servicios regresan PAUSADOS para que la oficina los revise.
+      await paso("servicios", sb.from("suscripciones").update({ estado: "pausada" }).eq("cliente_id", clienteId).neq("estado", "activa").select("id"));
     }
+
+    await paso(
+      "estado",
+      sb.from("clientes")
+        .update({ estado, estado_motivo: String(motivo || "").trim() || null, estado_fecha: new Date().toISOString(), estado_por: actor?.id || null, ...extra })
+        .eq("id", clienteId)
+        .select("id")
+    );
   } catch (e) {
-    return fallo("No se completó el cambio", e);
+    return fallo("No se completó el cambio (el cliente sigue como estaba; puedes reintentar)", e);
   }
 
   await anotar({
@@ -194,7 +224,7 @@ export async function eliminarClienteCon({ sb, anotar, actor }, { clienteId, con
 
   try {
     const solicitudes = await idsDe(sb, "solicitudes_recoleccion", "cliente_id", clienteId);
-    const usuarios = await idsDe(sb, "perfiles", "cliente_id", clienteId);
+    const usuarios = await usuariosCliente(sb, clienteId);
 
     for (const s of solicitudes) await vaciarCarpeta(sb, "evidencias", s);
     await vaciarCarpeta(sb, "comprobantes", clienteId);
@@ -205,7 +235,7 @@ export async function eliminarClienteCon({ sb, anotar, actor }, { clienteId, con
       const { error: e } = await q;
       if (e) throw new Error(`borrar ${tabla}: ${e.message}`);
     };
-    if (solicitudes.length) await borrar("recolecciones", "solicitud_id", solicitudes, true);
+    // Las recolecciones se van en cascada con sus solicitudes (001).
     await borrar("solicitudes_recoleccion", "cliente_id", clienteId);
     await borrar("movimientos_saldo", "cliente_id", clienteId);
     await borrar("precios", "cliente_id", clienteId);

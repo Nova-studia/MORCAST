@@ -16,7 +16,8 @@ export default function AvisoSuspendido({ folio, empresa }) {
     <div
       role="alert"
       style={{
-        position: "sticky", top: 0, zIndex: 50,
+        // Va arriba de la barra del portal y NO es pegajoso: con `sticky` tapaba
+        // la barra (y el botón del menú en el teléfono) al hacer scroll.
         background: "#b3261e", color: "#fff",
         padding: "0.7rem 1rem", display: "flex", alignItems: "center", gap: "0.8rem", flexWrap: "wrap",
         boxShadow: "0 2px 8px rgba(0,0,0,0.35)",

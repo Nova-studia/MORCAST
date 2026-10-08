@@ -1,5 +1,6 @@
 "use server";
 
+import { aplicarPermiso } from "@/lib/estado-cliente.mjs";
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
@@ -74,17 +75,23 @@ export async function cambiarFacturaAccion({ clienteId, requiereFactura }) {
   return r;
 }
 
-export async function cambiarPermisoAccion({ perfilId, precios }) {
+export async function cambiarPermisoAccion({ perfilId, precios, permiso = "precios", valor }) {
+  // Desde la Entrega 1 hay más de un permiso suelto (precios, eliminar_clientes).
+  const quiere = typeof valor === "boolean" ? valor : Boolean(precios);
   if (!haySupabase()) return demo;
   const quien = await usuarioActual();
   if (!quien || quien.rol !== "dueno") return { ok: false, motivo: "Solo el dueño asigna permisos." };
   const sb = await supabaseSesion();
   const { data: actual } = await sb.from("perfiles").select("permisos, rol").eq("id", perfilId).maybeSingle();
   if (!actual || actual.rol !== "admin") return { ok: false, motivo: "Solo a administradores." };
-  const resto = (actual.permisos || []).filter((p) => p !== "precios");
-  const nuevos = precios ? [...resto, "precios"] : resto;
+  let nuevos;
+  try {
+    nuevos = aplicarPermiso(actual.permisos, permiso, quiere);
+  } catch (e) {
+    return { ok: false, motivo: e.message };
+  }
   const { data, error } = await sb.from("perfiles").update({ permisos: nuevos }).eq("id", perfilId).select("id");
   if (error || !data?.length) return { ok: false, motivo: error?.message || "No se guardó." };
-  await registrar({ accion: "permiso_cambiado", tabla: "perfiles", registroId: perfilId, detalle: { precios } });
+  await registrar({ accion: "permiso_cambiado", tabla: "perfiles", registroId: perfilId, detalle: { permiso, valor: quiere } });
   return { ok: true };
 }

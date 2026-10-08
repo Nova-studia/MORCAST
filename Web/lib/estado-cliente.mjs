@@ -213,3 +213,26 @@ export function puedeEliminarCliente({ rol, permisos = [] }) {
   if (rol === "dueno") return true;
   return rol === "admin" && (permisos || []).includes("eliminar_clientes");
 }
+
+/**
+ * El mensaje del login cuando Supabase rechaza la entrada. A una cuenta
+ * BLOQUEADA (baja o acceso quitado) se le explica; antes leía "contraseña
+ * incorrecta" y la persona seguía intentando (revisión final, 8-oct-2026).
+ */
+export function mensajeErrorLogin(error) {
+  const t = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
+  if (/banned|user_banned/.test(t)) return AVISO_BAJA;
+  return "Correo o contraseña incorrectos.";
+}
+
+/** Permisos sueltos que el dueño asigna a un admin desde Usuarios (db/027, 028). */
+export const PERMISOS_ASIGNABLES = [
+  { clave: "precios", texto: "Puede cambiar precios" },
+  { clave: "eliminar_clientes", texto: "Puede eliminar clientes" },
+];
+
+export function aplicarPermiso(actuales, permiso, valor) {
+  if (!PERMISOS_ASIGNABLES.some((p) => p.clave === permiso)) throw new Error(`Permiso desconocido: ${permiso}`);
+  const resto = (actuales || []).filter((p) => p !== permiso);
+  return valor ? [...resto, permiso] : resto;
+}

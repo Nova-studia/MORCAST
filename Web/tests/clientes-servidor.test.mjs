@@ -82,7 +82,7 @@ test("baja: bloquea a todos sus usuarios, cancela servicios y solicitudes futura
 });
 
 test("reactivar: desbloquea a sus usuarios", async () => {
-  const sb = falso({ clientes: [{ id: "c1", estado: "baja", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }] });
+  const sb = falso({ clientes: [{ id: "c1", estado: "baja", folio: "MOR-1", empresa: "Uno", bloqueados_por_baja: ["u1"] }], perfiles: [{ id: "u1" }] });
   const r = await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "activo", motivo: "" });
   assert.equal(r.ok, true);
   assert.ok(sb.ops.includes("auth:update:u1:none"));
@@ -101,7 +101,7 @@ test("eliminar: borra en orden (hijos antes que la empresa) y los usuarios de Au
   const r = await eliminarClienteCon({ sb, anotar, actor }, { clienteId: "c1", confirmacion: "  prueba REAL " });
   assert.equal(r.ok, true);
   const i = (pref) => sb.ops.findIndex((o) => o.startsWith(pref));
-  for (const hijo of ["recolecciones:delete", "solicitudes_recoleccion:delete", "movimientos_saldo:delete", "precios:delete", "domicilios:delete", "auth:delete:u1"]) {
+  for (const hijo of ["solicitudes_recoleccion:delete", "movimientos_saldo:delete", "precios:delete", "domicilios:delete", "auth:delete:u1"]) {
     assert.ok(i(hijo) >= 0, `falta ${hijo}`);
     assert.ok(i(hijo) < i("clientes:delete"), `${hijo} va antes que la empresa`);
   }
@@ -123,4 +123,46 @@ test("editar: solo campos permitidos, y si queda completo pasa de pendiente-info
   assert.equal(r.ok, true);
   assert.equal(r.cambios.estado, "activo");
   assert.equal(r.cambios.folio, undefined);
+});
+
+// ---- Revisión final de la Entrega 1 ----
+test("revisión: pasar de suspendido a activo NO toca el acceso de nadie", async () => {
+  const sb = falso({ clientes: [{ id: "c1", estado: "suspendido", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }] });
+  const r = await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "activo", motivo: "" });
+  assert.equal(r.ok, true);
+  assert.ok(!sb.ops.some((o) => o.startsWith("auth:")), "suspendido nunca bloqueó a nadie");
+});
+
+test("revisión: reactivar una baja desbloquea SOLO a los que bloqueó la baja", async () => {
+  const sb = falso({
+    clientes: [{ id: "c1", estado: "baja", folio: "MOR-1", empresa: "Uno", bloqueados_por_baja: ["u1"] }],
+    perfiles: [{ id: "u1" }, { id: "u2" }],
+  });
+  const r = await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "activo", motivo: "" });
+  assert.equal(r.ok, true);
+  assert.ok(sb.ops.includes("auth:update:u1:none"));
+  assert.ok(!sb.ops.includes("auth:update:u2:none"), "u2 ya no tenía acceso antes de la baja");
+});
+
+test("revisión: la baja bloquea solo a los usuarios CLIENTE que estaban activos, y lo anota", async () => {
+  const sb = falso({ clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }] });
+  await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "baja", motivo: "x" });
+  assert.ok(sb.ops.some((o) => o.startsWith("perfiles:select") && o.includes("rol=cliente") && o.includes("activo=true")));
+});
+
+test("revisión: los efectos van ANTES de guardar el estado (si fallan, se puede reintentar)", async () => {
+  const sb = falso({ clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }], domicilios: [{ id: "d1" }] });
+  await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "baja", motivo: "x" });
+  const i = (p) => sb.ops.findIndex((o) => o.startsWith(p));
+  const estado = sb.ops.lastIndexOf("clientes:update[id=c1]");
+  for (const e of ["auth:update", "suscripciones:update", "solicitudes_recoleccion:update", "contenedores:update"]) {
+    assert.ok(i(e) >= 0 && i(e) < estado, `${e} va antes del estado`);
+  }
+});
+
+test("revisión: eliminar NO borra perfiles del personal y no usa listas gigantes de ids", async () => {
+  const sb = falso({ clientes: [{ id: "c1", folio: "MOR-1", empresa: "X" }], solicitudes_recoleccion: [{ id: "s1" }], perfiles: [{ id: "u1" }] });
+  await eliminarClienteCon({ sb, anotar, actor }, { clienteId: "c1", confirmacion: "X" });
+  assert.ok(sb.ops.some((o) => o.startsWith("perfiles:select") && o.includes("rol=cliente")));
+  assert.ok(!sb.ops.some((o) => o.startsWith("recolecciones:delete")), "las recolecciones se van en cascada con sus solicitudes");
 });
