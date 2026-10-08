@@ -32,6 +32,9 @@ const ABIERTAS = [
   // falta sesion, y aqui justamente no hay ninguna.
   "/portal/recuperar",
   "/portal/nueva-clave",
+  // Enlace de un solo uso que abre la app (8-oct-2026): quien llega aquí
+  // todavía no tiene sesión en el navegador; la página la crea.
+  "/portal/entrar",
   "/admin/login",
   "/chofer/login",
   "/auth",

@@ -528,7 +528,7 @@ export default function AltaConFirma({ modo = "publico", quien = null, enviarAlt
                       {/* El correo de la cuenta de Google: el servidor lo toma de
                           la sesión, así que aquí sólo se enseña. */}
                       <input id="correo" className="pt-input" type="email" value={datos.correo} readOnly aria-readonly="true" />
-                      <p className="pt-ayuda">Es el de tu cuenta de Google, ya verificado.</p>
+                      <p className="pt-ayuda">Es el de tu cuenta (Google o Apple), ya verificado.</p>
                     </>
                   ) : (
                     <>
@@ -753,7 +753,7 @@ function Exito({ resultado: r, google, acciones }) {
       ? {
           tipo: "correo",
           texto: r.correoConfirmado
-            ? `Te mandamos tu solicitud firmada a ${google ? "tu correo de Google" : "tu correo"}.`
+            ? `Te mandamos tu solicitud firmada a ${google ? "el correo de tu cuenta" : "tu correo"}.`
             : "Te mandamos un correo para confirmar tu solicitud. Ábrelo y toca \"Confirmar mi solicitud\" (el enlace dura 7 días).",
         }
       : r.correo === "fallo"
