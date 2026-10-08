@@ -88,6 +88,17 @@ export async function listarBitacora({ limite = 200, desde } = {}) {
  * administración, no un programador, así que `aplicar_saldo` no sirve.
  */
 export const TEXTO_ACCION = {
+  // Entrega 1 (8-oct-2026): clientes.
+  cliente_suspendido: "Suspendió a un cliente",
+  cliente_baja: "Dio de baja a un cliente",
+  cliente_activo: "Reactivó a un cliente",
+  cliente_editado: "Editó los datos de un cliente",
+  cliente_eliminado: "Eliminó definitivamente a un cliente",
+  reenviar_acceso: "Reenvió el acceso de un usuario de cliente",
+  punto_agregado: "Agregó un punto de recolección",
+  punto_cancelado: "Canceló un punto de recolección",
+  punto_eliminado: "Quitó un punto de recolección",
+  servicio_cambiado: "Cambió un servicio de un punto",
   aplicar_saldo: "Aplicó un depósito al saldo",
   rechazar_saldo: "Rechazó un depósito",
   confirmar_recoleccion: "Confirmó una recolección",
