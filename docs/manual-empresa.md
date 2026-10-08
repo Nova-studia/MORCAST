@@ -630,6 +630,14 @@ se contrata es **el total del mes**; el reparto es cosa suya.
 
 ---
 
+### Si la persona entró con Apple
+
+Al darle **Activar cuenta** a alguien que se registró con **"Continuar con Apple"**, el
+panel **no genera contraseña**: Apple no permite pedírsela. En su lugar dice
+*"Entra con Apple: no necesita contraseña"*, y el botón de WhatsApp le avisa que abra la app
+y toque **"Ya me activaron — revisar"**. A quien entró con Google se le sigue dando su
+contraseña como siempre.
+
 ## Bitácora
 
 Es la respuesta a *"¿quién hizo esto?"*.

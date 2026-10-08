@@ -371,6 +371,41 @@ npx expo start    # y se escanea con Expo Go
 - Si `expo-doctor` se queja del peer `expo-font`, es el mismo caso de siempre:
   `npx expo install expo-font`.
 
+### Desde la 1.1.1 (8-oct-2026)
+
+- **Alta sin contraseña (Apple guía 4).** Quien entra con Apple o Google y no tiene alta
+  cae en `AltaPendiente`. "Completar mi alta" pide `POST /api/app/puente-web`, que con la
+  llave de servicio hace `generateLink({ type: "magiclink" })` para el correo **del token**
+  (nunca uno que mande la app) y devuelve `morcast.mx/portal/entrar?th=…&a=registro`.
+  `/portal/entrar` lo canjea con `verifyOtp` y lleva a `/portal/registro`, con nombre y
+  correo ya puestos y bloqueados. `generateLink` no manda correo; el enlace sirve una vez.
+- **Activación sin contraseña para Apple.** `activarCuentaRegistradaCon` detecta la
+  identidad `apple` (`lib/cuenta-apple.mjs`) y pone rol y `cliente_id` **sin `password`**
+  (`selloDeActivacion`). El panel y la app enseñan "Entra con Apple: no necesita contraseña".
+- **Precios, IVA y Hold desde la web.** Las apps leen `POST /api/app/precios`
+  (`src/precios-servidor.js`, con copia en AsyncStorage). `enHold()` lo decide la web;
+  **sin respuesta ni copia, la app se queda en Hold**. La lógica pura es
+  `src/precios-logica` (espejo de `Web/lib/precios.mjs`, con prueba de espejo). El
+  catálogo de `datos.js` solo lo usa la cuenta de revisión.
+- **Cuentas de revisión** (`clientes.es_prueba`) fuera de los totales y listas del modo
+  administración (`src/cuentas-prueba*`, espejo de la web).
+
+### EAS Update (cambios sin pasar por las tiendas)
+
+- `expo-updates` con `runtimeVersion: { policy: "appVersion" }`: una actualización
+  publicada para la 1.1.1 **solo** le llega a teléfonos con la 1.1.1.
+- La app revisa al abrir y aplica lo nuevo **en la siguiente apertura**.
+- **Publicar** (lo aprueba Luis), desde cada carpeta de app:
+  ```bash
+  eas update --channel production --platform ios      # en "App IOS"
+  eas update --channel production --platform android  # en "App Android"
+  ```
+  Antes: `npm test` y `npx expo export` en esa app.
+- **Regresar:** `eas update:republish` de la actualización anterior (se ve en expo.dev).
+- **Solo JS, textos e imágenes.** Permisos, ícono, cambiar de SDK o agregar módulos
+  nativos van por tienda (subir `version` en `app.json`, que cambia el runtime).
+- Plan gratis de Expo: 1,000 usuarios activos al mes.
+
 ### Publicar en las tiendas
 
 Todo el material está en **`docs/tiendas/`**, y la guía de arriba a abajo es
