@@ -181,3 +181,49 @@ test("un cliente ya ligado a OTRA empresa no se relig sin que alguien lo mire", 
     { puede: false, motivo: "otra-empresa", clienteIdAjeno: CLIENTE_B }
   );
 });
+
+// ---- Entrega 1 (8-oct-2026): estados con efecto real ----
+import { permisosDeEstado, validarCambioEstado, resumenBorrado, puedeEliminarCliente, AVISO_SUSPENDIDO } from "../lib/estado-cliente.mjs";
+
+test("qué puede hacer cada estado", () => {
+  assert.deepEqual(permisosDeEstado("activo"), { entra: true, puedeOperar: true, puedePagar: true, aviso: null });
+  assert.deepEqual(permisosDeEstado("pendiente-info"), { entra: true, puedeOperar: true, puedePagar: true, aviso: null });
+  const s = permisosDeEstado("suspendido");
+  assert.equal(s.entra, true); assert.equal(s.puedeOperar, false); assert.equal(s.puedePagar, true);
+  assert.equal(s.aviso, AVISO_SUSPENDIDO);
+  const b = permisosDeEstado("baja");
+  assert.equal(b.entra, false); assert.equal(b.puedeOperar, false); assert.equal(b.puedePagar, false);
+  assert.match(b.aviso, /dada de baja/);
+});
+
+test("el aviso de suspendido es el que pidió Luis", () => {
+  assert.match(AVISO_SUSPENDIDO, /Tu cuenta está suspendida\. Contáctanos para restablecerla\./);
+});
+
+test("validarCambioEstado: motivo obligatorio para suspender o dar de baja", () => {
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "suspendido", motivo: "" }).ok, false);
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "suspendido", motivo: "Adeudo de septiembre" }).ok, true);
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "baja", motivo: "  " }).ok, false);
+  assert.equal(validarCambioEstado({ actual: "baja", nuevo: "activo", motivo: "" }).ok, true);
+});
+
+test("validarCambioEstado: no se repite el mismo estado ni se pasa a pendiente-info a mano", () => {
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "activo", motivo: "x" }).ok, false);
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "pendiente-info", motivo: "x" }).ok, false);
+  assert.equal(validarCambioEstado({ actual: "activo", nuevo: "inventado", motivo: "x" }).ok, false);
+});
+
+test("resumenBorrado dice todo lo que se va a borrar", () => {
+  const t = resumenBorrado({ recolecciones: 12, solicitudes: 14, movimientos: 3, montoMovimientos: 4500, precios: 2, puntos: 1, usuarios: 2 });
+  for (const parte of ["12 recolecciones", "14 solicitudes", "3 movimientos", "$4,500.00", "2 precios especiales", "1 punto", "2 usuarios"]) {
+    assert.ok(t.includes(parte), `${parte} en: ${t}`);
+  }
+  assert.equal(resumenBorrado({}), "No tiene historial: solo se borra la empresa.");
+});
+
+test("puedeEliminarCliente: el dueño o quien tenga el permiso", () => {
+  assert.equal(puedeEliminarCliente({ rol: "dueno" }), true);
+  assert.equal(puedeEliminarCliente({ rol: "admin", permisos: ["eliminar_clientes"] }), true);
+  assert.equal(puedeEliminarCliente({ rol: "admin", permisos: ["precios"] }), false);
+  assert.equal(puedeEliminarCliente({ rol: "cliente", permisos: ["eliminar_clientes"] }), false);
+});

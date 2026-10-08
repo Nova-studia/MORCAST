@@ -161,3 +161,55 @@ export function puedeSellarUsuarioExistente(perfilAjeno, clienteId) {
 
   return { puede: true };
 }
+
+/* =====================================================================
+ * ESTADOS CON EFECTO REAL (Entrega 1, 8-oct-2026). Hasta aquí el estado
+ * solo se pintaba; desde la 028 la base también lo respeta:
+ *   · suspendido: entra y ve, pero SOLO puede reportar depósitos
+ *     (la causa típica es la falta de pago). Aviso rojo fijo arriba.
+ *   · baja: no entra.
+ * ===================================================================== */
+
+export const AVISO_SUSPENDIDO = "Tu cuenta está suspendida. Contáctanos para restablecerla.";
+export const AVISO_BAJA = "Tu cuenta fue dada de baja. Comunícate con Morcast al 868 384 9478.";
+
+export function permisosDeEstado(estado) {
+  if (estado === "suspendido") return { entra: true, puedeOperar: false, puedePagar: true, aviso: AVISO_SUSPENDIDO };
+  if (estado === "baja") return { entra: false, puedeOperar: false, puedePagar: false, aviso: AVISO_BAJA };
+  return { entra: true, puedeOperar: true, puedePagar: true, aviso: null };
+}
+
+const A_MANO = ["activo", "suspendido", "baja"];
+
+/** ¿Se puede pasar de `actual` a `nuevo`? Suspender o dar de baja pide motivo. */
+export function validarCambioEstado({ actual, nuevo, motivo }) {
+  if (!A_MANO.includes(nuevo)) return { ok: false, motivo: "Ese estado no se pone a mano." };
+  if (nuevo === actual) return { ok: false, motivo: "El cliente ya está en ese estado." };
+  if ((nuevo === "suspendido" || nuevo === "baja") && !String(motivo || "").trim()) {
+    return { ok: false, motivo: "Escribe el motivo: queda en la bitácora." };
+  }
+  return { ok: true };
+}
+
+const pesosMx = (n) =>
+  `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+
+/** Lo que se va a borrar, en palabras, para la confirmación de "Eliminar". */
+export function resumenBorrado(c = {}) {
+  const partes = [];
+  if (c.recolecciones) partes.push(plural(c.recolecciones, "recolección", "recolecciones"));
+  if (c.solicitudes) partes.push(plural(c.solicitudes, "solicitud", "solicitudes"));
+  if (c.movimientos) partes.push(`${plural(c.movimientos, "movimiento", "movimientos")} de saldo por ${pesosMx(c.montoMovimientos)}`);
+  if (c.precios) partes.push(plural(c.precios, "precio especial", "precios especiales"));
+  if (c.puntos) partes.push(plural(c.puntos, "punto", "puntos"));
+  if (c.usuarios) partes.push(plural(c.usuarios, "usuario", "usuarios"));
+  if (!partes.length) return "No tiene historial: solo se borra la empresa.";
+  return `Se borrarán: ${partes.join(", ")}.`;
+}
+
+/** Eliminar definitivamente: el dueño, o un admin al que el dueño le dio el permiso. */
+export function puedeEliminarCliente({ rol, permisos = [] }) {
+  if (rol === "dueno") return true;
+  return rol === "admin" && (permisos || []).includes("eliminar_clientes");
+}
