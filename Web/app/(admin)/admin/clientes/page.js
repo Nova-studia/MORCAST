@@ -47,6 +47,13 @@ export default function ClientesAdmin() {
   // Filtro por sector (db/023): "" = todos, una clave ("A"…) o "ninguno".
   const [sectores, setSectores] = useState([]);
   const [filtroSector, setFiltroSector] = useState("");
+  // Entrega 1 (8-oct-2026): búsqueda y filtro por estado.
+  const [busca, setBusca] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [eliminado, setEliminado] = useState(false);
+  useEffect(() => {
+    try { setEliminado(new URLSearchParams(window.location.search).get("eliminado") === "1"); } catch { /* nada */ }
+  }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -61,10 +68,14 @@ export default function ClientesAdmin() {
 
   // Un cliente está en un sector si alguno de sus puntos cae en él, así que
   // una empresa con plantas en dos sectores sale en los dos filtros.
+  const q = busca.trim().toLowerCase();
   const visibles = lista.filter((c) => {
     const claves = (c.sectores || []).map((s) => s.clave);
-    if (filtroSector === "ninguno") return claves.length === 0;
-    return !filtroSector || claves.includes(filtroSector);
+    if (filtroSector === "ninguno" && claves.length) return false;
+    if (filtroSector && filtroSector !== "ninguno" && !claves.includes(filtroSector)) return false;
+    if (filtroEstado && c.estatus !== filtroEstado) return false;
+    if (q && !`${c.empresa} ${c.id} ${c.contacto} ${c.correo}`.toLowerCase().includes(q)) return false;
+    return true;
   });
   const [alta, setAlta] = useState(false);
   const [form, setForm] = useState({ empresa: "", contacto: "", correo: "", telefono: "", plan: "Por evento" });
@@ -168,7 +179,35 @@ export default function ClientesAdmin() {
       )}
 
       <div className="pt-card">
+        {eliminado && (
+          <p className="pt-nota-demo" role="status" style={{ marginTop: 0 }}>El cliente se eliminó definitivamente.</p>
+        )}
+        {error && (
+          <div className="pt-login-error" role="alert" style={{ marginBottom: "0.8rem" }}>{error}</div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginBottom: "0.9rem" }}>
+          <input
+            className="pt-input"
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar empresa, folio, contacto o correo"
+            aria-label="Buscar cliente"
+            style={{ flex: "1 1 260px", minWidth: 200 }}
+          />
+          <select
+            className="pt-input"
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value)}
+            aria-label="Filtrar por estado"
+            style={{ width: "auto", minWidth: 170 }}
+          >
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option>
+            <option value="pendiente-info">Pendientes por información</option>
+            <option value="suspendido">Suspendidos</option>
+            <option value="baja">Dados de baja</option>
+          </select>
           <label htmlFor="filtro-sector" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Sector</label>
           <select
             id="filtro-sector"
@@ -183,7 +222,7 @@ export default function ClientesAdmin() {
             ))}
             <option value="ninguno">Sin sector</option>
           </select>
-          {filtroSector && (
+          {(filtroSector || filtroEstado || q) && (
             <span style={{ fontSize: "0.84rem", color: "var(--mc-gris)" }}>
               {visibles.length} de {lista.length} clientes
             </span>
@@ -211,10 +250,17 @@ export default function ClientesAdmin() {
               </tr>
             </thead>
             <tbody>
+              {cargando && (
+                <tr><td colSpan={9} className="pt-vacio">Cargando clientes…</td></tr>
+              )}
+              {!cargando && !visibles.length && (q || filtroEstado) && (
+                <tr><td colSpan={9} className="pt-vacio">Ningún cliente coincide con la búsqueda.</td></tr>
+              )}
               {visibles.map((c) => (
                 <tr key={c.id}>
                   <td>
-                    <strong style={{ display: "block" }}>{c.empresa}</strong>
+                    {/* La ficha (Entrega 1): datos, estado, puntos y usuarios. */}
+                    <a href={`/admin/clientes/${c.uuid}`} style={{ display: "block", fontWeight: 700, color: "inherit" }}>{c.empresa}</a>
                     {/* Apple y Google revisan las apps con estas cuentas:
                         se ven aquí, pero no cuentan en totales (db/027). */}
                     {c.esPrueba && <span className="pt-badge prog" style={{ marginBottom: 4, display: "inline-block" }}>Cuenta de revisión</span>}
