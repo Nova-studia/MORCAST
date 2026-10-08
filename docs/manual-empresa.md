@@ -403,6 +403,35 @@ Los planes son: **Contrato anual**, **Contrato mensual** y **Por evento**.
 También puedes dar de alta un cliente a mano desde **Alta de cliente**, sin esperar a
 que llegue por el formulario del sitio.
 
+Arriba de la lista puedes **buscar** por empresa, folio, contacto o correo, y filtrar por
+estado (activos, pendientes por información, suspendidos, dados de baja).
+
+### La ficha del cliente
+
+Toca el **nombre de la empresa** para abrir su ficha. Ahí está todo de ese cliente:
+
+- **Datos:** con **Editar** cambias empresa, contacto, correo, teléfono, RFC, plan, crédito
+  y nota interna. Si le faltaba un dato y se lo pones, pasa solo de "Pendiente por
+  información" a **Activo**.
+- **Puntos de recolección:** **Agregar punto** (nombre, calle, colonia; el pin y la ruta se
+  ajustan después en Rutas), **Pausar / Reanudar** el servicio de un punto, y **Quitar**.
+  Si el punto ya tuvo recolecciones, no se borra: solo se cancela su servicio.
+- **Usuarios con acceso:** quién entra al portal o a la app, con su correo y último acceso.
+  **Reenviar acceso** le manda otro enlace para crear contraseña; **Quitar acceso** lo
+  deja sin entrar (sin tocar a los demás usuarios de esa empresa).
+- **Últimas recolecciones y movimientos.**
+
+### Suspender, dar de baja, reactivar y eliminar
+
+| Botón | Qué pasa |
+|---|---|
+| **Suspender** | El cliente **sí entra**, ve todo, pero **solo puede Agregar saldo** (pensado para falta de pago). Le sale un **aviso rojo** hasta arriba: "Tu cuenta está suspendida. Contáctanos para restablecerla." No puede agendar. Sus servicios se pausan. |
+| **Dar de baja** | **Ya no entra.** Se cancelan sus servicios y sus recolecciones futuras y se liberan sus contenedores. Su historial se conserva. |
+| **Reactivar** | Vuelve a entrar. Sus servicios regresan **en pausa**: revísalos y reanúdalos. |
+| **Eliminar definitivamente** | Solo el **dueño** (o a quien él le dé ese permiso). Te enseña **todo lo que se va a borrar** (recolecciones, saldos, precios, puntos, usuarios) y te pide escribir el nombre de la empresa. **No se puede deshacer.** Si ya es un cliente real con historial, mejor **Dar de baja**. |
+
+Suspender y dar de baja piden un **motivo**, que queda en la Bitácora con quién lo hizo.
+
 ---
 
 ## Saldos de clientes
