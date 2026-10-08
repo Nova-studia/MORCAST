@@ -3,13 +3,16 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Image } from "rea
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton, AvisoPrecios } from "../ui";
-import { CATALOGO_COTIZADOR, IVA, pesos, HAY_DATOS_FISCALES } from "../datos";
+import { CATALOGO_COTIZADOR, pesos, HAY_DATOS_FISCALES } from "../datos";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import ICONOS from "../iconos";
 import { descargarCotizacion, descargarConstancia } from "../pdf";
 import { abrirWhatsApp } from "../whatsapp";
 import { CONDICIONES_COMERCIALES, COBERTURA, HORARIOS, EMPRESA_COTIZACION } from "../cotizacion-datos";
 import { enHold, HOLD } from "../estado-sistema";
+import { usePrecios } from "../precios-servidor";
+import { catalogoDe, lineasDeCotizador, cotizar } from "../precios-logica.mjs";
+import { esCuentaDeMuestra } from "../cuenta-muestra";
 
 export default function Cotizador() {
   const [cant, setCant] = useState({}); // { id: n }
@@ -18,10 +21,21 @@ export default function Cotizador() {
 
   const set = (id, delta) => setCant((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) + delta) }));
 
-  const items = CATALOGO_COTIZADOR.filter((x) => (cant[x.id] || 0) > 0).map((x) => ({ ...x, cant: cant[x.id] }));
-  const subtotal = items.reduce((a, it) => a + it.precio * it.cant, 0);
-  const iva = subtotal * IVA;
-  const total = subtotal + iva;
+  // Precios de la web (8-oct-2026): los del cliente, con su precio especial
+  // si lo tiene; el IVA solo si requiere factura. La cuenta de revisión de
+  // las tiendas es la ÚNICA que usa el catálogo de ejemplo.
+  const precios = usePrecios();
+  const { conceptos, requiereFactura } = catalogoDe({
+    respuesta: precios,
+    esMuestra: esCuentaDeMuestra(),
+    catalogoMuestra: CATALOGO_COTIZADOR,
+  });
+  const iconoDe = Object.fromEntries(CATALOGO_COTIZADOR.map((x) => [x.id, x.icono]));
+  const cuenta = cotizar(lineasDeCotizador(conceptos, cant), { requiereFactura });
+  const items = cuenta.lineas.map((l) => ({
+    id: l.conceptoId, servicio: l.nombre, unidad: l.unidad, precio: l.precio, cant: l.cantidad, importe: l.importe,
+  }));
+  const { subtotal, iva, total } = cuenta;
 
   const bajarCotizacion = async () => {
     if (items.length === 0) return;
@@ -31,7 +45,7 @@ export default function Cotizador() {
       return;
     }
     setBajando("cot");
-    try { await descargarCotizacion(items, empresa); }
+    try { await descargarCotizacion(items, empresa, { requiereFactura }); }
     catch (e) { Alert.alert("Error", String(e?.message || e)); }
     finally { setBajando(""); }
   };
@@ -87,24 +101,29 @@ export default function Cotizador() {
 
       <Tarjeta>
         <TituloTarjeta>Servicios</TituloTarjeta>
-        {CATALOGO_COTIZADOR.map((x, i) => {
+        {conceptos.length === 0 && (
+          <Text style={s.vacio}>Todavía no hay servicios con precio. Escríbenos y te cotizamos.</Text>
+        )}
+        {conceptos.map((x, i) => {
           const n = cant[x.id] || 0;
+          // Sin precio no se cotiza: se dice, no se suma $0.
+          const sinPrecio = x.precio == null;
           return (
-            <View key={x.id} style={[s.item, i < CATALOGO_COTIZADOR.length - 1 && s.borde]}>
-              {x.icono && ICONOS[x.icono] && (
+            <View key={x.id} style={[s.item, i < conceptos.length - 1 && s.borde]}>
+              {iconoDe[x.id] && ICONOS[iconoDe[x.id]] && (
                 <View style={s.iconoCaja}>
-                  <Image source={ICONOS[x.icono]} style={s.icono} resizeMode="contain" />
+                  <Image source={ICONOS[iconoDe[x.id]]} style={s.icono} resizeMode="contain" />
                 </View>
               )}
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={s.itemTit}>{x.servicio}</Text>
-                <Text style={s.itemSub}>{pesos(x.precio)} · {x.unidad}</Text>
+                <Text style={s.itemTit}>{x.nombre}</Text>
+                <Text style={s.itemSub}>{sinPrecio ? "Precio por confirmar" : pesos(x.precio)} · {x.unidad}</Text>
               </View>
-              <View style={s.stepper}>
+              {!sinPrecio && <View style={s.stepper}>
                 <Pressable onPress={() => set(x.id, -1)} style={s.step}><Feather name="minus" size={16} color={n > 0 ? T.tinta : T.grisClaro} /></Pressable>
                 <Text style={s.cant}>{n}</Text>
                 <Pressable onPress={() => set(x.id, 1)} style={s.step}><Feather name="plus" size={16} color={T.accionTxt} /></Pressable>
-              </View>
+              </View>}
             </View>
           );
         })}
@@ -120,12 +139,16 @@ export default function Cotizador() {
             {items.map((it) => (
               <View key={it.id} style={s.resFila}>
                 <Text style={s.resTxt} numberOfLines={1}>{it.cant}× {it.servicio}</Text>
-                <Text style={s.resMonto}>{pesos(it.precio * it.cant)}</Text>
+                <Text style={s.resMonto}>{pesos(it.importe)}</Text>
               </View>
             ))}
             <View style={s.sep} />
             <View style={s.totFila}><Text style={s.totK}>Subtotal</Text><Text style={s.totV}>{pesos(subtotal)}</Text></View>
-            <View style={s.totFila}><Text style={s.totK}>IVA (16%)</Text><Text style={s.totV}>{pesos(iva)}</Text></View>
+            {requiereFactura ? (
+              <View style={s.totFila}><Text style={s.totK}>IVA (16%)</Text><Text style={s.totV}>{pesos(iva)}</Text></View>
+            ) : (
+              <Text style={s.vacio}>Sin IVA: tu cuenta no requiere factura.</Text>
+            )}
             <View style={s.totFila}><Text style={s.totKg}>Total</Text><Text style={s.totVg}>{pesos(total)}</Text></View>
             {/* Junto al total, que es la cifra que el cliente se lleva. */}
             <AvisoPrecios compacto />

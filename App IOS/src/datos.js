@@ -98,6 +98,9 @@ export const RECARGAS = [
 ];
 
 // ---- Cotizador ----
+// ⚠️ SOLO para la cuenta de revisión de las tiendas (cuenta-muestra.js).
+// Desde el 8-oct-2026 los clientes reales ven los precios de la web
+// (/api/app/precios, precios-servidor.js). Estos montos son de ejemplo.
 export const CATALOGO_COTIZADOR = [
   { id: "rsu", servicio: "Recolección de RSU", unidad: "por evento", precio: 2450, icono: "residuos-solidos-urbanos" },
   { id: "esp", servicio: "Residuos de Manejo Especial", unidad: "por evento", precio: 4300, icono: "manejo-especial" },
@@ -113,6 +116,8 @@ export const CATALOGO_COTIZADOR = [
   { id: "reciclaje", servicio: "Recolección de Reciclables", unidad: "por evento", precio: 1500, icono: "reciclaje" },
 ];
 
+// El 16 % de verdad vive en precios-logica (espejo de la web); esto queda
+// por compatibilidad con código viejo.
 export const IVA = 0.16;
 
 // ---- Documentos ----

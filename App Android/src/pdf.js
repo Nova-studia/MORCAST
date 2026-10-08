@@ -1,7 +1,8 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { File, Paths } from "expo-file-system";
-import { pesos, fechaLarga, CONSTANCIA_FISCAL, IVA } from "./datos";
+import { pesos, fechaLarga, CONSTANCIA_FISCAL } from "./datos";
+import { IVA_FACTURA as IVA } from "./precios-logica.js";
 import { haySupabase } from "./supabase";
 import { enHold } from "./estado-sistema";
 import {
@@ -212,9 +213,10 @@ export async function descargarReporteNegocio(titulo, filas) {
   return generar(html, titulo);
 }
 
-export async function descargarCotizacion(items, cliente) {
-  const subtotal = items.reduce((a, it) => a + it.precio * it.cant, 0);
-  const iva = subtotal * IVA;
+export async function descargarCotizacion(items, cliente, { requiereFactura = true } = {}) {
+  // El IVA solo a quien requiere factura (8-oct-2026, igual que la web).
+  const subtotal = items.reduce((a, it) => a + (it.importe ?? it.precio * it.cant), 0);
+  const iva = requiereFactura ? Math.round(subtotal * IVA * 100) / 100 : 0;
   const total = subtotal + iva;
   // Los datos bancarios se imprimen vacíos mientras el cliente no los entregue.
   const t = DATOS_TRANSFERENCIA;
@@ -235,7 +237,7 @@ export async function descargarCotizacion(items, cliente) {
       </table>
       <div style="width:55%; margin-left:45%">
         <div class="tot"><span>Subtotal</span><span>${pesos(subtotal)}</span></div>
-        <div class="tot"><span>IVA (16%)</span><span>${pesos(iva)}</span></div>
+        ${requiereFactura ? `<div class="tot"><span>IVA (16%)</span><span>${pesos(iva)}</span></div>` : ""}
         <div class="tot g"><span>Total</span><span>${pesos(total)}</span></div>
       </div>
       ${avisoPrecios}
