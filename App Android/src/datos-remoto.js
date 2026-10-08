@@ -1,3 +1,8 @@
+import { sinPruebasEnConsulta } from "./cuentas-prueba.js";
+import { idsCuentasPrueba } from "./cuentas-prueba-datos";
+
+/** Lista para `.not("cliente_id","in", …)`; vacía → un id que no existe. */
+const listaIn = (ids) => `(${[...(ids || [])].join(",") || "00000000-0000-0000-0000-000000000000"})`;
 import { File } from "expo-file-system";
 import { supabase, haySupabase } from "./supabase";
 import { postApp } from "./api-web";
@@ -482,6 +487,7 @@ export async function listarMovimientos() {
   const { data, error } = await supabase
     .from("movimientos_saldo")
     .select("id, folio, tipo, concepto, monto, estado, fecha, banco, referencia, comprobante, comprobante_nombre, notas, clientes ( folio, empresa )")
+    .not("cliente_id", "in", listaIn(await idsCuentasPrueba()))
     .order("fecha", { ascending: false });
 
   if (error) return [];
@@ -1193,7 +1199,7 @@ export async function listarClientes() {
   if (!haySupabase()) return [];
 
   const [{ data: clientes, error }, { data: saldos }] = await Promise.all([
-    supabase.from("clientes").select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde").order("empresa"),
+    supabase.from("clientes").select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde").eq("es_prueba", false).order("empresa"),
     supabase.from("saldos_clientes").select("cliente_id, saldo, cargos"),
   ]);
 
@@ -1252,7 +1258,7 @@ export async function listarCotizaciones() {
 }
 
 /** Solicitudes de recolección para la bandeja del admin. */
-export async function listarSolicitudesRecoleccion() {
+export async function listarSolicitudesRecoleccion({ sinPruebas = false } = {}) {
   if (!haySupabase()) return [];
 
   const { data, error } = await supabase
@@ -1269,6 +1275,7 @@ export async function listarSolicitudesRecoleccion() {
       choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre ),
       recolecciones ( operador:perfiles!recolecciones_operador_id_fkey ( nombre ) )
     `)
+    .not("cliente_id", "in", listaIn(sinPruebas ? await idsCuentasPrueba() : null))
     .order("fecha_pedida", { ascending: false });
 
   if (error) return [];
@@ -1538,11 +1545,13 @@ export async function kpisAdmin() {
   const hoy = new Date();
   const primeroDeMes = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-01";
 
+  // Las cuentas de revisión de Apple/Google NO cuentan (db/027, 8-oct-2026).
+  const prueba = await idsCuentasPrueba();
   const [clientes, cotizaciones, servicios, saldos] = await Promise.all([
-    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
+    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").eq("es_prueba", false),
     supabase.from("cotizaciones").select("id", { count: "exact", head: true }).eq("estado", "nueva"),
-    supabase.from("solicitudes_recoleccion").select("id", { count: "exact", head: true }).gte("fecha_pedida", primeroDeMes),
-    supabase.from("saldos_clientes").select("cargos, saldo"),
+    sinPruebasEnConsulta(supabase.from("solicitudes_recoleccion").select("id", { count: "exact", head: true }), prueba).gte("fecha_pedida", primeroDeMes),
+    sinPruebasEnConsulta(supabase.from("saldos_clientes").select("cargos, saldo"), prueba),
   ]);
 
   const porCobrar = (saldos.data || []).reduce((t, x) => t + Number(x.cargos || 0), 0);
@@ -1585,6 +1594,7 @@ export async function cobranza12Meses() {
   const { data, error } = await supabase
     .from("movimientos_saldo")
     .select("fecha, monto, tipo, estado")
+    .not("cliente_id", "in", listaIn(await idsCuentasPrueba()))
     .eq("tipo", "abono")
     .eq("estado", "aplicada")
     .gte("fecha", primerDia);
@@ -1630,7 +1640,7 @@ function conFirmaReal(evidencia, operador) {
 
 export async function agendaServicios() {
   const [solicitudes, servicios] = await Promise.all([
-    listarSolicitudesRecoleccion(),
+    listarSolicitudesRecoleccion({ sinPruebas: true }),
     misServicios(),
   ]);
   const evidenciaPorFolio = Object.fromEntries(

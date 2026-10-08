@@ -36,6 +36,7 @@ import { rutaDelDia, cerrarRecoleccion, avisarParada } from "./src/datos-remoto"
 import { sesionActiva, sesionPendiente, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
 import { iniciarPrecios, cargarPrecios, olvidarPrecios, usePrecios } from "./src/precios-servidor";
+import { olvidarCuentasPrueba } from "./src/cuentas-prueba-datos";
 import { enHold } from "./src/estado-sistema";
 // Admin
 import LoginAdmin from "./src/pantallas/admin/LoginAdmin";
@@ -496,6 +497,7 @@ export default function App() {
 
   const salir = async () => {
     await olvidarPrecios();
+    olvidarCuentasPrueba();
     await salirDeSesion();
     setSesion(null);
   };

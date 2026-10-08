@@ -139,7 +139,7 @@ export const archivosAlta = (solicitudId) =>
 export async function listarClientesAdmin() {
   if (!haySupabase()) return [];
   const [{ data: clientes, error }, { data: saldos }, { data: conAcceso }, { data: puntosConSector }] = await Promise.all([
-    supabase.from("clientes").select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde").order("empresa"),
+    supabase.from("clientes").select("id, folio, empresa, contacto, correo, telefono, plan, estado, desde, es_prueba").order("empresa"),
     supabase.from("saldos_clientes").select("cliente_id, saldo, cargos"),
     supabase.from("perfiles").select("cliente_id").not("cliente_id", "is", null),
     supabase.from("domicilios").select("cliente_id, sectores ( clave, nombre, color )").not("sector_id", "is", null),
@@ -174,6 +174,8 @@ function clienteAPantalla(c, { saldo, tieneAcceso = false, sectores = [] } = {})
     saldo: Number(saldo?.saldo ?? 0),
     porPagar: Number(saldo?.cargos ?? 0),
     tieneAcceso,
+    // Cuenta de revisión de Apple/Google (db/027): se ve con etiqueta.
+    esPrueba: c.es_prueba === true,
     sectores,
   };
 }

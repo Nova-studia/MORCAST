@@ -1,3 +1,4 @@
+import { idsCuentasPrueba } from "./cuentas-prueba-datos";
 import { supabase, haySupabase } from "./supabase";
 import { postAdmin } from "./api-admin";
 import { rangoDelDia } from "./bitacora-vista.mjs";
@@ -193,6 +194,8 @@ export async function reportesNegocio() {
     supabase
       .from("solicitudes_recoleccion")
       .select("fecha_pedida, fecha_confirmada, rutas ( tipo ), recolecciones ( peso_kg, peso_real_kg, viaje_id )")
+      // Sin las cuentas de revisión de Apple/Google (db/027, 8-oct-2026).
+      .not("cliente_id", "in", `(${[...(await idsCuentasPrueba())].join(",") || "00000000-0000-0000-0000-000000000000"})`)
       .eq("estado", "completada"),
     supabase.from("viajes_relleno").select("id, fecha, peso_real_kg"),
     supabase.from("cotizaciones").select("id, estado"),

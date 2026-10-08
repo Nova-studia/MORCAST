@@ -1,3 +1,4 @@
+import { idsCuentasPrueba } from "./cuentas-prueba-datos";
 import { supabase, haySupabase } from "./supabase";
 import { postAdmin } from "./api-admin";
 
@@ -81,6 +82,8 @@ export async function listarRecoleccionesOficina() {
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
     .select(CAMPOS_RECOLECCION)
+    // Sin las cuentas de revisión de Apple/Google (db/027, 8-oct-2026).
+    .not("cliente_id", "in", `(${[...(await idsCuentasPrueba())].join(",") || "00000000-0000-0000-0000-000000000000"})`)
     .order("fecha_pedida", { ascending: false })
     .limit(500);
   if (error) {

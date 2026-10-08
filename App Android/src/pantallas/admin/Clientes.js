@@ -197,6 +197,9 @@ export default function Clientes({ navigation }) {
                     {(c.sectores || []).map((x) => <InsigniaSector key={x.clave} sector={x} />)}
                   </View>
                   <Text style={e.titulo}>{c.empresa}</Text>
+                  {/* Apple y Google revisan las apps con estas cuentas: se ven,
+                      pero no cuentan en totales (db/027). */}
+                  {c.esPrueba ? <Badge clase="prog">Cuenta de revisión</Badge> : null}
                   <Text style={e.linea} numberOfLines={1}>{[c.contacto, c.plan].filter(Boolean).join(" · ")}</Text>
                   {!enHold() && (
                     <Text style={s.saldos}>Saldo {pesos(c.saldo)} · Por pagar {c.porPagar ? pesos(c.porPagar) : "—"}</Text>
