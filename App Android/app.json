@@ -83,9 +83,7 @@
       }
     },
     "owner": "morcastmx",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.1.1",
     "updates": {
       "url": "https://u.expo.dev/52f57e01-9209-404a-bb45-f25bab58f105",
       "checkAutomatically": "ON_LOAD",
