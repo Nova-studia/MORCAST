@@ -1,5 +1,6 @@
 import { postWeb } from "./api-web";
-import { abrirEnNavegador, URL_PORTAL_LOGIN } from "./enlaces-web";
+import { abrirEnNavegador } from "./enlaces-web";
+import { resultadoPuente } from "./puente-logica.mjs";
 
 /**
  * "COMPLETAR MI ALTA" SIN CONTRASEÑA (8-oct-2026, Apple guía 4).
@@ -9,15 +10,13 @@ import { abrirEnNavegador, URL_PORTAL_LOGIN } from "./enlaces-web";
  * misma cuenta y enseña el alta con nombre y correo ya puestos. Así quien
  * entró con Apple (o Google) nunca escribe nombre, correo ni contraseña.
  *
- * Si el enlace no sale (sin señal, servidor caído), se abre el login de la
- * web como antes y se devuelve el motivo para enseñarlo.
+ * Si el enlace no sale (sin señal, servidor caído) NO se abre nada: se
+ * devuelve el motivo para enseñarlo y que vuelva a tocar el botón
+ * (puente-logica). El login de la web pediría contraseña.
  */
 export async function abrirAltaEnWeb() {
-  const r = await postWeb("/api/app/puente-web", { a: "registro" });
-  if (r?.ok && typeof r.url === "string" && r.url.startsWith("https://")) {
-    await abrirEnNavegador(r.url);
-    return { ok: true };
-  }
-  await abrirEnNavegador(URL_PORTAL_LOGIN);
-  return { ok: false, motivo: r?.motivo || "No se pudo abrir tu alta. Inténtalo otra vez." };
+  const r = resultadoPuente(await postWeb("/api/app/puente-web", { a: "registro" }));
+  if (!r.abrir) return { ok: false, motivo: r.motivo };
+  await abrirEnNavegador(r.abrir);
+  return { ok: true };
 }

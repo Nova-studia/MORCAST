@@ -220,6 +220,9 @@ export async function cerrarSesion() {
     localStorage.removeItem(LLAVE_DEMO);
   }
   if (haySupabaseNavegador()) {
-    await supabaseNavegador().auth.signOut();
+    // Solo ESTE navegador (8-oct-2026): quien llegó desde la app por el
+    // puente tiene la misma cuenta en el teléfono, y salir aquí no debe
+    // sacarlo de la app.
+    await supabaseNavegador().auth.signOut({ scope: "local" });
   }
 }

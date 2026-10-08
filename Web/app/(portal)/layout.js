@@ -23,6 +23,9 @@ export default function PortalLayout({ children }) {
     "/portal/pendiente",
     "/portal/recuperar",
     "/portal/nueva-clave",
+    // El puente de la app (8-oct-2026): quien llega aún no tiene sesión en
+    // el navegador. Con el shell, lo mandaría al login con contraseña.
+    "/portal/entrar",
   ];
   if (SIN_SHELL.includes(ruta)) {
     return <div className="pt-body">{children}</div>;

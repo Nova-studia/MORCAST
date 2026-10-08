@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreDeCuenta } from "@/lib/cuenta-apple.mjs";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -39,7 +40,8 @@ export default function RegistroPortal() {
         return;
       }
       setQuien({
-        nombre: user.user_metadata?.full_name || user.user_metadata?.name || "",
+        // Google: full_name/name; Apple (desde la app): full_name/nombre.
+        nombre: nombreDeCuenta(user.user_metadata),
         correo: user.email || "",
       });
     });

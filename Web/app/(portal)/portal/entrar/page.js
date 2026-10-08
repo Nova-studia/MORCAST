@@ -62,8 +62,11 @@ export default function EntrarDesdeLaApp() {
       const supabase = supabaseNavegador();
       // Si en este navegador había otra cuenta abierta, se cierra primero:
       // el enlace es de quien viene de la app, no de quien estaba aquí.
+      // SOLO en este navegador (`local`): el `signOut()` normal cierra la
+      // cuenta en TODOS lados, app incluida, y un enlace cualquiera bastaría
+      // para sacar a alguien de todas sus sesiones.
       const { data: { session: previa } } = await supabase.auth.getSession();
-      if (previa) await supabase.auth.signOut();
+      if (previa) await supabase.auth.signOut({ scope: "local" });
 
       const { error } = await supabase.auth.verifyOtp({ token_hash: th, type: "magiclink" });
       if (!vivo) return;

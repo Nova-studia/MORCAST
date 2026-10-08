@@ -25,3 +25,13 @@ export function selloDeActivacion({ apple, password, clienteId }) {
   }
   return { ok: true, cambios: { password: String(password), app_metadata } };
 }
+
+/**
+ * El nombre de la cuenta, venga de donde venga: Google lo guarda en
+ * `full_name`/`name`; la app guarda el que da Apple en `full_name` y `nombre`.
+ * Así el alta lo trae puesto y nadie que entró con Apple lo vuelve a escribir.
+ */
+export function nombreDeCuenta(meta) {
+  const m = meta || {};
+  return String(m.full_name || m.name || m.nombre || "").trim();
+}
