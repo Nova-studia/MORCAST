@@ -35,6 +35,8 @@ import { RUTA_HOY } from "./src/datos-chofer";
 import { rutaDelDia, cerrarRecoleccion, avisarParada } from "./src/datos-remoto";
 import { sesionActiva, sesionPendiente, salir as salirDeSesion } from "./src/sesion";
 import { haySupabase } from "./src/supabase";
+import { iniciarPrecios, cargarPrecios, olvidarPrecios, usePrecios } from "./src/precios-servidor";
+import { enHold } from "./src/estado-sistema";
 // Notificaciones push (1.1)
 import { prepararNotificaciones, escucharToques, escucharLlegadas } from "./src/push";
 import { destinoDeNotificacion } from "./src/push-destino.js";
@@ -481,7 +483,23 @@ export default function App() {
     return () => { vivo = false; clearTimeout(salvavidas); };
   }, []);
 
+  // Precios, IVA y Hold desde la web (8-oct-2026): la copia guardada al
+  // abrir, y se piden al tener sesión de cliente o admin y al volver al frente.
+  usePrecios(); // re-pinta cuando cambian
+  useEffect(() => { iniciarPrecios(); }, []);
+  useEffect(() => {
+    if (sesion !== "cliente" && sesion !== "admin") return undefined;
+    cargarPrecios().catch(() => {});
+    let estadoApp = AppState.currentState;
+    const sub = AppState.addEventListener("change", (nuevo) => {
+      if (estadoApp !== "active" && nuevo === "active") cargarPrecios().catch(() => {});
+      estadoApp = nuevo;
+    });
+    return () => sub.remove();
+  }, [sesion]);
+
   const salir = async () => {
+    await olvidarPrecios();
     await salirDeSesion();
     setAdminListo(false);
     setSesion(null);
@@ -514,7 +532,9 @@ export default function App() {
             <AltaPendiente onActivo={(modo) => setSesion(modo)} onSalir={salir} />
           </SafeAreaView>
         ) : sesion === "cliente" ? (
-          <AppCliente onLogout={salir} />
+          // `key`: si la web apaga o prende el Hold, las pantallas del
+          // cliente se vuelven a armar con el estado nuevo.
+          <AppCliente key={enHold() ? "hold" : "precios"} onLogout={salir} />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
             <AuthFlow onEntrar={(modo) => setSesion(modo)} onAdmin={() => setSesion("admin")} onChofer={() => setSesion("chofer")} />

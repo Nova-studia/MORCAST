@@ -20,6 +20,8 @@
  * Por eso vive en un archivo y no en un botón del panel — el botón daría una
  * libertad que en realidad no existe.
  */
+import { decidirHold } from "./precios-logica.mjs";
+import { respuestaPrecios } from "./precios-servidor";
 import { esCuentaDeMuestra } from "./cuenta-muestra";
 
 export const HOLD = {
@@ -39,8 +41,17 @@ export const HOLD = {
  * (ver `cuenta-muestra.js`): para ella el Hold no aplica y ve montos de
  * muestra. `HOLD.activo` NO se toca — para todos los demás sigue igual.
  */
+/**
+ * Desde el 8-oct-2026 el Hold lo decide la WEB (/api/app/precios), igual
+ * que los precios. `HOLD.activo` solo cuenta mientras la app todavía no
+ * tiene respuesta ni copia guardada: así, sin datos, se queda en Hold.
+ */
 export function enHold() {
-  return HOLD.activo === true && !esCuentaDeMuestra();
+  return decidirHold({
+    respuesta: respuestaPrecios(),
+    holdLocal: HOLD.activo === true,
+    esMuestra: esCuentaDeMuestra(),
+  });
 }
 
 /**

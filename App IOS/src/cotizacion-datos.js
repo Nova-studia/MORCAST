@@ -73,7 +73,7 @@ export const CONDICIONES_COMERCIALES = {
   diasCredito: 45,
   diasVigencia: 30,
   lista: [
-    "Los precios no incluyen IVA. Se aplica el 16% sobre el subtotal.",
+    "Los precios no incluyen IVA. A quien requiere factura se le suma el 16% sobre el subtotal.",
     "45 días de crédito.",
     "Esta cotización tiene una vigencia de 30 días naturales.",
     "Maniobras: se solicita un área específica para la instalación de lo solicitado.",
