@@ -24,8 +24,8 @@ clientes sin SQL.
 |---|---|---|
 | `pendiente-info` | Le falta un dato | Opera normal (como hoy) |
 | `activo` | Normal | — |
-| `suspendido` | Temporal (adeudo, pausa) | Sus usuarios **no entran** (portal, app, chofer no aplica): ven "Tu cuenta está suspendida, comunícate con Morcast" y su teléfono. **No puede pedir** recolecciones (también en la base). Sus servicios se **pausan**. Las paradas futuras **no** se tocan; la oficina decide. |
-| `baja` | Dejó de ser cliente | Lo de suspendido, más: servicios **cancelados**, solicitudes futuras **canceladas** (con aviso al chofer si ya estaban asignadas), contenedores **liberados**, tokens de notificaciones borrados. Sale de las listas de operación (rutas, agenda, puntos). Su historial **se conserva**. |
+| `suspendido` | Temporal (adeudo, pausa) | Sus usuarios **sí entran**, pero en **solo lectura**: ven todo, con un aviso fijo "Tu cuenta está suspendida, comunícate con Morcast" y su teléfono. **Lo único que pueden hacer es Agregar saldo** (reportar un depósito), porque la causa típica es la falta de pago. **No pueden** agendar, cancelar, reagendar ni cambiar datos (también en la base). Sus servicios se **pausan**. Las paradas futuras **no** se tocan; la oficina decide. (Decisión de Luis, 8-oct.) |
+| `baja` | Dejó de ser cliente | Sus usuarios **no entran** (ven "Tu cuenta fue dada de baja, comunícate con Morcast"). Además: servicios **cancelados**, solicitudes futuras **canceladas** (con aviso al chofer si ya estaban asignadas), contenedores **liberados**, tokens de notificaciones borrados. Sale de las listas de operación (rutas, agenda, puntos). Su historial **se conserva**. |
 | Reactivar | Volver a `activo` | Le regresa el acceso. Sus servicios vuelven como **pausados** para que la oficina los revise. |
 
 - Cada cambio pide **motivo** y guarda fecha y quién (columnas `estado_motivo`, `estado_fecha`,
@@ -35,18 +35,21 @@ clientes sin SQL.
 
 ### Eliminar definitivamente
 
-- **Solo el dueño**, con el código por correo y escribiendo el nombre de la empresa para confirmar.
-- **Solo si no tiene historial:** sin recolecciones hechas, sin movimientos de saldo y sin precios
-  especiales. Si tiene historial, la pantalla dice "Tiene historial: se da de baja" y ofrece "Dar de baja".
-  - Razón: retención ambiental y fiscal.
-  - "Prueba real", si nunca tuvo servicios, se puede borrar del todo.
-- **Qué borra:** sus usuarios (Auth y perfiles), sus archivos (comprobantes y evidencias), sus puntos y
-  servicios, y la empresa. Antes guarda una **foto** en la bitácora.
+- **El dueño, y a quien el dueño le dé el permiso `eliminar_clientes`** (decisión de Luis, 8-oct),
+  con el código por correo y escribiendo el nombre de la empresa para confirmar.
+- **Se puede eliminar aunque tenga historial** (Luis, 8-oct: "aún estamos en prueba"). Antes de
+  confirmar, la pantalla enseña **todo lo que se va a borrar** (N recolecciones, N movimientos por $X,
+  N precios especiales, N puntos, N usuarios) y recomienda "Dar de baja" cuando hay historial, por la
+  retención ambiental y fiscal.
+- **Qué borra, en orden y desde el servidor:** sus recolecciones y solicitudes, sus movimientos de
+  saldo, sus precios especiales, sus avisos, sus usuarios (Auth y perfiles), sus archivos (comprobantes y
+  evidencias), sus puntos y servicios, y la empresa. Antes guarda una **foto** en la bitácora.
 - **En la base (028):**
   - El `DELETE` de `clientes` queda **solo para el dueño**: se parte la política `clientes_personal`.
   - Las llaves de `movimientos_saldo`, `precios` y `solicitudes_recoleccion` pasan a **`restrict`**: la
     base ya no puede borrar dinero ni precios en cascada.
-  - Por eso el borrado definitivo lo hace el servidor, en orden.
+  - Por eso el borrado definitivo lo hace el servidor, en orden. El `restrict` NO impide borrar: impide
+    que un borrado **accidental** (o por API) se lleve el dinero sin que nadie lo vea.
 
 ### Ficha del cliente (`/admin/clientes/[id]`)
 
@@ -69,9 +72,13 @@ clientes sin SQL.
 ### En la base (028)
 
 - `mi_cliente_activo()`: devuelve `true` si la empresa de la sesión está `activo` o `pendiente-info`.
-- La política `solicitudes_pide_el_cliente` exige `mi_cliente_activo()`.
-- `usuarioActual()` (web) y `autenticarApp()` (apps) rechazan a un cliente cuya empresa no está activa,
-  con el motivo "Tu cuenta está suspendida o dada de baja. Comunícate con Morcast al 868 384 9478."
+- Las políticas con las que el cliente **escribe** (pedir y cambiar solicitudes, cambiar sus datos)
+  exigen `mi_cliente_activo()`. **Reportar un depósito** (`movimientos_saldo` abono por verificar) se
+  permite también `suspendido`.
+- `usuarioActual()` (web) y `autenticarApp()` (apps) rechazan solo a un cliente **dado de baja**, con el
+  motivo "Tu cuenta fue dada de baja. Comunícate con Morcast al 868 384 9478." Al suspendido lo dejan
+  entrar y marcan la sesión `suspendido: true` para que las pantallas muestren el aviso y escondan los
+  botones.
 - `filaClienteNuevo` respeta `pendiente-info` cuando faltan datos, como dice su comentario.
 
 ---
@@ -90,6 +97,7 @@ mientras llega el organigrama.
 - **Permisos = secciones del panel:** `panel`, `rutas`, `recolecciones`, `incidentes`, `avisos`,
   `unidades`, `contenedores`, `zonas`, `solicitudes`, `altas`, `empleo`, `clientes`, `saldos`, `precios`,
   `servicios`, `reportes`, `usuarios`, `bitacora`.
+  - `eliminar_clientes`: borrar un cliente definitivamente (Entrega 1).
   - `saldos` deja **registrar** depósitos; **aplicarlos** sigue siendo solo del dueño, como hoy.
 - `tiene_permiso(p)`:
   - el dueño, siempre;
