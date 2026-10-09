@@ -64,3 +64,20 @@ test("revisión: el pase del puente queda amarrado a SU enlace (otro enlace no l
   assert.notEqual(a, await marcaPuente("token-b"));
   assert.equal(a, await marcaPuente("token-a"));
 });
+
+// Revisión iOS 9-oct: la cuenta de muestra de Apple no cambia datos tampoco
+// en el servidor (la app ya lo evita, pero si el perfil no se leyó…).
+test("la cuenta de muestra no escribe por las acciones de la app", async () => {
+  const { bloqueadaParaMuestra } = await import("../lib/app-acciones-mapa.mjs");
+  const muestra = { app_metadata: { demo: true } };
+  for (const n of ["cliente-guardar", "solicitud-cambiar", "cuenta-contrasena"]) assert.equal(bloqueadaParaMuestra(n, muestra), true, n);
+  assert.equal(bloqueadaParaMuestra("cliente-cuenta", muestra), false);
+  assert.equal(bloqueadaParaMuestra("cliente-guardar", { app_metadata: {} }), false);
+  assert.equal(bloqueadaParaMuestra("cliente-guardar", null), false);
+  // Que ninguna acción nueva que escriba en zona cliente/cuenta se escape.
+  const { ACCIONES_APP } = await import("../lib/app-acciones-mapa.mjs");
+  const lee = new Set(["cliente-cuenta"]);
+  for (const [n, d] of Object.entries(ACCIONES_APP)) {
+    if (d.zona !== "admin" && !lee.has(n)) assert.equal(bloqueadaParaMuestra(n, muestra), true, n);
+  }
+});

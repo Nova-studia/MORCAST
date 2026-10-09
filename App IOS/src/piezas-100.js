@@ -9,6 +9,7 @@ import { AVISO_SUSPENDIDO } from "./web/estado-cliente.mjs";
 import { useEstadoCliente } from "./estado-cliente-app";
 import { useMisPermisos, cargarMisPermisos } from "./mis-permisos";
 import { puedeVer } from "./permisos-app.mjs";
+import { textoFallo } from "./resultado";
 
 /**
  * PIEZAS DE "APPS AL 100%" (9-oct-2026): lo que varias pantallas nuevas
@@ -136,8 +137,8 @@ export function Fallo({ fallo, onReintentar, style }) {
     <View style={[s.fallo, style]} accessibilityRole="alert" accessibilityLiveRegion="polite">
       <Feather name={fallo.sinRed ? "wifi-off" : "alert-circle"} size={15} color={T.error} style={{ marginTop: 1 }} />
       <View style={{ flex: 1 }}>
-        <Text style={s.falloTxt}>{fallo.sinRed ? "Sin conexión. " : ""}{fallo.motivo}</Text>
-        {fallo.sinRed && onReintentar ? (
+        <Text style={s.falloTxt}>{textoFallo(fallo)}</Text>
+        {(fallo.sinRed || fallo.reintentar) && onReintentar ? (
           <Pressable onPress={onReintentar} style={s.reintentar} accessibilityRole="button" hitSlop={6}>
             <Feather name="refresh-cw" size={14} color={T.tinta} />
             <Text style={s.reintentarTxt}>Reintentar</Text>

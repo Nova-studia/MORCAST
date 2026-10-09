@@ -12,7 +12,7 @@
 import { entrarApp, entrarAppAdmin, responder } from "@/lib/app-ruta";
 import { anotarBitacora } from "@/lib/app-auth.mjs";
 import { origenPermitido } from "@/lib/origen.mjs";
-import { ACCIONES_APP, ROLES_ZONA, exigePase } from "@/lib/app-acciones-mapa.mjs";
+import { ACCIONES_APP, ROLES_ZONA, exigePase, bloqueadaParaMuestra } from "@/lib/app-acciones-mapa.mjs";
 import { mfaPanelActivo, secretoPanel, verificarPase } from "@/lib/mfa.mjs";
 import { MANEJADORES } from "@/lib/app-acciones";
 
@@ -37,6 +37,10 @@ export async function POST(peticion, ctx) {
     if (!valido) {
       return responder({ ok: false, segundoPaso: true, motivo: "Vuelve a confirmar con el código que te llega por correo." }, 403);
     }
+  }
+
+  if (bloqueadaParaMuestra(nombre, r.usuario)) {
+    return responder({ ok: false, motivo: "La cuenta de muestra no cambia datos." });
   }
 
   try {

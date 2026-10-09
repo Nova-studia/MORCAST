@@ -96,7 +96,9 @@ export default function NuevaRecoleccion({ navigation }) {
       : r.estado === "confirmada"
         ? `${r.folio} creada y confirmada para el ${fechaCortaDia(v.limpio.fecha)}. Ya se avisó al cliente y al chofer.`
         : `${r.folio} creada. Queda por confirmar.`;
-    navigation.navigate("Recolecciones", { creada: texto, folio: r.folio });
+    // popTo regresa a la lista (navigate, en React Navigation 7, apilaba otra
+    // y "Atrás" volvía al formulario lleno: revisión 9-oct).
+    navigation.popTo("Recolecciones", { creada: texto, folio: r.folio });
   });
 
   return (

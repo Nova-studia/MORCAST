@@ -81,3 +81,11 @@ export async function marcaPuente(th) {
   const h = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", datos));
   return `puente:${Array.from(h.slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
+
+/**
+ * La cuenta de muestra del revisor de Apple (`app_metadata.demo`, solo con la
+ * llave de servicio) no cambia nada por aquí. La app ya lo evita en el
+ * teléfono; esto cubre el caso en que el perfil no se leyó (revisión 9-oct).
+ */
+const ESCRIBEN = new Set(["cliente-guardar", "solicitud-cambiar", "cuenta-contrasena"]);
+export const bloqueadaParaMuestra = (nombre, usuario) => usuario?.app_metadata?.demo === true && ESCRIBEN.has(nombre);

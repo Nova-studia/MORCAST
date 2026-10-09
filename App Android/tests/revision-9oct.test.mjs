@@ -35,3 +35,12 @@ test("la lista de choferes distingue 'no se pudo leer' de 'no hay'", () => {
   assert.equal(estadoChoferes([]), "vacia");
   assert.equal(estadoChoferes([{ id: "c1", nombre: "Ana" }]), "lista");
 });
+
+// Revisión iOS 9-oct (también aquí): en React Navigation 7, navigate() ya no
+// regresa: apilaba otra "Recolecciones" y "Atrás" volvía al formulario lleno.
+test("al crear una recolección se regresa a la lista, no se apila", async () => {
+  const { readFileSync } = await import("node:fs");
+  const s = readFileSync(new URL("../src/pantallas/admin/NuevaRecoleccion.js", import.meta.url), "utf8");
+  assert.ok(!/navigation\.navigate\("Recolecciones"/.test(s));
+  assert.ok(/navigation\.popTo\("Recolecciones"/.test(s));
+});

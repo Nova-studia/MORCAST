@@ -3,6 +3,7 @@ import { accionAdmin, accionApp } from "./accion";
 import { resultado, DEMO, SIN_CONEXION } from "./resultado";
 import { esCuentaDeMuestra } from "./cuenta-muestra";
 import { CLIENTE } from "./datos";
+import { queHacerConSesionGuardada } from "./apps-sesion.mjs";
 import { tieneContrasena, validarMisDatos, aplicarCambioLocal } from "./apps-cliente.mjs";
 import { quePasaConLaSesion } from "./apps-sesion.mjs";
 import { puntosAgendables } from "./web/puntos-cliente.mjs";
@@ -37,8 +38,11 @@ import { validarDatosCliente } from "./web/cuenta-cliente.mjs";
 export async function comprobarSesionServidor() {
   if (!haySupabase()) return "ok";
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return "ok"; // sin sesión no hay a quién sacar
+    // Si al renovar el servidor dijo "ya no", auth-js borra la sesión y deja
+    // el error: ese también cuenta (revisión 9-oct).
+    const { data: { session } = {}, error: errSesion } = await supabase.auth.getSession();
+    const antes = queHacerConSesionGuardada({ session, error: errSesion });
+    if (antes) return antes;
     const { error } = await supabase.auth.getUser();
     return quePasaConLaSesion(error);
   } catch (e) {

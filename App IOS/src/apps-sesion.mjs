@@ -43,3 +43,15 @@ export function avisoDeSalida(que) {
   if (que === "sesion") return SESION_VENCIDA;
   return null;
 }
+
+/**
+ * Lo que dice `getSession()` antes de preguntar al servidor (revisión 9-oct).
+ * Si la sesión venció y al renovarla el servidor dijo "ya no", auth-js la
+ * borra y devuelve `{ session: null, error }`: ese error SÍ cuenta. Sin
+ * sesión y sin error no hay a quién sacar ("ok"). Con sesión → `null`:
+ * hay que seguir y preguntar con `getUser()`.
+ */
+export function queHacerConSesionGuardada({ session, error } = {}) {
+  if (session) return null;
+  return error ? quePasaConLaSesion(error) : "ok";
+}
