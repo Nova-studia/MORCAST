@@ -13,6 +13,7 @@ import { haySupabase } from "../supabase";
 import AvisosCliente from "./AvisosCliente";
 import { esProximo, textoNoProcedio } from "../solicitudes.js";
 import { fechaLocal } from "../avisos.js";
+import TarjetaSoporte, { BandaSuspendido } from "../TarjetaSoporte";
 
 /** Cuántos días se sigue enseñando en el Inicio una visita que no procedió. */
 const DIAS_NO_PROCEDIO = 14;
@@ -104,6 +105,8 @@ export default function Inicio({ navigation, route }) {
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={haySupabase() ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
     >
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.hola}>Hola{nombre ? `, ${nombre}` : ""} 👋</Text>
       <Text style={s.sub}>Resumen de {empresa.empresa}.</Text>
       {/* Los avisos de Morcast van ARRIBA de todo: un "hoy la ruta va tarde"
@@ -217,6 +220,9 @@ export default function Inicio({ navigation, route }) {
           </View>
         ))}
       </Tarjeta>
+
+      {/* Apps al 100%: Morcast a la mano (WhatsApp, teléfono y correo). */}
+      <TarjetaSoporte empresa={empresa.empresa} folio={empresa.id} />
     </ScrollView>
   );
 }

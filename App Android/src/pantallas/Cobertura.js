@@ -7,6 +7,7 @@ import MapaWeb from "../MapaWeb";
 import { nombreTipoRuta } from "../rutas-datos";
 import { zonasDeCobertura } from "../datos-remoto";
 import { rutasQueCubren } from "../punto-en-zona";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 /**
  * `pie` (opcional): lo que va debajo del resultado. El modo "Explorar sin
@@ -45,6 +46,8 @@ export default function Cobertura({ pie = null }) {
       style={{ flex: 1, backgroundColor: T.fondo }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
     >
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <EncabezadoPantalla
         titulo="Cobertura"
         sub="Marca dónde está tu domicilio y te decimos si ya pasamos por ahí."

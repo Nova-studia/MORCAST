@@ -5,6 +5,8 @@ import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge } from "../../ui";
 import { embudoSolicitudes, pesos, infoEstado, fechaLarga } from "../../datos-admin";
 import { kpisAdmin, cobranza12Meses, listarCotizaciones } from "../../datos-remoto";
+import { useMisPermisos } from "../../mis-permisos";
+import { puedeVer } from "../../permisos-app.mjs";
 
 const KPIS_VACIOS = {
   ingresosMes: 0, ingresosMesAnterior: 0, solicitudesNuevas: 0,
@@ -24,6 +26,10 @@ export default function PanelAdmin({ navigation }) {
   const [cobranza, setCobranza] = useState({ serie: [], hayDatos: false });
   const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
+  // Apps al 100%: las solicitudes del sitio solo para quien tiene esa
+  // sección (la pestaña tampoco existe para los demás).
+  const { yo } = useMisPermisos();
+  const veSolicitudes = puedeVer(yo, "Solicitudes");
 
   useEffect(() => {
     let vivo = true;
@@ -100,6 +106,7 @@ export default function PanelAdmin({ navigation }) {
 
       {/* equipo 2: Solicitudes recientes (paridad con el panel web, 6-oct-2026).
           Cada renglón lleva a la bandeja de Solicitudes, donde se atiende. */}
+      {veSolicitudes && (
       <Tarjeta>
         <TituloTarjeta
           derecha={
@@ -131,6 +138,7 @@ export default function PanelAdmin({ navigation }) {
           );
         })}
       </Tarjeta>
+      )}
     </ScrollView>
   );
 }

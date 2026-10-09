@@ -9,6 +9,7 @@ import { leerMisServicios } from "../datos-remoto";
 import { haySupabase } from "../supabase";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto, descargarConstancia } from "../pdf";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 export default function Documentos() {
   const [bajando, setBajando] = useState(null);
@@ -70,6 +71,8 @@ export default function Documentos() {
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={haySupabase() ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
     >
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Documentos</Text>
       <Text style={s.sub}>
         {HAY_DATOS_FISCALES

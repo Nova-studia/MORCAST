@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import { useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta } from "../../ui";
@@ -6,6 +7,11 @@ import { IconoMenu } from "../../iconos-menu";
 import { usePerfilSesion, iniciales } from "../../mi-perfil";
 import { haySupabase } from "../../supabase";
 import { VERSION_APP } from "../../version";
+import { useMisPermisos } from "../../mis-permisos";
+import { pantallasVisibles } from "../../permisos-app.mjs";
+import { herramientasVisibles } from "../../puente-admin.mjs";
+import { abrirPanelWeb } from "../../datos-rutas-admin";
+import AvisoResultado from "../../AvisoResultado";
 
 // Ver la nota del mismo menu del cliente (`pantallas/Mas.js`). Los dibujos
 // son los del menú de la administración web (`AdminShell.js`).
@@ -25,8 +31,12 @@ const MENU = [
   // equipo 3: cuentas y catálogo (6-oct-2026)
   { pantalla: "Altas", dibujo: "altas-de-clientes", titulo: "Altas de clientes", sub: "Activar cuentas y ver el alta firmada" },
   { pantalla: "Puntos", dibujo: "cobertura", titulo: "Puntos de recolección", sub: "Ubicación, referencias y ruta" },
+  // Apps al 100% (9-oct-2026): el chofer de cada ruta.
+  { pantalla: "Rutas", dibujo: "servicios", titulo: "Rutas", sub: "Quién maneja cada ruta" },
   { pantalla: "ZonasPedidas", dibujo: "zonas-pedidas", titulo: "Zonas pedidas", sub: "Fuera de cobertura" },
   { pantalla: "Unidades", dibujo: "unidades", titulo: "Unidades", sub: "Camiones: activa, taller o baja" },
+  // De todo el personal: nombre, teléfono y contraseña.
+  { pantalla: "MiCuenta", dibujo: "usuarios-y-roles", titulo: "Mi cuenta", sub: "Tu nombre, tu teléfono y tu contraseña" },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {
@@ -35,6 +45,22 @@ export default function MasAdmin({ navigation, onLogout }) {
   const { perfil, cargando } = usePerfilSesion("admin");
   const nombre = perfil?.nombre || (cargando ? "Leyendo tu sesión…" : "Sin sesión");
   const linea = perfil ? [perfil.rol, perfil.correo].filter(Boolean).join(" · ") : " ";
+
+  // Apps al 100%: solo las secciones del rol (mis-permisos, al pasar el
+  // segundo paso). Mientras no llegan, solo lo que no pide sección.
+  const { yo, estado, reintentar } = useMisPermisos();
+  const menu = MENU.filter((m) => pantallasVisibles(yo, [m.pantalla]).length);
+  const herramientas = herramientasVisibles(yo);
+  const [abriendo, setAbriendo] = useState("");
+  const [resWeb, setResWeb] = useState(null);
+  const abrirWeb = async (h) => {
+    if (abriendo) return;
+    setAbriendo(h.id);
+    setResWeb(null);
+    const r = await abrirPanelWeb(h.destino);
+    setAbriendo("");
+    if (!r.ok) setResWeb({ ...r, reintentar: () => abrirWeb(h) });
+  };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -47,13 +73,19 @@ export default function MasAdmin({ navigation, onLogout }) {
           <View style={{ flex: 1 }}>
             <Text style={s.nombre} numberOfLines={1}>{nombre}</Text>
             <Text style={s.rol} numberOfLines={1}>{linea}</Text>
+            {yo?.rol === "admin" && <Text style={s.rol} numberOfLines={1}>Rol: {yo.rolNombre || "sin rol (solo el Panel)"}</Text>}
           </View>
         </View>
       </Tarjeta>
 
+      {estado === "sinRed" && !yo && (
+        <AvisoResultado r={{ ok: false, sinRed: true }} onReintentar={reintentar} style={{ marginTop: 0, marginBottom: 12 }} />
+      )}
+      {estado === "cargando" && !yo && <Text style={[s.sub, { marginTop: 0 }]}>Leyendo las secciones de tu rol…</Text>}
+
       <Tarjeta style={{ padding: 6 }}>
-        {MENU.map((m, i) => (
-          <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla)} style={[s.item, i < MENU.length - 1 && s.borde]}>
+        {menu.map((m, i) => (
+          <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla, m.pantalla === "MiCuenta" ? { modo: "admin" } : undefined)} style={[s.item, i < menu.length - 1 && s.borde]}>
             {({ pressed }) => (
               <>
                 <View style={s.ico}><IconoMenu nombre={m.dibujo} activo={pressed} tam={32} /></View>
@@ -64,6 +96,31 @@ export default function MasAdmin({ navigation, onLogout }) {
           </Pressable>
         ))}
       </Tarjeta>
+
+      {/* FASE D: lo que en un teléfono no cabe se abre en el panel web, YA
+          con la sesión iniciada (enlace de un solo uso, 2 minutos). */}
+      {herramientas.length > 0 && (
+        <>
+          <Text style={s.seccion}>En la web</Text>
+          <Tarjeta style={{ padding: 6 }}>
+            {herramientas.map((h, i) => (
+              <Pressable
+                key={h.id}
+                onPress={() => abrirWeb(h)}
+                disabled={!!abriendo}
+                style={({ pressed }) => [s.item, i < herramientas.length - 1 && s.borde, { opacity: pressed ? 0.85 : 1 }]}
+                accessibilityRole="link"
+                accessibilityLabel={`${h.titulo}, se abre en la web`}
+              >
+                <View style={s.ico}><Feather name={h.icono} size={22} color={T.accionTxt} /></View>
+                <View style={{ flex: 1 }}><Text style={s.itemTit}>{h.titulo}</Text><Text style={s.itemSub}>{h.sub}</Text></View>
+                {abriendo === h.id ? <ActivityIndicator size="small" color={T.gris} /> : <Feather name="external-link" size={18} color={T.gris} />}
+              </Pressable>
+            ))}
+          </Tarjeta>
+          {resWeb && <AvisoResultado r={resWeb} onReintentar={resWeb.reintentar} style={{ marginTop: -6, marginBottom: 14 }} />}
+        </>
+      )}
 
       <Pressable
         onPress={onLogout}
@@ -96,4 +153,5 @@ const s = StyleSheet.create({
   itemTit: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   version: { color: T.grisClaro, fontSize: 11.5, textAlign: "center", marginTop: 18 },
+  seccion: { color: T.gris, fontSize: 11, letterSpacing: 0.5, marginTop: 4, marginBottom: 8, textTransform: "uppercase", fontWeight: "700" },
 });

@@ -148,10 +148,40 @@ export function resumenBitacora(fila) {
  * `aplicar_saldo` no sirve.
  */
 export const TEXTO_ACCION = {
+  // Entrega 4 (9-oct-2026): portal del cliente.
+  cliente_edita_contacto: "El cliente cambió sus datos de contacto",
+  cliente_cancela_recoleccion: "El cliente canceló una recolección",
+  cliente_reagenda_recoleccion: "El cliente cambió la fecha de una recolección",
+  // Entrega 3 (9-oct-2026): operación.
+  crear_recoleccion_oficina: "Creó una recolección desde la oficina",
+  // Entrega 2 (9-oct-2026): roles y cuentas del equipo.
+  rol_creado: "Creó un rol",
+  rol_cambiado: "Cambió un rol",
+  rol_borrado: "Borró un rol",
+  editar_usuario: "Editó una cuenta del equipo",
+  enlace_contrasena_equipo: "Mandó un enlace de contraseña",
+  eliminar_usuario: "Eliminó una cuenta del equipo",
+  mi_cuenta: "Cambió sus datos",
+  mi_contrasena: "Cambió su contraseña",
+  // Entrega 1 (8-oct-2026): clientes.
+  cliente_suspendido: "Suspendió a un cliente",
+  cliente_baja: "Dio de baja a un cliente",
+  cliente_activo: "Reactivó a un cliente",
+  cliente_editado: "Editó los datos de un cliente",
+  cliente_eliminado: "Eliminó definitivamente a un cliente",
+  reenviar_acceso: "Reenvió el acceso de un usuario de cliente",
+  punto_agregado: "Agregó un punto de recolección",
+  punto_cancelado: "Canceló un punto de recolección",
+  punto_eliminado: "Quitó un punto de recolección",
+  servicio_cambiado: "Cambió un servicio de un punto",
   aplicar_saldo: "Aplicó un depósito al saldo",
   rechazar_saldo: "Rechazó un depósito",
   confirmar_recoleccion: "Confirmó una recolección",
   rechazar_recoleccion: "Rechazó una recolección",
+  // equipo 1 (6-oct-2026): ya se anotaban y salían con su clave cruda.
+  reagendar_recoleccion_vencida: "Reagendó una recolección que se pasó de fecha",
+  cambiar_recoleccion_confirmada: "Cambió el día, la hora o el chofer de una recolección",
+  aviso_oficina_solicitud: "Pidió una recolección (se avisó a la oficina)",
   cerrar_recoleccion: "Cerró una recolección con evidencia",
   cambiar_rol: "Cambió el rol de un usuario",
   alta_cliente: "Dio de alta un cliente",
@@ -193,6 +223,7 @@ export const TEXTO_ACCION = {
 export const TEXTO_TABLA = {
   movimientos_saldo: "movimiento de saldo",
   perfiles: "cuenta de acceso",
+  roles: "rol",
   clientes: "cliente",
   rutas: "ruta",
   solicitudes_recoleccion: "solicitud de recolección",

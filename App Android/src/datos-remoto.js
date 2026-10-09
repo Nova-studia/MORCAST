@@ -9,6 +9,9 @@ import { postApp } from "./api-web";
 import { mezclarChoferes } from "./chofer-servicio.js";
 import { evidenciaDeParada, textoUbicacionServicio, ubicacionParaGuardar } from "./evidencia.js";
 import { postAdmin } from "./api-admin";
+import { motivoFalloPedido } from "./cliente-app.mjs";
+import { estatusDeFila, cierreYaHecho } from "./chofer-app.mjs";
+import { estadoClienteActual, recargarEstadoCliente } from "./estado-cliente-app";
 import { RUTAS_SEED, nombreTipoRuta } from "./rutas-datos";
 import { direccionDe } from "./mapas.js";
 import { validarSolicitud } from "./solicitudes.js";
@@ -186,7 +189,9 @@ export async function leerMisSolicitudes() {
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
-    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, tipo_residuo, motivo_no_procedio, detalle_no_procedio, rutas ( nombre )")
+    // `motivo_rechazo` (apps al 100%): una cancelada por el propio cliente se
+    // guarda "rechazada" con su motivo, y la pantalla la enseña "Cancelada".
+    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, tipo_residuo, motivo_no_procedio, detalle_no_procedio, motivo_rechazo, rutas ( nombre )")
     .order("fecha_pedida", { ascending: false });
 
   // Cuenta de muestra: lo que el revisor pidió en esta sesión va arriba (no
@@ -213,6 +218,7 @@ export async function leerMisSolicitudes() {
     // necesita leer para entender que no se le cobra y qué corregir.
     motivoNoProcedio: s.motivo_no_procedio || "",
     detalleNoProcedio: s.detalle_no_procedio || "",
+    motivoRechazo: s.motivo_rechazo || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
   }))) };
@@ -234,7 +240,7 @@ export async function misSolicitudes() {
  * otra cosa lo marca "No procedió" y no se cobra. Se valida aquí también y
  * no solo en la pantalla, para que ningún camino lo mande vacío.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo }) {
+export async function pedirRecoleccion({ rutaClave, rutaId: rutaElegida = null, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo }) {
   const v = validarSolicitud({ fecha, tipoResiduo, nota });
   if (!v.ok) return { ok: false, motivo: v.mensaje };
 
@@ -265,24 +271,18 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     domId = dom?.id || null;
   }
 
-  let rutaId = null;
-  if (rutaClave) {
+  // La ruta del PUNTO elegido (apps al 100%): viene ya con su id.
+  let rutaId = rutaElegida;
+  if (!rutaId && rutaClave) {
     const { data: r } = await supabase.from("rutas").select("id").eq("clave", rutaClave).maybeSingle();
     rutaId = r?.id || null;
   }
 
-  // El folio se calcula del más alto que exista, nunca contando filas: si
-  // alguna se borró, contar daría un folio repetido y el folio es único.
-  const año = new Date().getFullYear();
-  const { data: ultimos } = await supabase
-    .from("solicitudes_recoleccion")
-    .select("folio").like("folio", `REC-${año}-%`)
-    .order("folio", { ascending: false }).limit(1);
-  const n = ultimos?.[0]?.folio ? Number(String(ultimos[0].folio).split("-").pop()) : 0;
-  const folio = `REC-${año}-${String((Number.isFinite(n) ? n : 0) + 1).padStart(4, "0")}`;
-
-  const { error } = await supabase.from("solicitudes_recoleccion").insert({
-    folio,
+  // El folio lo pone la BASE (db/031) y se lee de vuelta (apps al 100%).
+  // Antes se calculaba aquí "el más alto + 1": dos clientes al mismo tiempo
+  // chocaban, y el mensaje decía un folio que podía no ser el guardado.
+  const { data: creada, error } = await supabase.from("solicitudes_recoleccion").insert({
+    folio: null,
     cliente_id: perfil.cliente_id,
     domicilio_id: domId,
     ruta_id: rutaId,
@@ -291,7 +291,8 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     estado: "solicitada",
     nota: nota || "",
     tipo_residuo: tipoResiduo,
-  });
+  }).select("folio").single();
+  const folio = creada?.folio || "";
 
   if (error) {
     // La politica de la base (db/013) rechaza fechas del pasado y las
@@ -299,17 +300,14 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     // dice nada a quien solo se equivoco de dia. Solo "row-level security":
     // el patron viejo (|violates|policy) tambien atrapaba "duplicate key
     // value violates unique constraint" y lo vendia como error de fecha.
+    // Apps al 100%: si la causa es el ESTADO de la cuenta (suspendida,
+    // db/028), se dice eso y no "cambia la fecha". El estado se relee por si
+    // la oficina la acaba de suspender.
     const msg = error.message || "";
-    const esFecha = /row-level security/i.test(msg);
-    const esFolio = /duplicate key/i.test(msg);
-    return {
-      ok: false,
-      motivo: esFecha
-        ? "Esa fecha no se puede: elige un dia de hoy en adelante."
-        : esFolio
-          ? "Se cruzó con otra solicitud al mismo tiempo. Inténtalo de nuevo."
-          : msg,
-    };
+    const estado = /row-level security|policy/i.test(msg)
+      ? (await recargarEstadoCliente().catch(() => null))?.estado || estadoClienteActual()
+      : estadoClienteActual();
+    return { ok: false, motivo: motivoFalloPedido(msg, estado) };
   }
 
   // equipo 1 (6-oct-2026): que se entere la oficina (correo y notificación
@@ -759,12 +757,10 @@ export async function rutaDelDia(fecha = hoyISO()) {
       nota: s.nota || "",
       motivoNoProcedio: s.motivo_no_procedio || "",
       // "No procedió" también sale de los pendientes: ya quedó resuelta.
-      estatus:
-        s.estado === "no-procedio"
-          ? "no-procedio"
-          : s.estado === "completada" && ev
-            ? "completado"
-            : "pendiente",
+      // Apps al 100%: sale del ESTADO de la base. Antes pedía además la
+      // evidencia, y una parada que cerró OTRO chofer (el RLS no le deja leer
+      // sus fotos) se veía pendiente y se podía volver a cerrar.
+      estatus: estatusDeFila(s),
       // Con las RUTAS de las fotos (antes la fila iba cruda, sin ellas, y el
       // chofer abría una parada completada y no veía nada). Ver evidencia.
       evidencia: evidenciaDeParada(ev),
@@ -1062,6 +1058,16 @@ async function cambiarEstadoParada(solicitudId, estado) {
   return { ok: true };
 }
 
+/** El estado de una parada en la base, o null si no se pudo leer. */
+async function estadoDeParada(solicitudId) {
+  try {
+    const { data } = await supabase.from("solicitudes_recoleccion").select("estado").eq("id", solicitudId).maybeSingle();
+    return data?.estado || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function marcarEnRuta(solicitudId) {
   if (!haySupabase()) return { ok: true, demo: true };
   return cambiarEstadoParada(solicitudId, "en-ruta");
@@ -1179,9 +1185,19 @@ export async function cerrarRecoleccion({
     ubicacion: ubicacionParaGuardar(ubicacionAntes, ubicacionDespues),
   });
 
-  if (error) return { ok: false, motivo: error.message };
+  if (error) {
+    // Un reintento: la evidencia ya quedó de un intento anterior (la base
+    // guarda una por servicio, db/031). Si la parada ya está cerrada es
+    // éxito; si solo faltó cerrarla, se sigue al último paso.
+    if (cierreYaHecho(await estadoDeParada(solicitudId))) return { ok: true, yaEstaba: true };
+    if (!/duplicate key|unique/i.test(error.message || "")) return { ok: false, motivo: error.message };
+  }
 
   const cierre = await cambiarEstadoParada(solicitudId, "completada");
+  // Apps al 100%: si el último paso falló, se relee la parada. Si ya está
+  // completada (un intento anterior sí llegó, o el reintento tras perder la
+  // señal), es éxito: el chofer no tiene por qué ver "avisa a la oficina".
+  if (!cierre.ok && cierreYaHecho(await estadoDeParada(solicitudId))) return { ok: true, yaEstaba: true };
   if (!cierre.ok) {
     return {
       ok: false,

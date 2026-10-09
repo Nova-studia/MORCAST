@@ -62,6 +62,16 @@ export default function Clientes({ navigation }) {
     return () => { vivo = false; };
   }, []);
 
+  // Al volver de la ficha (apps al 100%) se relee: ahí se pudo suspender,
+  // editar o eliminar al cliente.
+  useEffect(() => navigation.addListener("focus", () => recargar()), [navigation, recargar]);
+
+  /** La ficha completa: estado, editar, usuarios, puntos e historial. */
+  const abrirFicha = (c) => {
+    setSel(null);
+    navigation.navigate("FichaCliente", { clienteId: c.uuid, folio: c.id });
+  };
+
   const visibles = filtrarClientesPorSector(lista, filtroSector);
   const activos = lista.filter((c) => c.estatus === "activo").length;
   const pendientes = lista.filter((c) => c.estatus === "pendiente-info").length;
@@ -223,6 +233,13 @@ export default function Clientes({ navigation }) {
           return (
             <>
               <Text style={e.hojaTitulo}>{sel.empresa}</Text>
+              {/* Apps al 100%: lo que antes solo se hacía en la web (suspender,
+                  editar, puntos, usuarios), en la ficha. */}
+              {sel.uuid ? (
+                <Accion icono="folder" onPress={() => abrirFicha(sel)} style={{ marginBottom: 6 }}>
+                  Abrir ficha completa
+                </Accion>
+              ) : null}
               <View style={{ flexDirection: "row", gap: 6, alignItems: "center", marginTop: 6, marginBottom: 12, flexWrap: "wrap" }}>
                 <Badge clase={est.clase}>{sel.estatus === "pendiente-info" ? "Pendiente por información" : est.texto}</Badge>
                 {(sel.sectores || []).map((x) => <InsigniaSector key={x.clave} sector={x} grande />)}

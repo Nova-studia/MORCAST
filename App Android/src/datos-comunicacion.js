@@ -68,7 +68,9 @@ export async function listarAvisosEnviados({ limite = 50 } = {}) {
   if (!haySupabase()) return [];
   let { data, error } = await supabase
     .from("avisos")
-    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, avisos_lecturas ( count )`)
+    // cliente_ids (db/030): los avisos a varios clientes elegidos a mano; sin
+    // ellos el historial decía "—" en la columna de a quién (9-oct-2026).
+    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, cliente_ids, avisos_lecturas ( count )`)
     .order("creado", { ascending: false })
     .limit(limite);
   if (error) {
@@ -117,9 +119,10 @@ export async function lectoresDeAviso(avisoId) {
 }
 
 /** Vista previa: a cuántos clientes y correos les llega (lo calcula el servidor). */
-export async function contarDestinatarios({ alcance, sectorId, rutaId, clienteId }) {
+export async function contarDestinatarios({ alcance, sectorId, rutaId, clienteId, clienteIds }) {
   if (!haySupabase()) return { ok: true, demo: true, resumen: { clientes: 0, correos: 0, sinCorreo: 0 } };
-  return postAdmin("avisos/contar", { alcance, sectorId, rutaId, clienteId }, { espera: 15000 });
+  // `clienteIds`: "Clientes específicos" (9-oct-2026, como la web).
+  return postAdmin("avisos/contar", { alcance, sectorId, rutaId, clienteId, clienteIds }, { espera: 15000 });
 }
 
 /**
@@ -138,6 +141,7 @@ export async function mandarAviso(datos, idEnvio) {
       sectorId: datos.sectorId,
       rutaId: datos.rutaId,
       clienteId: datos.clienteId,
+      clienteIds: datos.clienteIds,
       motivo: datos.motivo,
       titulo: datos.titulo,
       mensaje: datos.mensaje,

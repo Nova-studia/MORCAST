@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, TextInput, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
@@ -14,10 +14,12 @@ import { abrirEnNavegador, URL_ALTA } from "../enlaces-web";
  * "cliente" con contraseña; con Google o Apple puede ser también "admin",
  * "chofer" o "pendiente" (la sala de espera de quien todavía no tiene alta).
  */
-export default function Login({ onEntrar, navigation }) {
+export default function Login({ onEntrar, navigation, aviso }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // `aviso`: por qué se cerró la sesión (p. ej. la cuenta se dio de baja).
+  const [error, setError] = useState(aviso || "");
+  useEffect(() => { if (aviso) setError(aviso); }, [aviso]);
 
   const [entrando, setEntrando] = useState(false);
 

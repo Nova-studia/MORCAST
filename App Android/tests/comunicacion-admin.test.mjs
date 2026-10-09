@@ -88,6 +88,11 @@ test("avisos: valida igual que el servidor", async (t) => {
     { alcance: "sector", sectorId: U, titulo: "ab", mensaje: "Mensaje" },
     { alcance: "todos", titulo: "x".repeat(121), mensaje: "Mensaje" },
     { alcance: "todos", titulo: "Bien", mensaje: "Mensaje", motivo: "otro" },
+    // Clientes específicos (9-oct-2026): con uno se guarda como "cliente".
+    { alcance: "clientes", titulo: "Aviso", mensaje: "Mensaje" },
+    { alcance: "clientes", clienteIds: [U], titulo: "Aviso", mensaje: "Mensaje" },
+    { alcance: "clientes", clienteIds: [U, U, "bbbbbbbb-0000-4000-8000-000000000002"], titulo: "Aviso", mensaje: "Mensaje" },
+    { alcance: "clientes", clienteIds: ["CLI-1", "CLI-2"], titulo: "Aviso", mensaje: "Mensaje" },
   ];
   for (const c of casos) {
     for (const exigirUuid of [false, true]) {
@@ -104,7 +109,7 @@ test("avisos: valida igual que el servidor", async (t) => {
   for (const l of [{ leidos: null }, { leidos: 2, usuariosDestino: null }, { leidos: 0, usuariosDestino: 0 }, { leidos: 3, usuariosDestino: 12 }]) {
     assert.equal(avisos.fraseLecturas(l), web.fraseLecturas(l));
   }
-  for (const a of [{ alcance: "todos" }, { alcance: "ruta", rutas: { nombre: "Ruta Norte" } }, { alcance: "cliente" }]) {
+  for (const a of [{ alcance: "todos" }, { alcance: "ruta", rutas: { nombre: "Ruta Norte" } }, { alcance: "cliente" }, { alcance: "clientes", cliente_ids: [U, U] }, { alcance: "clientes" }]) {
     assert.equal(avisos.textoAlcance(a), web.textoAlcance(a));
   }
 });

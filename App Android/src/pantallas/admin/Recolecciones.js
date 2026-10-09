@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, TextInput, RefreshControl, Alert, ActivityIndicator,
 } from "react-native";
@@ -8,12 +8,18 @@ import { Tarjeta, Badge, Boton } from "../../ui";
 import { ESTADOS_SOLICITUD_REC } from "../../rutas-datos";
 import { listarOperadores } from "../../datos-remoto";
 import {
-  listarRecoleccionesOficina, programarRecoleccion, rechazarRecoleccion, fotoNoProcedio,
+  buscarRecolecciones, pendientesOficina, recoleccionPorId, programarRecoleccion, rechazarRecoleccion, fotoNoProcedio,
 } from "../../datos-oficina";
 import {
-  hoyISO, estadoVencimiento, ordenarPorUrgencia, opcionesReagenda, textoAtraso, filtrarRecolecciones,
+  hoyISO, estadoVencimiento, ordenarPorUrgencia, opcionesReagenda, textoAtraso,
   queSePuede, planPorOmision, normalizarHora, choferQueVa, fechaCortaDia, HORAS_RAPIDAS, TEXTO_PROGRAMAR,
 } from "../../oficina.js";
+import { rangoPorOmision } from "../../web/consulta-recolecciones.mjs";
+import { textoPaginacion, totalPaginas } from "../../recolecciones-panel.mjs";
+import { useMisPermisos } from "../../mis-permisos";
+import { puedeVer } from "../../permisos-app.mjs";
+import AvisoResultado from "../../AvisoResultado";
+import CalendarioFecha from "../../CalendarioFecha";
 import CalendarioMes from "./CalendarioMes";
 
 /**
@@ -22,68 +28,133 @@ import CalendarioMes from "./CalendarioMes";
  * por estado, y en cada una confirmar (día, hora y chofer), rechazar con
  * motivo, cambiar una confirmada o reagendar una vencida.
  *
+ * APPS AL 100% (9-oct-2026): se busca EN LA BASE —folio o empresa, Desde y
+ * Hasta (por omisión desde hace 30 días) y páginas de 50— como la web. Antes
+ * se traían las últimas 500 y lo más viejo no aparecía nunca. Lo VENCIDO va
+ * aparte y siempre completo. Y "Nueva recolección" para los pedidos por
+ * teléfono.
+ *
  * Todo lo que escribe va por el servidor (datos-oficina.js → /api/app/
  * recolecciones/*): ahí quedan la bitácora, el correo y la notificación al
- * cliente y al chofer, igual que desde la web. El peso real del relleno NO
- * está aquí: está apagado (Web/lib/estado-sistema.js, PESO_REAL).
+ * cliente y al chofer, igual que desde la web. El peso real del relleno se
+ * abre en la web (Más → En la web → Peso real).
  *
- * Se llega desde Más, desde "Cambiar" en la Agenda de servicios y al tocar
- * la notificación de una recolección pedida (`params.id` abre esa).
+ * Se llega desde Más, desde "Cambiar" en la Agenda de servicios, desde la
+ * ficha de un cliente y al tocar la notificación de una recolección pedida
+ * (`params.id` abre esa; `params.folio` la busca).
  */
 export default function Recolecciones({ navigation, route }) {
-  const [lista, setLista] = useState([]);
+  const hoy = hoyISO();
+  const { yo } = useMisPermisos();
+  const [filas, setFilas] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [vencidas, setVencidas] = useState([]);
+  const [porConfirmar, setPorConfirmar] = useState(0);
   const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState(false);
+  const [errorCarga, setErrorCarga] = useState(null); // respuesta fallida
   const [refrescando, setRefrescando] = useState(false);
   const [filtro, setFiltro] = useState("todas");
-  const [selId, setSelId] = useState(null);
+  // La búsqueda: lo que se escribe (q) y lo que se busca (buscado), para no
+  // ir a la base en cada letra.
+  const [q, setQ] = useState("");
+  const [buscado, setBuscado] = useState("");
+  const [desde, setDesde] = useState(() => rangoPorOmision(hoy).desde);
+  const [hasta, setHasta] = useState("");
+  const [calendario, setCalendario] = useState(null); // "desde" | "hasta" | null
+  const [pagina, setPagina] = useState(1);
+  const [sel, setSel] = useState(null);
   const [choferes, setChoferes] = useState([]);
   const [hecho, setHecho] = useState("");
-  const hoy = hoyISO();
+  const turno = useRef(0);
 
   const cargar = useCallback(async () => {
-    const l = await listarRecoleccionesOficina();
-    if (l === null) setErrorCarga(true);
-    else {
-      setErrorCarga(false);
-      setLista(l);
+    const n = ++turno.current;
+    const estado = filtro !== "todas" && filtro !== "vencidas" ? filtro : "";
+    const [r, p] = await Promise.all([
+      buscarRecolecciones({ hoy, q: buscado, desde, hasta, estado, pagina }),
+      pendientesOficina(hoy),
+    ]);
+    if (n !== turno.current) return;
+    if (r.ok) {
+      setFilas(r.filas);
+      setTotal(r.total);
+      setErrorCarga(null);
+    } else {
+      setErrorCarga(r);
+    }
+    if (p.ok) {
+      setVencidas(p.vencidas);
+      setPorConfirmar(p.porConfirmar);
     }
     setCargando(false);
+  }, [hoy, buscado, desde, hasta, filtro, pagina]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    listarOperadores().then(setChoferes).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    cargar();
-    listarOperadores().then(setChoferes).catch(() => {});
-    // Al volver a la pantalla (de la Agenda, de otra pestaña) se relee: la
-    // web, un cliente o el chofer pudieron cambiar algo mientras tanto.
-    const quitar = navigation.addListener("focus", cargar);
-    return quitar;
-  }, [cargar, navigation]);
+  // Al volver a la pantalla (de la Agenda, de Nueva recolección) se relee:
+  // la web, un cliente o el chofer pudieron cambiar algo mientras tanto.
+  const cargarRef = useRef(cargar);
+  cargarRef.current = cargar;
+  useEffect(() => navigation.addListener("focus", () => cargarRef.current()), [navigation]);
 
-  // `params.id`: abrir esa recolección (notificación o "Cambiar" de la Agenda).
+  // `params.id`: abrir esa recolección (notificación o "Cambiar" de la
+  // Agenda), aunque no esté en esta página. `params.folio`: buscarla, sin
+  // fechas. `params.creada`: el aviso de "Nueva recolección".
   const pedida = route?.params?.id || null;
+  const folioPedido = route?.params?.folio || null;
+  const creada = route?.params?.creada || null;
   useEffect(() => {
-    if (!pedida || cargando) return;
-    if (lista.some((x) => x.id === pedida)) {
-      setFiltro("todas");
-      setSelId(pedida);
-    }
+    if (!pedida) return;
+    let vivo = true;
+    recoleccionPorId(pedida).then((x) => {
+      if (vivo && x) setSel(x);
+    });
     navigation.setParams({ id: undefined });
-  }, [pedida, cargando, lista, navigation]);
+    return () => { vivo = false; };
+  }, [pedida, navigation]);
+  useEffect(() => {
+    if (!folioPedido) return;
+    setFiltro("todas");
+    setQ(folioPedido);
+    setBuscado(folioPedido);
+    setDesde("");
+    setHasta("");
+    setPagina(1);
+    navigation.setParams({ folio: undefined });
+  }, [folioPedido, navigation]);
+  useEffect(() => {
+    if (!creada) return;
+    setHecho(creada);
+    navigation.setParams({ creada: undefined });
+  }, [creada, navigation]);
 
   const refrescar = async () => {
     setRefrescando(true);
     try { await cargar(); } finally { setRefrescando(false); }
   };
 
-  const vencidas = useMemo(() => lista.filter((x) => estadoVencimiento(x, hoy).vencida), [lista, hoy]);
-  const filas = useMemo(() => ordenarPorUrgencia(filtrarRecolecciones(lista, filtro, hoy), hoy), [lista, filtro, hoy]);
-  const porConfirmar = lista.filter((x) => x.estado === "solicitada").length;
-  const sel = lista.find((x) => x.id === selId) || null;
+  const buscar = () => {
+    setBuscado(q.trim());
+    setPagina(1);
+  };
+  const cambiarFiltro = (f) => {
+    setFiltro(f);
+    setPagina(1);
+  };
+
+  const visibles = useMemo(
+    () => ordenarPorUrgencia(filtro === "vencidas" ? vencidas : filas, hoy),
+    [filtro, vencidas, filas, hoy]
+  );
+  const paginas = totalPaginas(total);
   const badge = (id) => ESTADOS_SOLICITUD_REC.find((e) => e.id === id) || { texto: id, clase: "none" };
 
   const alTerminar = async (texto) => {
-    setSelId(null);
+    setSel(null);
     setHecho(texto);
     await cargar();
   };
@@ -92,14 +163,26 @@ export default function Recolecciones({ navigation, route }) {
     <ScrollView
       style={{ flex: 1, backgroundColor: T.fondo }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} />}
     >
-      <Text style={s.h1}>Recolecciones</Text>
-      <Text style={s.sub}>
-        {porConfirmar === 0
-          ? "No hay solicitudes por confirmar."
-          : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.h1}>Recolecciones</Text>
+          <Text style={[s.sub, { marginBottom: 0 }]}>
+            {porConfirmar === 0
+              ? "No hay solicitudes por confirmar."
+              : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
+          </Text>
+        </View>
+        {puedeVer(yo, "NuevaRecoleccion") && (
+          <Pressable onPress={() => navigation.navigate("NuevaRecoleccion")} style={s.btnNueva} accessibilityRole="button" accessibilityLabel="Nueva recolección">
+            <Feather name="plus" size={16} color="#fff" />
+            <Text style={s.btnNuevaTxt}>Nueva</Text>
+          </Pressable>
+        )}
+      </View>
+      <View style={{ height: 14 }} />
 
       {!!hecho && (
         <View style={s.hecho} accessibilityLiveRegion="polite">
@@ -110,7 +193,7 @@ export default function Recolecciones({ navigation, route }) {
       )}
 
       {/* Lo vencido va ARRIBA de todo: es lo que hay que resolver hoy. */}
-      {vencidas.length > 0 && (
+      {vencidas.length > 0 && filtro !== "vencidas" && (
         <View style={s.vencidas}>
           <Feather name="alert-triangle" size={18} color={T.error} />
           <View style={{ flex: 1 }}>
@@ -119,44 +202,96 @@ export default function Recolecciones({ navigation, route }) {
             </Text>
             <Text style={s.vencidasSub}>Reagéndalas: puedes ponerlas para hoy mismo.</Text>
           </View>
-          <Pressable onPress={() => setFiltro("vencidas")} style={s.vencidasBtn} accessibilityRole="button">
+          <Pressable onPress={() => cambiarFiltro("vencidas")} style={s.vencidasBtn} accessibilityRole="button">
             <Text style={s.vencidasBtnTxt}>Ver esas</Text>
           </Pressable>
         </View>
       )}
 
+      {/* Búsqueda en la base: folio o empresa. */}
+      <View style={s.buscador}>
+        <Feather name="search" size={16} color={T.gris} />
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          onSubmitEditing={buscar}
+          returnKeyType="search"
+          placeholder="Folio o empresa"
+          placeholderTextColor={T.grisClaro}
+          style={s.buscadorInput}
+          autoCorrect={false}
+          accessibilityLabel="Buscar por folio o empresa"
+        />
+        {!!q && (
+          <Pressable onPress={() => { setQ(""); setBuscado(""); setPagina(1); }} hitSlop={10} accessibilityLabel="Borrar búsqueda">
+            <Feather name="x" size={16} color={T.gris} />
+          </Pressable>
+        )}
+        <Pressable onPress={buscar} style={s.btnBuscar} accessibilityRole="button">
+          <Text style={s.btnBuscarTxt}>Buscar</Text>
+        </Pressable>
+      </View>
+
+      {/* Desde / Hasta, por la fecha efectiva (la acordada si ya hay una). */}
+      <View style={s.fechas}>
+        <FechaFiltro etiqueta="Desde" valor={desde} on={calendario === "desde"} onPress={() => setCalendario((c) => (c === "desde" ? null : "desde"))} />
+        <FechaFiltro etiqueta="Hasta" valor={hasta} on={calendario === "hasta"} onPress={() => setCalendario((c) => (c === "hasta" ? null : "hasta"))} />
+      </View>
+      {calendario && (
+        <View style={{ marginBottom: 12 }}>
+          <CalendarioFecha
+            valor={calendario === "desde" ? desde : hasta}
+            onCambiar={(f) => {
+              if (calendario === "desde") setDesde(f);
+              else setHasta(f);
+              setPagina(1);
+              setCalendario(null);
+            }}
+            hoy={hoy}
+          />
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+            <Opcion on={false} onPress={() => { if (calendario === "desde") setDesde(""); else setHasta(""); setPagina(1); setCalendario(null); }}>
+              Sin fecha {calendario === "desde" ? "de inicio" : "de fin"}
+            </Opcion>
+            {calendario === "desde" && (
+              <Opcion on={false} onPress={() => { setDesde(rangoPorOmision(hoy).desde); setPagina(1); setCalendario(null); }}>Hace 30 días</Opcion>
+            )}
+          </View>
+        </View>
+      )}
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
-        <Chip on={filtro === "todas"} onPress={() => setFiltro("todas")}>Todas</Chip>
+        <Chip on={filtro === "todas"} onPress={() => cambiarFiltro("todas")}>Todas</Chip>
         {vencidas.length > 0 && (
-          <Chip on={filtro === "vencidas"} onPress={() => setFiltro("vencidas")} alerta>Vencidas ({vencidas.length})</Chip>
+          <Chip on={filtro === "vencidas"} onPress={() => cambiarFiltro("vencidas")} alerta>Vencidas ({vencidas.length})</Chip>
         )}
         {ESTADOS_SOLICITUD_REC.map((e) => (
-          <Chip key={e.id} on={filtro === e.id} onPress={() => setFiltro(e.id)}>{e.texto}</Chip>
+          <Chip key={e.id} on={filtro === e.id} onPress={() => cambiarFiltro(e.id)}>{e.texto}</Chip>
         ))}
       </ScrollView>
 
       {cargando && <Text style={s.vacio}>Leyendo las recolecciones…</Text>}
       {!cargando && errorCarga && (
-        <View style={s.errorCaja}>
-          <Feather name="alert-circle" size={14} color={T.error} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.errorTxt}>No se pudieron leer las recolecciones. Revisa tu señal.</Text>
-            <Boton variante="linea" onPress={() => { setCargando(true); cargar(); }} style={{ marginTop: 10 }}>Reintentar</Boton>
-          </View>
-        </View>
+        <>
+          <AvisoResultado r={errorCarga} onReintentar={() => { setCargando(true); cargar(); }} style={{ marginTop: 0, marginBottom: 12 }} />
+          {!errorCarga.sinRed && <Boton variante="linea" onPress={() => { setCargando(true); cargar(); }} style={{ marginBottom: 12 }}>Reintentar</Boton>}
+        </>
       )}
-      {!cargando && !errorCarga && filas.length === 0 && (
-        <Text style={s.vacio}>{lista.length === 0 ? "Todavía no hay recolecciones." : "No hay recolecciones con ese estado."}</Text>
+      {!cargando && !errorCarga && filtro !== "vencidas" && (
+        <Text style={[s.vacio, { marginTop: 0, marginBottom: 10 }]}>
+          {textoPaginacion({ pagina, total })}
+          {buscado ? ` · «${buscado}»` : ""}
+        </Text>
       )}
 
-      {filas.map((x) => {
+      {visibles.map((x) => {
         const b = badge(x.estado);
         const venc = estadoVencimiento(x, hoy);
         const quien = choferQueVa(x);
         return (
           <Pressable
             key={x.id}
-            onPress={() => setSelId(x.id)}
+            onPress={() => setSel(x)}
             accessibilityRole="button"
             accessibilityLabel={`${x.folio}, ${x.cliente}, ${b.texto}${venc.vencida ? `, ${venc.texto}` : ""}`}
           >
@@ -187,7 +322,16 @@ export default function Recolecciones({ navigation, route }) {
         );
       })}
 
-      <Modal visible={!!sel} animationType="slide" transparent onRequestClose={() => setSelId(null)}>
+      {/* Páginas de 50, como la web. */}
+      {filtro !== "vencidas" && paginas > 1 && (
+        <View style={s.paginas}>
+          <Boton variante="linea" onPress={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina <= 1} style={{ flex: 1 }}>Anterior</Boton>
+          <Text style={s.paginaTxt}>{pagina} / {paginas}</Text>
+          <Boton variante="linea" onPress={() => setPagina((p) => Math.min(paginas, p + 1))} disabled={pagina >= paginas} style={{ flex: 1 }}>Siguiente</Boton>
+        </View>
+      )}
+
+      <Modal visible={!!sel} animationType="slide" transparent onRequestClose={() => setSel(null)}>
         <View style={s.modalFondo}>
           <View style={s.modal}>
             {sel && (
@@ -197,7 +341,7 @@ export default function Recolecciones({ navigation, route }) {
                 hoy={hoy}
                 choferes={choferes}
                 badge={badge(sel.estado)}
-                onCerrar={() => setSelId(null)}
+                onCerrar={() => setSel(null)}
                 onListo={alTerminar}
               />
             )}
@@ -205,6 +349,18 @@ export default function Recolecciones({ navigation, route }) {
         </View>
       </Modal>
     </ScrollView>
+  );
+}
+
+/** El botón de Desde / Hasta con la fecha elegida. */
+function FechaFiltro({ etiqueta, valor, on, onPress }) {
+  return (
+    <Pressable onPress={onPress} style={[s.fecha, on && s.fechaOn]} accessibilityRole="button" accessibilityLabel={`${etiqueta}: ${valor ? fechaCortaDia(valor) : "sin fecha"}`}>
+      <Feather name="calendar" size={14} color={T.gris} />
+      <Text style={s.fechaTxt}>
+        {etiqueta}: <Text style={{ color: T.tinta, fontWeight: "700" }}>{valor ? fechaCortaDia(valor) : "—"}</Text>
+      </Text>
+    </Pressable>
   );
 }
 
@@ -537,4 +693,17 @@ const s = StyleSheet.create({
   errorTxt: { color: T.error, fontSize: 12.5, flex: 1, lineHeight: 17 },
   btnRechazar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 48, borderRadius: 11, borderWidth: 1, borderColor: "rgba(217,119,107,0.6)", marginTop: 10 },
   btnRechazarTxt: { color: T.error, fontSize: 14.5, fontWeight: "700" },
+  // Apps al 100%: búsqueda, fechas, páginas y "Nueva".
+  btnNueva: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.accion, borderRadius: 10, paddingHorizontal: 14, minHeight: 44 },
+  btnNuevaTxt: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
+  buscador: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingLeft: 12, paddingRight: 4, minHeight: 48, marginBottom: 10 },
+  buscadorInput: { flex: 1, color: T.tinta, fontSize: 14.5, paddingVertical: 10 },
+  btnBuscar: { minHeight: 40, paddingHorizontal: 12, borderRadius: 8, backgroundColor: T.accion, justifyContent: "center" },
+  btnBuscarTxt: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  fechas: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  fecha: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 42, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel },
+  fechaOn: { borderColor: T.accion, backgroundColor: T.accionTinte },
+  fechaTxt: { color: T.gris, fontSize: 12.5, flexShrink: 1 },
+  paginas: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
+  paginaTxt: { color: T.gris, fontSize: 13, fontWeight: "700" },
 });

@@ -65,6 +65,45 @@ import Altas from "./src/pantallas/admin/Altas";
 import Puntos from "./src/pantallas/admin/Puntos";
 import ZonasPedidas from "./src/pantallas/admin/ZonasPedidas";
 import Unidades from "./src/pantallas/admin/Unidades";
+// Apps al 100% (9-oct-2026): ficha del cliente, roles, nueva recolección,
+// rutas, Mi cuenta de todos y el guardia de secciones por rol.
+import FichaCliente from "./src/pantallas/admin/FichaCliente";
+import Roles from "./src/pantallas/admin/Roles";
+import NuevaRecoleccion from "./src/pantallas/admin/NuevaRecoleccion";
+import Rutas from "./src/pantallas/admin/Rutas";
+import MiCuenta from "./src/pantallas/comun/MiCuenta";
+import MiCuentaCliente from "./src/pantallas/MiCuentaCliente";
+import { conPermiso } from "./src/pantallas/admin/ConPermiso";
+import { cargarMisPermisos, olvidarMisPermisos, useMisPermisos } from "./src/mis-permisos";
+import { pestanasAdmin } from "./src/menu-admin.mjs";
+import { comprobarSesionConServidor, olvidarEstadoCliente } from "./src/estado-cliente-app";
+
+/**
+ * Cada pantalla de administración con su GUARDIA de sección (apps al 100%):
+ * a una pantalla también se llega tocando una notificación, y ahí el menú
+ * no la escondió. Se arman UNA vez aquí (no dentro del render), para que
+ * React no las vuelva a montar en cada pintada.
+ */
+const G = {
+  Solicitudes: conPermiso("Solicitudes", Solicitudes),
+  Saldos: conPermiso("Saldos", Saldos),
+  Clientes: conPermiso("Clientes", Clientes),
+  FichaCliente: conPermiso("FichaCliente", FichaCliente),
+  Servicios: conPermiso("Servicios", Servicios),
+  ReportesAdmin: conPermiso("ReportesAdmin", ReportesAdmin),
+  Usuarios: conPermiso("Usuarios", Usuarios),
+  Roles: conPermiso("Roles", Roles),
+  AvisosAdmin: conPermiso("AvisosAdmin", AvisosAdmin),
+  BitacoraAdmin: conPermiso("BitacoraAdmin", BitacoraAdmin),
+  Recolecciones: conPermiso("Recolecciones", Recolecciones),
+  NuevaRecoleccion: conPermiso("NuevaRecoleccion", NuevaRecoleccion),
+  Incidentes: conPermiso("Incidentes", Incidentes),
+  Altas: conPermiso("Altas", Altas),
+  Puntos: conPermiso("Puntos", Puntos),
+  Rutas: conPermiso("Rutas", Rutas),
+  ZonasPedidas: conPermiso("ZonasPedidas", ZonasPedidas),
+  Unidades: conPermiso("Unidades", Unidades),
+};
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createBottomTabNavigator();
@@ -113,11 +152,13 @@ const tabBar = (color, insets) => ({
 /* ---------- Autenticación ---------- */
 // `onEntrar(modo)`: el login de clientes puede abrir cualquier modo cuando se
 // entra con Google o Apple (ver Login.js); los otros dos, sólo el suyo.
-function AuthFlow({ onEntrar, onAdmin, onChofer }) {
+// `aviso`: por qué se cerró la sesión (cuenta de baja o sesión que el
+// servidor ya no acepta, apps al 100%); el login lo enseña arriba.
+function AuthFlow({ onEntrar, onAdmin, onChofer, aviso }) {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: T.fondo } }}>
       <AuthStack.Screen name="LoginCliente">
-        {(props) => <Login {...props} onEntrar={onEntrar} />}
+        {(props) => <Login {...props} onEntrar={onEntrar} aviso={aviso} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginAdmin">
         {(props) => <LoginAdmin {...props} onLogin={onAdmin} />}
@@ -213,11 +254,12 @@ function AppChofer({ onLogout }) {
   };
 
   /**
-   * "En camino" ya quedó en la base (y el cliente avisado): se cambia la copia
-   * local de la parada sin volver a leer toda la ruta.
+   * "En camino" ya quedó en la base: se cambia la copia local de la parada
+   * sin volver a leer toda la ruta. `avisado` es lo que dijo el servidor
+   * (apps al 100%): "ya fue avisado" solo si de verdad le llegó.
    */
-  const enRutaLocal = (parada) =>
-    setRuta((r) => r.map((sv) => (sv.folio === parada.folio ? { ...sv, estado: "en-ruta", clienteAvisado: true } : sv)));
+  const enRutaLocal = (parada, avisado) =>
+    setRuta((r) => r.map((sv) => (sv.folio === parada.folio ? { ...sv, estado: "en-ruta", clienteAvisado: avisado } : sv)));
   return (
     <>
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: T.panel }, headerTintColor: T.tealClaro, headerTitleStyle: { fontWeight: "700", color: T.tinta }, headerShadowVisible: false, headerBackTitle: "Atrás", contentStyle: { backgroundColor: T.fondo } }}>
@@ -235,6 +277,7 @@ function AppChofer({ onLogout }) {
       <Stack.Screen name="ReportarProblema" options={{ title: "Reportar un problema" }}>
         {(props) => <ReportarProblema {...props} ruta={ruta} />}
       </Stack.Screen>
+      <Stack.Screen name="MiCuenta" component={MiCuenta} options={{ title: "Mi cuenta" }} initialParams={{ modo: "chofer" }} />
     </Stack.Navigator>
     {/* equipo 1 (6-oct-2026): el chofer registra su teléfono para que le
         llegue la parada nueva (antes solo le llegaba un correo). */}
@@ -284,6 +327,7 @@ function AppCliente({ onLogout }) {
       <Stack.Screen name="Cotizador" component={Cotizador} options={{ title: "Cotizador" }} />
       <Stack.Screen name="Cobertura" component={Cobertura} options={{ title: "Cobertura" }} />
       <Stack.Screen name="Agendar" component={Agendar} options={{ title: "Agendar" }} />
+      <Stack.Screen name="MiCuenta" component={MiCuentaCliente} options={{ title: "Mi cuenta" }} />
     </Stack.Navigator>
     </>
   );
@@ -302,12 +346,16 @@ const iconoAdmin = iconoPestana(ICONOS_ADM);
 
 function TabsAdmin({ onLogout }) {
   const insets = useSafeAreaInsets();
+  // Apps al 100%: las pestañas de las secciones de su rol. Mientras no se
+  // sabe (o sin señal), solo Panel y Más.
+  const { yo } = useMisPermisos();
+  const pestanas = pestanasAdmin(yo);
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
       <AdminTab.Navigator screenOptions={({ route }) => ({ ...tabBar(T.naranja, insets), tabBarIcon: iconoAdmin(route) })}>
         <AdminTab.Screen name="Panel" component={PanelAdmin} />
-        <AdminTab.Screen name="Solicitudes" component={Solicitudes} />
-        <AdminTab.Screen name="Saldos" component={Saldos} />
+        {pestanas.includes("Solicitudes") && <AdminTab.Screen name="Solicitudes" component={G.Solicitudes} />}
+        {pestanas.includes("Saldos") && <AdminTab.Screen name="Saldos" component={G.Saldos} />}
         <AdminTab.Screen name="MasA" options={{ title: "Más" }}>
           {(props) => <MasAdmin {...props} onLogout={onLogout} />}
         </AdminTab.Screen>
@@ -329,6 +377,10 @@ function AdminConCandado({ onLogout, alPasar }) {
   // escrito sigue ahí al volver.
   const [otraVez, setOtraVez] = useState(false);
   useEffect(() => alPedirSegundoPaso(() => setOtraVez(true)), []);
+  // Apps al 100%: con el segundo paso ya hecho, qué secciones tiene su rol.
+  useEffect(() => {
+    if (paso) cargarMisPermisos();
+  }, [paso]);
   if (!paso) {
     return (
       <VerificacionAdmin
@@ -343,7 +395,7 @@ function AdminConCandado({ onLogout, alPasar }) {
       <AppAdmin onLogout={onLogout} />
       <Modal visible={otraVez} animationType="slide" onRequestClose={() => {}}>
         <SafeAreaProvider>
-          {otraVez && <VerificacionAdmin onLogout={onLogout} alPasar={() => setOtraVez(false)} />}
+          {otraVez && <VerificacionAdmin onLogout={onLogout} alPasar={() => { setOtraVez(false); cargarMisPermisos(); }} />}
         </SafeAreaProvider>
       </Modal>
     </>
@@ -356,26 +408,32 @@ function AppAdmin({ onLogout }) {
       <Stack.Screen name="TabsAdmin" options={{ headerShown: false }}>
         {(props) => <TabsAdmin {...props} onLogout={onLogout} />}
       </Stack.Screen>
-      <Stack.Screen name="Clientes" component={Clientes} options={{ title: "Clientes" }} />
-      <Stack.Screen name="Servicios" component={Servicios} options={{ title: "Servicios" }} />
-      <Stack.Screen name="ReportesAdmin" component={ReportesAdmin} options={{ title: "Reportes" }} />
-      <Stack.Screen name="Usuarios" component={Usuarios} options={{ title: "Usuarios y roles" }} />
+      {/* Apps al 100%: cada una detrás del guardia de su sección (G). */}
+      <Stack.Screen name="Clientes" component={G.Clientes} options={{ title: "Clientes" }} />
+      <Stack.Screen name="FichaCliente" component={G.FichaCliente} options={{ title: "Ficha del cliente" }} />
+      <Stack.Screen name="Servicios" component={G.Servicios} options={{ title: "Servicios" }} />
+      <Stack.Screen name="ReportesAdmin" component={G.ReportesAdmin} options={{ title: "Reportes" }} />
+      <Stack.Screen name="Usuarios" component={G.Usuarios} options={{ title: "Usuarios y roles" }} />
+      <Stack.Screen name="Roles" component={G.Roles} options={{ title: "Roles" }} />
       {/* equipo 2: avisos a clientes y bitácora (paridad con la web, 6-oct-2026). */}
-      <Stack.Screen name="AvisosAdmin" component={AvisosAdmin} options={{ title: "Avisos a clientes" }} />
-      <Stack.Screen name="BitacoraAdmin" component={BitacoraAdmin} options={{ title: "Bitácora" }} />
+      <Stack.Screen name="AvisosAdmin" component={G.AvisosAdmin} options={{ title: "Avisos a clientes" }} />
+      <Stack.Screen name="BitacoraAdmin" component={G.BitacoraAdmin} options={{ title: "Bitácora" }} />
       {/* equipo 1: recolecciones e incidentes de la oficina. */}
-      <Stack.Screen name="Recolecciones" component={Recolecciones} options={{ title: "Recolecciones" }} />
-      <Stack.Screen name="Incidentes" component={Incidentes} options={{ title: "Incidentes" }} />
+      <Stack.Screen name="Recolecciones" component={G.Recolecciones} options={{ title: "Recolecciones" }} />
+      <Stack.Screen name="NuevaRecoleccion" component={G.NuevaRecoleccion} options={{ title: "Nueva recolección" }} />
+      <Stack.Screen name="Incidentes" component={G.Incidentes} options={{ title: "Incidentes" }} />
       {/* equipo 3: cuentas y catálogo */}
-      <Stack.Screen name="Altas" component={Altas} options={{ title: "Altas de clientes" }} />
-      <Stack.Screen name="Puntos" component={Puntos} options={{ title: "Puntos" }} />
-      <Stack.Screen name="ZonasPedidas" component={ZonasPedidas} options={{ title: "Zonas pedidas" }} />
-      <Stack.Screen name="Unidades" component={Unidades} options={{ title: "Unidades" }} />
+      <Stack.Screen name="Altas" component={G.Altas} options={{ title: "Altas de clientes" }} />
+      <Stack.Screen name="Puntos" component={G.Puntos} options={{ title: "Puntos" }} />
+      <Stack.Screen name="Rutas" component={G.Rutas} options={{ title: "Rutas" }} />
+      <Stack.Screen name="ZonasPedidas" component={G.ZonasPedidas} options={{ title: "Zonas pedidas" }} />
+      <Stack.Screen name="Unidades" component={G.Unidades} options={{ title: "Unidades" }} />
+      <Stack.Screen name="MiCuenta" component={MiCuenta} options={{ title: "Mi cuenta" }} initialParams={{ modo: "admin" }} />
       {/* equipo 3: si una acción de administración responde `segundoPaso`
           (el pase venció o se cerró la sesión en otro lado), se pide el código
           aquí y se vuelve a la pantalla de donde vino. */}
       <Stack.Screen name="SegundoPasoAdmin" options={{ headerShown: false, presentation: "modal" }}>
-        {(props) => <VerificacionAdmin alPasar={() => props.navigation.goBack()} onLogout={onLogout} />}
+        {(props) => <VerificacionAdmin alPasar={() => { props.navigation.goBack(); cargarMisPermisos(); }} onLogout={onLogout} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -393,6 +451,9 @@ export default function App() {
   // La notificación que se tocó y todavía no se atiende: puede llegar antes
   // de que la sesión se haya recuperado o de que el admin pase su código.
   const [toque, setToque] = useState(null);
+  // Por qué se cerró la sesión sin que la persona tocara "Salir" (apps al
+  // 100%): cuenta de baja o sesión que el servidor ya no acepta.
+  const [avisoSalida, setAvisoSalida] = useState("");
 
   /**
    * Notificaciones: el canal de Android y quién escucha los toques. Se monta
@@ -502,10 +563,33 @@ export default function App() {
   const salir = async () => {
     await olvidarPrecios();
     olvidarCuentasPrueba();
+    olvidarMisPermisos();
+    olvidarEstadoCliente();
     await salirDeSesion();
     setAdminListo(false);
     setSesion(null);
   };
+
+  /**
+   * ¿LA SESIÓN SIGUE VALIENDO EN EL SERVIDOR? (apps al 100%, fase A.3)
+   * El arranque entra con la sesión guardada sin preguntar a la red (ver
+   * arriba). Ya con la app abierta se pregunta: si el servidor dice que no
+   * (cuenta borrada, dada de baja, sesión revocada) se sale y el login dice
+   * por qué. Sin señal no se toca nada.
+   */
+  useEffect(() => {
+    if (sesion !== "cliente" && sesion !== "admin" && sesion !== "chofer") return undefined;
+    let vivo = true;
+    comprobarSesionConServidor(sesion).then(async (r) => {
+      if (!vivo || !r.salir) return;
+      // El aviso ANTES de salir: el login se monta ya con él.
+      setAvisoSalida(r.aviso || "");
+      await salir();
+    });
+    return () => { vivo = false; };
+    // `salir` cambia en cada pintada; solo importa cuando cambia la sesión.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion]);
 
   // Pantalla en el color del tema mientras se revisa, para que no parpadee el
   // login un instante antes de entrar.
@@ -539,7 +623,12 @@ export default function App() {
           <AppCliente key={enHold() ? "hold" : "precios"} onLogout={salir} />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: T.fondo }} edges={["top"]}>
-            <AuthFlow onEntrar={(modo) => setSesion(modo)} onAdmin={() => setSesion("admin")} onChofer={() => setSesion("chofer")} />
+            <AuthFlow
+              aviso={avisoSalida}
+              onEntrar={(modo) => { setAvisoSalida(""); setSesion(modo); }}
+              onAdmin={() => { setAvisoSalida(""); setSesion("admin"); }}
+              onChofer={() => { setAvisoSalida(""); setSesion("chofer"); }}
+            />
           </SafeAreaView>
         )}
       </NavigationContainer>

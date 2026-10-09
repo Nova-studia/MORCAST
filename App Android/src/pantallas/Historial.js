@@ -11,6 +11,7 @@ import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { descargarManifiesto } from "../pdf";
 import { textoNoProcedio } from "../solicitudes.js";
 import FotosEvidencia from "../FotosEvidencia";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 const FILTROS = [
   { id: "todos", texto: "Todos" },
@@ -118,6 +119,8 @@ export default function Historial({ route }) {
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={haySupabase() ? <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} /> : undefined}
     >
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Historial de servicios</Text>
       <Text style={s.sub}>Consulta tus recolecciones y su comprobante.</Text>
 

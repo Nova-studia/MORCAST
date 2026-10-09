@@ -225,3 +225,22 @@ export function pedirRecoleccionDeMuestra({ fecha, nota, origen = "ruta", tipoRe
 export function solicitudesDeMuestra() {
   return [...solicitudesPedidas];
 }
+
+/**
+ * El revisor cancela o cambia la fecha de una solicitud que pidió en esta
+ * sesión (apps al 100%, 9-oct-2026). Igual que pedirla: se queda en la
+ * memoria del teléfono y no va al servidor. Una cancelada queda como la
+ * guarda la base ("rechazada" con el motivo del cliente), para que se lea
+ * "Cancelada" igual que una real.
+ */
+export function cambiarSolicitudDeMuestra({ id, accion, fecha, motivoRechazo }) {
+  const s = solicitudesPedidas.find((x) => x.id === id);
+  if (!s) return null;
+  if (accion === "cancelar") {
+    s.estado = "rechazada";
+    s.motivoRechazo = motivoRechazo;
+  } else {
+    s.fechaPedida = fecha;
+  }
+  return { ok: true, fecha: accion === "reagendar" ? fecha : undefined };
+}

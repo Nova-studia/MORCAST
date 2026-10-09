@@ -9,12 +9,16 @@ import { haySupabase } from "../supabase";
 import { VERSION_APP } from "../version";
 import { HAY_DATOS_FISCALES } from "../datos";
 import { eliminarMiCuenta } from "../eliminar-cuenta";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 // Cada entrada lleva el MISMO dibujo que en el menú del portal web
 // (`PortalShell.js`): `dibujo` es el nombre del archivo allá. Antes eran
 // iconos de línea en un cuadrito de color; los dibujos ya traen sus colores
 // y se distinguen solos, así que van sin cuadro (igual que en la web).
 const MENU = [
+  // Apps al 100% (9-oct-2026): sus datos, los de su empresa, sus puntos,
+  // su contraseña y soporte, como /portal/cuenta.
+  { pantalla: "MiCuenta", dibujo: "usuarios-y-roles", titulo: "Mi cuenta", sub: "Tus datos, tu empresa, tus puntos y tu contraseña" },
   { pantalla: "Cobertura", dibujo: "cobertura", titulo: "Cobertura", sub: "¿Pasamos por tu zona?" },
   { pantalla: "Agendar", dibujo: "agendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta" },
   { pantalla: "Reportes", dibujo: "reportes", titulo: "Reportes", sub: "Peso recolectado por periodo" },
@@ -72,6 +76,8 @@ export default function Mas({ navigation, onLogout }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Más</Text>
       <Text style={s.sub}>Tu cuenta y más opciones.</Text>
 

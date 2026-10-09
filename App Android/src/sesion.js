@@ -6,6 +6,7 @@ import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra"
 import { modoDeRol } from "./entrada-social.js";
 import { borrarTokenAlSalir } from "./push";
 import { olvidarPase } from "./segundo-paso";
+import { mensajeErrorLogin } from "./web/estado-cliente.mjs";
 
 /**
  * Sesión de la app, para los tres modos.
@@ -62,7 +63,10 @@ export async function entrar(modo, correo, password) {
   });
 
   if (error || !data?.user) {
-    return { ok: false, mensaje: "Correo o contraseña incorrectos." };
+    // Una cuenta BLOQUEADA (dada de baja o sin acceso) se explica; antes
+    // leía "contraseña incorrecta" y la persona seguía intentando (apps al
+    // 100%, mismo texto que el login de la web).
+    return { ok: false, mensaje: mensajeErrorLogin(error) };
   }
 
   const rol = data.user.app_metadata?.rol;

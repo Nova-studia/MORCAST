@@ -30,6 +30,7 @@ import {
   segundosEstimados,
   textoResultado,
 } from "../../avisos-admin.js";
+import { filtrarClientes, alternarId, marcarVisibles, textoMarcados } from "../../elegir-clientes.mjs";
 
 /**
  * AVISOS A CLIENTES desde la app (6-oct-2026, paridad con /admin/avisos).
@@ -50,10 +51,10 @@ import {
  * mandarlo dos veces.
  */
 
-const normal = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 const FORM_VACIO = {
-  alcance: "todos", sectorId: "", rutaId: "", clienteId: "",
+  // clienteIds: "Clientes específicos" (apps al 100%, 9-oct-2026, como la web).
+  alcance: "todos", sectorId: "", rutaId: "", clienteId: "", clienteIds: [],
   motivo: "general", titulo: "", mensaje: "", vigenteHasta: "",
 };
 
@@ -126,7 +127,7 @@ export default function AvisosAdmin() {
 
   // ¿A cuántos les llega? Se recalcula al cambiar el destino, con una pausa
   // corta para no pedirlo a cada toque.
-  const idDestino = { sector: form.sectorId, ruta: form.rutaId, cliente: form.clienteId }[form.alcance] || "";
+  const idDestino = { sector: form.sectorId, ruta: form.rutaId, cliente: form.clienteId, clientes: form.clienteIds.join(",") }[form.alcance] || "";
   useEffect(() => {
     let vivo = true;
     if (form.alcance !== "todos" && !idDestino) {
@@ -135,7 +136,7 @@ export default function AvisosAdmin() {
     }
     setVista((v) => ({ ...v, cargando: true }));
     const t = setTimeout(() => {
-      contarDestinatarios({ alcance: form.alcance, sectorId: form.sectorId, rutaId: form.rutaId, clienteId: form.clienteId }).then((r) => {
+      contarDestinatarios({ alcance: form.alcance, sectorId: form.sectorId, rutaId: form.rutaId, clienteId: form.clienteId, clienteIds: form.clienteIds }).then((r) => {
         if (!vivo) return;
         setVista(r?.ok ? { cargando: false, resumen: r.resumen, motivo: "" } : { cargando: false, resumen: null, motivo: r?.motivo || "" });
       });
@@ -143,12 +144,10 @@ export default function AvisosAdmin() {
     return () => { vivo = false; clearTimeout(t); };
   }, [form.alcance, form.sectorId, form.rutaId, form.clienteId, idDestino]);
 
-  const clienteElegido = clientes.find((c) => c.id === form.clienteId) || null;
-  const coincidencias = useMemo(() => {
-    const q = normal(busqueda).trim();
-    if (!q) return [];
-    return clientes.filter((c) => normal(`${c.empresa} ${c.folio || ""} ${c.correo || ""}`).includes(q)).slice(0, 8);
-  }, [busqueda, clientes]);
+  // La lista para marcar: todos (son decenas), filtrados por el buscador.
+  const coincidencias = useMemo(() => filtrarClientes(clientes, busqueda), [busqueda, clientes]);
+  const marcados = new Set(form.clienteIds);
+  const nombreDe = (id) => clientes.find((c) => c.id === id)?.empresa || "Cliente";
   const rutasVisibles = rutas.filter((r) => r.activa !== false || r.id === form.rutaId);
 
   /** Primer toque: valida y enseña la confirmación con la cifra. */
@@ -201,7 +200,7 @@ export default function AvisosAdmin() {
 
   const estimado = segundosEstimados(vista.resumen?.correos);
   const avance = Math.min(0.95, segundos / estimado);
-  const tituloDestino = { sector: "el sector", ruta: "la ruta", cliente: "el cliente" }[form.alcance];
+  const tituloDestino = { sector: "el sector", ruta: "la ruta", cliente: "el cliente", clientes: "los clientes" }[form.alcance];
 
   return (
     <ScrollView
@@ -255,51 +254,64 @@ export default function AvisosAdmin() {
           </View>
         )}
 
-        {form.alcance === "cliente" && (
+        {/* Clientes específicos (apps al 100%, como la web): la lista para
+            marcar, con buscador, "Marcar todos" (o los que se ven) y "Quitar
+            todos". Con uno solo se guarda como "un cliente". */}
+        {form.alcance === "clientes" && (
           <View style={s.bloque}>
-            <Text style={s.etiqueta}>Cliente</Text>
-            {clienteElegido ? (
-              <View style={s.elegido}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.elegidoNom}>{clienteElegido.empresa}</Text>
-                  <Text style={s.nota}>{clienteElegido.correo || "Sin correo: solo lo verá en su portal y en la app"}</Text>
-                </View>
-                <Pressable onPress={() => { cambia({ clienteId: "" }); setBusqueda(""); }} hitSlop={10} style={s.icoBoton} accessibilityRole="button" accessibilityLabel="Cambiar de cliente">
-                  <Feather name="x" size={20} color={T.gris} />
-                </Pressable>
+            <Text style={s.etiqueta}>Clientes · {textoMarcados(form.clienteIds.length)}</Text>
+            {form.clienteIds.length > 0 && (
+              <View style={[s.chips, { marginBottom: 8 }]}>
+                {form.clienteIds.map((id) => (
+                  <Pressable key={id} onPress={() => cambia({ clienteIds: alternarId(form.clienteIds, id) })} style={s.marcado} accessibilityRole="button" accessibilityLabel={`Quitar a ${nombreDe(id)}`}>
+                    <Text style={s.marcadoTxt} numberOfLines={1}>{nombreDe(id)}</Text>
+                    <Feather name="x" size={13} color={T.tinta} />
+                  </Pressable>
+                ))}
               </View>
-            ) : (
-              <>
-                <View style={s.buscador}>
-                  <Feather name="search" size={16} color={T.gris} />
-                  <TextInput
-                    value={busqueda}
-                    onChangeText={setBusqueda}
-                    placeholder="Busca por empresa, folio o correo"
-                    placeholderTextColor={T.grisClaro}
-                    style={s.buscadorInput}
-                    autoCorrect={false}
-                    accessibilityLabel="Buscar cliente"
-                  />
-                </View>
-                {!!busqueda.trim() && (
-                  <View style={s.resultados}>
-                    {coincidencias.length === 0 && <Text style={[s.nota, { padding: 12 }]}>Ningún cliente con «{busqueda.trim()}».</Text>}
-                    {coincidencias.map((c, i) => (
-                      <Pressable
-                        key={c.id}
-                        onPress={() => cambia({ clienteId: c.id })}
-                        style={[s.resultado, i < coincidencias.length - 1 && s.borde]}
-                        accessibilityRole="button"
-                      >
-                        <Text style={s.resultadoNom}>{c.empresa}</Text>
-                        <Text style={s.nota}>{[c.folio, c.correo || "sin correo", c.estado && c.estado !== "activo" ? c.estado : null].filter(Boolean).join(" · ")}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </>
             )}
+            <View style={s.buscador}>
+              <Feather name="search" size={16} color={T.gris} />
+              <TextInput
+                value={busqueda}
+                onChangeText={setBusqueda}
+                placeholder="Busca por empresa, folio o correo"
+                placeholderTextColor={T.grisClaro}
+                style={s.buscadorInput}
+                autoCorrect={false}
+                accessibilityLabel="Buscar cliente"
+              />
+            </View>
+            <View style={[s.chips, { marginTop: 8 }]}>
+              <Chip
+                activo={false}
+                onPress={() => cambia({ clienteIds: marcarVisibles(form.clienteIds, coincidencias) })}
+                texto={`Marcar ${busqueda.trim() ? "los que se ven" : "todos"} (${coincidencias.length})`}
+              />
+              {form.clienteIds.length > 0 && <Chip activo={false} onPress={() => cambia({ clienteIds: [] })} texto="Quitar todos" />}
+            </View>
+            <ScrollView style={[s.resultados, { maxHeight: 320 }]} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {clientes.length === 0 && <Text style={[s.nota, { padding: 12 }]}>Cargando clientes…</Text>}
+              {clientes.length > 0 && coincidencias.length === 0 && <Text style={[s.nota, { padding: 12 }]}>Ningún cliente con «{busqueda.trim()}».</Text>}
+              {coincidencias.map((c, i) => {
+                const on = marcados.has(c.id);
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => cambia({ clienteIds: alternarId(form.clienteIds, c.id) })}
+                    style={[s.resultado, s.casilla, i < coincidencias.length - 1 && s.borde, on && { backgroundColor: T.accionTinte }]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                  >
+                    <Feather name={on ? "check-square" : "square"} size={19} color={on ? T.accionTxt : T.grisClaro} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.resultadoNom}>{c.empresa}</Text>
+                      <Text style={s.nota}>{[c.folio, c.correo || "sin correo", c.estado && c.estado !== "activo" ? c.estado : null].filter(Boolean).join(" · ")}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -575,6 +587,9 @@ const s = StyleSheet.create({
   resultados: { borderWidth: 1, borderColor: T.linea, borderRadius: 12, marginTop: 6, overflow: "hidden" },
   resultado: { padding: 12, minHeight: 48 },
   resultadoNom: { color: T.tinta, fontSize: 14, fontWeight: "600" },
+  casilla: { flexDirection: "row", alignItems: "center", gap: 10 },
+  marcado: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 10, minHeight: 32, borderRadius: 16, backgroundColor: T.accionTinte, borderWidth: 1, borderColor: "rgba(42,106,153,0.55)" },
+  marcadoTxt: { color: T.tinta, fontSize: 12.5, fontWeight: "600", flexShrink: 1 },
   borde: { borderBottomWidth: 1, borderBottomColor: T.linea },
   vista: { flexDirection: "row", gap: 10, backgroundColor: T.accionTinte, borderRadius: 12, padding: 12, marginTop: 14 },
   cifras: { flexDirection: "row", marginBottom: 2 },

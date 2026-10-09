@@ -9,6 +9,7 @@ import { reportes } from "../datos-remoto";
 import { useMiEmpresa, avisoSinEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
 import { descargarReporte } from "../pdf";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 const PERIODOS = [
   { id: "diario", texto: "Diario", data: REPORTE_DIARIO, titulo: "Reporte diario" },
@@ -67,6 +68,8 @@ export default function Reportes() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Reportes</Text>
       <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Peso recolectado por periodo, tomado de cada servicio.</Text>

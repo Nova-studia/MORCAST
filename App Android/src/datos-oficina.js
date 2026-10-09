@@ -1,6 +1,10 @@
 import { idsCuentasPrueba } from "./cuentas-prueba-datos";
 import { supabase, haySupabase } from "./supabase";
 import { postAdmin } from "./api-admin";
+import { accionAdmin } from "./accion";
+import { consultaRecolecciones } from "./recolecciones-panel.mjs";
+import { filtroBusqueda } from "./web/consulta-recolecciones.mjs";
+import { puntosParaOficina } from "./rutas-admin.mjs";
 
 /**
  * LA OFICINA EN EL TELÉFONO — datos y acciones (6-oct-2026, paridad con
@@ -91,6 +95,126 @@ export async function listarRecoleccionesOficina() {
     return null;
   }
   return (data || []).map(aRecoleccion);
+}
+
+/** Lista para `.not("cliente_id","in", …)`; vacía → un id que no existe. */
+const sinPruebas = async () => `(${[...(await idsCuentasPrueba())].join(",") || "00000000-0000-0000-0000-000000000000"})`;
+
+/**
+ * BUSCAR EN LA BASE (apps al 100%, 9-oct-2026), como `buscarSolicitudesPanel`
+ * de la web: folio o empresa, Desde/Hasta por la fecha efectiva y páginas de
+ * 50 con el total. Antes se traían las últimas 500 y se filtraba en el
+ * teléfono: lo más viejo no aparecía nunca.
+ *
+ * `{ ok, filas, total }` o `{ ok:false, motivo, sinRed? }`.
+ */
+export async function buscarRecolecciones({ hoy, q = "", desde, hasta = "", estado = "", pagina = 1 } = {}) {
+  if (!haySupabase()) return { ok: true, filas: [], total: 0 };
+  const c = consultaRecolecciones({ hoy, q, desde, hasta, estado, pagina });
+  try {
+    let clienteIds = [];
+    if (c.texto) {
+      const { data: cs } = await supabase.from("clientes").select("id").or(`empresa.ilike.%${c.texto}%,folio.ilike.%${c.texto}%`).limit(200);
+      clienteIds = (cs || []).map((x) => x.id);
+    }
+    let consulta = supabase
+      .from("solicitudes_recoleccion")
+      .select(CAMPOS_RECOLECCION, { count: "exact" })
+      .not("cliente_id", "in", await sinPruebas());
+    if (c.fechas) consulta = consulta.or(c.fechas);
+    const busca = filtroBusqueda(c.texto, clienteIds);
+    if (busca) consulta = consulta.or(busca);
+    if (c.estado) consulta = consulta.eq("estado", c.estado);
+    // El id desempata: con solo la fecha, las páginas repetían unas filas y
+    // se saltaban otras (muchas el mismo día de ruta).
+    const { data, error, count } = await consulta.order("fecha_pedida", { ascending: false }).order("id").range(c.rango[0], c.rango[1]);
+    if (error) {
+      console.warn("[oficina] no se pudieron buscar las recolecciones:", error.message);
+      return { ok: false, motivo: "No se pudieron cargar las recolecciones. Revisa tu conexión." };
+    }
+    return { ok: true, filas: (data || []).map(aRecoleccion), total: count ?? (data || []).length };
+  } catch {
+    return { ok: false, sinRed: true, motivo: "Sin conexión. No se pudieron cargar las recolecciones." };
+  }
+}
+
+/**
+ * Lo VENCIDO va aparte y siempre completo, sin importar la búsqueda ni la
+ * página: es lo que hay que resolver hoy. Y cuántas esperan confirmación.
+ */
+export async function pendientesOficina(hoy) {
+  if (!haySupabase()) return { ok: true, vencidas: [], porConfirmar: 0 };
+  try {
+    const excluir = await sinPruebas();
+    const [v, c] = await Promise.all([
+      supabase
+        .from("solicitudes_recoleccion")
+        .select(CAMPOS_RECOLECCION)
+        .not("cliente_id", "in", excluir)
+        .in("estado", ["solicitada", "confirmada", "en-ruta"])
+        .or(`fecha_confirmada.lt.${hoy},and(fecha_confirmada.is.null,fecha_pedida.lt.${hoy})`)
+        .order("fecha_pedida")
+        .limit(500),
+      supabase
+        .from("solicitudes_recoleccion")
+        .select("id", { count: "exact", head: true })
+        .not("cliente_id", "in", excluir)
+        .eq("estado", "solicitada"),
+    ]);
+    if (v.error) return { ok: false, vencidas: [], porConfirmar: c.count ?? 0 };
+    return { ok: true, vencidas: (v.data || []).map(aRecoleccion), porConfirmar: c.count ?? 0 };
+  } catch {
+    return { ok: false, sinRed: true, vencidas: [], porConfirmar: 0 };
+  }
+}
+
+/** Una sola por id (al abrir una notificación o "Cambiar"), o null. */
+export async function recoleccionPorId(id) {
+  if (!haySupabase() || !id) return null;
+  try {
+    const { data } = await supabase.from("solicitudes_recoleccion").select(CAMPOS_RECOLECCION).eq("id", id).maybeSingle();
+    return data ? aRecoleccion(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+/* ------------------------------------------------ nueva recolección */
+
+/** Clientes para "Nueva recolección": todos menos los de baja. `null` si no se pudo. */
+export async function clientesParaRecoleccion() {
+  if (!haySupabase()) return [];
+  try {
+    const { data, error } = await supabase.from("clientes").select("id, folio, empresa, correo, estado").neq("estado", "baja").order("empresa");
+    return error ? null : data || [];
+  } catch {
+    return null;
+  }
+}
+
+/** Los puntos de un cliente con su ruta y el chofer de la ruta. `null` si no se pudo. */
+export async function puntosDeClienteOficina(clienteId) {
+  if (!haySupabase() || !clienteId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("domicilios")
+      .select("id, alias, colonia, suscripciones ( estado, rutas ( nombre, chofer, chofer_id ) )")
+      .eq("cliente_id", clienteId)
+      .order("alias");
+    return error ? null : puntosParaOficina(data || []);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Crea la recolección por el servidor (`recoleccion-crear`): ahí se valida,
+ * nace "solicitada" o ya "confirmada" (y entonces avisa al cliente y al
+ * chofer como "Confirmar") y queda en la bitácora.
+ */
+export async function crearRecoleccion(datos) {
+  if (!haySupabase()) return { ok: true, demo: true, folio: "REC-DEMO", estado: datos.confirmar ? "confirmada" : "solicitada" };
+  return accionAdmin("recoleccion-crear", datos);
 }
 
 /**

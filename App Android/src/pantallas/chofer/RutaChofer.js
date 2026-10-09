@@ -76,7 +76,11 @@ export default function RutaChofer({ navigation, route, ruta, cargandoRuta, onLo
           <Feather name="alert-triangle" size={16} color="#0d1211" />
           <Text style={s.reportarTxt}>Reportar</Text>
         </Pressable>
-        <Pressable onPress={onLogout} hitSlop={10} style={s.salir}><Feather name="log-out" size={18} color={T.gris} /></Pressable>
+        {/* Apps al 100%: su nombre, su teléfono y su contraseña. */}
+        <Pressable onPress={() => navigation.navigate("MiCuenta", { modo: "chofer" })} hitSlop={8} style={s.salir} accessibilityRole="button" accessibilityLabel="Mi cuenta">
+          <Feather name="user" size={18} color={T.gris} />
+        </Pressable>
+        <Pressable onPress={onLogout} hitSlop={10} style={s.salir} accessibilityRole="button" accessibilityLabel="Cerrar sesión"><Feather name="log-out" size={18} color={T.gris} /></Pressable>
       </View>
 
       <ScrollView

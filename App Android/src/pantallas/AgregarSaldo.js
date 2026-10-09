@@ -9,6 +9,7 @@ import { Tarjeta, TituloTarjeta, Badge, Boton, AvisoHold, AvisoPrecios } from ".
 import { CUENTA, DATOS_DEPOSITO, BANCOS, RECARGAS, CLIENTE, pesos, fechaLarga, estatusInfo } from "../datos";
 import { miSaldo, misMovimientos, reportarDeposito, miEmpresa } from "../datos-remoto";
 import { haySupabase } from "../supabase";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 export default function AgregarSaldo() {
   const [monto, setMonto] = useState("");
@@ -121,6 +122,8 @@ export default function AgregarSaldo() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Agregar saldo</Text>
       <AvisoHold style={{ marginTop: 12 }} />
       <Text style={s.sub}>Deposita a la cuenta de Morcast y sube tu comprobante. Lo verificamos y aplicamos el saldo.</Text>

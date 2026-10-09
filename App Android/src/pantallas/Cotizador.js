@@ -13,6 +13,7 @@ import { enHold, HOLD } from "../estado-sistema";
 import { usePrecios } from "../precios-servidor";
 import { catalogoDe, lineasDeCotizador, cotizar } from "../precios-logica.js";
 import { esCuentaDeMuestra } from "../cuenta-muestra";
+import { BandaSuspendido } from "../TarjetaSoporte";
 
 export default function Cotizador() {
   const [cant, setCant] = useState({}); // { id: n }
@@ -72,6 +73,8 @@ export default function Cotizador() {
   if (enHold()) {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+        <BandaSuspendido />
         <Text style={s.h1}>Cotizador</Text>
         <Tarjeta style={{ alignItems: "center", paddingVertical: 34 }}>
           <Feather name="file-text" size={34} color={T.grisClaro} />
@@ -93,6 +96,8 @@ export default function Cotizador() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      {/* Cuenta suspendida (apps al 100%): la banda roja, arriba de todo. */}
+      <BandaSuspendido />
       <Text style={s.h1}>Cotizador</Text>
       <Text style={s.sub}>Arma tu cotización y descárgala en PDF. Precios de referencia.</Text>
       {/* Pedido de los dueños (4-oct-2026): el aviso va ARRIBA, antes de
