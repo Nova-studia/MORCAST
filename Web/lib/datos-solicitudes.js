@@ -116,7 +116,7 @@ const RESIDUOS_DEMO = [TIPOS_RESIDUO[1], TIPOS_RESIDUO[0], TIPOS_RESIDUO[6]];
  * El admin las ve todas; un cliente, solo las suyas. La consulta es la misma:
  * la diferencia la pone el RLS.
  */
-export async function listarSolicitudes({ sinPruebas = false } = {}) {
+export async function listarSolicitudes({ sinPruebas = false, lanzar = false } = {}) {
   if (!haySupabaseNavegador()) {
     return SOLICITUDES_SEED.map((s, i) => ({
       tipoResiduo: RESIDUOS_DEMO[i % RESIDUOS_DEMO.length],
@@ -134,6 +134,9 @@ export async function listarSolicitudes({ sinPruebas = false } = {}) {
 
   if (error) {
     console.error("[solicitudes] No se pudieron leer:", error.message);
+    // Con `lanzar`, la pantalla distingue "no pude leer" de "no hay nada"
+    // (Entrega 4): sin red decía "Todavía no has pedido…".
+    if (lanzar) throw new Error("No se pudo cargar. Revisa tu conexión.");
     return [];
   }
   return (data || []).map(aFormatoPantalla);
@@ -335,7 +338,7 @@ export async function miSuscripcion() {
  * servicio activo, cada uno con SU ruta (Entrega 3). Antes se pedía siempre
  * en el primer punto.
  */
-export async function misPuntos() {
+export async function misPuntos({ lanzar = false } = {}) {
   if (!haySupabaseNavegador()) return [];
   const { data, error } = await supabaseNavegador()
     .from("suscripciones")
@@ -343,6 +346,9 @@ export async function misPuntos() {
     .eq("estado", "activa");
   if (error) {
     console.error("[solicitudes] No se pudieron leer los puntos:", error.message);
+    // Con `lanzar`, la pantalla distingue "no pude leer" de "no hay nada"
+    // (Entrega 4): sin red decía "Todavía no has pedido…".
+    if (lanzar) throw new Error("No se pudo cargar. Revisa tu conexión.");
     return [];
   }
   return puntosAgendables(data || []);
@@ -476,7 +482,7 @@ export async function pedirRecoleccion({ rutaClave, rutaId: rutaElegida = null, 
  *   recolecciones disparaba 100 peticiones que nadie iba a mirar. Solo el
  *   Historial y la agenda del admin abren el comprobante.
  */
-export async function misServicios({ conFotos = true, conChoferes = true, sinPruebas = false } = {}) {
+export async function misServicios({ conFotos = true, conChoferes = true, sinPruebas = false, lanzar = false } = {}) {
   if (!haySupabaseNavegador()) return [];
 
   const ids = sinPruebas ? await idsCuentasPrueba() : null;
@@ -494,6 +500,9 @@ export async function misServicios({ conFotos = true, conChoferes = true, sinPru
 
   if (error) {
     console.error("[servicios] No se pudieron leer:", error.message);
+    // Con `lanzar`, la pantalla distingue "no pude leer" de "no hay nada"
+    // (Entrega 4): sin red decía "Todavía no has pedido…".
+    if (lanzar) throw new Error("No se pudo cargar. Revisa tu conexión.");
     return [];
   }
 

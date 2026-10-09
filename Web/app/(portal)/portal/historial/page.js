@@ -11,48 +11,54 @@ import { misServicios } from "@/lib/datos-solicitudes";
 import { descargarManifiesto } from "@/lib/portal-pdf";
 import EvidenciaServicio from "@/components/portal/EvidenciaServicio";
 import { clienteActual } from "@/lib/portal-sesion";
+import ErrorCarga from "@/components/portal/ErrorCarga";
 
-const FILTROS = [
-  { id: "todos", texto: "Todos" },
-  { id: "completado", texto: "Completados" },
-  { id: "programado", texto: "Programados" },
-  { id: "en-ruta", texto: "En ruta" },
-];
+// Sin filtros por estado (Entrega 4): aquí solo hay recolecciones
+// COMPLETADAS, así que "Programados" y "En ruta" salían siempre vacíos. Lo
+// pendiente se ve en Agendar.
 
 export default function HistorialPortal() {
-  const [filtro, setFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
   const [bajando, setBajando] = useState(null);
   const [abierto, setAbierto] = useState(null);
   const [servicios, setServicios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
 
   // Los enlaces de las fotos vienen firmados y caducan, así que se piden al
   // abrir la pantalla, no se guardan.
   useEffect(() => {
     let vivo = true;
-    misServicios().then((lista) => {
-      if (!vivo) return;
-      setServicios(lista);
-      setCargando(false);
-    });
+    setCargando(true);
+    setErrorCarga("");
+    misServicios({ lanzar: true })
+      .then((lista) => {
+        if (!vivo) return;
+        setServicios(lista);
+        setCargando(false);
+      })
+      .catch((e) => {
+        if (!vivo) return;
+        setErrorCarga(e?.message || "No se pudo cargar tu historial.");
+        setCargando(false);
+      });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [intento]);
 
   const filas = useMemo(() => {
     return servicios.filter((s) => {
-      const pasaFiltro = filtro === "todos" || s.estatus === filtro;
       const q = busca.trim().toLowerCase();
       const pasaBusca =
         !q ||
         s.folio.toLowerCase().includes(q) ||
         s.tipo.toLowerCase().includes(q) ||
         s.residuo.toLowerCase().includes(q);
-      return pasaFiltro && pasaBusca;
+      return pasaBusca;
     }).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
-  }, [filtro, busca, servicios]);
+  }, [busca, servicios]);
 
   const bajarManifiesto = async (s) => {
     setBajando(s.folio);
@@ -76,17 +82,7 @@ export default function HistorialPortal() {
 
       <div className="pt-card">
         <div className="pt-card-head" style={{ flexWrap: "wrap" }}>
-          <div className="pt-segmento">
-            {FILTROS.map((f) => (
-              <button
-                key={f.id}
-                className={filtro === f.id ? "activo" : ""}
-                onClick={() => setFiltro(f.id)}
-              >
-                {f.texto}
-              </button>
-            ))}
-          </div>
+          <h2>Recolecciones completadas</h2>
           <div style={{ position: "relative", flex: "0 1 260px" }}>
             <MagnifyingGlass style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--mc-gris)" }} />
             <input
@@ -108,7 +104,9 @@ export default function HistorialPortal() {
             a una lista vacía. */}
         {cargando && <div className="pt-vacio">Cargando tus servicios…</div>}
 
-        {!cargando && filas.length === 0 && (
+        {!cargando && errorCarga && <ErrorCarga mensaje={errorCarga} onReintentar={() => setIntento((n) => n + 1)} />}
+
+        {!cargando && !errorCarga && filas.length === 0 && (
           <div className="pt-vacio">
             {servicios.length === 0
               ? "Todavía no tienes recolecciones completadas. Aquí aparecerán con su comprobante fotográfico."

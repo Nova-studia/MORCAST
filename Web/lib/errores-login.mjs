@@ -49,3 +49,16 @@ export function mensajeDeError(codigo) {
   if (!codigo) return "";
   return TEXTOS[codigo] || GENERICO;
 }
+
+/**
+ * A dónde mandar al cliente después de entrar (Entrega 4): a donde iba
+ * (`?volver=`, lo pone proxy.js), pero SOLO a páginas del portal. Nunca a
+ * otro sitio (`//evil.com`), ni al panel, ni de vuelta al login.
+ */
+export function destinoTrasLogin(volver) {
+  const v = typeof volver === "string" ? volver : "";
+  if (!/^\/portal(\/|\?|$)/.test(v)) return "/portal";
+  if (v.includes("..") || v.includes("\\") || v.startsWith("//")) return "/portal";
+  if (/^\/portal\/login(\/|\?|$)/.test(v)) return "/portal";
+  return v;
+}

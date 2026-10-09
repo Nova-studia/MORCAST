@@ -17,16 +17,26 @@ export default function DocumentosPortal() {
   const [bajando, setBajando] = useState(null);
   const [servicios, setServicios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let vivo = true;
-    misServicios({ conFotos: false }).then((l) => {
-      if (!vivo) return;
-      setServicios(l);
-      setCargando(false);
-    });
+    setCargando(true);
+    setErrorCarga("");
+    misServicios({ conFotos: false, lanzar: true })
+      .then((l) => {
+        if (!vivo) return;
+        setServicios(l);
+        setCargando(false);
+      })
+      .catch((e) => {
+        if (!vivo) return;
+        setErrorCarga(e?.message || "No se pudieron cargar tus documentos.");
+        setCargando(false);
+      });
     return () => { vivo = false; };
-  }, []);
+  }, [intento]);
 
   const manifiestos = servicios.filter((s) => s.manifiesto);
 
@@ -84,14 +94,16 @@ export default function DocumentosPortal() {
         <div className="pt-card-head">
           <h2>Manifiestos</h2>
           <span style={{ color: "var(--mc-gris)", fontSize: "0.85rem" }}>
-            {manifiestos.length} documentos
+            {cargando || errorCarga ? "" : `${manifiestos.length} documento${manifiestos.length === 1 ? "" : "s"}`}
           </span>
         </div>
         {/* Sin manifiestos NO se pinta la tabla: quedaba el encabezado de
             cinco columnas y su raya colgando sobre el vacio, sin una palabra
             que dijera por que. Es el mismo trato que ya se le daba al
             historial de servicios. */}
-        {manifiestos.length === 0 && (
+        {cargando && <div className="pt-vacio">Cargando tus documentos…</div>}
+        {!cargando && errorCarga && <ErrorCarga mensaje={errorCarga} onReintentar={() => setIntento((n) => n + 1)} />}
+        {!cargando && !errorCarga && manifiestos.length === 0 && (
           <div className="pt-vacio">
             Todavía no tienes manifiestos. Aquí aparece uno por cada
             recolección completada, listo para descargar en PDF.

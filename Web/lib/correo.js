@@ -920,3 +920,28 @@ export async function correoSolicitudRecoleccion({
           Confirmar en el panel</a></p>`),
   });
 }
+
+/**
+ * A la OFICINA: un cliente canceló o le cambió la fecha a su solicitud desde
+ * el portal (Entrega 4, 9-oct-2026).
+ */
+export async function correoCambioSolicitudCliente({ accion, empresa, folio, antes, despues, motivo, enlace }) {
+  const cancelo = accion === "cancelar";
+  return enviar({
+    from: REMITENTE,
+    to: [CORREO_AVISOS],
+    reply_to: RESPONDER_A,
+    subject: cancelo ? `${empresa} canceló su recolección ${folio}` : `${empresa} cambió la fecha de ${folio}`,
+    html: plantilla(`
+      <h1 style="margin:0 0 16px;font-size:20px;color:#144C4F">${cancelo ? "Recolección cancelada" : "Recolección con otra fecha"}</h1>
+      <p style="margin:0 0 14px;font-size:15px;line-height:1.6">
+        <strong>${esc(empresa)}</strong> ${cancelo ? "canceló" : "cambió la fecha de"} la recolección
+        <strong>${esc(folio)}</strong> desde su portal.</p>
+      ${cancelo
+        ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${esc(motivo || "")}</p>`
+        : `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Antes: ${esc(antes || "—")} · Ahora: <strong>${esc(despues || "—")}</strong>. Falta confirmarla.</p>`}
+      <p style="margin:20px 0 0;font-size:15px">
+        <a href="${esc(enlace)}" style="display:inline-block;background:#2a6a99;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px">
+          Ver en el panel</a></p>`),
+  });
+}

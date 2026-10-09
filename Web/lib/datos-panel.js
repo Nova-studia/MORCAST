@@ -109,12 +109,12 @@ export async function cobranza12Meses() {
  * Resumen de la cuenta del cliente que tiene la sesión: saldo, movimientos y
  * sus próximas recolecciones.
  */
-export async function resumenCliente() {
+export async function resumenCliente({ lanzar = false } = {}) {
   if (!haySupabaseNavegador()) return null;
 
   const supabase = supabaseNavegador();
 
-  const [{ data: saldo }, { data: movs }, { data: cliente }] = await Promise.all([
+  const [{ data: saldo, error: e1 }, { data: movs, error: e2 }, { data: cliente, error: e3 }] = await Promise.all([
     supabase.from("saldos_clientes").select("saldo, cargos, por_verificar").limit(1).maybeSingle(),
     supabase
       .from("movimientos_saldo")
@@ -123,6 +123,13 @@ export async function resumenCliente() {
       .limit(8),
     supabase.from("clientes").select("empresa, contacto, limite_credito, dias_credito").limit(1).maybeSingle(),
   ]);
+
+  // Antes un error salía como saldo en $0 (Entrega 4): con `lanzar`, se dice.
+  const fallo = e1 || e2 || e3;
+  if (fallo) {
+    console.error("[panel] No se pudo leer el resumen:", fallo.message);
+    if (lanzar) throw new Error("No se pudo cargar tu saldo. Revisa tu conexión.");
+  }
 
   return {
     empresa: cliente?.empresa || "",

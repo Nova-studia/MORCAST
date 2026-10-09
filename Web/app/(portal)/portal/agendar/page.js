@@ -18,6 +18,10 @@ import {
   pedirRecoleccion,
 } from "@/lib/datos-solicitudes";
 import { puntoInicial } from "@/lib/puntos-cliente.mjs";
+import { puedeCancelar, puedeReagendar, estadoParaMostrar } from "@/lib/solicitud-cliente.mjs";
+import { cambiarMiSolicitudAccion } from "@/app/acciones-solicitud";
+import TarjetaSoporte from "@/components/portal/TarjetaSoporte";
+import ErrorCarga from "@/components/portal/ErrorCarga";
 
 /**
  * Fecha en YYYY-MM-DD con la hora LOCAL.
@@ -83,22 +87,51 @@ export default function AgendarPortal() {
   const punto = puntos.find((p) => p.domicilioId === puntoId) || null;
   const ruta = puntos.length ? punto?.ruta || null : suscripcion?.ruta || null;
 
+  // Cancelar o cambiar la fecha de una solicitud (Entrega 4): { id, modo, fecha, motivo, enviando, error }.
+  const [cambio, setCambio] = useState(null);
+  const [hecho, setHecho] = useState("");
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
+  const aplicarCambio = async () => {
+    if (!cambio || cambio.enviando) return;
+    setCambio((c) => ({ ...c, enviando: true, error: "" }));
+    const r = await cambiarMiSolicitudAccion({
+      id: cambio.id,
+      accion: cambio.modo,
+      fecha: cambio.fecha,
+      motivo: cambio.motivo,
+    });
+    if (!r.ok) {
+      setCambio((c) => ({ ...c, enviando: false, error: r.motivo || "No se pudo." }));
+      return;
+    }
+    setHecho(cambio.modo === "cancelar" ? `Cancelaste ${cambio.folio}. Ya le avisamos a Morcast.` : `${cambio.folio} quedó para el ${fechaConDia(r.fecha || cambio.fecha)}. Morcast la confirma y te avisa.`);
+    setCambio(null);
+    setMias(await listarSolicitudes());
+  };
+
   // Las solicitudes que llegan son SOLO las de esta empresa: no hace falta
   // filtrarlas aquí porque el RLS ya las filtró en la base.
   useEffect(() => {
     let vivo = true;
-    Promise.all([miSuscripcion(), listarSolicitudes(), misPuntos()]).then(([s, lista, ps]) => {
+    setCargando(true);
+    setErrorCarga("");
+    Promise.all([miSuscripcion(), listarSolicitudes({ lanzar: true }), misPuntos({ lanzar: true })]).then(([s, lista, ps]) => {
       if (!vivo) return;
       setSuscripcion(s);
       setMias(lista);
       setPuntos(ps);
       setPuntoId(puntoInicial(ps));
       setCargando(false);
+    }).catch((e) => {
+      if (!vivo) return;
+      setErrorCarga(e?.message || "No se pudieron cargar tus solicitudes.");
+      setCargando(false);
     });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [intento]);
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
 
@@ -180,7 +213,9 @@ export default function AgendarPortal() {
           )}
 
           <div style={{ fontSize: "0.86rem", color: "var(--mc-gris)", marginBottom: "0.9rem" }}>
-            {faltaPunto ? (
+            {errorCarga ? (
+              <>No se pudieron cargar tus puntos y rutas.</>
+            ) : faltaPunto ? (
               <>Elige primero el punto: cada uno tiene su ruta y sus días.</>
             ) : ruta ? (
               // Sin paréntesis alrededor del tipo: su nombre ya trae los suyos
@@ -288,14 +323,20 @@ export default function AgendarPortal() {
 
         <div className="pt-card">
           <div className="pt-card-head"><h2>Mis solicitudes</h2></div>
+          {hecho && <div className="pt-activar-ok" role="status" style={{ marginBottom: "0.8rem" }}>{hecho}</div>}
           {cargando ? (
             <div className="pt-vacio">Cargando tus solicitudes…</div>
+          ) : errorCarga ? (
+            <ErrorCarga mensaje={errorCarga} onReintentar={() => setIntento((n) => n + 1)} />
           ) : mias.length === 0 ? (
             <div className="pt-vacio">Todavía no has pedido ninguna recolección.</div>
           ) : (
             ordenarPorUrgencia(mias, hoyISO()).map((s) => {
-              const b = badge(s.estado);
+              // Una cancelada por el propio cliente se ve "Cancelada", no "Rechazada".
+              const mostrar = estadoParaMostrar(s);
+              const b = mostrar === "cancelada" ? { texto: "Cancelada", clase: "" } : badge(s.estado);
               const venc = estadoVencimiento(s, hoyISO());
+              const abierto = cambio?.id === s.id;
               return (
                 <div
                   key={s.folio}
@@ -329,7 +370,45 @@ export default function AgendarPortal() {
                     </div>
                   )}
                   {venc.vencida && (
-                    <div className="pt-solicitud-aviso">{venc.detalleCliente}</div>
+                    <div className="pt-solicitud-aviso">
+                      {venc.detalleCliente}
+                      <div style={{ marginTop: "0.45rem" }}>
+                        <TarjetaSoporte compacta mensaje={`Hola, mi recolección ${s.folio} se pasó de fecha. ¿Me ayudan?`} />
+                      </div>
+                    </div>
+                  )}
+                  {puedeCancelar(s.estado) && !abierto && (
+                    <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                      {puedeReagendar(s.estado) && (
+                        <button type="button" className="pt-btn" style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
+                          onClick={() => { setHecho(""); setCambio({ id: s.id, folio: s.folio, modo: "reagendar", fecha: s.fechaPedida, motivo: "" }); }}>
+                          Cambiar fecha
+                        </button>
+                      )}
+                      <button type="button" className="pt-btn" style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}
+                        onClick={() => { setHecho(""); setCambio({ id: s.id, folio: s.folio, modo: "cancelar", fecha: "", motivo: "" }); }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                  {abierto && (
+                    <div style={{ marginTop: "0.6rem", display: "grid", gap: "0.45rem" }}>
+                      {cambio.modo === "reagendar" ? (
+                        <input type="date" className="pt-input" min={hoyISO()} max={enUnAño()} value={cambio.fecha}
+                          onChange={(e) => setCambio((c) => ({ ...c, fecha: e.target.value }))} aria-label="Fecha nueva" />
+                      ) : (
+                        <input className="pt-input" value={cambio.motivo} maxLength={200} placeholder="¿Por qué? (opcional)"
+                          onChange={(e) => setCambio((c) => ({ ...c, motivo: e.target.value }))} aria-label="Motivo de la cancelación" />
+                      )}
+                      {cambio.error && <div className="pt-login-error" role="alert">{cambio.error}</div>}
+                      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                        <button type="button" className={`pt-btn ${cambio.modo === "cancelar" ? "" : "pt-btn-verde"}`} disabled={cambio.enviando}
+                          style={cambio.modo === "cancelar" ? { color: "#b3261e" } : undefined} onClick={aplicarCambio}>
+                          {cambio.enviando ? "Guardando…" : cambio.modo === "cancelar" ? "Sí, cancelar" : "Guardar fecha"}
+                        </button>
+                        <button type="button" className="pt-btn" onClick={() => setCambio(null)} disabled={cambio.enviando}>No</button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );

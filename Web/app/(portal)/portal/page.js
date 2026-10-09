@@ -30,6 +30,8 @@ import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { enHold } from "@/lib/estado-sistema";
 import AvisosCliente from "@/components/AvisosCliente";
 import AvisoPrecios from "@/components/AvisoPrecios";
+import ErrorCarga from "@/components/portal/ErrorCarga";
+import TarjetaSoporte from "@/components/portal/TarjetaSoporte";
 
 /** Estados que el cliente ve como "todavía va a pasar". */
 const PENDIENTES = ["solicitada", "confirmada", "en-ruta"];
@@ -41,6 +43,8 @@ export default function PanelPortal() {
   const [solicitudes, setSolicitudes] = useState(null);
   const [servicios, setServicios] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
 
   // Sin variables de Supabase el sitio sigue navegable con el cliente de
   // ejemplo. Con ellas, TODO lo de esta pantalla sale de la base.
@@ -53,13 +57,23 @@ export default function PanelPortal() {
   // línea de crédito de $60,000 que eran de otra empresa.
   useEffect(() => {
     let vivo = true;
-    Promise.allSettled([resumenCliente(), listarSolicitudes(), misServicios({ conFotos: false })]).then(
+    setErrorCarga("");
+    Promise.allSettled([
+      resumenCliente({ lanzar: true }),
+      listarSolicitudes({ lanzar: true }),
+      misServicios({ conFotos: false, lanzar: true }),
+    ]).then(
       ([r, s, sv]) => {
         if (!vivo) return;
         if (r.status === "fulfilled") setResumen(r.value);
         if (s.status === "fulfilled") setSolicitudes(s.value);
         if (sv.status === "fulfilled") setServicios(sv.value);
         setCargando(false);
+        // Lo que no cargó se DICE (Entrega 4): antes salía saldo en $0 y
+        // "No hay servicios programados" como si fuera verdad.
+        if (s.status !== "fulfilled" || sv.status !== "fulfilled") {
+          setErrorCarga("No se pudo cargar parte de tu información. Revisa tu conexión.");
+        }
 
         // El resumen es el que trae el saldo y el nombre de la empresa. Si
         // justo esa falló —pasa en la primerísima carga después de entrar,
@@ -69,13 +83,15 @@ export default function PanelPortal() {
         if (r.status !== "fulfilled") {
           setTimeout(() => {
             if (!vivo) return;
-            resumenCliente().then((r2) => { if (vivo && r2) setResumen(r2); }).catch(() => {});
+            resumenCliente({ lanzar: true })
+              .then((r2) => { if (vivo && r2) setResumen(r2); })
+              .catch(() => { if (vivo) setErrorCarga("No se pudo cargar tu saldo. Revisa tu conexión."); });
           }, 900);
         }
       }
     );
     return () => { vivo = false; };
-  }, []);
+  }, [intento]);
 
   // Con Supabase configurado NUNCA se enseña la cuenta de ejemplo: mientras
   // no llegue la de verdad se enseña en ceros. Un cero de más se entiende;
@@ -156,6 +172,7 @@ export default function PanelPortal() {
       {/* Avisos de la administración (retrasos, reagendas). Arriba de todo
           lo demás: si la ruta de hoy va tarde, es lo primero que el cliente
           tiene que leer. Sin avisos vigentes no ocupa nada. */}
+      {errorCarga && <ErrorCarga mensaje={errorCarga} onReintentar={() => setIntento((n) => n + 1)} />}
       <AvisosCliente />
 
       {/* Saldo + KPIs */}
@@ -362,6 +379,10 @@ export default function PanelPortal() {
             </table>
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: "1.1rem" }}>
+        <TarjetaSoporte empresa={real ? resumen?.empresa : CLIENTE.empresa} />
       </div>
     </>
   );

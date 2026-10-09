@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import CampoContrasena from "@/components/CampoContrasena";
 import OtrosAccesos from "@/components/OtrosAccesos";
-import { mensajeDeError } from "@/lib/errores-login.mjs";
+import { mensajeDeError, destinoTrasLogin } from "@/lib/errores-login.mjs";
 import { iniciarSesion, obtenerSesion } from "@/lib/portal-sesion";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import BotonGoogle from "@/components/BotonGoogle";
@@ -30,7 +30,7 @@ export default function LoginPortal() {
   useEffect(() => {
     let vivo = true;
     obtenerSesion().then((s) => {
-      if (vivo && s) router.replace("/portal");
+      if (vivo && s) router.replace(destinoTrasLogin(new URLSearchParams(window.location.search).get("volver")));
     });
     return () => {
       vivo = false;
@@ -50,7 +50,8 @@ export default function LoginPortal() {
     // refresh() antes de navegar: obliga al servidor a releer la cookie recién
     // creada. Sin esto, proxy.js todavía ve "sin sesión" y rebota al login.
     router.refresh();
-    router.replace("/portal");
+    // A donde iba antes de que le pidieran entrar (Entrega 4), solo dentro del portal.
+    router.replace(destinoTrasLogin(new URLSearchParams(window.location.search).get("volver")));
   };
 
   /**
@@ -132,7 +133,9 @@ export default function LoginPortal() {
             manifiestos y constancia fiscal en un solo lugar.
           </p>
           <ul className="pt-login-checks">
-            <li><CheckCircle /> Saldo y estado de cuenta en tiempo real</li>
+            {/* Sin "en tiempo real": el saldo se lee al abrir, y mientras dure el
+                Hold ni siquiera se enseña (Entrega 4). */}
+            <li><CheckCircle /> Tus recolecciones, manifiestos y avisos en un solo lugar</li>
             <li><CheckCircle /> Historial completo de servicios</li>
             <li><CheckCircle /> Reportes diarios, mensuales y anuales</li>
             <li><CheckCircle /> Manifiestos y constancia fiscal en PDF</li>

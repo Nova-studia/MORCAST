@@ -33,3 +33,12 @@ test("tras eliminar la cuenta, el login lo dice claro", async () => {
   assert.equal(ERRORES_LOGIN.cuentaEliminada, "cuenta_eliminada");
   assert.match(mensajeDeError("cuenta_eliminada"), /eliminó/);
 });
+
+test("el login regresa a donde ibas, pero SOLO dentro del portal", async () => {
+  const { destinoTrasLogin } = await import("../lib/errores-login.mjs");
+  assert.equal(destinoTrasLogin("/portal/historial"), "/portal/historial");
+  assert.equal(destinoTrasLogin("/portal/agendar?x=1"), "/portal/agendar?x=1");
+  for (const malo of ["//evil.com", "/admin", "https://evil.com", "/portal/login", "/portalX", "/portal/../admin", "", null, "/\evil.com"]) {
+    assert.equal(destinoTrasLogin(malo), "/portal", String(malo));
+  }
+});
