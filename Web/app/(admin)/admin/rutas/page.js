@@ -24,6 +24,8 @@ import {
   alternarRutaActiva,
 } from "@/lib/datos-rutas";
 import { listarUnidades } from "@/lib/datos-unidades";
+import { listarOperadores } from "@/lib/datos-clientes";
+import { elegirChoferRuta } from "@/lib/rutas-chofer.mjs";
 import { etiquetaUnidad, etiquetaEstadoUnidad, sugerirUnidad } from "@/lib/unidades.mjs";
 import PestanasMapa from "@/components/admin/PestanasMapa";
 
@@ -49,14 +51,16 @@ export default function RutasAdmin() {
   // El inventario de camiones (/admin/unidades). La unidad de la ruta ya no
   // es texto libre: se elige de aquí y se guarda su id.
   const [unidades, setUnidades] = useState([]);
+  const [choferes, setChoferes] = useState([]);
 
   // Traer las rutas y las unidades de la base al abrir la pantalla.
   useEffect(() => {
     let vivo = true;
-    Promise.all([listarRutas(), listarUnidades()]).then(([lista, flota]) => {
+    Promise.all([listarRutas(), listarUnidades(), listarOperadores()]).then(([lista, flota, gente]) => {
       if (!vivo) return;
       setRutas(lista);
       setUnidades(flota);
+      setChoferes(gente || []);
       setSeleccion((actual) => actual || lista[0]?.id || "");
       setCargando(false);
     });
@@ -103,6 +107,11 @@ export default function RutasAdmin() {
   // la base con cada tecla sería una llamada por letra tecleada.
   const cambia = (campo, valor) => {
     setRutas(rutas.map((r) => (r.id === seleccion ? { ...r, [campo]: valor } : r)));
+    setGuardado("sucio");
+  };
+  // Varios campos a la vez (dos `cambia` seguidos se pisarían el uno al otro).
+  const cambiaVarios = (cambios) => {
+    setRutas((lista) => lista.map((r) => (r.id === seleccion ? { ...r, ...cambios } : r)));
     setGuardado("sucio");
   };
 
@@ -387,15 +396,29 @@ export default function RutasAdmin() {
                 </div>
               </div>
 
+              {/* El chofer de la LISTA (rutas.chofer_id): de él dependen las
+                  paradas que ve cada chofer y sus avisos. Antes era texto
+                  libre y "El de la ruta" no le llegaba a nadie. */}
               <div className="pt-campo">
-                <label>Chofer</label>
-                <input
+                <label htmlFor="ruta-chofer">Chofer</label>
+                <select
+                  id="ruta-chofer"
                   className="pt-input"
-                  value={ruta.chofer}
-                  onChange={(e) => cambia("chofer", e.target.value)}
-                  placeholder="Nombre del chofer"
+                  value={ruta.choferId || ""}
+                  onChange={(e) => {
+                    const c = elegirChoferRuta(e.target.value, choferes);
+                    cambiaVarios({ choferId: c.chofer_id || "", chofer: c.chofer });
+                  }}
                   style={{ width: "100%" }}
-                />
+                >
+                  <option value="">Sin chofer asignado</option>
+                  {choferes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+                {!ruta.choferId && ruta.chofer && (
+                  <p style={{ margin: "0.35rem 0 0", fontSize: "0.8rem", color: "#f0895c" }}>
+                    Antes decía «{ruta.chofer}» escrito a mano. Escoge al chofer de la lista para que vea sus paradas.
+                  </p>
+                )}
               </div>
 
               <div className="pt-campo">
@@ -419,7 +442,7 @@ export default function RutasAdmin() {
               ) : (
                 <p style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
                   {nombreTipoRuta(ruta.tipo)} · {ruta.zona.length} vértices en su zona
-                  {ruta.chofer ? ` · chofer ${ruta.chofer}` : " · sin chofer asignado"}
+                  {ruta.choferId && ruta.chofer ? ` · chofer ${ruta.chofer}` : " · sin chofer asignado"}
                 </p>
               )}
 

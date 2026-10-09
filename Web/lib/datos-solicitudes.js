@@ -29,7 +29,7 @@ const CAMPOS_BASE = `
   estado, nota, motivo_rechazo, creado, tipo_residuo, motivo_no_procedio, detalle_no_procedio,
   clientes ( folio, empresa ),
   domicilios ( alias, colonia ),
-  rutas ( clave, nombre, tipo, unidad, chofer ),
+  rutas ( clave, nombre, tipo, unidad, chofer, chofer_id ),
   choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre )
 `;
 
@@ -72,6 +72,10 @@ function aFormatoPantalla(f) {
     rutaNombre: f.rutas?.nombre || "Sin ruta",
     unidad: f.rutas?.unidad || "Sin asignar",
     chofer: f.rutas?.chofer || "Sin asignar",
+    // El chofer de VERDAD de la ruta (db/001 rutas.chofer_id; se escoge en
+    // Rutas desde la Entrega 3). Sin él, "El de la ruta" no le llega a nadie.
+    rutaChoferId: f.rutas?.chofer_id || null,
+    rutaChofer: f.rutas?.chofer_id ? f.rutas?.chofer || "" : "",
     origen: f.origen,
     fechaPedida: f.fecha_pedida,
     fechaConfirmada: f.fecha_confirmada,

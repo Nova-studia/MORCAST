@@ -30,6 +30,7 @@ import {
 } from "@/lib/vencimiento";
 import { cambiarEstadoSolicitudAuditado } from "@/app/acciones-auditadas";
 import { pesoRealActivo } from "@/lib/estado-sistema";
+import { textoChoferPorOmision, avisoRutaSinChofer } from "@/lib/rutas-chofer.mjs";
 
 export default function RecoleccionesAdmin() {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -573,9 +574,9 @@ export default function RecoleccionesAdmin() {
                         onChange={(e) => setPlanDe(s, { choferId: e.target.value })}
                         style={{ marginLeft: 6, minWidth: 190 }}
                       >
-                        {/* Sin chofer en la ruta salia "El de la ruta ()". */}
+                        {/* El chofer REAL de la ruta (rutas.chofer_id), no el texto viejo. */}
                         <option value="">
-                          {s.chofer ? `El de la ruta (${s.chofer})` : "El de la ruta (sin asignar)"}
+                          {textoChoferPorOmision({ choferId: s.rutaChoferId, chofer: s.rutaChofer })}
                         </option>
                         {choferes.map((c) => (
                           <option key={c.id} value={c.id}>{c.nombre}</option>
@@ -583,6 +584,11 @@ export default function RecoleccionesAdmin() {
                       </select>
                     </label>
                   </div>
+                  {avisoRutaSinChofer({ choferElegido: planDe(s).choferId, ruta: { choferId: s.rutaChoferId } }) && (
+                    <p style={{ margin: "0.5rem 0 0", fontSize: "0.82rem", color: "#f0895c" }}>
+                      {avisoRutaSinChofer({ choferElegido: planDe(s).choferId, ruta: { choferId: s.rutaChoferId } })}
+                    </p>
+                  )}
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
                     <button
                       type="button"

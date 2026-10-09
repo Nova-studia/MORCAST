@@ -28,6 +28,8 @@ function aFormatoPantalla(fila) {
     unidad: fila.unidad || "",
     unidadId: fila.unidad_id || "",
     chofer: fila.chofer || "",
+    // El chofer de la lista (Entrega 3). `chofer` queda como su nombre.
+    choferId: fila.chofer_id || "",
     cupo: fila.cupo ?? 10,
     activa: fila.activa,
     zona: Array.isArray(fila.zona) ? fila.zona : [],
@@ -43,7 +45,7 @@ export async function listarRutas() {
 
   const { data, error } = await supabaseNavegador()
     .from("rutas")
-    .select("id, clave, nombre, tipo, dias, unidad, unidad_id, chofer, cupo, activa, zona")
+    .select("id, clave, nombre, tipo, dias, unidad, unidad_id, chofer, chofer_id, cupo, activa, zona")
     .order("clave");
 
   if (error) {
@@ -77,7 +79,10 @@ export async function guardarRuta(ruta) {
       // la agenda del panel todavía leen `rutas.unidad` para enseñarla.
       unidad: ruta.unidad,
       unidad_id: ruta.unidadId || null,
+      // El id es el que cuenta (de él dependen las paradas que ve cada
+      // chofer); el texto es solo su nombre para enseñarlo.
       chofer: ruta.chofer,
+      chofer_id: ruta.choferId || null,
       cupo: Number(ruta.cupo) || 0,
       activa: ruta.activa,
       zona: ruta.zona,
