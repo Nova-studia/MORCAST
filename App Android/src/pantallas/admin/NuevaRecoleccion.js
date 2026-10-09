@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, TextInput, Switch } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, Boton } from "../../ui";
 import AvisoResultado from "../../AvisoResultado";
+import { crearCandado } from "../../candado.mjs";
 import { listarOperadores } from "../../datos-remoto";
 import { clientesParaRecoleccion, puntosDeClienteOficina, crearRecoleccion } from "../../datos-oficina";
 import { TIPOS_RESIDUO } from "../../cotizar-whatsapp";
@@ -71,8 +72,9 @@ export default function NuevaRecoleccion({ navigation }) {
   const rutaDelPunto = { choferId: punto?.rutaChoferId || null, chofer: punto?.rutaChofer || "" };
   const sinChofer = form.confirmar && punto ? avisoRutaSinChofer({ choferElegido: form.choferId, ruta: rutaDelPunto }) : null;
 
-  const crear = async () => {
-    if (enviando) return;
+  // Dos toques en el mismo cuadro creaban dos recolecciones (revisión 9-oct).
+  const candado = useRef(crearCandado()).current;
+  const crear = () => candado(async () => {
     const h = normalizarHora(form.hora);
     if (!h.ok) { setError(h.motivo); return; }
     const datos = { ...form, hora: h.hora };
@@ -95,7 +97,7 @@ export default function NuevaRecoleccion({ navigation }) {
         ? `${r.folio} creada y confirmada para el ${fechaCortaDia(v.limpio.fecha)}. Ya se avisó al cliente y al chofer.`
         : `${r.folio} creada. Queda por confirmar.`;
     navigation.navigate("Recolecciones", { creada: texto, folio: r.folio });
-  };
+  });
 
   return (
     <ScrollView

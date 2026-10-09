@@ -236,7 +236,6 @@ export default function Usuarios({ navigation }) {
             <>
               <Text style={s.label}>Rol (qué puede hacer)</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                <Chip on={!form.rolId} onPress={() => setForm({ ...form, rolId: "" })}>Sin rol (solo el Panel)</Chip>
                 {roles.map((r) => (
                   <Chip key={r.id} on={form.rolId === r.id} onPress={() => setForm({ ...form, rolId: r.id })}>{r.nombre}</Chip>
                 ))}

@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, Badge } from "../../ui";
 import AvisoResultado from "../../AvisoResultado";
-import { listarOperadores } from "../../datos-remoto";
-import { listarRutasAdmin, asignarChoferRuta } from "../../datos-rutas-admin";
-import { textoDiasRuta } from "../../rutas-admin.mjs";
+import { listarRutasAdmin, asignarChoferRuta, listarChoferesRuta } from "../../datos-rutas-admin";
+import { textoDiasRuta, estadoChoferes } from "../../rutas-admin.mjs";
+import { crearCandado } from "../../candado.mjs";
 import { Aviso, Hoja, estilosCuentas as e } from "./piezas-cuentas";
 
 /**
@@ -24,7 +24,7 @@ import { Aviso, Hoja, estilosCuentas as e } from "./piezas-cuentas";
  */
 export default function Rutas() {
   const [rutas, setRutas] = useState(null);
-  const [choferes, setChoferes] = useState([]);
+  const [choferes, setChoferes] = useState(null); // null = no se pudo leer
   const [fallo, setFallo] = useState(false);
   const [refrescando, setRefrescando] = useState(false);
   const [sel, setSel] = useState(null);
@@ -33,10 +33,10 @@ export default function Rutas() {
   const [aviso, setAviso] = useState("");
 
   const cargar = useCallback(async () => {
-    const [r, c] = await Promise.all([listarRutasAdmin(), listarOperadores().catch(() => [])]);
+    const [r, c] = await Promise.all([listarRutasAdmin(), listarChoferesRuta()]);
     setFallo(r === null);
     if (r) setRutas(r);
-    setChoferes(c || []);
+    setChoferes(c);
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -45,8 +45,11 @@ export default function Rutas() {
     try { await cargar(); } finally { setRefrescando(false); }
   };
 
-  const elegir = async (choferId) => {
-    if (guardando || !sel) return;
+  const candado = useRef(crearCandado()).current;
+  const lista = estadoChoferes(choferes);
+
+  const elegir = (choferId) => candado(async () => {
+    if (!sel || lista === "fallo") return;
     setGuardando(true);
     setRes(null);
     const r = await asignarChoferRuta(sel.id, choferId, choferes);
@@ -55,7 +58,7 @@ export default function Rutas() {
     setRutas((l) => (l || []).map((x) => (x.id === sel.id ? { ...x, choferId: r.cambios.chofer_id, chofer: r.cambios.chofer } : x)));
     setAviso(r.cambios.chofer_id ? `${sel.nombre}: ahora la maneja ${r.cambios.chofer}.` : `${sel.nombre} quedó sin chofer asignado.`);
     setSel(null);
-  };
+  });
 
   return (
     <ScrollView
@@ -96,13 +99,18 @@ export default function Rutas() {
         {sel && (
           <>
             <Text style={s.nota}>Escoge quién maneja esta ruta. Al guardar, sus paradas de "El de la ruta" le aparecen en su app.</Text>
-            <View style={s.lista}>
-              <Fila on={!sel.choferId} onPress={() => elegir("")} texto="Sin chofer asignado" disabled={guardando} />
-              {choferes.map((c) => (
-                <Fila key={c.id} on={sel.choferId === c.id} onPress={() => elegir(c.id)} texto={c.nombre} disabled={guardando} />
-              ))}
-            </View>
-            {choferes.length === 0 && <Text style={s.nota}>No hay choferes activos. Invítalos desde Usuarios y roles.</Text>}
+            {lista === "fallo" ? (
+              // Sin la lista no se ofrece nada: "Sin chofer" a un toque borraba al de la ruta.
+              <AvisoResultado r={{ ok: false, sinRed: true }} onReintentar={cargar} />
+            ) : (
+              <View style={s.lista}>
+                <Fila on={!sel.choferId} onPress={() => elegir("")} texto="Sin chofer asignado" disabled={guardando} />
+                {choferes.map((c) => (
+                  <Fila key={c.id} on={sel.choferId === c.id} onPress={() => elegir(c.id)} texto={c.nombre} disabled={guardando} />
+                ))}
+              </View>
+            )}
+            {lista === "vacia" && <Text style={s.nota}>No hay choferes activos. Invítalos desde Usuarios y roles.</Text>}
             {guardando && <Text style={s.nota}>Guardando…</Text>}
             <AvisoResultado r={res} />
           </>

@@ -74,3 +74,14 @@ export async function abrirPanelWeb(destino) {
     return { ok: false, motivo: "No se pudo abrir el navegador del teléfono." };
   }
 }
+
+/** Los choferes activos para la hoja de la ruta. `null` si no se pudo leer (no `[]`). */
+export async function listarChoferesRuta() {
+  if (!haySupabase()) return [];
+  try {
+    const { data, error } = await supabase.from("perfiles").select("id, nombre").eq("rol", "operador").eq("activo", true).order("nombre");
+    return error ? null : data || [];
+  } catch {
+    return null;
+  }
+}

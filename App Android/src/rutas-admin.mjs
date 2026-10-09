@@ -22,3 +22,10 @@ export function puntosParaOficina(filas = []) {
 }
 
 export const textoDiasRuta = (dias) => ((dias || []).length ? dias.join(", ") : "Sin días");
+
+/**
+ * La lista de choferes para la hoja de la ruta: `null` = no se pudo leer
+ * (entonces no se ofrece "Sin chofer asignado": a un toque borraba al de la
+ * ruta), `[]` = de veras no hay. Revisión 9-oct-2026.
+ */
+export const estadoChoferes = (lista) => (!Array.isArray(lista) ? "fallo" : lista.length ? "lista" : "vacia");

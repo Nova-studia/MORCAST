@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge } from "../../ui";
 import AvisoResultado from "../../AvisoResultado";
+import { crearCandado } from "../../candado.mjs";
 import { pesos, fechaLarga } from "../../datos-admin";
 import { ESTADOS_SOLICITUD_REC } from "../../rutas-datos";
 import { etiquetaEstado, resumenBorrado } from "../../web/estado-cliente.mjs";
@@ -61,9 +62,11 @@ export default function FichaCliente({ route, navigation }) {
     try { await cargar(); } finally { setRefrescando(false); }
   };
 
+  // Una acción a la vez, aunque lleguen dos toques en el mismo cuadro (revisión 9-oct).
+  const candado = useRef(crearCandado()).current;
+
   /** Corre una acción, enseña su resultado y relee la ficha. */
-  const correr = async (hacer, ok) => {
-    if (ocupado) return false;
+  const correr = async (hacer, ok) => (await candado(async () => {
     setOcupado(true);
     setRes(null);
     setAviso("");
@@ -74,7 +77,7 @@ export default function FichaCliente({ route, navigation }) {
     setAviso(typeof ok === "function" ? ok(r) : ok);
     await cargar();
     return true;
-  };
+  })) ?? false;
 
   if (!f) {
     return (

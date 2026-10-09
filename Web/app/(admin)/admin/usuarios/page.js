@@ -296,7 +296,6 @@ export default function UsuariosAdmin() {
                       {/* Lo que se ve es lo que se manda: sin opción vacía, React
                           enseñaba el primer rol mientras el estado iba vacío. */}
                       <select className="pt-input" value={form.rolId} onChange={(e) => setForm({ ...form, rolId: e.target.value })}>
-                        <option value="">Sin rol (solo el Panel)</option>
                         {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                       </select>
                     </div>
