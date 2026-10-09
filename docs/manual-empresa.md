@@ -687,25 +687,47 @@ de preguntar de mesa en mesa, se abre la bitácora.
 
 ## Usuarios y roles
 
-Aquí se administran las cuentas del equipo. Se ve el nombre, correo, rol, estatus y
-cuándo entró cada quien por última vez.
+Aquí se administran las cuentas del equipo. Tiene dos pestañas: **Equipo** y **Roles**.
 
-Para agregar a alguien, usa **Invitar usuario al equipo**: nombre completo, correo y el
-rol que le toca.
+### Equipo
 
-### Qué puede hacer cada rol
+Se ve el nombre, correo, teléfono, rol, estatus y cuándo entró cada quien por última vez.
 
-| Rol | Alcance |
-|---|---|
-| **Administrador** | Acceso total: solicitudes, clientes, servicios, reportes, facturación y usuarios |
-| **Auxiliar de administrador** | Solicitudes, clientes y servicios. **No** administra usuarios ni facturación |
-| **Facturación** | Clientes, saldos, reportes y documentos fiscales |
-| **Operaciones** | Agenda de servicios y manifiestos. Sin acceso comercial |
-| **Chofer / Operador** | Solo su agenda del día, desde el celular o desde la página |
+- **Invitar usuario:** nombre, correo y tipo de cuenta (*Administrador* o *Chofer*). Si
+  es administrador, el dueño escoge además su **rol**. Le llega un correo para escoger
+  su contraseña.
+- **Editar:** cambiar nombre y teléfono; el dueño también cambia el rol y los permisos
+  sueltos ("Puede cambiar precios", "Puede eliminar clientes").
+- **Mandar enlace de contraseña:** sirve para reenviar la invitación o para que alguien
+  que olvidó su contraseña escoja otra. Nadie ve ni dicta contraseñas.
+- **Desactivar / Reactivar:** quien está desactivado no puede entrar; su historial queda.
+- **Eliminar cuenta** (solo el dueño): para siempre. Si la persona tiene historial
+  (recolecciones, rutas), el sistema no deja y sugiere desactivarla.
+
+Un administrador puede invitar, editar y desactivar **choferes**. Las cuentas de
+administrador solo las toca el dueño.
+
+### Roles
+
+El dueño crea roles con casillas, una por sección del panel (Rutas, Recolecciones,
+Clientes, Saldos, Precios, Usuarios, etc.), por ejemplo *Caja: Saldos y Clientes*.
+
+- Un administrador **cambia** solo lo que marque su rol. **Ver**, puede ver todo, pero
+  el menú solo le enseña sus secciones y si entra a otra lo regresa al Panel.
+- Un administrador **sin rol** solo puede ver.
+- Al borrar un rol, quien lo tenía se queda sin rol hasta que el dueño le ponga otro.
+- El rol **Administrador completo** es el que tenían todos los administradores antes de
+  los roles: todo menos precios y eliminar clientes, que se dan aparte.
+- Los choferes no llevan rol.
 
 > **Da el rol más chico que le sirva a cada quien.** Si alguien solo va a programar
-> camiones, dale *Operaciones*, no *Administrador*. El candado de los saldos, por
-> ejemplo, depende de esto.
+> camiones, dale un rol con *Rutas* y *Recolecciones*, no *Administrador completo*.
+
+### Mi cuenta
+
+Cada quien (administradores y choferes) cambia su nombre, su teléfono y su contraseña
+tocando su nombre arriba a la derecha. Para cambiar la contraseña pide la actual. Si
+alguien olvidó la suya, en la pantalla de entrada está **¿Olvidaste tu contraseña?**
 
 ---
 
