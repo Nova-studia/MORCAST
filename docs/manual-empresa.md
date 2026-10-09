@@ -702,7 +702,8 @@ Se ve el nombre, correo, teléfono, rol, estatus y cuándo entró cada quien por
   que olvidó su contraseña escoja otra. Nadie ve ni dicta contraseñas.
 - **Desactivar / Reactivar:** quien está desactivado no puede entrar; su historial queda.
 - **Eliminar cuenta** (solo el dueño): para siempre. Si la persona tiene historial
-  (recolecciones, rutas), el sistema no deja y sugiere desactivarla.
+  (recolecciones, rutas o incidentes), el sistema no deja y sugiere desactivarla, para no
+  perder quién hizo cada recolección.
 
 Un administrador puede invitar, editar y desactivar **choferes**. Las cuentas de
 administrador solo las toca el dueño.
@@ -712,12 +713,14 @@ administrador solo las toca el dueño.
 El dueño crea roles con casillas, una por sección del panel (Rutas, Recolecciones,
 Clientes, Saldos, Precios, Usuarios, etc.), por ejemplo *Caja: Saldos y Clientes*.
 
-- Un administrador **cambia** solo lo que marque su rol. **Ver**, puede ver todo, pero
-  el menú solo le enseña sus secciones y si entra a otra lo regresa al Panel.
-- Un administrador **sin rol** solo puede ver.
+- Un administrador solo **abre y usa** las secciones que marque su rol: el menú solo le
+  enseña esas y, si entra a otra, lo regresa al Panel con un aviso.
+- Un administrador **sin rol** solo ve el Panel y Mi cuenta.
 - Al borrar un rol, quien lo tenía se queda sin rol hasta que el dueño le ponga otro.
 - El rol **Administrador completo** es el que tenían todos los administradores antes de
-  los roles: todo menos precios y eliminar clientes, que se dan aparte.
+  los roles: todo menos precios y eliminar clientes, que se dan aparte. Sus casillas se
+  pueden cambiar, pero **no se renombra ni se borra**: con él entran los administradores
+  que se invitan desde la app.
 - Los choferes no llevan rol.
 
 > **Da el rol más chico que le sirva a cada quien.** Si alguien solo va a programar
@@ -726,7 +729,8 @@ Clientes, Saldos, Precios, Usuarios, etc.), por ejemplo *Caja: Saldos y Clientes
 ### Mi cuenta
 
 Cada quien (administradores y choferes) cambia su nombre, su teléfono y su contraseña
-tocando su nombre arriba a la derecha. Para cambiar la contraseña pide la actual. Si
+tocando su nombre arriba a la derecha. Para cambiar la contraseña pide la actual, y al
+cambiarla se cierran las sesiones abiertas en otros aparatos. Si
 alguien olvidó la suya, en la pantalla de entrada está **¿Olvidaste tu contraseña?**
 
 ---

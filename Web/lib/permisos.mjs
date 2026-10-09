@@ -88,11 +88,14 @@ export function validarRol({ nombre, descripcion, permisos } = {}) {
  * roles.creado_por), por eso el embed nombra la suya.
  */
 export async function leerPermisos(sb, uid) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("perfiles")
     .select("rol, permisos, rol_id, roles!perfiles_rol_id_fkey ( nombre, permisos )")
     .eq("id", uid)
     .maybeSingle();
+  // Falla cerrada (sin permisos), pero que quede en el registro: si no, un
+  // error de la base parece "tu rol no incluye…" y nadie sabe por qué.
+  if (error) console.error("[permisos] no se pudieron leer:", error.message);
   if (!data) return { rol: null, rolId: null, rolNombre: null, permisos: [] };
   return {
     rol: data.rol,
@@ -104,6 +107,12 @@ export async function leerPermisos(sb, uid) {
 
 /** El rol con que nace un administrador invitado, si no se escoge otro. */
 export const ROL_COMPLETO = "Administrador completo";
+
+/**
+ * "Administrador completo" no se renombra ni se borra: la app 1.1.1 invita
+ * sin escoger rol y el servidor lo busca POR NOMBRE. Sus casillas sí cambian.
+ */
+export const rolProtegido = (rol) => rol?.nombre === ROL_COMPLETO;
 
 /**
  * Qué `rol_id` lleva alguien que se invita. Solo los administradores llevan

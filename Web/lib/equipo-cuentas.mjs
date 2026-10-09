@@ -85,21 +85,39 @@ export async function mandarEnlaceEquipoCon({ sb, quien, anotar, origen, enviarC
   return { ok: true, correo };
 }
 
-/** Eliminar la cuenta para siempre (solo el dueño). */
+/** Dónde queda el nombre de alguien del equipo como autor de algo. */
+const HISTORIAL = [
+  ["rutas", "chofer_id"],
+  ["solicitudes_recoleccion", "chofer_id"],
+  ["recolecciones", "operador_id"],
+  ["incidentes", "operador_id"],
+  ["viajes_relleno", "operador_id"],
+];
+
+/** Eliminar la cuenta para siempre (solo el dueño, y solo sin historial). */
 export async function eliminarUsuarioEquipoCon({ sb, quien, anotar }, { id } = {}) {
   const objetivo = await objetivoDe(sb, id);
   const permiso = puedeEliminarUsuario({ quien, objetivo });
   if (!permiso.puede) return { ok: false, motivo: permiso.motivo };
 
-  const { error } = await sb.auth.admin.deleteUser(objetivo.id);
-  if (error) {
-    return {
-      ok: false,
-      motivo:
-        `No se pudo eliminar a ${objetivo.nombre || "esa persona"}: tiene historial en el sistema ` +
-        "(recolecciones, rutas o registros). Desactívala: ya no podrá entrar y su historial se conserva.",
-    };
+  // Toda llave hacia perfiles es `on delete set null`: la base NO se niega,
+  // borraría en silencio quién recolectó, quién manejaba la ruta, etc. (la
+  // evidencia ambiental). Por eso se cuenta aquí y, con historial, no se borra.
+  let historial = 0;
+  for (const [tabla, columna] of HISTORIAL) {
+    const { count } = await sb.from(tabla).select("id", { count: "exact", head: true }).eq(columna, objetivo.id);
+    historial += count || 0;
   }
+  const sinBorrar = {
+    ok: false,
+    motivo:
+      `No se puede eliminar a ${objetivo.nombre || "esa persona"}: tiene historial en el sistema ` +
+      "(recolecciones, rutas o incidentes). Desactívala: ya no podrá entrar y su historial se conserva.",
+  };
+  if (historial > 0) return sinBorrar;
+
+  const { error } = await sb.auth.admin.deleteUser(objetivo.id);
+  if (error) return sinBorrar;
   await anotar({
     accion: "eliminar_usuario",
     tabla: "perfiles",

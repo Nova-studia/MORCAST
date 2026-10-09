@@ -95,8 +95,14 @@ export default function UsuariosAdmin() {
   }, []);
 
   const nombreRol = (id) => roles.find((r) => r.id === id)?.nombre;
+  // Si el formulario se abrió antes de que llegaran los roles, se escoge el
+  // completo en cuanto llegan (el mismo que pondría el servidor).
+  useEffect(() => {
+    const completo = roles.find((r) => r.nombre === ROL_COMPLETO)?.id;
+    if (completo) setForm((f) => (f.rolId ? f : { ...f, rolId: completo }));
+  }, [roles]);
   const etiquetaRol = (u) =>
-    u.rolId === "admin" ? nombreRol(u.rolPersonalizado) || "Sin rol (solo ve)" : u.rol;
+    u.rolId === "admin" ? nombreRol(u.rolPersonalizado) || "Sin rol (solo el Panel)" : u.rol;
 
   /* ---------------------------------------------------------- invitar */
   const invitar = async (e) => {
@@ -149,6 +155,7 @@ export default function UsuariosAdmin() {
 
   const guardarEdicion = async (e) => {
     e.preventDefault();
+    setBorrarListo(false);
     const u = editando;
     setCambiando(u.uid);
     const datos = { id: u.uid, nombre: u.nombreForm, telefono: u.telefonoForm };
@@ -163,6 +170,7 @@ export default function UsuariosAdmin() {
   };
 
   const mandarEnlace = async (u) => {
+    setBorrarListo(false);
     setCambiando(u.uid);
     setAviso(null);
     const r = await mandarEnlaceAccion({ id: u.uid });
@@ -210,7 +218,7 @@ export default function UsuariosAdmin() {
 
   const borrarRol = async (rol, personas) => {
     const pregunta = personas
-      ? `¿Borrar el rol "${rol.nombre}"? ${personas} persona(s) se quedarán sin rol: solo podrán ver, no cambiar nada, hasta que les pongas otro.`
+      ? `¿Borrar el rol "${rol.nombre}"? ${personas} persona(s) se quedarán sin rol: solo verán el Panel hasta que les pongas otro.`
       : `¿Borrar el rol "${rol.nombre}"?`;
     if (!window.confirm(pregunta)) return;
     const r = await borrarRolAccion({ id: rol.id });
@@ -285,7 +293,10 @@ export default function UsuariosAdmin() {
                   {form.rol === "admin" && soyDueno && (
                     <div className="pt-campo" style={{ margin: 0 }}>
                       <label>Rol (qué puede hacer)</label>
+                      {/* Lo que se ve es lo que se manda: sin opción vacía, React
+                          enseñaba el primer rol mientras el estado iba vacío. */}
                       <select className="pt-input" value={form.rolId} onChange={(e) => setForm({ ...form, rolId: e.target.value })}>
+                        <option value="">Sin rol (solo el Panel)</option>
                         {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                       </select>
                     </div>
@@ -324,7 +335,7 @@ export default function UsuariosAdmin() {
                       <select className="pt-input" value={editando.rolForm} disabled={!soyDueno}
                         title={soyDueno ? "" : "Solo el dueño asigna roles"}
                         onChange={(e) => setEditando({ ...editando, rolForm: e.target.value })}>
-                        <option value="">Sin rol (solo ve)</option>
+                        <option value="">Sin rol (solo el Panel)</option>
                         {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                       </select>
                     </div>
@@ -415,7 +426,9 @@ export default function UsuariosAdmin() {
                               </button>
                             </div>
                           ) : (
-                            <span style={{ color: "var(--mc-gris-claro)", fontSize: "0.78rem" }}>Solo el dueño</span>
+                            <span style={{ color: "var(--mc-gris-claro)", fontSize: "0.78rem" }}>
+                              {u.uid === yo?.uid ? "Tú: en Mi cuenta" : "Solo el dueño"}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -445,7 +458,7 @@ export default function UsuariosAdmin() {
                   </div>
                 </div>
                 <p style={{ fontSize: "0.85rem", color: "var(--mc-gris)", marginBottom: "0.6rem" }}>
-                  Qué puede <strong>cambiar</strong> (ver, puede ver todo el panel; el menú solo le enseña lo marcado):
+                  Las secciones que puede <strong>abrir y usar</strong> (las demás no le salen en el menú; sin ninguna, solo ve el Panel y Mi cuenta):
                 </p>
                 <div className="pt-grid pt-grid-3" style={{ gap: "0.45rem", marginBottom: "1rem" }}>
                   {TODAS.map((s) => (
@@ -473,14 +486,16 @@ export default function UsuariosAdmin() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: soyDueno ? "0.9rem" : 0 }}>
                     {r.permisos.length
                       ? r.permisos.map((p) => <span key={p} className="pt-badge ruta">{textoPermiso(p)}</span>)
-                      : <span style={{ fontSize: "0.85rem", color: "var(--mc-gris)" }}>Solo ver</span>}
+                      : <span style={{ fontSize: "0.85rem", color: "var(--mc-gris)" }}>Solo el Panel</span>}
                   </div>
                   {soyDueno && (
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button className="pt-btn" onClick={() => { setRolForm({ ...r, descripcion: r.descripcion || "" }); setAviso(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                         <PencilSimple /> Editar
                       </button>
-                      <button className="pt-btn" style={{ color: "#b3261e" }} onClick={() => borrarRol(r, personas)}><Trash /> Borrar</button>
+                      {r.nombre !== ROL_COMPLETO && (
+                        <button className="pt-btn" style={{ color: "#b3261e" }} onClick={() => borrarRol(r, personas)}><Trash /> Borrar</button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -493,9 +508,10 @@ export default function UsuariosAdmin() {
             <div className="pt-card-head"><h2>Cómo funciona</h2></div>
             <ul style={{ fontSize: "0.88rem", color: "var(--mc-gris)", margin: 0, paddingLeft: "1.1rem", lineHeight: 1.6 }}>
               <li>El <strong>dueño</strong> puede todo y es el único que crea roles y se los asigna a los administradores.</li>
-              <li>Un <strong>administrador</strong> cambia solo lo que marque su rol; sin rol, solo puede ver.</li>
+              <li>Un <strong>administrador</strong> solo abre y usa las secciones que marque su rol; sin rol, solo ve el Panel y Mi cuenta.</li>
               <li>Los <strong>choferes</strong> no llevan rol: entran al modo chofer y ven solo sus paradas.</li>
               <li>&quot;Cambiar precios&quot; y &quot;Eliminar clientes&quot; también se pueden dar a una sola persona desde Editar.</li>
+              <li><strong>{ROL_COMPLETO}</strong> no se renombra ni se borra: con él entran los administradores invitados desde la app.</li>
             </ul>
           </div>
         </>

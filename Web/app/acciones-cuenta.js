@@ -6,7 +6,7 @@ import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { correoContrasenaCambiada } from "@/lib/correo";
 import { validarEdicionUsuario } from "@/lib/equipo.mjs";
-import { cambiarContrasenaCon } from "@/lib/mi-cuenta.mjs";
+import { cambiarContrasenaCon, validarCambioContrasena } from "@/lib/mi-cuenta.mjs";
 import { pasarFreno } from "@/lib/freno";
 
 /**
@@ -58,7 +58,11 @@ export async function cambiarMiContrasenaAccion({ actual, nueva, repetir } = {})
   if (!haySupabase()) return { ok: true, demo: true };
   const { quien, error } = await yo();
   if (error) return { ok: false, motivo: error };
-  if (!(await pasarFreno(`mi-contrasena:${quien.id}`, { maximo: 5, minutos: 15 }))) {
+  // Primero lo que no cuesta un intento (dedos torpes en "repetir")…
+  const v = validarCambioContrasena({ actual, nueva, repetir });
+  if (!v.ok) return v;
+  // …y el freno por USUARIO, no por IP: con una sesión robada se cambia de IP.
+  if (!(await pasarFreno(`mi-contrasena:${quien.id}`, { maximo: 5, minutos: 15, porIp: false }))) {
     return { ok: false, motivo: "Demasiados intentos. Espera 15 minutos." };
   }
 
@@ -69,9 +73,10 @@ export async function cambiarMiContrasenaAccion({ actual, nueva, repetir } = {})
           auth: { persistSession: false, autoRefreshToken: false },
         });
         const { data, error: e } = await prueba.auth.signInWithPassword({ email: correo, password: clave });
-        if (e || data?.user?.id !== quien.id) return false;
+        if (e) return false;
+        // La sesión de prueba se cierra siempre (también si no fuera la misma cuenta).
         await prueba.auth.signOut({ scope: "local" });
-        return true;
+        return data?.user?.id === quien.id;
       },
       guardar: async (uid, clave) => {
         const { error: e } = await supabaseServidor().auth.admin.updateUserById(uid, { password: clave });
@@ -85,6 +90,15 @@ export async function cambiarMiContrasenaAccion({ actual, nueva, repetir } = {})
     },
     { correo: quien.correo, uid: quien.id, actual, nueva, repetir }
   );
-  if (r.ok) await registrar({ accion: "mi_contrasena", tabla: "perfiles", registroId: quien.id, detalle: {} });
+  if (!r.ok) return r;
+  await registrar({ accion: "mi_contrasena", tabla: "perfiles", registroId: quien.id, detalle: {} });
+  // Las sesiones abiertas en OTROS aparatos se cierran: si alguien más tenía
+  // la cuenta, aquí la pierde. Esta sesión sigue.
+  try {
+    const { data: { session } } = await (await supabaseSesion()).auth.getSession();
+    if (session?.access_token) await supabaseServidor().auth.admin.signOut(session.access_token, "others");
+  } catch (e) {
+    console.error("[mi-cuenta] no se cerraron las otras sesiones:", e?.message);
+  }
   return r;
 }

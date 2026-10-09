@@ -4,6 +4,7 @@ import { aplicarPermiso } from "@/lib/estado-cliente.mjs";
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { haySupabase } from "@/lib/supabase";
 import { exigirSeccion } from "@/lib/permisos-servidor";
+import { puede } from "@/lib/permisos.mjs";
 import { registrar } from "@/lib/bitacora";
 import * as P from "@/lib/precios-servidor";
 
@@ -65,8 +66,12 @@ export async function quitarEspecialAccion({ conceptoId, clienteId }) {
 
 export async function cambiarFacturaAccion({ clienteId, requiereFactura }) {
   if (!haySupabase()) return demo;
-  const { sb, error } = await exigirPrecios();
+  const { quien, sb, error } = await exigirPrecios();
   if (error) return { ok: false, motivo: error };
+  // Se guarda en `clientes`, y editar clientes pide esa sección (db/029).
+  if (!puede(quien, "clientes")) {
+    return { ok: false, motivo: 'Para cambiar "¿Requiere factura?" tu rol también necesita "Clientes".' };
+  }
   const r = await P.cambiarFactura(sb, { clienteId, requiereFactura });
   if (r.ok) await registrar({ accion: "factura_cambiada", tabla: "clientes", registroId: clienteId, detalle: { requiereFactura } });
   return r;

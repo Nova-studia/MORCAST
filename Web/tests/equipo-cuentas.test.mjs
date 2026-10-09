@@ -13,7 +13,7 @@ function falso(datos = {}, { errBorrar = null } = {}) {
     then(ok, mal) {
       ops.push(`${tabla}:${op}${this._f.length ? `[${this._f.join(",")}]` : ""}${valor ? ":" + JSON.stringify(valor) : ""}`);
       const filas = op === "select" ? (datos[tabla] || []) : [{ id: "x" }];
-      return Promise.resolve({ data: this._uno ? (filas[0] ?? null) : filas, error: null }).then(ok, mal);
+      return Promise.resolve({ data: this._uno ? (filas[0] ?? null) : filas, error: null, count: filas.length }).then(ok, mal);
     },
   });
   return {
@@ -74,4 +74,14 @@ test("eliminar: solo el dueño; si Auth no deja (historial), lo dice y sugiere d
 test("detalle: correo y último acceso por id", async () => {
   const r = await detalleEquipoCon({ sb: falso() });
   assert.deepEqual(r, { ok: true, porId: { c: { correo: "c@m.mx", ultimoAcceso: "2026-10-01T10:00:00Z" } } });
+});
+
+// ---- Revisión final de la Entrega 2 ----
+test("revisión: eliminar a alguien CON historial se niega (la base pondría null y se perdería quién hizo qué)", async () => {
+  const sb = falso({ perfiles: [{ id: "c", rol: "operador", nombre: "Pepe" }], recolecciones: [{ id: 1 }] });
+  const r = await eliminarUsuarioEquipoCon({ sb, quien: D, anotar }, { id: "c" });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /Desactív/);
+  assert.ok(!sb.ops.includes("auth:delete:c"), "no debe borrar");
+  assert.ok(sb.ops.some((o) => o.startsWith("recolecciones:select[operador_id=c]")));
 });

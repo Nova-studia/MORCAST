@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,7 +13,8 @@ import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
 import { pesoRealActivo } from "@/lib/estado-sistema";
-import { seccionDeRuta, SECCIONES } from "@/lib/permisos.mjs";
+import { seccionDeRuta } from "@/lib/permisos.mjs";
+import AvisoSinPermiso from "@/components/admin/AvisoSinPermiso";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -69,8 +70,6 @@ export default function AdminShell({ children }) {
   const [listo, setListo] = useState(false);
   const [sesion, setSesion] = useState(null);
   const MENU = NAV_ENCENDIDO.filter((n) => sesionPuede(sesion, seccionDeRuta(n.href)));
-  // ?sin_permiso=<sección> lo pone proxy.js al rebotar a alguien al Panel.
-  const [sinPermiso, setSinPermiso] = useState(null);
   const [abierto, setAbierto] = useState(false);
 
   // El cajon tambien se arrastra con el dedo: deslizar desde el borde
@@ -98,8 +97,6 @@ export default function AdminShell({ children }) {
 
   useEffect(() => {
     setAbierto(false);
-    const p = new URLSearchParams(window.location.search).get("sin_permiso");
-    setSinPermiso(SECCIONES.find((x) => x.id === p)?.texto || null);
   }, [ruta]);
 
   if (!listo) {
@@ -266,11 +263,9 @@ export default function AdminShell({ children }) {
           </header>
           <main className="pt-content">
             <AvisoHold lado="admin" />
-            {sinPermiso && (
-              <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
-                Tu rol no incluye <strong>{sinPermiso}</strong>. Si lo necesitas, pídeselo al dueño.
-              </div>
-            )}
+            <Suspense fallback={null}>
+              <AvisoSinPermiso />
+            </Suspense>
             <TransicionPagina>{children}</TransicionPagina>
           </main>
         </div>

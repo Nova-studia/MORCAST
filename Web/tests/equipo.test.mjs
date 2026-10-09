@@ -110,3 +110,8 @@ test("eliminar: solo el dueño, nunca a sí mismo ni a un cliente", () => {
   assert.equal(puedeEliminarUsuario({ quien: D, objetivo: { id: "k", rol: "cliente" } }).puede, false);
   assert.equal(puedeEliminarUsuario({ quien: D, objetivo: null }).puede, false);
 });
+
+test("revisión: un teléfono viejo con +52 o lada NO bloquea guardar (se quedan los últimos 10)", () => {
+  assert.deepEqual(validarEdicionUsuario({ nombre: "Ana", telefono: "+52 868 123 4567" }).limpio.telefono, "8681234567");
+  assert.deepEqual(validarEdicionUsuario({ nombre: "Ana", telefono: "+1 (956) 555-0101" }).limpio.telefono, "9565550101");
+});

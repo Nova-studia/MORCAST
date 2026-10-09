@@ -93,3 +93,9 @@ test("rolDeInvitado: un admin nuevo entra con el rol elegido, o con el completo 
   assert.equal(rolDeInvitado({ rol: "admin", rolId: "zz", roles }).ok, false);
   assert.deepEqual(rolDeInvitado({ rol: "admin", rolId: null, roles: [] }), { ok: true, rolId: null });
 });
+
+test("revisión: 'Administrador completo' no se renombra ni se borra (la app 1.1.1 lo busca por nombre)", async () => {
+  const { rolProtegido } = await import("../lib/permisos.mjs");
+  assert.equal(rolProtegido({ nombre: "Administrador completo" }), true);
+  assert.equal(rolProtegido({ nombre: "Caja" }), false);
+});

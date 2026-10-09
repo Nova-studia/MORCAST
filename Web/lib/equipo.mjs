@@ -127,7 +127,8 @@ export function puedeEliminarUsuario({ quien, objetivo } = {}) {
 export function validarEdicionUsuario({ nombre, telefono, rolId } = {}) {
   const limpio = {
     nombre: String(nombre ?? "").trim().replace(/\s+/g, " "),
-    telefono: String(telefono ?? "").replace(/\D/g, "") || null,
+    // Los teléfonos viejos traen +52 o +1: se quedan los últimos 10 dígitos.
+    telefono: String(telefono ?? "").replace(/\D/g, "").slice(-10) || null,
     rolId: rolId ? String(rolId) : null,
   };
   if (!limpio.nombre) return { ok: false, motivo: "Escribe el nombre." };

@@ -4,7 +4,7 @@ import { supabaseSesion } from "@/lib/supabase-sesion";
 import { haySupabase } from "@/lib/supabase";
 import { exigirSeccion } from "@/lib/permisos-servidor";
 import { registrar } from "@/lib/bitacora";
-import { validarRol } from "@/lib/permisos.mjs";
+import { validarRol, rolProtegido, ROL_COMPLETO } from "@/lib/permisos.mjs";
 
 /**
  * ROLES PERSONALIZADOS (Entrega 2, 9-oct-2026): solo el dueño los crea,
@@ -39,6 +39,10 @@ export async function editarRolAccion({ id, ...datos } = {}) {
   if (error) return { ok: false, motivo: error };
   const v = validarRol(datos);
   if (!v.ok) return v;
+  const { data: actual } = await sb.from("roles").select("nombre").eq("id", id).maybeSingle();
+  if (rolProtegido(actual) && v.limpio.nombre !== ROL_COMPLETO) {
+    return { ok: false, motivo: `"${ROL_COMPLETO}" no se renombra (con él entran los administradores invitados desde la app). Sus casillas sí se pueden cambiar.` };
+  }
   const { data, error: e } = await sb.from("roles").update(v.limpio).eq("id", id).select("id");
   if (e) return { ok: false, motivo: /duplicate|unique/i.test(e.message) ? "Ya hay un rol con ese nombre." : e.message };
   if (!data?.length) return { ok: false, motivo: "Ese rol ya no existe." };
@@ -46,11 +50,15 @@ export async function editarRolAccion({ id, ...datos } = {}) {
   return { ok: true };
 }
 
-/** Quien tenía este rol se queda SIN rol: solo puede ver, no cambiar nada. */
+/** Quien tenía este rol se queda SIN rol: solo el Panel y Mi cuenta. */
 export async function borrarRolAccion({ id } = {}) {
   if (!haySupabase()) return demo;
   const { sb, error } = await exigirDueno();
   if (error) return { ok: false, motivo: error };
+  const { data: actual } = await sb.from("roles").select("nombre").eq("id", id).maybeSingle();
+  if (rolProtegido(actual)) {
+    return { ok: false, motivo: `"${ROL_COMPLETO}" no se borra: con él entran los administradores invitados desde la app.` };
+  }
   const { data, error: e } = await sb.from("roles").delete().eq("id", id).select("id, nombre");
   if (e) return { ok: false, motivo: e.message };
   if (!data?.length) return { ok: false, motivo: "Ese rol ya no existe." };

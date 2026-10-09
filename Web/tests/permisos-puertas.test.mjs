@@ -15,8 +15,16 @@ const leer = (p) => fs.readFileSync(path.join(WEB, p), "utf8");
 const secciones = (texto) => [...texto.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
 
 test("ninguna acción del panel pide 'personal' a secas", () => {
-  for (const f of fs.readdirSync(path.join(WEB, "app")).filter((x) => /^acciones-.*\.js$/.test(x))) {
-    const s = leer(`app/${f}`);
+  // Las de app/ y las que viven junto a su pantalla (app/(admin)/admin/*/acciones.js).
+  const admin = path.join(WEB, "app/(admin)/admin");
+  const archivos = [
+    ...fs.readdirSync(path.join(WEB, "app")).filter((x) => /^acciones-.*\.js$/.test(x)).map((x) => `app/${x}`),
+    ...fs.readdirSync(admin, { withFileTypes: true }).filter((d) => d.isDirectory())
+      .map((d) => `app/(admin)/admin/${d.name}/acciones.js`).filter((f) => fs.existsSync(path.join(WEB, f))),
+  ];
+  for (const f of archivos) {
+    const s = leer(f);
+    assert.ok(!/const PERSONAL = \["dueno", "admin"\]/.test(s), `${f}: todavía usa PERSONAL a secas`);
     assert.ok(!/await exigirPersonal\(\)/.test(s), `${f}: exigirPersonal() sin sección`);
     for (const m of s.matchAll(/exigir(?:Personal|Seccion)\(([^)]+)\)/g)) {
       if (m[1] === "seccion") continue;
