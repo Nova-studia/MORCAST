@@ -6,6 +6,13 @@ import { exigirSeccion } from "@/lib/permisos-servidor";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
 import { invitarUsuarioEquipoCon, cambiarActivoUsuarioCon } from "@/lib/equipo-servidor";
+import {
+  editarUsuarioEquipoCon,
+  mandarEnlaceEquipoCon,
+  eliminarUsuarioEquipoCon,
+  detalleEquipoCon,
+} from "@/lib/equipo-cuentas.mjs";
+import { correoInvitacionEquipo } from "@/lib/correo";
 
 /**
  * EL EQUIPO DE MORCAST: invitar y desactivar cuentas del personal.
@@ -51,4 +58,48 @@ export async function cambiarActivoUsuario(datos) {
   if (error) return { ok: false, motivo: error };
 
   return cambiarActivoUsuarioCon({ sb: supabaseServidor(), quien, anotar: registrar }, datos || {});
+}
+
+// ---- Entrega 2 (9-oct-2026): editar, enlace de contraseña, eliminar ----
+
+const ctx = (quien) => ({ sb: supabaseServidor(), quien, anotar: registrar });
+
+/** Correo y último acceso del personal (Auth solo se lee con la llave de servicio). */
+export async function detalleEquipoAccion() {
+  if (!haySupabase()) return { ok: true, porId: {} };
+  const { error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
+  const sb = supabaseServidor();
+  const r = await detalleEquipoCon({ sb });
+  if (!r.ok) return r;
+  // Solo el personal: los correos de los clientes no tienen por qué salir aquí.
+  const { data: equipo } = await sb.from("perfiles").select("id").in("rol", ["dueno", "admin", "operador"]);
+  const porId = {};
+  for (const { id } of equipo || []) if (r.porId[id]) porId[id] = r.porId[id];
+  return { ok: true, porId };
+}
+
+export async function editarUsuarioAccion(datos) {
+  if (!haySupabase()) return { ok: true, demo: true };
+  const { quien, error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
+  return editarUsuarioEquipoCon(ctx(quien), datos || {});
+}
+
+/** Reenviar la invitación / restablecer la contraseña (mismo enlace). */
+export async function mandarEnlaceAccion(datos) {
+  if (!haySupabase()) return { ok: true, demo: true };
+  const { quien, error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
+  return mandarEnlaceEquipoCon(
+    { ...ctx(quien), origen: origenPermitido(await headers()), enviarCorreo: correoInvitacionEquipo },
+    datos || {}
+  );
+}
+
+export async function eliminarUsuarioAccion(datos) {
+  if (!haySupabase()) return { ok: true, demo: true };
+  const { quien, error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
+  return eliminarUsuarioEquipoCon(ctx(quien), datos || {});
 }

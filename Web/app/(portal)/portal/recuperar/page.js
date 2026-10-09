@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CheckCircle, WarningCircle } from "@phosphor-icons/react/dist/ssr";
@@ -21,6 +21,13 @@ export default function RecuperarPortal() {
   const [error, setError] = useState("");
   const [acuse, setAcuse] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // El panel y el modo chofer también mandan aquí (?de=admin|chofer): el
+  // enlace es el mismo para todos; solo cambia a dónde se regresa.
+  const [volver, setVolver] = useState("/portal/login");
+  useEffect(() => {
+    const de = new URLSearchParams(window.location.search).get("de");
+    if (de === "admin" || de === "chofer") setVolver(`/${de}/login`);
+  }, []);
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -125,7 +132,7 @@ export default function RecuperarPortal() {
           )}
 
           <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "1.1rem" }}>
-            <Link href="/portal/login" style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}>
+            <Link href={volver} style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}>
               Volver a iniciar sesión
             </Link>
           </p>

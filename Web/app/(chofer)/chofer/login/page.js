@@ -121,6 +121,12 @@ export default function LoginChofer() {
             </button>
           </form>
 
+          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--mc-gris)", marginTop: "0.9rem" }}>
+            <Link href="/portal/recuperar?de=chofer" style={{ color: "var(--mc-verde-claro)", fontWeight: 600 }}>
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
+
           <OtrosAccesos actual="chofer" />
         </div>
       </div>

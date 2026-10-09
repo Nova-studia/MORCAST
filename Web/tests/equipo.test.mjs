@@ -68,3 +68,45 @@ test("el dueño desactiva admins y el personal choferes, pero nadie a un cliente
   // Un chofer no administra a nadie.
   assert.equal(puedeCambiarActivo({ quien: { id: "o", rol: "operador" }, objetivo: { id: "x", rol: "operador" } }).puede, false);
 });
+
+// ---- Entrega 2: editar, mandar enlace y eliminar (9-oct-2026) ----
+import { puedeEditarUsuario, puedeMandarEnlace, puedeEliminarUsuario, validarEdicionUsuario } from "../lib/equipo.mjs";
+
+const D = { id: "d", rol: "dueno" };
+const A = { id: "a", rol: "admin" };
+const A2 = { id: "a2", rol: "admin" };
+const C = { id: "c", rol: "operador" };
+
+test("editar: el dueño edita a admins y choferes; un admin solo a choferes; el rol solo lo cambia el dueño", () => {
+  assert.equal(puedeEditarUsuario({ quien: D, objetivo: A2, cambios: { nombre: "x", rolId: "r" } }).puede, true);
+  assert.equal(puedeEditarUsuario({ quien: A, objetivo: C, cambios: { nombre: "x" } }).puede, true);
+  assert.equal(puedeEditarUsuario({ quien: A, objetivo: A2, cambios: { nombre: "x" } }).puede, false);
+  assert.equal(puedeEditarUsuario({ quien: A, objetivo: C, cambios: { rolId: "r" } }).puede, false);
+  assert.equal(puedeEditarUsuario({ quien: D, objetivo: D, cambios: { nombre: "x" } }).puede, false, "lo suyo va en Mi cuenta");
+  assert.equal(puedeEditarUsuario({ quien: D, objetivo: { id: "k", rol: "cliente" }, cambios: { nombre: "x" } }).puede, false);
+  assert.equal(puedeEditarUsuario({ quien: D, objetivo: C, cambios: { rolId: "r" } }).puede, false, "los choferes no llevan rol");
+});
+
+test("validarEdicionUsuario: nombre obligatorio, teléfono de 10 dígitos o vacío", () => {
+  assert.equal(validarEdicionUsuario({ nombre: " " }).ok, false);
+  assert.equal(validarEdicionUsuario({ nombre: "Ana", telefono: "123" }).ok, false);
+  const r = validarEdicionUsuario({ nombre: " Ana  Ruiz ", telefono: "(868) 123-4567", rolId: "" });
+  assert.deepEqual(r, { ok: true, limpio: { nombre: "Ana Ruiz", telefono: "8681234567", rolId: null } });
+  assert.deepEqual(validarEdicionUsuario({ nombre: "Ana", telefono: "" }).limpio.telefono, null);
+});
+
+test("mandar enlace de contraseña: como editar (nunca al dueño desde aquí)", () => {
+  assert.equal(puedeMandarEnlace({ quien: D, objetivo: A2 }).puede, true);
+  assert.equal(puedeMandarEnlace({ quien: A, objetivo: C }).puede, true);
+  assert.equal(puedeMandarEnlace({ quien: A, objetivo: A2 }).puede, false);
+  assert.equal(puedeMandarEnlace({ quien: D, objetivo: D }).puede, false);
+});
+
+test("eliminar: solo el dueño, nunca a sí mismo ni a un cliente", () => {
+  assert.equal(puedeEliminarUsuario({ quien: D, objetivo: A2 }).puede, true);
+  assert.equal(puedeEliminarUsuario({ quien: D, objetivo: C }).puede, true);
+  assert.equal(puedeEliminarUsuario({ quien: A, objetivo: C }).puede, false);
+  assert.equal(puedeEliminarUsuario({ quien: D, objetivo: D }).puede, false);
+  assert.equal(puedeEliminarUsuario({ quien: D, objetivo: { id: "k", rol: "cliente" } }).puede, false);
+  assert.equal(puedeEliminarUsuario({ quien: D, objetivo: null }).puede, false);
+});

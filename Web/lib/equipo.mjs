@@ -80,3 +80,58 @@ export function puedeCambiarActivo({ quien, objetivo } = {}) {
   }
   return { puede: true };
 }
+
+// ---- Entrega 2 (9-oct-2026): editar, mandar enlace y eliminar ----
+
+const DEL_EQUIPO = (rol) => rol === "admin" || rol === "operador";
+
+/**
+ * ¿Puede `quien` tocar la cuenta de `objetivo` desde Usuarios? Misma regla
+ * que desactivar: el dueño a todo el equipo; un admin solo a choferes. Lo
+ * suyo, cada quien en "Mi cuenta".
+ */
+function puedeTocar({ quien, objetivo }) {
+  if (!ES_PERSONAL(quien?.rol)) return { puede: false, motivo: "No tienes permiso para cambiar al equipo." };
+  if (!objetivo) return { puede: false, motivo: "No se encontró a esa persona." };
+  if (objetivo.id === quien.id) return { puede: false, motivo: "Tus propios datos se cambian en Mi cuenta." };
+  if (!DEL_EQUIPO(objetivo.rol)) return { puede: false, motivo: "Desde aquí solo se administra al personal de Morcast." };
+  if (objetivo.rol === "admin" && quien.rol !== "dueno") {
+    return { puede: false, motivo: "Solo el dueño cambia la cuenta de un administrador." };
+  }
+  return { puede: true };
+}
+
+/** Editar nombre, teléfono y (solo el dueño, solo a admins) el rol. */
+export function puedeEditarUsuario({ quien, objetivo, cambios = {} } = {}) {
+  const base = puedeTocar({ quien, objetivo });
+  if (!base.puede) return base;
+  if (cambios.rolId !== undefined) {
+    if (quien.rol !== "dueno") return { puede: false, motivo: "Solo el dueño asigna roles." };
+    if (objetivo.rol !== "admin") return { puede: false, motivo: "Solo los administradores llevan rol." };
+  }
+  return { puede: true };
+}
+
+/** Reenviar la invitación / restablecer la contraseña: mismo enlace. */
+export function puedeMandarEnlace({ quien, objetivo } = {}) {
+  return puedeTocar({ quien, objetivo });
+}
+
+/** Eliminar la cuenta para siempre: solo el dueño. */
+export function puedeEliminarUsuario({ quien, objetivo } = {}) {
+  if (quien?.rol !== "dueno") return { puede: false, motivo: "Solo el dueño elimina cuentas del equipo." };
+  return puedeTocar({ quien, objetivo });
+}
+
+/** Limpia lo que llega del formulario de edición. */
+export function validarEdicionUsuario({ nombre, telefono, rolId } = {}) {
+  const limpio = {
+    nombre: String(nombre ?? "").trim().replace(/\s+/g, " "),
+    telefono: String(telefono ?? "").replace(/\D/g, "") || null,
+    rolId: rolId ? String(rolId) : null,
+  };
+  if (!limpio.nombre) return { ok: false, motivo: "Escribe el nombre." };
+  if (limpio.nombre.length > 120) return { ok: false, motivo: "El nombre es muy largo." };
+  if (limpio.telefono && limpio.telefono.length !== 10) return { ok: false, motivo: "El teléfono debe tener 10 dígitos." };
+  return { ok: true, limpio };
+}

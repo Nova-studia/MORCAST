@@ -88,6 +88,15 @@ export async function listarBitacora({ limite = 200, desde } = {}) {
  * administración, no un programador, así que `aplicar_saldo` no sirve.
  */
 export const TEXTO_ACCION = {
+  // Entrega 2 (9-oct-2026): roles y cuentas del equipo.
+  rol_creado: "Creó un rol",
+  rol_cambiado: "Cambió un rol",
+  rol_borrado: "Borró un rol",
+  editar_usuario: "Editó una cuenta del equipo",
+  enlace_contrasena_equipo: "Mandó un enlace de contraseña",
+  eliminar_usuario: "Eliminó una cuenta del equipo",
+  mi_cuenta: "Cambió sus datos",
+  mi_contrasena: "Cambió su contraseña",
   // Entrega 1 (8-oct-2026): clientes.
   cliente_suspendido: "Suspendió a un cliente",
   cliente_baja: "Dio de baja a un cliente",
@@ -149,6 +158,7 @@ export const TEXTO_ACCION = {
 export const TEXTO_TABLA = {
   movimientos_saldo: "movimiento de saldo",
   perfiles: "cuenta de acceso",
+  roles: "rol",
   clientes: "cliente",
   rutas: "ruta",
   solicitudes_recoleccion: "solicitud de recolección",
