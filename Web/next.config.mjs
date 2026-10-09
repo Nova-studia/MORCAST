@@ -88,9 +88,13 @@ const cabeceras = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   // No filtrar la URL completa al salir del sitio.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Nada de cámara, micrófono ni ubicación desde la web. La cámara del chofer
-  // vive en las apps nativas, no aquí.
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // Nada de cámara (getUserMedia), micrófono ni pagos desde la web. La
+  // ubicación SÍ, solo para el propio sitio: la web del chofer sella cada foto
+  // con el GPS (lib/ubicacion.js) y con geolocation=() el navegador la negaba
+  // siempre y le decía al chofer que ÉL no había dado permiso (Entrega 3).
+  // La foto usa <input capture>, que abre la cámara del sistema y no necesita
+  // el permiso de cámara.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=()" },
   { key: "Content-Security-Policy-Report-Only", value: csp },
 ];
 

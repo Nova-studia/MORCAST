@@ -19,7 +19,8 @@ import {
 import VisorFoto from "@/components/VisorFoto";
 import ChoferDondeEs from "@/components/chofer/ChoferDondeEs";
 import ChoferNoProcedio from "@/components/chofer/ChoferNoProcedio";
-import { rutaDelDia, marcarEnRuta, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
+import { rutaDelDia, cerrarRecoleccion, hoyISO } from "@/lib/datos-chofer";
+import { selloFoto, horasDeCierre } from "@/lib/chofer-cierre.mjs";
 import { avisarEventoParada } from "@/app/acciones-chofer";
 import { pesoRealActivo } from "@/lib/estado-sistema";
 import { subirEvidencia } from "@/lib/datos-archivos";
@@ -33,11 +34,6 @@ import useUbicacion, { esConfiable } from "@/lib/ubicacion";
  */
 const PASOS = ["Contenedor", "Antes", "Recolectar", "Después", "Peso"];
 
-/** Hora local en HH:MM, para mostrarla junto a cada foto. */
-const horaAhora = () => {
-  const f = new Date();
-  return `${String(f.getHours()).padStart(2, "0")}:${String(f.getMinutes()).padStart(2, "0")}`;
-};
 
 /**
  * Lo avanzado de una parada se guarda en el propio teléfono.
@@ -97,14 +93,25 @@ export default function RecoleccionChofer() {
 
   const refAntes = useRef(null);
   const refDespues = useRef(null);
+  // Candado de "Finalizar": un doble toque no manda dos cierres.
+  const cerrando = useRef(false);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let vivo = true;
-    rutaDelDia(hoyISO()).then((lista) => {
-      if (!vivo) return;
-      setParada(lista.find((p) => p.id === id) || null);
-      setCargando(false);
-    });
+    setErrorCarga("");
+    rutaDelDia(hoyISO(), { lanzar: true })
+      .then((lista) => {
+        if (!vivo) return;
+        setParada(lista.find((p) => p.id === id) || null);
+        setCargando(false);
+      })
+      .catch((e) => {
+        if (!vivo) return;
+        setErrorCarga(e?.message || "No se pudo cargar la parada.");
+        setCargando(false);
+      });
     // Se recupera lo que ya se había hecho en esta parada.
     const previo = memoria.leer(id);
     if (previo) {
@@ -117,7 +124,7 @@ export default function RecoleccionChofer() {
     return () => {
       vivo = false;
     };
-  }, [id]);
+  }, [id, intento]);
 
   // Los object URL de las fotos se liberan al salir, o el navegador se los
   // queda en memoria hasta que se recargue la página.
@@ -145,10 +152,14 @@ export default function RecoleccionChofer() {
     // La lectura se congela AQUÍ, al momento de la foto, y no se vuelve a
     // tocar: si el chofer se mueve entre el antes y el después, cada sello
     // conserva dónde se tomó su propia foto.
+    // La hora REAL de la foto (ISO) viaja al cerrar; antes se mandaba la de
+    // "Finalizar" para las dos (Entrega 3).
+    const sello = selloFoto();
     const dato = {
       ruta: r.ruta,
       url: URL.createObjectURL(archivo),
-      hora: horaAhora(),
+      hora: sello.hora,
+      en: sello.en,
       ubicacion: lectura || null,
     };
     const siguiente = cual === "antes" ? 2 : 4;
@@ -156,24 +167,29 @@ export default function RecoleccionChofer() {
     setPaso(siguiente);
 
     // El object URL no sobrevive a una recarga; se guarda sin él.
-    const sinUrl = { ruta: dato.ruta, hora: dato.hora, ubicacion: dato.ubicacion };
+    const sinUrl = { ruta: dato.ruta, hora: dato.hora, en: dato.en, ubicacion: dato.ubicacion };
     memoria.guardar(id, {
       qr,
       peso,
       paso: siguiente,
-      antes: cual === "antes" ? sinUrl : antes && { ruta: antes.ruta, hora: antes.hora, ubicacion: antes.ubicacion },
-      despues: cual === "despues" ? sinUrl : despues && { ruta: despues.ruta, hora: despues.hora, ubicacion: despues.ubicacion },
+      antes: cual === "antes" ? sinUrl : antes && { ruta: antes.ruta, hora: antes.hora, en: antes.en, ubicacion: antes.ubicacion },
+      despues: cual === "despues" ? sinUrl : despues && { ruta: despues.ruta, hora: despues.hora, en: despues.en, ubicacion: despues.ubicacion },
     });
   };
 
   const confirmarContenedor = async () => {
     if (!qr.trim()) return;
-    await marcarEnRuta(id);
+    // "En ruta" CON aviso al cliente (si no se le había avisado ya). Antes se
+    // pasaba a en-ruta sin aviso y la lista decía "el cliente ya fue avisado".
+    // No detiene al chofer si falla.
+    avisarEventoParada(id, "en-camino").catch(() => {});
     setPaso(1);
     memoria.guardar(id, { qr: qr.trim(), peso, paso: 1, antes: null, despues: null });
   };
 
   const finalizar = async () => {
+    if (cerrando.current) return;
+    cerrando.current = true;
     setGuardando(true);
     setError("");
     const r = await cerrarRecoleccion({
@@ -185,12 +201,12 @@ export default function RecoleccionChofer() {
       rutaDespues: despues?.ruta || null,
       ubicacionAntes: antes?.ubicacion || null,
       ubicacionDespues: despues?.ubicacion || null,
-      horaAntes: antes ? new Date().toISOString() : null,
-      horaDespues: despues ? new Date().toISOString() : null,
+      ...horasDeCierre({ antes, despues }),
     });
     if (!r.ok) {
       setError(r.motivo || "No se pudo guardar. Revisa tu señal e intenta otra vez.");
       setGuardando(false);
+      cerrando.current = false;
       return;
     }
     memoria.borrar(id);   // la parada quedó cerrada: ya no hay nada que retomar
@@ -210,6 +226,41 @@ export default function RecoleccionChofer() {
   );
 
   if (cargando) return <div className="pt-vacio">Cargando…</div>;
+
+  // Sin señal: decirlo y ofrecer otra vez, no "no está en tu ruta".
+  if (errorCarga) {
+    return (
+      <div className="pt-card" role="alert">
+        <div className="pt-vacio">
+          {errorCarga}
+          <div style={{ marginTop: "0.8rem", display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
+            <button type="button" className="pt-btn pt-btn-verde" onClick={() => { setCargando(true); setIntento((n) => n + 1); }}>
+              Reintentar
+            </button>
+            <Link href="/chofer" className="pt-btn ch-volver">
+              <ArrowLeft /> Mi ruta
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ya cerrada (aquí, en la app o por otro chofer): no se vuelve a cerrar.
+  if (parada && parada.estatus === "completado") {
+    return (
+      <>
+        <Link href="/chofer" className="pt-btn ch-volver">
+          <ArrowLeft /> Mi ruta
+        </Link>
+        <div className="pt-card ch-listo">
+          <CheckCircle aria-hidden="true" color="var(--mc-verde-claro)" />
+          <strong>{parada.cliente}: ya quedó recolectada</strong>
+          <span>Esta parada ya se cerró. No hay nada más que hacer aquí.</span>
+        </div>
+      </>
+    );
+  }
 
   // Se marcó "No procedió" (aquí o desde otro teléfono): ya no hay pasos
   // que hacer, solo confirmar que quedó guardado con su motivo.

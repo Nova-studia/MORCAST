@@ -5,6 +5,7 @@ import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { cargarIncidente, avisarOficina } from "@/lib/avisar-incidente";
 import { eventoDeParada } from "@/lib/avisar-cliente";
+import { avisoEnviado } from "@/lib/chofer-cierre.mjs";
 import { validarReporte, validarNoProcedio, rutaEnCarpeta } from "@/lib/chofer-reportes.mjs";
 
 /**
@@ -116,7 +117,7 @@ export async function avisarEventoParada(solicitudId, evento) {
       evento,
     });
     return r.ok
-      ? { ok: true, estado: r.estado, avisado: Boolean(r.aviso?.correo || r.aviso?.notificaciones) }
+      ? { ok: true, estado: r.estado, avisado: avisoEnviado(r.aviso) }
       : { ok: false, motivo: r.motivo, estado: r.estado };
   } catch (e) {
     console.error("[aviso-cliente] evento de parada:", e?.message || e);

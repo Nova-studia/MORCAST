@@ -11,6 +11,7 @@
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { subirEvidencia } from "@/lib/datos-archivos";
 import { direccionDe } from "@/lib/mapas.mjs";
+import { estatusDeParada } from "@/lib/chofer-cierre.mjs";
 
 /** Fecha de hoy en YYYY-MM-DD con la hora LOCAL, no en UTC. */
 export function hoyISO() {
@@ -127,12 +128,9 @@ function aParada(s) {
     // "Completado" es que ya se levantó la evidencia, no solo que el estado
     // diga completada: el chofer necesita ver lo que le falta POR HACER.
     // "No procedió" también sale de los pendientes: ya quedó resuelta.
-    estatus:
-      s.estado === "no-procedio"
-        ? "no-procedio"
-        : s.estado === "completada" && ev
-          ? "completado"
-          : "pendiente",
+    // Completada es completada aunque la evidencia sea de OTRO chofer (no la
+    // puede leer): antes salía pendiente y se podía volver a cerrar.
+    estatus: estatusDeParada(s.estado),
     evidencia: ev,
   };
 }
@@ -144,7 +142,7 @@ function aParada(s) {
  * (completadas o "no procedió"). Una "solicitada" no aparece a propósito: si
  * Morcast no la ha confirmado, el chofer no debería ir por ella.
  */
-export async function rutaDelDia(fecha = hoyISO()) {
+export async function rutaDelDia(fecha = hoyISO(), { lanzar = false } = {}) {
   if (!haySupabaseNavegador()) return paradasDemo(fecha).map(aParada);
 
   const { data, error } = await supabaseNavegador()
@@ -162,6 +160,9 @@ export async function rutaDelDia(fecha = hoyISO()) {
 
   if (error) {
     console.error("[chofer] No se pudo leer la ruta:", error.message);
+    // Con `lanzar`, la pantalla distingue "no pude leer" de "no hay nada":
+    // sin señal decía "Sin paradas para hoy" (Entrega 3).
+    if (lanzar) throw new Error("No se pudo cargar tu ruta. Revisa tu señal.");
     return [];
   }
 
@@ -349,6 +350,13 @@ export async function cerrarRecoleccion({
 
   const cierre = await cambiarEstadoParada(solicitudId, "completada");
   if (!cierre.ok) {
+    // Reintento tras una respuesta perdida: la parada ya había quedado
+    // completada (el UPDATE no encuentra fila "confirmada/en-ruta"). Eso es
+    // éxito, no error. La evidencia del reintento ya se fundió en la que
+    // había (db/031).
+    const { data: ya } = await supabaseNavegador()
+      .from("solicitudes_recoleccion").select("estado").eq("id", solicitudId).maybeSingle();
+    if (ya?.estado === "completada") return { ok: true };
     // La evidencia sí quedó guardada; solo falló el último paso. Se avisa en
     // vez de callarlo, porque el servicio seguiría apareciendo como pendiente
     // y nadie sabría por qué.

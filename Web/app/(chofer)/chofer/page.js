@@ -15,6 +15,7 @@ import {
 import { rutaDelDia, hoyISO } from "@/lib/datos-chofer";
 import { avisarEventoParada } from "@/app/acciones-chofer";
 import { enlaceComoLlegar } from "@/lib/mapas.mjs";
+import { textoEnCamino } from "@/lib/chofer-cierre.mjs";
 
 /**
  * La fecha se le enseña al chofer como se dice, no como la guarda la base.
@@ -38,6 +39,11 @@ export default function RutaChofer() {
   const [cargando, setCargando] = useState(true);
   // "En camino" en curso o con error, por parada: { [id]: "enviando" | texto de error }.
   const [camino, setCamino] = useState({});
+  // Si el aviso de "En camino" salió de verdad, por parada (true/false); sin
+  // dato (se cargó ya en camino) no se promete nada.
+  const [avisado, setAvisado] = useState({});
+  const [errorCarga, setErrorCarga] = useState("");
+  const [intento, setIntento] = useState(0);
   const hoy = hoyISO();
 
   /**
@@ -51,6 +57,7 @@ export default function RutaChofer() {
     if (r.ok || r.estado === "en-ruta") {
       setParadas((lista) => lista.map((x) => (x.id === p.id ? { ...x, estado: "en-ruta" } : x)));
       setCamino((c) => ({ ...c, [p.id]: undefined }));
+      if (r.ok) setAvisado((a) => ({ ...a, [p.id]: Boolean(r.avisado) }));
       return;
     }
     setCamino((c) => ({ ...c, [p.id]: r.motivo || "No se pudo avisar. Revisa tu señal y vuelve a intentar." }));
@@ -58,15 +65,23 @@ export default function RutaChofer() {
 
   useEffect(() => {
     let vivo = true;
-    rutaDelDia(hoy).then((p) => {
-      if (!vivo) return;
-      setParadas(p);
-      setCargando(false);
-    });
+    setCargando(true);
+    setErrorCarga("");
+    rutaDelDia(hoy, { lanzar: true })
+      .then((p) => {
+        if (!vivo) return;
+        setParadas(p);
+        setCargando(false);
+      })
+      .catch((e) => {
+        if (!vivo) return;
+        setErrorCarga(e?.message || "No se pudo cargar tu ruta.");
+        setCargando(false);
+      });
     return () => {
       vivo = false;
     };
-  }, [hoy]);
+  }, [hoy, intento]);
 
   const pendientes = paradas.filter((p) => p.estatus === "pendiente");
   const hechas = paradas.filter((p) => p.estatus === "completado");
@@ -104,7 +119,17 @@ export default function RutaChofer() {
 
       {cargando && <div className="pt-vacio">Cargando tu ruta…</div>}
 
-      {!cargando && paradas.length === 0 && (
+      {!cargando && errorCarga && (
+        <div className="pt-card ch-vacio" role="alert">
+          <strong>No se pudo cargar tu ruta</strong>
+          <span>{errorCarga}</span>
+          <button type="button" className="pt-btn pt-btn-verde" style={{ marginTop: "0.8rem" }} onClick={() => setIntento((n) => n + 1)}>
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {!cargando && !errorCarga && paradas.length === 0 && (
         <div className="pt-card ch-vacio">
           <CheckCircle aria-hidden="true" />
           <strong>Sin paradas para hoy</strong>
@@ -166,7 +191,7 @@ export default function RutaChofer() {
               )}
               {p.estado === "en-ruta" && (
                 <p className="ch-en-camino-listo" role="status">
-                  <CheckCircle aria-hidden="true" weight="fill" /> En camino · el cliente ya fue avisado
+                  <CheckCircle aria-hidden="true" weight="fill" /> {textoEnCamino(avisado[p.id])}
                 </p>
               )}
               {camino[p.id] && camino[p.id] !== "enviando" && (
