@@ -4,8 +4,7 @@ import { usuarioActual, supabaseSesion } from "@/lib/supabase-sesion";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { pasarFreno } from "@/lib/freno";
-import { validarDatosCliente, confirmaEliminar } from "@/lib/cuenta-cliente.mjs";
-import { permisosDeEstado } from "@/lib/estado-cliente.mjs";
+import { confirmaEliminar } from "@/lib/cuenta-cliente.mjs";
 import { eliminarCuenta } from "@/lib/eliminar-cuenta.mjs";
 import { cuentaClienteCon, guardarDatosClienteCon } from "@/lib/apps-servidor";
 

@@ -9,11 +9,6 @@ import { cambiarSolicitudDeClienteCon } from "@/lib/apps-servidor";
 import { headers } from "next/headers";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
-import { hayResend, correoCambioSolicitudCliente } from "@/lib/correo";
-import { enviarPush, tokensDeUsuarios, usuariosOficina } from "@/lib/push.mjs";
-import { mensajePushParada } from "@/lib/oficina-recolecciones.mjs";
-import { hoyMatamoros } from "@/lib/avisos.mjs";
-import { cambiarSolicitudClienteCon } from "@/lib/solicitud-cliente-servidor.mjs";
 
 /**
  * El portal pidió una recolección: que se entere la oficina (6-oct-2026).

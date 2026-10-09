@@ -1,9 +1,6 @@
 "use server";
 
 import { exigirSeccion } from "@/lib/permisos-servidor";
-import { validarRecoleccionOficina } from "@/lib/recoleccion-nueva.mjs";
-import { hoyMatamoros } from "@/lib/avisos.mjs";
-import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { supabaseSesion } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";

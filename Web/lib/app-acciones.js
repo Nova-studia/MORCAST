@@ -8,7 +8,10 @@ import { puedeEliminarCliente, aplicarPermiso } from "./estado-cliente.mjs";
 import { tokenDeCabecera } from "./app-auth.mjs";
 import { firmarPase, secretoPanel } from "./mfa.mjs";
 import { EMPRESA } from "./datos";
-import { destinoPanel } from "./app-acciones-mapa.mjs";
+import { destinoPanel, marcaPuente } from "./app-acciones-mapa.mjs";
+import { supabaseComoUsuario } from "./app-sesion-usuario";
+import { pasarFreno } from "./freno";
+import { validarCambioContrasena } from "./mi-cuenta.mjs";
 import {
   fichaClienteCon,
   cuentaClienteCon,
@@ -31,10 +34,16 @@ const actorDe = ({ usuario }) => ({ id: usuario.id, correo: usuario.email });
 const quienDe = ({ usuario, perfil }) => ({ id: usuario.id, rol: perfil.rol, nombre: perfil.nombre });
 const ctxClientes = (x) => ({ sb: x.sb, anotar: x.anotar, actor: actorDe(x) });
 
-/** Un pase de un solo uso (2 min) para abrir el panel web desde la app. */
-async function pasePuente(uid) {
-  return firmarPase({ uid, sesion: "puente", vence: Math.floor(Date.now() / 1000) + 120 }, secretoPanel());
+/**
+ * El pase del puente (2 min), amarrado a SU enlace mágico (`th`): como
+ * Supabase consume `th` una vez, el pase se canjea una vez y solo con él.
+ */
+async function pasePuente(uid, th) {
+  return firmarPase({ uid, sesion: await marcaPuente(th), vence: Math.floor(Date.now() / 1000) + 120 }, secretoPanel());
 }
+
+/** El mismo freno que la web, con la MISMA llave: web y app comparten intentos. */
+const frenoWeb = (llave, maximo, minutos) => pasarFreno(llave, { maximo, minutos, porIp: false });
 
 export const MANEJADORES = {
   // ---------------------------------------------------------------- personal
@@ -50,14 +59,19 @@ export const MANEJADORES = {
     if (error || !th) return { ok: false, motivo: "No se pudo abrir el panel. Inténtalo otra vez." };
     const destino = destinoPanel(x.cuerpo?.destino);
     const sitio = String(EMPRESA.sitio).replace(/\/+$/, "");
-    const pp = await pasePuente(x.usuario.id);
+    const pp = await pasePuente(x.usuario.id, th);
     return { ok: true, url: `${sitio}/admin/entrar?th=${encodeURIComponent(th)}&pp=${encodeURIComponent(pp)}&a=${encodeURIComponent(destino)}` };
   },
-  "cuenta-contrasena": async (x) =>
-    cambiarContrasenaServidor(
+  "cuenta-contrasena": async (x) => {
+    // Primero lo que no cuesta un intento; luego el freno de la web (misma llave).
+    const v = validarCambioContrasena(x.cuerpo || {});
+    if (!v.ok) return v;
+    if (!(await frenoWeb(`mi-contrasena:${x.usuario.id}`, 5, 15))) return { ok: false, motivo: "Demasiados intentos. Espera 15 minutos." };
+    return cambiarContrasenaServidor(
       { sbServicio: x.sb, uid: x.usuario.id, correo: x.usuario.email, token: tokenDeCabecera(x.peticion.headers.get("authorization")), anotar: x.anotar },
       x.cuerpo
-    ),
+    );
+  },
 
   // ---------------------------------------------------------------- cliente
   "cliente-cuenta": async (x) => (x.perfil.cliente_id ? cuentaClienteCon(x.sb, x.perfil.cliente_id) : { ok: false, motivo: "Tu cuenta no tiene empresa." }),
@@ -65,13 +79,15 @@ export const MANEJADORES = {
     x.perfil.cliente_id
       ? guardarDatosClienteCon({ sb: x.sb, anotar: x.anotar }, { clienteId: x.perfil.cliente_id }, x.cuerpo)
       : { ok: false, motivo: "Tu cuenta no tiene empresa." },
-  "solicitud-cambiar": async (x) =>
-    x.perfil.cliente_id
+  "solicitud-cambiar": async (x) => {
+    if (!(await frenoWeb(`cambiar-solicitud:${x.usuario.id}`, 20, 60))) return { ok: false, motivo: "Demasiados cambios seguidos. Espera un poco." };
+    return x.perfil.cliente_id
       ? cambiarSolicitudDeClienteCon(
           { sb: x.sb, quien: { id: x.usuario.id, cliente_id: x.perfil.cliente_id }, anotar: x.anotar, origen: x.origen },
           { id: x.cuerpo.id, accion: x.cuerpo.accion, fecha: x.cuerpo.fecha, motivo: x.cuerpo.motivo }
         )
-      : { ok: false, motivo: "Tu cuenta no tiene empresa." },
+      : { ok: false, motivo: "Tu cuenta no tiene empresa." };
+  },
 
   // ---------------------------------------------------------------- clientes (oficina)
   "cliente-ficha": async (x) => {
@@ -139,13 +155,18 @@ export const MANEJADORES = {
     } catch (e) {
       return { ok: false, motivo: e.message };
     }
-    const { data, error } = await x.sb.from("perfiles").update({ permisos: nuevos }).eq("id", x.cuerpo.perfilId).select("id");
-    if (error || !data?.length) return { ok: false, motivo: error?.message || "No se guardó." };
+    // Con el token del dueño: el disparador permisos_solo_dueno (db/027) también cuida.
+    const { data, error } = await supabaseComoUsuario(x.peticion).from("perfiles").update({ permisos: nuevos }).eq("id", x.cuerpo.perfilId).select("id");
+    if (error || !data?.length) {
+      if (error) console.error("[app-accion] usuario-permiso:", error.message);
+      return { ok: false, motivo: "No se guardó el permiso." };
+    }
     await x.anotar({ accion: "permiso_cambiado", tabla: "perfiles", registroId: x.cuerpo.perfilId, detalle: { permiso: x.cuerpo.permiso, valor: Boolean(x.cuerpo.valor) } });
     return { ok: true, permisos: nuevos };
   },
 
   // ---------------------------------------------------------------- recolecciones (oficina)
+  // Con el token del usuario (`sb`): la base también exige la sección (db/029).
   "recoleccion-crear": async (x) =>
-    crearRecoleccionOficinaCon({ sb: x.sb, sbServicio: x.sb, actor: actorDe(x), anotar: x.anotar }, x.cuerpo),
+    crearRecoleccionOficinaCon({ sb: supabaseComoUsuario(x.peticion), sbServicio: x.sb, actor: actorDe(x), anotar: x.anotar }, x.cuerpo),
 };

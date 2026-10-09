@@ -12,7 +12,8 @@
 import { entrarApp, entrarAppAdmin, responder } from "@/lib/app-ruta";
 import { anotarBitacora } from "@/lib/app-auth.mjs";
 import { origenPermitido } from "@/lib/origen.mjs";
-import { ACCIONES_APP, ROLES_ZONA } from "@/lib/app-acciones-mapa.mjs";
+import { ACCIONES_APP, ROLES_ZONA, exigePase } from "@/lib/app-acciones-mapa.mjs";
+import { mfaPanelActivo, secretoPanel, verificarPase } from "@/lib/mfa.mjs";
 import { MANEJADORES } from "@/lib/app-acciones";
 
 export async function POST(peticion, ctx) {
@@ -26,6 +27,17 @@ export async function POST(peticion, ctx) {
     ? await entrarAppAdmin(peticion, { permiso: def.permiso || null, freno })
     : await entrarApp(peticion, { roles: ROLES_ZONA[def.zona], freno });
   if (r.respuesta) return r.respuesta;
+  // El personal, también en "su cuenta", con el segundo paso (revisión 9-oct).
+  if (exigePase({ zona: def.zona, rol: r.perfil?.rol }) && mfaPanelActivo()) {
+    const valido = await verificarPase(
+      typeof r.cuerpo.pase === "string" ? r.cuerpo.pase : null,
+      { uid: r.usuario.id, sesion: r.sesion },
+      secretoPanel()
+    );
+    if (!valido) {
+      return responder({ ok: false, segundoPaso: true, motivo: "Vuelve a confirmar con el código que te llega por correo." }, 403);
+    }
+  }
 
   try {
     const res = await fn({

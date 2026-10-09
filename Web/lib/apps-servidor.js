@@ -83,7 +83,10 @@ export async function guardarDatosClienteCon({ sb, anotar }, { clienteId }, dato
   const v = validarDatosCliente(datos || {});
   if (!v.ok) return v;
   const { data, error } = await sb.from("clientes").update(v.limpio).eq("id", clienteId).select("id");
-  if (error || !data?.length) return { ok: false, motivo: `No se guardó: ${error?.message || "ninguna fila"}` };
+  if (error || !data?.length) {
+    if (error) console.error("[cuenta-cliente] no se guardó:", error.message);
+    return { ok: false, motivo: "No se guardó. Inténtalo otra vez." };
+  }
   await anotar({ accion: "cliente_edita_contacto", tabla: "clientes", registroId: clienteId, detalle: v.limpio });
   return { ok: true };
 }
@@ -149,6 +152,11 @@ export async function crearRecoleccionOficinaCon({ sb, sbServicio, actor, anotar
     .maybeSingle();
   if (!punto || punto.cliente_id !== l.clienteId) return { ok: false, motivo: "Ese punto no es de ese cliente." };
   if (punto.clientes?.estado === "baja") return { ok: false, motivo: "Ese cliente está dado de baja." };
+  // El chofer elegido tiene que ser un chofer activo (como en /api/app/recolecciones/confirmar).
+  if (l.confirmar && l.choferId) {
+    const { data: ch } = await sbServicio.from("perfiles").select("id").eq("id", l.choferId).eq("rol", "operador").eq("activo", true).maybeSingle();
+    if (!ch) return { ok: false, motivo: "Ese chofer no está activo." };
+  }
   // La ruta de su servicio activo (o pausado); nunca la de uno cancelado.
   const subs = punto.suscripciones || [];
   const servicio = subs.find((s) => s.estado === "activa") || subs.find((s) => s.estado === "pausada");
@@ -169,7 +177,10 @@ export async function crearRecoleccionOficinaCon({ sb, sbServicio, actor, anotar
     })
     .select("id, folio")
     .single();
-  if (error || !creada) return { ok: false, motivo: `No se pudo crear: ${error?.message || "sin respuesta"}` };
+  if (error || !creada) {
+    if (error) console.error("[recolecciones] no se pudo crear:", error.message);
+    return { ok: false, motivo: "No se pudo crear la recolección. Inténtalo otra vez." };
+  }
 
   await anotar({
     accion: "crear_recoleccion_oficina",

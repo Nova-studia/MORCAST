@@ -45,7 +45,7 @@ test("toda ruta de administración de la app pide su sección", () => {
     if (!s.includes("entrarAppAdmin(")) continue;
     // La puerta única de las apps saca el permiso de lib/app-acciones-mapa.mjs
     // (lo revisa tests/app-acciones.test.mjs).
-    if (s.includes("ACCIONES_APP")) { vistas++; continue; }
+    if (r.replace(/\\/g, "/").endsWith("app/api/app/accion/[nombre]/route.js")) { vistas++; continue; }
     vistas++;
     const m = s.match(/entrarAppAdmin\(peticion,\s*\{([\s\S]*?)\n\s*\}\)/);
     const ok = m && (/permiso:\s*(\[[^\]]+\]|"[a-z_]+")/.test(m[1]) || /soloDueno:\s*true/.test(m[1]));

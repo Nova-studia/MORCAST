@@ -1,12 +1,10 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
 import { usuarioActual, supabaseSesion } from "@/lib/supabase-sesion";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
-import { correoContrasenaCambiada } from "@/lib/correo";
 import { validarEdicionUsuario } from "@/lib/equipo.mjs";
-import { cambiarContrasenaCon, validarCambioContrasena } from "@/lib/mi-cuenta.mjs";
+import { validarCambioContrasena } from "@/lib/mi-cuenta.mjs";
 import { pasarFreno } from "@/lib/freno";
 import { cambiarContrasenaServidor } from "@/lib/apps-servidor";
 

@@ -23,7 +23,8 @@ export const ACCIONES_APP = {
   "mis-permisos": { zona: "admin", permiso: null, freno: normal },
   "puente-admin": { zona: "admin", permiso: null, freno: { maximo: 20, minutos: 60 } },
   // ---- su propia cuenta
-  "cuenta-contrasena": { zona: "cuenta", freno: { maximo: 5, minutos: 15 } },
+  // El freno fino (5 en 15 min) es el de la web, con su misma llave, dentro del manejador.
+  "cuenta-contrasena": { zona: "cuenta", freno: { maximo: 20, minutos: 15 } },
   // ---- el cliente
   "cliente-cuenta": { zona: "cliente", freno: normal },
   "cliente-guardar": { zona: "cliente", freno: poco },
@@ -59,3 +60,24 @@ export const DESTINOS_PANEL = [
   "/admin/contenedores", "/admin/viajes", "/admin/bitacora", "/admin/reportes", "/admin",
 ];
 export const destinoPanel = (d) => (DESTINOS_PANEL.includes(d) ? d : "/admin");
+
+/**
+ * ¿Esta zona le pide el segundo paso a este rol? El PERSONAL lo necesita
+ * también para su propia contraseña: con solo la contraseña robada, alguien
+ * podría cambiarla y dejar fuera al dueño de la cuenta (revisión de la web,
+ * 9-oct-2026). Las de zona "admin" ya lo piden siempre.
+ */
+export function exigePase({ zona, rol }) {
+  return zona === "cuenta" && (rol === "dueno" || rol === "admin");
+}
+
+/**
+ * La "sesión" del pase del puente: amarrada al enlace mágico (`th`). Como
+ * Supabase consume `th` una sola vez, el pase solo se canjea con SU enlace,
+ * una vez: con la contraseña robada y el enlace visto de reojo ya no basta.
+ */
+export async function marcaPuente(th) {
+  const datos = new TextEncoder().encode(String(th || ""));
+  const h = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", datos));
+  return `puente:${Array.from(h.slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}

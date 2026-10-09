@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { canjearPuenteAdmin } from "@/app/acciones-puente";
 
 /**
@@ -45,27 +45,21 @@ export default function EntrarPanelDesdeLaApp() {
       const th = params.get("th");
       const pp = params.get("pp");
       const destino = params.get("a") || "/admin";
+      // El enlace no se queda en la barra ni en el historial.
+      window.history.replaceState(null, "", "/admin/entrar");
       if (!th || !pp) {
         if (vivo) setEstado("invalido");
         return;
       }
-      const supabase = supabaseNavegador();
-      const { data: { session: previa } } = await supabase.auth.getSession();
-      if (previa) await supabase.auth.signOut({ scope: "local" });
-      const { error } = await supabase.auth.verifyOtp({ token_hash: th, type: "magiclink" });
-      if (!vivo) return;
-      if (error) {
-        setEstado("invalido");
-        return;
-      }
-      const r = await canjearPuenteAdmin({ pp, destino });
+      // Todo en el servidor: canjea el enlace (una vez) y el pase amarrado a él.
+      const r = await canjearPuenteAdmin({ th, pp, destino });
       if (!vivo) return;
       if (!r.ok) {
         setMotivo(r.motivo || "");
         setEstado("invalido");
         return;
       }
-      // Navegación completa: proxy.js ya ve la cookie del pase.
+      // Navegación completa: proxy.js ya ve la sesión y el pase.
       window.location.replace(r.destino);
     })();
     return () => { vivo = false; };

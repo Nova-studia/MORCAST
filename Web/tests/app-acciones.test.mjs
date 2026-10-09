@@ -46,3 +46,21 @@ test("el puente solo abre pantallas del panel de una lista cerrada", async () =>
   assert.equal(destinoPanel("https://evil.com"), "/admin");
   assert.equal(destinoPanel("/admin/usuarios"), "/admin");
 });
+
+// ---- Revisión de la web (apps al 100%) ----
+test("revisión: el personal necesita el segundo paso también para su contraseña", async () => {
+  const { exigePase } = await import("../lib/app-acciones-mapa.mjs");
+  assert.equal(exigePase({ zona: "cuenta", rol: "admin" }), true);
+  assert.equal(exigePase({ zona: "cuenta", rol: "dueno" }), true);
+  assert.equal(exigePase({ zona: "cuenta", rol: "operador" }), false);
+  assert.equal(exigePase({ zona: "cuenta", rol: "cliente" }), false);
+  assert.equal(exigePase({ zona: "cliente", rol: "cliente" }), false);
+});
+
+test("revisión: el pase del puente queda amarrado a SU enlace (otro enlace no lo canjea)", async () => {
+  const { marcaPuente } = await import("../lib/app-acciones-mapa.mjs");
+  const a = await marcaPuente("token-a");
+  assert.match(a, /^puente:[0-9a-f]{32}$/);
+  assert.notEqual(a, await marcaPuente("token-b"));
+  assert.equal(a, await marcaPuente("token-a"));
+});
