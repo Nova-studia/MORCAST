@@ -184,6 +184,14 @@ section {
   margin-bottom: 1.5rem;
   max-width: 22ch;
 }
+/* Con el tope de 22ch, en un bloque centrado la CAJA del título se quedaba
+   pegada a la izquierda (el texto se centraba dentro de ella): "Algunos de
+   nuestros clientes" salía corrido (Luis, 9-oct-2026). Centrada, la caja. */
+.text-center .mc-titulo-seccion,
+.text-center .mc-lead {
+  margin-left: auto;
+  margin-right: auto;
+}
 
 /* 🔴 62 caracteres máximo. Hoy hay renglones de 90 y por eso el texto se lee
    pesado aunque el tamaño esté bien. */
