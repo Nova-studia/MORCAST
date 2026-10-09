@@ -20,6 +20,7 @@ import { choferesDeMisServicios } from "@/app/acciones-portal";
 import { avisarSolicitudNueva } from "@/app/acciones-solicitud";
 import { puntosAgendables } from "@/lib/puntos-cliente.mjs";
 import { residuoDeclarado, pesoManifiesto, horaManifiesto } from "@/lib/manifiesto.mjs";
+import { limpiarBusqueda, filtroFechas, filtroBusqueda, rangoPagina } from "@/lib/consulta-recolecciones.mjs";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
@@ -175,30 +176,91 @@ export async function listarSolicitudesPanel() {
     console.error("[solicitudes] No se pudieron leer (panel):", error.message);
     return [];
   }
-  return (data || []).map((f) => {
-    // Una recolección por servicio (así la levanta el chofer). Si hubiera
-    // dos, manda la primera, igual que en el historial del cliente.
-    const ev = f.recolecciones?.[0] || null;
-    const v = ev?.viajes_relleno || null;
-    return {
-      ...aFormatoPantalla(f),
-      tipoResiduo: f.tipo_residuo || "",
-      motivoNoProcedio: f.motivo_no_procedio || "",
-      detalleNoProcedio: f.detalle_no_procedio || "",
-      evidencia: ev
-        ? {
-            id: ev.id,
-            estimadoKg: numero(ev.peso_kg),
-            realKg: numero(ev.peso_real_kg),
-            realEn: ev.peso_real_en || null,
-            viajeId: ev.viaje_id || null,
-            viaje: v
-              ? { id: v.id, fecha: v.fecha, pesoRealKg: numero(v.peso_real_kg), folioTicket: v.folio_ticket || "" }
-              : null,
-          }
-        : null,
-    };
-  });
+  return (data || []).map(filaPanel);
+}
+
+/** Una fila de la base → lo que pinta el panel de Recolecciones. */
+function filaPanel(f) {
+  // Una recolección por servicio (así la levanta el chofer; desde la 031
+  // la base lo garantiza).
+  const ev = f.recolecciones?.[0] || null;
+  const v = ev?.viajes_relleno || null;
+  return {
+    ...aFormatoPantalla(f),
+    tipoResiduo: f.tipo_residuo || "",
+    motivoNoProcedio: f.motivo_no_procedio || "",
+    detalleNoProcedio: f.detalle_no_procedio || "",
+    evidencia: ev
+      ? {
+          id: ev.id,
+          estimadoKg: numero(ev.peso_kg),
+          realKg: numero(ev.peso_real_kg),
+          realEn: ev.peso_real_en || null,
+          viajeId: ev.viaje_id || null,
+          viaje: v
+            ? { id: v.id, fecha: v.fecha, pesoRealKg: numero(v.peso_real_kg), folioTicket: v.folio_ticket || "" }
+            : null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Recolecciones del panel, BUSCADAS EN LA BASE (Entrega 3): folio o empresa,
+ * rango de fechas (fecha efectiva), estado y páginas de 50. Devuelve el total
+ * para paginar. Antes se traía todo y se cortaba en silencio a las 1,000.
+ */
+export async function buscarSolicitudesPanel({ q = "", desde = "", hasta = "", estado = "", pagina = 1 } = {}) {
+  if (!haySupabaseNavegador()) {
+    const todas = await listarSolicitudesPanel();
+    const filas = estado ? todas.filter((x) => x.estado === estado) : todas;
+    return { ok: true, filas, total: filas.length };
+  }
+  const sb = supabaseNavegador();
+  const texto = limpiarBusqueda(q);
+  let clienteIds = [];
+  if (texto) {
+    const { data: cs } = await sb.from("clientes").select("id").or(`empresa.ilike.%${texto}%,folio.ilike.%${texto}%`).limit(200);
+    clienteIds = (cs || []).map((c) => c.id);
+  }
+  let consulta = sinPruebasEnConsulta(
+    sb.from("solicitudes_recoleccion").select(CAMPOS_PANEL, { count: "exact" }),
+    await idsCuentasPrueba()
+  );
+  const fechas = filtroFechas({ desde, hasta });
+  if (fechas) consulta = consulta.or(fechas);
+  const busca = filtroBusqueda(texto, clienteIds);
+  if (busca) consulta = consulta.or(busca);
+  if (estado) consulta = consulta.eq("estado", estado);
+  const [de, a] = rangoPagina(pagina);
+  const { data, error, count } = await consulta.order("fecha_pedida", { ascending: false }).range(de, a);
+  if (error) {
+    console.error("[solicitudes] No se pudieron buscar (panel):", error.message);
+    return { ok: false, motivo: "No se pudieron cargar las recolecciones. Revisa tu conexión.", filas: [], total: 0 };
+  }
+  return { ok: true, filas: (data || []).map(filaPanel), total: count ?? (data || []).length };
+}
+
+/**
+ * Lo que no puede perderse aunque quede fuera del rango de fechas: las
+ * vencidas (sin cerrar y con la fecha ya pasada) y cuántas esperan
+ * confirmación.
+ */
+export async function pendientesPanel(hoy) {
+  if (!haySupabaseNavegador()) return { vencidas: [], porConfirmar: 0 };
+  const sb = supabaseNavegador();
+  const ids = await idsCuentasPrueba();
+  const [v, c] = await Promise.all([
+    sinPruebasEnConsulta(sb.from("solicitudes_recoleccion").select(CAMPOS_PANEL), ids)
+      .in("estado", ["solicitada", "confirmada", "en-ruta"])
+      .or(`fecha_confirmada.lt.${hoy},and(fecha_confirmada.is.null,fecha_pedida.lt.${hoy})`)
+      .order("fecha_pedida")
+      .limit(500),
+    sinPruebasEnConsulta(sb.from("solicitudes_recoleccion").select("id", { count: "exact", head: true }), ids)
+      .eq("estado", "solicitada"),
+  ]);
+  if (v.error) console.error("[solicitudes] No se pudieron leer las vencidas:", v.error.message);
+  return { vencidas: (v.data || []).map(filaPanel), porConfirmar: c.count ?? 0 };
 }
 
 /**

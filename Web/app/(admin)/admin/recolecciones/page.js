@@ -13,7 +13,8 @@ import {
   PencilSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import { ESTADOS_SOLICITUD_REC } from "@/lib/rutas-datos";
-import { listarSolicitudesPanel, fotoNoProcedio } from "@/lib/datos-solicitudes";
+import { buscarSolicitudesPanel, pendientesPanel, fotoNoProcedio } from "@/lib/datos-solicitudes";
+import { rangoPorOmision, POR_PAGINA } from "@/lib/consulta-recolecciones.mjs";
 import { haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { leerKg, textoKg, textoPeso } from "@/lib/peso.mjs";
 import { ponerPesoRealRecoleccion } from "@/app/acciones-peso";
@@ -57,6 +58,17 @@ export default function RecoleccionesAdmin() {
   const [pesoReal, setPesoReal] = useState(null);
   // Foto de un "No procedió", por folio: "cargando" | url | "sin-foto".
   const [fotosNP, setFotosNP] = useState({});
+  // Búsqueda en la BASE (Entrega 3): antes se traía todo y se cortaba en
+  // silencio a las 1,000. Fechas por omisión: desde hace 30 días, sin tope.
+  const [busqueda, setBusqueda] = useState("");
+  const [q, setQ] = useState(""); // la búsqueda ya "asentada" (pausa al teclear)
+  const [rango, setRango] = useState(() => rangoPorOmision(hoyISO()));
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [vencidasLista, setVencidasLista] = useState([]);
+  const [porConfirmar, setPorConfirmar] = useState(0);
+  const [recarga, setRecarga] = useState(0);
 
   /**
    * Lo que el admin lleva elegido para esta solicitud.
@@ -95,15 +107,43 @@ export default function RecoleccionesAdmin() {
       // "próximo día de su ruta" no aparecía nunca.
       setDiasPorRuta(Object.fromEntries((rs || []).map((r) => [r.id, r.dias || []])));
     });
-    listarSolicitudesPanel().then((lista) => {
-      if (!vivo) return;
-      setSolicitudes(lista);
-      setCargando(false);
-    });
     return () => {
       vivo = false;
     };
   }, []);
+
+  // Pausa corta al teclear: no se consulta la base en cada letra.
+  useEffect(() => {
+    const t = setTimeout(() => { setQ(busqueda); setPagina(1); }, 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
+  // La página de recolecciones: filtro de estado, búsqueda, fechas y página.
+  useEffect(() => {
+    if (filtro === "vencidas") return;
+    let vivo = true;
+    setCargando(true);
+    buscarSolicitudesPanel({ q, desde: rango.desde, hasta: rango.hasta, estado: filtro === "todas" ? "" : filtro, pagina })
+      .then((r) => {
+        if (!vivo) return;
+        setSolicitudes(r.filas);
+        setTotal(r.total);
+        setErrorCarga(r.ok ? "" : r.motivo);
+        setCargando(false);
+      });
+    return () => { vivo = false; };
+  }, [filtro, q, rango, pagina, recarga]);
+
+  // Lo que no se puede perder aunque quede fuera del rango: vencidas y por confirmar.
+  useEffect(() => {
+    let vivo = true;
+    pendientesPanel(hoy).then((r) => {
+      if (!vivo) return;
+      setVencidasLista(r.vencidas);
+      setPorConfirmar(r.porConfirmar);
+    });
+    return () => { vivo = false; };
+  }, [hoy, recarga]);
 
   // `?cambiar=<folio>` (el enlace "Cambiar" de la Agenda de servicios) abre
   // esa recolección ya lista para editar.
@@ -113,6 +153,10 @@ export default function RecoleccionesAdmin() {
     if (!folio) return;
     setPedidoCambiar(folio);
     setFiltro("confirmada");
+    // Que salga aunque esté fuera del rango de fechas o en otra página.
+    setBusqueda(folio);
+    setQ(folio);
+    setRango({ desde: "", hasta: "" });
     setEditando((e) => ({ ...e, [folio]: true }));
   }, []);
   useEffect(() => {
@@ -142,6 +186,11 @@ export default function RecoleccionesAdmin() {
     setSolicitudes((lista) =>
       lista.map((x) => (x.folio === s.folio ? { ...x, ...cambiosLocales } : x))
     );
+    setVencidasLista((lista) =>
+      lista.map((x) => (x.folio === s.folio ? { ...x, ...cambiosLocales } : x))
+    );
+    // Vencidas y "por confirmar" se vuelven a contar en la base.
+    pendientesPanel(hoy).then((r) => { setVencidasLista(r.vencidas); setPorConfirmar(r.porConfirmar); });
     setOcupado(null);
     return true;
   };
@@ -247,15 +296,12 @@ export default function RecoleccionesAdmin() {
   // El orden es lo primero que fallaba: estaba de la más nueva a la más
   // vieja, así que una recolección atrasada se hundía un lugar cada vez que
   // entraba una nueva. Ahora manda la urgencia.
-  const vencidas = solicitudes.filter((s) => estadoVencimiento(s, hoy).vencida);
-  const base =
-    filtro === "todas"
-      ? solicitudes
-      : filtro === "vencidas"
-        ? vencidas
-        : solicitudes.filter((s) => s.estado === filtro);
+  const vencidas = vencidasLista.filter((s) => estadoVencimiento(s, hoy).vencida);
+  // El estado ya lo filtró la base; "Vencidas" es su propia consulta.
+  const base = filtro === "vencidas" ? vencidas : solicitudes;
   const lista = ordenarPorUrgencia(base, hoy);
-  const porConfirmar = solicitudes.filter((s) => s.estado === "solicitada").length;
+  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const cambiaFiltro = (f) => { setFiltro(f); setPagina(1); };
 
   return (
     <>
@@ -282,7 +328,7 @@ export default function RecoleccionesAdmin() {
             </strong>
             <span>Reagéndalas abajo: puedes ponerlas para hoy mismo.</span>
           </div>
-          <button type="button" className="pt-btn" onClick={() => setFiltro("vencidas")}>
+          <button type="button" className="pt-btn" onClick={() => cambiaFiltro("vencidas")}>
             Ver sólo esas
           </button>
         </div>
@@ -298,14 +344,14 @@ export default function RecoleccionesAdmin() {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1rem" }}>
-        <button type="button" className={`pt-btn ${filtro === "todas" ? "pt-btn-naranja" : ""}`} onClick={() => setFiltro("todas")}>
+        <button type="button" className={`pt-btn ${filtro === "todas" ? "pt-btn-naranja" : ""}`} onClick={() => cambiaFiltro("todas")}>
           Todas
         </button>
         {vencidas.length > 0 && (
           <button
             type="button"
             className={`pt-btn pt-btn-vencida ${filtro === "vencidas" ? "activo" : ""}`}
-            onClick={() => setFiltro("vencidas")}
+            onClick={() => cambiaFiltro("vencidas")}
           >
             <Warning aria-hidden="true" /> Vencidas ({vencidas.length})
           </button>
@@ -315,18 +361,60 @@ export default function RecoleccionesAdmin() {
             key={e.id}
             type="button"
             className={`pt-btn ${filtro === e.id ? "pt-btn-naranja" : ""}`}
-            onClick={() => setFiltro(e.id)}
+            onClick={() => cambiaFiltro(e.id)}
           >
             {e.texto}
           </button>
         ))}
       </div>
 
+      {/* Buscar por folio o empresa y por rango de fechas (fecha efectiva:
+          la confirmada si la hay). La búsqueda la hace la base. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem", alignItems: "flex-end", marginBottom: "1rem" }}>
+        <label style={{ flex: "1 1 220px", fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+          Buscar
+          <input
+            className="pt-input"
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Folio (REC-…) o empresa"
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+          Desde
+          <input className="pt-input" type="date" value={rango.desde} disabled={filtro === "vencidas"}
+            onChange={(e) => { setRango((r) => ({ ...r, desde: e.target.value })); setPagina(1); }}
+            style={{ display: "block", marginTop: 4 }} />
+        </label>
+        <label style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+          Hasta
+          <input className="pt-input" type="date" value={rango.hasta} disabled={filtro === "vencidas"}
+            onChange={(e) => { setRango((r) => ({ ...r, hasta: e.target.value })); setPagina(1); }}
+            style={{ display: "block", marginTop: 4 }} />
+        </label>
+        {(busqueda || rango.desde !== rangoPorOmision(hoy).desde || rango.hasta) && (
+          <button type="button" className="pt-btn" onClick={() => { setBusqueda(""); setQ(""); setRango(rangoPorOmision(hoy)); setPagina(1); }}>
+            Limpiar
+          </button>
+        )}
+      </div>
+
+      {errorCarga && (
+        <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
+          {errorCarga}{" "}
+          <button type="button" className="pt-btn" onClick={() => setRecarga((n) => n + 1)}>Reintentar</button>
+        </div>
+      )}
+
       <div className="pt-card">
-        {cargando ? (
+        {cargando && filtro !== "vencidas" ? (
           <div className="pt-vacio">Cargando recolecciones…</div>
         ) : lista.length === 0 ? (
-          <div className="pt-vacio">No hay solicitudes con ese estado.</div>
+          <div className="pt-vacio">
+            {q || rango.hasta ? "Ninguna recolección con esa búsqueda o esas fechas." : "No hay recolecciones con ese estado en estas fechas."}
+          </div>
         ) : (
           lista.map((s) => {
             const b = badge(s.estado);
@@ -642,6 +730,17 @@ export default function RecoleccionesAdmin() {
               </div>
             );
           })
+        )}
+        {filtro !== "vencidas" && total > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", paddingTop: "0.9rem", fontSize: "0.85rem", color: "var(--mc-gris)" }}>
+            <span>
+              {total} recolecci{total === 1 ? "ón" : "ones"} · página {pagina} de {paginas}
+            </span>
+            <span style={{ display: "flex", gap: "0.4rem" }}>
+              <button type="button" className="pt-btn" disabled={pagina <= 1 || cargando} onClick={() => setPagina((n) => n - 1)}>Anterior</button>
+              <button type="button" className="pt-btn" disabled={pagina >= paginas || cargando} onClick={() => setPagina((n) => n + 1)}>Siguiente</button>
+            </span>
+          </div>
         )}
       </div>
 
