@@ -29,6 +29,7 @@ export async function POST(peticion) {
     sectorId: c.sectorId,
     rutaId: c.rutaId,
     clienteId: c.clienteId,
+    clienteIds: c.clienteIds,
   });
   return responder(res, res.ok ? 200 : 400);
 }

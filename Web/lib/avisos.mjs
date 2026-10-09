@@ -26,8 +26,18 @@ export const ALCANCES_AVISO = [
   { id: "todos", texto: "Todos" },
   { id: "sector", texto: "Sector" },
   { id: "ruta", texto: "Ruta" },
-  { id: "cliente", texto: "Un cliente" },
+  { id: "clientes", texto: "Clientes específicos" },
 ];
+
+/**
+ * "Un cliente" sigue siendo válido (la app 1.1.1 lo manda y un aviso a UN
+ * solo cliente elegido se guarda así), pero ya no es botón en la web: ahí
+ * "Clientes específicos" sirve para uno o para varios.
+ */
+const ALCANCES_VALIDOS = [...ALCANCES_AVISO.map((a) => a.id), "cliente"];
+
+/** Tope de clientes elegidos a mano en un solo aviso. */
+export const MAX_CLIENTES_ELEGIDOS = 500;
 
 export const MAX_TITULO = 120;
 export const MAX_MENSAJE = 2000;
@@ -124,7 +134,22 @@ export function validarAviso(datos = {}, { hoy = hoyMatamoros(), exigirUuid = fa
  */
 export function validarAlcance(datos = {}, { exigirUuid = false } = {}) {
   const alcance = String(datos.alcance || "").trim();
-  if (!ALCANCES_AVISO.some((a) => a.id === alcance)) return { ok: false, motivo: "Elige a quién va dirigido el aviso." };
+  if (!ALCANCES_VALIDOS.includes(alcance)) return { ok: false, motivo: "Elige a quién va dirigido el aviso." };
+
+  // Clientes elegidos uno por uno (9-oct-2026). Con uno solo se guarda como
+  // "un cliente", que la app 1.1.1 ya sabe leer y nombrar.
+  if (alcance === "clientes") {
+    const ids = [...new Set((Array.isArray(datos.clienteIds) ? datos.clienteIds : []).map((x) => String(x ?? "").trim()).filter(Boolean))];
+    if (!ids.length) return { ok: false, motivo: "Marca al menos un cliente." };
+    if (ids.length > MAX_CLIENTES_ELEGIDOS) return { ok: false, motivo: `Son demasiados clientes (máximo ${MAX_CLIENTES_ELEGIDOS}); usa "Todos".` };
+    if (exigirUuid && ids.some((x) => !UUID_RE.test(x))) {
+      return { ok: false, motivo: "Uno de los clientes no existe. Recarga la página y vuelve a elegirlos." };
+    }
+    if (ids.length === 1) {
+      return { ok: true, limpio: { alcance: "cliente", sectorId: null, rutaId: null, clienteId: ids[0] } };
+    }
+    return { ok: true, limpio: { alcance, sectorId: null, rutaId: null, clienteId: null, clienteIds: ids } };
+  }
 
   // Solo se conserva el id que corresponde al alcance. La base exige que
   // "todos" no traiga ninguno (db/023), y un sector que se quedó puesto de
@@ -160,6 +185,9 @@ export function filaAviso(limpio) {
     sector_id: limpio.sectorId,
     ruta_id: limpio.rutaId,
     cliente_id: limpio.clienteId,
+    // Solo se manda cuando hay lista: así un aviso normal sigue entrando
+    // aunque la columna (db/030) todavía no exista en la base.
+    ...(limpio.clienteIds ? { cliente_ids: limpio.clienteIds } : {}),
     vigente_hasta: limpio.vigenteHasta,
   };
 }
@@ -187,10 +215,11 @@ export function filaAviso(limpio) {
  */
 export function calcularDestinatarios(limpio, { clientes = [], domicilios = [], suscripciones = [] } = {}) {
   let elegidos;
-  if (limpio.alcance === "cliente") {
-    // Elegido a mano: no se filtra por estado. Si el admin escogió a un
+  if (limpio.alcance === "cliente" || limpio.alcance === "clientes") {
+    // Elegidos a mano: no se filtra por estado. Si el admin escogió a un
     // suspendido es porque le quiere decir algo justo a él.
-    elegidos = clientes.filter((c) => c.id === limpio.clienteId);
+    const ids = new Set(limpio.alcance === "cliente" ? [limpio.clienteId] : limpio.clienteIds || []);
+    elegidos = clientes.filter((c) => ids.has(c.id));
   } else {
     let ids = null; // null = todos
     if (limpio.alcance === "sector") {
@@ -280,6 +309,10 @@ export function textoAlcance(aviso) {
     case "sector": return aviso.sectores?.nombre || "Un sector";
     case "ruta": return aviso.rutas?.nombre || "Una ruta";
     case "cliente": return aviso.clientes?.empresa || "Un cliente";
+    case "clientes": {
+      const n = Array.isArray(aviso.cliente_ids) ? aviso.cliente_ids.length : 0;
+      return n ? `${n} clientes elegidos` : "Clientes elegidos";
+    }
     default: return "—";
   }
 }

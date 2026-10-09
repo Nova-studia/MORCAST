@@ -20,6 +20,7 @@ function base() {
       const q = { filtros: [], fila: null, cambios: null };
       q.select = () => q;
       q.eq = (c, v) => { q.filtros.push([c, v]); return q; };
+      q.in = (c, v) => { q.filtrosIn = [c, v]; return q; };
       q.insert = (fila) => { q.fila = fila; return q; };
       q.update = (c) => { q.cambios = c; return q; };
       const idFiltro = () => q.filtros.find(([c]) => c === "id")?.[1];
@@ -32,7 +33,10 @@ function base() {
         return { data: { id, creado: f.creado }, error: null };
       };
       q.then = (res) => {
-        if (tabla === "clientes") return res({ data: clientes, error: null });
+        if (tabla === "clientes") {
+          const [, ids] = q.filtrosIn || [];
+          return res({ data: ids ? clientes.filter((c) => ids.includes(c.id)) : clientes, error: null });
+        }
         if (tabla === "avisos" && q.cambios) {
           Object.assign(avisos.get(idFiltro()), q.cambios);
           return res({ data: [{ id: idFiltro() }], error: null });
@@ -126,4 +130,16 @@ test("contar: la misma cuenta que la vista previa de la web", async () => {
   assert.deepEqual(r, { ok: true, resumen: { clientes: 2, correos: 1, sinCorreo: 1 } });
   const falta = await contarDestinatariosCon(base(), { alcance: "ruta" }, { log: callado });
   assert.equal(falta.ok, false);
+});
+
+test("clientes específicos: la vista previa cuenta solo a los elegidos y pide solo esos a la base", async () => {
+  const C3 = "aaaaaaaa-0000-4000-8000-000000000003";
+  const sb = base();
+  let pedidos = null;
+  const desde = sb.from.bind(sb);
+  sb.from = (t) => { const q = desde(t); const original = q.in; q.in = (c, v) => { if (t === "clientes") pedidos = v; return original(c, v); }; return q; };
+  const r = await contarDestinatariosCon(sb, { alcance: "clientes", clienteIds: [C1, C3] });
+  assert.equal(r.ok, true);
+  assert.equal(r.resumen.clientes, 1, "C3 no existe: solo cuenta C1");
+  assert.deepEqual(pedidos, [C1, C3]);
 });

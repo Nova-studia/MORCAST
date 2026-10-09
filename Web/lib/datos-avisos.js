@@ -91,13 +91,14 @@ export async function listarAvisos({ limite = 50 } = {}) {
   const sb = supabaseNavegador();
   let { data, error } = await sb
     .from("avisos")
-    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, avisos_lecturas ( count )`)
+    // cliente_ids (db/030): los avisos a varios clientes elegidos a mano.
+    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, cliente_ids, avisos_lecturas ( count )`)
     .order("creado", { ascending: false })
     .limit(limite);
   if (error) {
     // Sin la migración 026 esas columnas no existen: el historial se enseña
     // igual, sin las cifras de la app.
-    console.warn("[avisos] historial sin lecturas (¿falta la migración 026?):", error.message);
+    console.warn("[avisos] historial sin lecturas (¿falta la migración 026 o 030?):", error.message);
     ({ data, error } = await sb
       .from("avisos")
       .select(CAMPOS_HISTORIAL)

@@ -54,6 +54,7 @@ export async function POST(peticion) {
       sectorId: c.sectorId,
       rutaId: c.rutaId,
       clienteId: c.clienteId,
+      clienteIds: c.clienteIds,
       motivo: c.motivo,
       titulo: c.titulo,
       mensaje: c.mensaje,

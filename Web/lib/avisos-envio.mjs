@@ -48,6 +48,7 @@ const esperaReal = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function filasDelAlcance(sb, limpio) {
   let clientes = sb.from("clientes").select("id, empresa, correo, estado");
   if (limpio.alcance === "cliente") clientes = clientes.eq("id", limpio.clienteId);
+  if (limpio.alcance === "clientes") clientes = clientes.in("id", limpio.clienteIds);
 
   const [c, d, s] = await Promise.all([
     clientes,
@@ -271,6 +272,7 @@ export async function mandarAvisoCon({ sbUsuario, sbServicio, datos, idEnvio = n
       sector_id: limpio.sectorId,
       ruta_id: limpio.rutaId,
       cliente_id: limpio.clienteId,
+      cliente_ids: limpio.clienteIds,
       clientes: resumen.clientes,
       correos_enviados: enviados,
       correos_fallidos: fallidos.length,

@@ -214,3 +214,48 @@ test("1 notificación, 2 notificaciones", () => {
   assert.equal(textoNotificaciones(0), "0 notificaciones");
   assert.equal(textoNotificaciones(undefined), "0 notificaciones");
 });
+
+// ---- Varios clientes elegidos uno por uno (9-oct-2026, pedido de Luis) ----
+import { validarAlcance as vA, filaAviso as fA, calcularDestinatarios as cD, textoAlcance as tA } from "../lib/avisos.mjs";
+const CA = "11111111-1111-4111-8111-111111111111";
+const CB = "22222222-2222-4222-8222-222222222222";
+const CC = "33333333-3333-4333-8333-333333333333";
+
+test("clientes específicos: pide al menos uno y conserva la lista sin repetir", () => {
+  assert.equal(vA({ alcance: "clientes", clienteIds: [] }).ok, false);
+  const r = vA({ alcance: "clientes", clienteIds: [CA, CB, CA] }, { exigirUuid: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.limpio.alcance, "clientes");
+  assert.deepEqual(r.limpio.clienteIds, [CA, CB]);
+  assert.equal(r.limpio.clienteId, null);
+  assert.equal(vA({ alcance: "clientes", clienteIds: [CA, "no-es-id"] }, { exigirUuid: true }).ok, false);
+});
+
+test("clientes específicos con UNO solo se guarda como 'un cliente' (lo entiende la app 1.1.1)", () => {
+  const r = vA({ alcance: "clientes", clienteIds: [CC] });
+  assert.equal(r.limpio.alcance, "cliente");
+  assert.equal(r.limpio.clienteId, CC);
+  assert.ok(!r.limpio.clienteIds);
+});
+
+test("la fila lleva cliente_ids y los demás destinos vacíos", () => {
+  const f = fA({ titulo: "t", mensaje: "m", motivo: "general", vigenteHasta: null, ...vA({ alcance: "clientes", clienteIds: [CA, CB] }).limpio });
+  assert.deepEqual(f.cliente_ids, [CA, CB]);
+  assert.equal(f.cliente_id, null);
+  assert.equal(f.sector_id, null);
+});
+
+test("destinatarios: exactamente los elegidos, aunque estén suspendidos (se escogieron a mano)", () => {
+  const limpio = vA({ alcance: "clientes", clienteIds: [CA, CB] }).limpio;
+  const d = cD(limpio, { clientes: [
+    { id: CA, empresa: "Uno", correo: "a@x.mx", estado: "activo" },
+    { id: CB, empresa: "Dos", correo: "b@x.mx", estado: "suspendido" },
+    { id: CC, empresa: "Tres", correo: "c@x.mx", estado: "activo" },
+  ] });
+  assert.deepEqual(d.clientes.map((c) => c.empresa), ["Uno", "Dos"]);
+  assert.equal(d.correos.length, 2);
+});
+
+test("historial: 'N clientes'", () => {
+  assert.equal(tA({ alcance: "clientes", cliente_ids: [CA, CB, CC] }), "3 clientes elegidos");
+});

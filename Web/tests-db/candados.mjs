@@ -695,6 +695,20 @@ const bRol = (await db.query(`select count(*)::int n from public.bitacora where 
 if (bRol > 0) console.log("  ✓ crear y borrar roles queda en la bitácora");
 else { fallas++; console.log("  ✖ la bitácora no anotó los roles"); }
 
+console.log("\n24 · 030: avisos a varios clientes elegidos");
+const { rows: [cliX] } = await db.query(`insert into public.clientes (folio, empresa) values ('MOR-T-X','Equis') returning id`);
+await debePasar("el admin manda un aviso a dos clientes elegidos", "admin",
+  `insert into public.avisos (titulo, mensaje, alcance, cliente_ids) values ('Solo a dos', 'm', 'clientes', array[$1, $2]::uuid[])`,
+  [cli1.id, cliX.id], 1);
+await debePasar("un cliente de la lista SÍ lo ve", "cliente", `select id from public.avisos where titulo = 'Solo a dos'`, [], 1);
+await debeFallar("un cliente que NO está en la lista no lo ve", "otro", `select id from public.avisos where titulo = 'Solo a dos'`);
+await debeFallar("'clientes' con la lista vacía NO entra", "admin",
+  `insert into public.avisos (titulo, mensaje, alcance, cliente_ids) values ('Vacío', 'm', 'clientes', '{}')`);
+await debeFallar("'todos' con lista colada NO entra", "admin",
+  `insert into public.avisos (titulo, mensaje, alcance, cliente_ids) values ('Raro', 'm', 'todos', array[$1]::uuid[])`, [cli2.id]);
+await debeFallar("un admin SIN la sección Avisos no lo manda", "adminRutas",
+  `insert into public.avisos (titulo, mensaje, alcance, cliente_ids) values ('X', 'm', 'clientes', array[$1]::uuid[])`, [cli1.id]);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -704,8 +718,9 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "027-precios.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "028-clientes-estados.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "029-roles.sql"), "utf8"));
-  console.log("✓ 022 a 029 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 029 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "030-avisos-varios-clientes.sql"), "utf8"));
+  console.log("✓ 022 a 030 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 030 no son idempotentes:", e.message); }
 const { rows: [{ n: nTodoOtraVez }] } = await db.query(
   `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
 igual("tras volver a correr todo, sigue sin políticas 'todo'", nTodoOtraVez, 0);

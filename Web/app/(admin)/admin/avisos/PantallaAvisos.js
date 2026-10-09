@@ -62,6 +62,8 @@ const FORM_VACIO = {
   sectorId: "",
   rutaId: "",
   clienteId: "",
+  // Clientes específicos (9-oct-2026): los marcados uno por uno.
+  clienteIds: [],
   motivo: "general",
   titulo: "",
   mensaje: "",
@@ -139,7 +141,12 @@ export default function PantallaAvisos() {
 
   // ¿A cuántos les llega? Se recalcula al cambiar el destino, con una pausa
   // corta para no pedirlo en cada tecla del buscador.
-  const idDestino = { sector: form.sectorId, ruta: form.rutaId, cliente: form.clienteId }[form.alcance] || "";
+  const idDestino = {
+    sector: form.sectorId,
+    ruta: form.rutaId,
+    cliente: form.clienteId,
+    clientes: form.clienteIds.join(","),
+  }[form.alcance] || "";
   useEffect(() => {
     let vivo = true;
     if (form.alcance !== "todos" && !idDestino) {
@@ -153,6 +160,7 @@ export default function PantallaAvisos() {
         sectorId: form.sectorId,
         rutaId: form.rutaId,
         clienteId: form.clienteId,
+        clienteIds: form.clienteIds,
       }).then((r) => {
         if (!vivo) return;
         setVista(r?.ok ? { cargando: false, resumen: r.resumen, motivo: "" } : { cargando: false, resumen: null, motivo: r?.motivo || "" });
@@ -162,13 +170,17 @@ export default function PantallaAvisos() {
   }, [form.alcance, form.sectorId, form.rutaId, form.clienteId, idDestino]);
 
   const clienteElegido = clientes.find((c) => c.id === form.clienteId) || null;
+  // La lista para marcar: todos (son decenas), filtrados por el buscador.
   const coincidencias = useMemo(() => {
     const q = normal(busqueda).trim();
-    if (!q) return [];
-    return clientes
-      .filter((c) => normal(`${c.empresa} ${c.folio || ""} ${c.correo || ""}`).includes(q))
-      .slice(0, 8);
+    if (!q) return clientes;
+    return clientes.filter((c) => normal(`${c.empresa} ${c.folio || ""} ${c.correo || ""}`).includes(q));
   }, [busqueda, clientes]);
+  const marcados = new Set(form.clienteIds);
+  const alternar = (id) =>
+    cambia({ clienteIds: marcados.has(id) ? form.clienteIds.filter((x) => x !== id) : [...form.clienteIds, id] });
+  const marcarVisibles = () => cambia({ clienteIds: [...new Set([...form.clienteIds, ...coincidencias.map((c) => c.id)])] });
+  const nombreDe = (id) => clientes.find((c) => c.id === id)?.empresa || "Cliente";
 
   // En el selector van las activas, más la que llegó prellenada aunque esté
   // inactiva: si no, el select se quedaría en blanco sin decir por qué.
@@ -212,7 +224,7 @@ export default function PantallaAvisos() {
         titulo: form.titulo.replace(/\s+/g, " ").trim(),
         mensaje: form.mensaje,
         motivo: form.motivo,
-        alcance: form.alcance,
+        alcance: form.alcance === "clientes" && form.clienteIds.length === 1 ? "cliente" : form.alcance,
         vigente_hasta: form.vigenteHasta || null,
         correos_enviados: r.enviados ?? 0,
         notificaciones_enviadas: r.notificaciones ?? 0,
@@ -223,7 +235,10 @@ export default function PantallaAvisos() {
         creado: r.creado || new Date().toISOString(),
         sectores: form.alcance === "sector" && sector ? { nombre: sector.nombre } : null,
         rutas: form.alcance === "ruta" && ruta ? { nombre: ruta.nombre } : null,
-        clientes: form.alcance === "cliente" && clienteElegido ? { empresa: clienteElegido.empresa } : null,
+        clientes: form.alcance === "cliente" && clienteElegido ? { empresa: clienteElegido.empresa }
+          // Uno solo marcado se guarda como "un cliente" (lib/avisos.mjs).
+          : form.alcance === "clientes" && form.clienteIds.length === 1 ? { empresa: nombreDe(form.clienteIds[0]) } : null,
+        cliente_ids: form.alcance === "clientes" && form.clienteIds.length > 1 ? form.clienteIds : null,
       },
       ...h,
     ]);
@@ -300,59 +315,66 @@ export default function PantallaAvisos() {
             </div>
           )}
 
-          {form.alcance === "cliente" && (
+          {form.alcance === "clientes" && (
             <div className="pt-campo">
-              <label htmlFor="aviso-buscar" style={ETIQUETA}>Cliente</label>
-              {clienteElegido ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", border: "1px solid var(--pt-accion-linea)", borderRadius: 10, padding: "0.6rem 0.8rem" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ display: "block", overflowWrap: "anywhere" }}>{clienteElegido.empresa}</strong>
-                    <span style={{ color: "var(--mc-gris)", fontSize: "0.8rem", overflowWrap: "anywhere" }}>
-                      {clienteElegido.correo || "Sin correo: solo lo verá en su portal"}
-                    </span>
-                  </div>
-                  <button type="button" className="pt-btn" style={{ padding: "0.4rem" }} aria-label="Cambiar de cliente" onClick={() => { cambia({ clienteId: "" }); setBusqueda(""); }}>
-                    <X />
-                  </button>
+              <label htmlFor="aviso-buscar" style={ETIQUETA}>
+                Clientes <span style={{ fontWeight: 400, color: "var(--mc-gris)" }}>· {form.clienteIds.length} marcado{form.clienteIds.length === 1 ? "" : "s"}</span>
+              </label>
+              {form.clienteIds.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.5rem" }}>
+                  {form.clienteIds.map((id) => (
+                    <button key={id} type="button" className="pt-chip activo" onClick={() => alternar(id)} aria-label={`Quitar a ${nombreDe(id)}`}>
+                      {nombreDe(id)} <X size={12} aria-hidden="true" />
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <>
-                  <div style={{ position: "relative" }}>
-                    <MagnifyingGlass aria-hidden="true" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)", color: "var(--mc-gris)" }} />
-                    <input
-                      id="aviso-buscar"
-                      className="pt-input"
-                      value={busqueda}
-                      onChange={(e) => setBusqueda(e.target.value)}
-                      placeholder="Busca por empresa, folio o correo"
-                      autoComplete="off"
-                      style={{ paddingLeft: "2.3rem" }}
-                    />
-                  </div>
-                  {busqueda.trim() && (
-                    <div role="listbox" aria-label="Clientes encontrados" style={{ border: "1px solid var(--mc-linea)", borderRadius: 10, marginTop: "0.4rem", overflow: "hidden" }}>
-                      {coincidencias.length === 0 && (
-                        <div style={{ padding: "0.7rem 0.8rem", color: "var(--mc-gris)", fontSize: "0.86rem" }}>Ningún cliente con «{busqueda.trim()}».</div>
-                      )}
-                      {coincidencias.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          role="option"
-                          aria-selected={false}
-                          onClick={() => cambia({ clienteId: c.id })}
-                          style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: 0, borderBottom: "1px solid var(--mc-linea)", padding: "0.6rem 0.8rem", color: "var(--mc-tinta)", cursor: "pointer" }}
-                        >
-                          <strong style={{ display: "block", fontSize: "0.9rem", fontWeight: 500 }}>{c.empresa}</strong>
-                          <span style={{ color: "var(--mc-gris)", fontSize: "0.78rem" }}>
-                            {[c.folio, c.correo || "sin correo", c.estado && c.estado !== "activo" ? c.estado : null].filter(Boolean).join(" · ")}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
               )}
+              <div style={{ position: "relative" }}>
+                <MagnifyingGlass aria-hidden="true" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)", color: "var(--mc-gris)" }} />
+                <input
+                  id="aviso-buscar"
+                  className="pt-input"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Busca por empresa, folio o correo"
+                  autoComplete="off"
+                  style={{ paddingLeft: "2.3rem" }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "0.9rem", margin: "0.45rem 0", fontSize: "0.82rem" }}>
+                <button type="button" onClick={marcarVisibles} disabled={!coincidencias.length}
+                  style={{ background: "none", border: 0, padding: 0, color: "var(--pt-accion-txt)", cursor: "pointer", fontWeight: 600 }}>
+                  Marcar {busqueda.trim() ? "los que se ven" : "todos"} ({coincidencias.length})
+                </button>
+                {form.clienteIds.length > 0 && (
+                  <button type="button" onClick={() => cambia({ clienteIds: [] })}
+                    style={{ background: "none", border: 0, padding: 0, color: "var(--mc-gris)", cursor: "pointer" }}>
+                    Quitar todos
+                  </button>
+                )}
+              </div>
+              <div role="group" aria-label="Clientes" style={{ border: "1px solid var(--mc-linea)", borderRadius: 10, maxHeight: 320, overflowY: "auto" }}>
+                {clientes.length === 0 && (
+                  <div style={{ padding: "0.7rem 0.8rem", color: "var(--mc-gris)", fontSize: "0.86rem" }}>Cargando clientes…</div>
+                )}
+                {clientes.length > 0 && coincidencias.length === 0 && (
+                  <div style={{ padding: "0.7rem 0.8rem", color: "var(--mc-gris)", fontSize: "0.86rem" }}>Ningún cliente con «{busqueda.trim()}».</div>
+                )}
+                {coincidencias.map((c) => (
+                  <label key={c.id} style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start", padding: "0.55rem 0.8rem", borderBottom: "1px solid var(--mc-linea)", cursor: "pointer", background: marcados.has(c.id) ? "var(--pt-accion-tinte)" : "transparent" }}>
+                    <input type="checkbox" checked={marcados.has(c.id)} onChange={() => alternar(c.id)} style={{ marginTop: 3 }} />
+                    <span style={{ minWidth: 0 }}>
+                      <strong style={{ display: "block", fontSize: "0.9rem", fontWeight: 500, overflowWrap: "anywhere" }}>{c.empresa}</strong>
+                      <span style={{ color: "var(--mc-gris)", fontSize: "0.78rem", overflowWrap: "anywhere" }}>
+                        {[c.folio, c.correo || "sin correo: solo en su portal", c.estado && c.estado !== "activo" ? c.estado : null].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p style={{ margin: "0.4rem 0 0", fontSize: "0.8rem", color: "var(--mc-gris)" }}>
+                Le llega solo a los que marques, aunque estén suspendidos.
+              </p>
             </div>
           )}
 
@@ -455,7 +477,9 @@ export default function PantallaAvisos() {
             <div aria-live="polite" style={{ fontSize: "0.9rem", lineHeight: 1.5 }}>
               {form.alcance !== "todos" && !idDestino ? (
                 <span style={{ color: "var(--mc-gris)" }}>
-                  Elige {form.alcance === "sector" ? "el sector" : form.alcance === "ruta" ? "la ruta" : "el cliente"} para ver a cuántos les llega.
+                  {form.alcance === "clientes"
+                    ? "Marca los clientes que deben recibirlo."
+                    : `Elige ${form.alcance === "sector" ? "el sector" : form.alcance === "ruta" ? "la ruta" : "el cliente"} para ver a cuántos les llega.`}
                 </span>
               ) : vista.cargando ? (
                 <span style={{ color: "var(--mc-gris)" }}>Calculando a quién le llega…</span>
