@@ -120,7 +120,9 @@ export default function AdminShell({ children }) {
     item.exacto
       ? ruta === item.href
       : [item.href, ...(item.tambien || [])].some((h) => ruta.startsWith(h));
-  const seccion = MENU.find((n) => activo(n)) || MENU[0];
+  const seccion = ruta.startsWith("/admin/cuenta")
+    ? { texto: "Mi cuenta" }
+    : MENU.find((n) => activo(n)) || MENU[0];
 
   const nombre = sesion?.nombre || ADMIN_PERFIL.nombre;
   const iniciales = nombre
@@ -250,7 +252,8 @@ export default function AdminShell({ children }) {
                 <small>Panel de administración</small>
               </div>
             </div>
-            <div className="pt-user">
+            {/* Tocar el nombre abre "Mi cuenta" (nombre, teléfono, contraseña). */}
+            <Link href="/admin/cuenta" className="pt-user" title="Mi cuenta" prefetch={false} style={{ textDecoration: "none", color: "inherit" }}>
               <div className="pt-user-datos" style={{ textAlign: "right" }}>
                 <strong>{nombre}</strong>
                 <span>{sesion?.rol || ADMIN_PERFIL.rol}</span>
@@ -259,7 +262,7 @@ export default function AdminShell({ children }) {
                   ejemplo. Al dueño le aparecían las iniciales de otra
                   persona en su propia sesión. */}
               <div className="pt-avatar pt-avatar-admin">{iniciales}</div>
-            </div>
+            </Link>
           </header>
           <main className="pt-content">
             <AvisoHold lado="admin" />

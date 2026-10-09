@@ -102,6 +102,7 @@ export async function iniciarSesionAdmin(correo, password) {
       correo: data.user.email,
       nombre: data.user.user_metadata?.nombre || data.user.email,
       rolId: rol,
+      uid: data.user.id,
       ...(await datosDeRol(supabase, data.user.id, rol)),
     },
   };
@@ -128,6 +129,7 @@ export async function obtenerSesionAdmin() {
     correo: user.email,
     nombre: user.user_metadata?.nombre || user.email,
     rolId: rol,
+    uid: user.id,
     ...(await datosDeRol(supabase, user.id, rol)),
   };
 }

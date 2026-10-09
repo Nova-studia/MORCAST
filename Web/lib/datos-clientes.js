@@ -352,7 +352,7 @@ export async function listarUsuarios() {
 
   const { data, error } = await supabaseNavegador()
     .from("perfiles")
-    .select("id, nombre, rol, activo, creado, telefono, permisos")
+    .select("id, nombre, rol, activo, creado, telefono, permisos, rol_id")
     // ⚠️ `pendiente` NO va aquí. Esta pantalla es el PERSONAL de Morcast —el
     // dueño, los administradores y los choferes—, y `pendiente` era un estado
     // teórico hasta que se abrió el registro con Google: hoy es todo el que
@@ -381,7 +381,25 @@ export async function listarUsuarios() {
     rol: ROLES_LEGIBLES[p.rol] || p.rol,
     estatus: p.activo ? "activo" : "inactivo",
     ultimo: (p.creado || "").slice(0, 10),
-    // Permisos finos (db/027). Hoy solo "precios".
+    // Permisos sueltos (db/027): precios y eliminar clientes.
     permisos: Array.isArray(p.permisos) ? p.permisos : [],
+    // Rol personalizado (db/029), solo de los administradores.
+    rolPersonalizado: p.rol_id || null,
+    telefono: p.telefono || "",
+    nombreReal: p.nombre || "",
   }));
+}
+
+/** Los roles personalizados (db/029). Los lee todo el personal; los cambia el dueño. */
+export async function listarRoles() {
+  if (!haySupabaseNavegador()) return [];
+  const { data, error } = await supabaseNavegador()
+    .from("roles")
+    .select("id, nombre, descripcion, permisos")
+    .order("nombre");
+  if (error) {
+    console.error("[roles] No se pudieron leer:", error.message);
+    return [];
+  }
+  return data || [];
 }

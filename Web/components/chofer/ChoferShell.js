@@ -71,7 +71,7 @@ export default function ChoferShell({ children }) {
           </span>
         </Link>
         <div className="ch-usuario">
-          <span>{sesion?.nombre}</span>
+          <Link href="/chofer/cuenta" title="Mi cuenta" style={{ color: "inherit" }}>{sesion?.nombre}</Link>
           <button type="button" className="pt-btn" onClick={salir} aria-label="Salir">
             <SignOut />
           </button>
