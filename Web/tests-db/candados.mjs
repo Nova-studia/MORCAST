@@ -756,6 +756,40 @@ try {
   igual("el servidor (llave de servicio) también se funde en la misma evidencia", nEv2, 1);
 } catch (e) { fallas++; console.log("  ✖ el servidor no pudo corregir la evidencia —", e.message); }
 
+// Revisión final de la Entrega 3: el "fundir" NO puede ser una puerta trasera.
+const { rows: [{ peso: pesoAntes }] } = await db.query(`select peso_kg::int peso from public.recolecciones where solicitud_id = $1`, [s5.id]);
+const pesoIgual = async (titulo) => {
+  const { rows: [{ peso: p }] } = await db.query(`select peso_kg::int peso from public.recolecciones where solicitud_id = $1`, [s5.id]);
+  igual(titulo, p, pesoAntes);
+};
+const finge = (peso) => `insert into public.recolecciones (solicitud_id, operador_id, peso_kg) values ($1, $2, ${peso})`;
+await debeFallar("revisión: el CLIENTE dueño NO reescribe su evidencia fingiendo ser el chofer", "cliente", finge(1), [s5.id, U.chofer]);
+await pesoIgual("  … y el peso sigue igual");
+await debeFallar("revisión: OTRO cliente no la reescribe", "otro", finge(2), [s5.id, U.chofer]);
+await debeFallar("revisión: otro chofer fingiendo ser el que la cerró no la reescribe", "chofer2", finge(3), [s5.id, U.chofer]);
+await debeFallar("revisión: un admin SIN la sección Recolecciones no la reescribe", "adminRutas", finge(4), [s5.id, U.chofer]);
+await pesoIgual("  … y el peso sigue igual tras todos los intentos");
+await debePasar("revisión: el admin completo (con Recolecciones) sí la corrige", "admin", finge(25), [s5.id, U.chofer]);
+
+const folioCliente = async (folio) => (await como("cliente",
+  `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, fecha_pedida, estado)
+   values ($3, $1, $2, current_date, 'solicitada') returning folio, folio_pedido`, [cli1.id, dom1.id, folio])).rows[0];
+let raro = null;
+try { raro = await folioCliente("hola"); } catch (e) { console.log("  (raro:", e.message, ")"); }
+if (raro && /^REC-\d{4}-\d{4,}$/.test(raro.folio)) console.log(`  ✓ revisión: un folio que no es REC-AAAA-NNNN se reasigna (${raro.folio})`);
+else { fallas++; console.log("  ✖ revisión: un folio raro del cliente entró tal cual:", raro); }
+let enorme = null;
+try { enorme = await folioCliente(`REC-${anio}-999999999`); } catch (e) { console.log("  (enorme:", e.message, ")"); }
+if (enorme && enorme.folio !== `REC-${anio}-999999999`) console.log(`  ✓ revisión: un folio gigante del cliente no se acepta (${enorme.folio})`);
+else { fallas++; console.log("  ✖ revisión: el cliente metió un folio gigante:", enorme); }
+let despues = null;
+try { despues = await folioCliente(null); } catch (e) { console.log("  (después:", e.message, ")"); }
+if (despues) console.log(`  ✓ revisión: después de eso se siguen creando solicitudes (${despues.folio})`);
+else { fallas++; console.log("  ✖ revisión: la numeración se trabó"); }
+let ocupado = null;
+try { ocupado = await folioCliente(fSinFolio); } catch (e) { console.log("  (ocupado:", e.message, ")"); }
+igual("revisión: el folio que pidió la app se guarda en folio_pedido cuando se reasigna", ocupado?.folio_pedido, fSinFolio);
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));

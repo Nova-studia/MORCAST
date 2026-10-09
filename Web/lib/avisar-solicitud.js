@@ -4,6 +4,7 @@ import {
   ACCION_AVISO_SOLICITUD,
   datosCorreoSolicitud,
   decidirAvisoSolicitud,
+  filtroFolioAviso,
   mensajePushSolicitud,
 } from "./solicitud-aviso.mjs";
 
@@ -52,13 +53,16 @@ async function yaSeAviso(sb, id, log) {
 export async function avisarOficinaDeSolicitud({ sb, actor, clienteId, folio, log = console }) {
   let sol = null;
   try {
-    const { data, error } = await sb
-      .from("solicitudes_recoleccion")
-      .select(CAMPOS)
-      .eq("folio", folio)
-      .maybeSingle();
+    // Por su folio o por el que PIDIÓ la app (db/031 le pone otro si estaba
+    // ocupado): sin esto, el aviso de una app 1.1.1 buscaba el folio de otra
+    // empresa y la oficina nunca se enteraba. De ESTE cliente, la más nueva.
+    const filtro = filtroFolioAviso(folio);
+    if (!filtro) return { ok: false, status: 400, motivo: "Falta la solicitud." };
+    let q = sb.from("solicitudes_recoleccion").select(CAMPOS).or(filtro);
+    if (clienteId) q = q.eq("cliente_id", clienteId);
+    const { data, error } = await q.order("creado", { ascending: false }).limit(1);
     if (error) throw new Error(error.message);
-    sol = data ?? null;
+    sol = data?.[0] ?? null;
   } catch (e) {
     log.error("[solicitud] no se pudo leer la solicitud:", e?.message || e);
     return { ok: false, status: 500, motivo: "No se pudo leer la solicitud." };

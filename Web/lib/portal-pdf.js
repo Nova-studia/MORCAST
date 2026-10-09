@@ -240,7 +240,9 @@ export async function descargarManifiesto(servicio, cliente) {
     startY: y,
     head: [["Fecha y hora", "Residuo declarado", "Servicio", "Contenedor", "Peso"]],
     body: [[
-      servicio.hora ? `${fechaLarga(servicio.fecha)}, ${servicio.hora} h` : fechaLarga(servicio.fecha),
+      servicio.hora
+        ? `${fechaLarga(servicio.fechaManifiesto || servicio.fecha)}, ${servicio.hora} h`
+        : fechaLarga(servicio.fechaManifiesto || servicio.fecha),
       servicio.residuo,
       servicio.tipo,
       servicio.contenedor,

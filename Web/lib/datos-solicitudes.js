@@ -19,7 +19,7 @@ import { mezclarChoferes } from "@/lib/chofer-servicio.mjs";
 import { choferesDeMisServicios } from "@/app/acciones-portal";
 import { avisarSolicitudNueva } from "@/app/acciones-solicitud";
 import { puntosAgendables } from "@/lib/puntos-cliente.mjs";
-import { residuoDeclarado, pesoManifiesto, horaManifiesto } from "@/lib/manifiesto.mjs";
+import { residuoDeclarado, pesoManifiesto, horaManifiesto, fechaManifiesto } from "@/lib/manifiesto.mjs";
 import { limpiarBusqueda, filtroFechas, filtroBusqueda, rangoPagina } from "@/lib/consulta-recolecciones.mjs";
 
 /**
@@ -233,7 +233,9 @@ export async function buscarSolicitudesPanel({ q = "", desde = "", hasta = "", e
   if (busca) consulta = consulta.or(busca);
   if (estado) consulta = consulta.eq("estado", estado);
   const [de, a] = rangoPagina(pagina);
-  const { data, error, count } = await consulta.order("fecha_pedida", { ascending: false }).range(de, a);
+  // El id desempata: con solo la fecha (muchas filas el mismo día de ruta)
+  // las páginas repetían unas y se saltaban otras.
+  const { data, error, count } = await consulta.order("fecha_pedida", { ascending: false }).order("id").range(de, a);
   if (error) {
     console.error("[solicitudes] No se pudieron buscar (panel):", error.message);
     return { ok: false, motivo: "No se pudieron cargar las recolecciones. Revisa tu conexión.", filas: [], total: 0 };
@@ -431,7 +433,9 @@ export async function pedirRecoleccion({ rutaClave, rutaId: rutaElegida = null, 
     // La política de la base (db/013) rechaza fechas del pasado y las
     // disparatadas. Ese rechazo llega como un error de permisos, que no le
     // dice nada a quien solo se equivocó de día.
-    const esFecha = /row-level security|violates|policy/i.test(error.message || "");
+    // Solo un rechazo de la POLÍTICA es "fecha" (db/013); un not-null o un
+    // duplicado son otra cosa y se dicen como son.
+    const esFecha = /row-level security|policy/i.test(error.message || "");
     return {
       ok: false,
       motivo: esFecha
@@ -519,6 +523,7 @@ export async function misServicios({ conFotos = true, conChoferes = true, sinPru
         // Lo que DECLARÓ el cliente al pedir (Entrega 3), no un genérico.
         residuo: residuoDeclarado(s),
         hora: horaManifiesto(ev),
+        fechaManifiesto: fechaManifiesto(s, ev),
         punto: [s.domicilios?.alias, s.domicilios?.colonia].filter(Boolean).join(" · "),
         pesoManifiesto: pesoManifiesto(ev),
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "Sin contenedor registrado",
@@ -610,7 +615,7 @@ export async function puntosDeCliente(clienteId) {
   if (!haySupabaseNavegador() || !clienteId) return [];
   const { data, error } = await supabaseNavegador()
     .from("domicilios")
-    .select("id, alias, colonia, suscripciones ( estado, rutas ( nombre ) )")
+    .select("id, alias, colonia, suscripciones ( estado, rutas ( nombre, chofer, chofer_id ) )")
     .eq("cliente_id", clienteId)
     .order("alias");
   if (error) {
@@ -623,6 +628,9 @@ export async function puntosDeCliente(clienteId) {
       id: d.id,
       texto: [d.alias, d.colonia].filter(Boolean).join(" · ") || "Punto sin nombre",
       ruta: s?.rutas?.nombre || "",
+      // Para decir quién es "El de la ruta" y avisar si nadie la verá.
+      rutaChoferId: s?.rutas?.chofer_id || null,
+      rutaChofer: s?.rutas?.chofer || "",
     };
   });
 }

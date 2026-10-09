@@ -162,7 +162,9 @@ export async function crearRecoleccionOficinaAccion(datos) {
     .maybeSingle();
   if (!punto || punto.cliente_id !== l.clienteId) return { ok: false, motivo: "Ese punto no es de ese cliente." };
   if (punto.clientes?.estado === "baja") return { ok: false, motivo: "Ese cliente está dado de baja." };
-  const servicio = (punto.suscripciones || []).find((s) => s.estado === "activa") || (punto.suscripciones || [])[0];
+  // La ruta de su servicio activo (o pausado); nunca la de uno cancelado.
+  const subs = punto.suscripciones || [];
+  const servicio = subs.find((s) => s.estado === "activa") || subs.find((s) => s.estado === "pausada");
 
   const { data: creada, error } = await sb
     .from("solicitudes_recoleccion")

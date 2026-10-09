@@ -193,8 +193,11 @@ export default function RecoleccionesAdmin() {
     setVencidasLista((lista) =>
       lista.map((x) => (x.folio === s.folio ? { ...x, ...cambiosLocales } : x))
     );
-    // Vencidas y "por confirmar" se vuelven a contar en la base.
+    // Vencidas, "por confirmar" y la página se vuelven a pedir a la base: con
+    // el filtro de estado en el servidor, la fila que cambió de estado ya no
+    // va en esta lista (y el total cambió).
     pendientesPanel(hoy).then((r) => { setVencidasLista(r.vencidas); setPorConfirmar(r.porConfirmar); });
+    setRecarga((n) => n + 1);
     setOcupado(null);
     return true;
   };

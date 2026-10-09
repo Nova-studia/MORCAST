@@ -24,3 +24,7 @@ test("confirmar sin chofer en una ruta sin chofer: se avisa que ningún chofer l
   assert.equal(avisoRutaSinChofer({ choferElegido: "c1", ruta: { choferId: null } }), null);
   assert.equal(avisoRutaSinChofer({ choferElegido: "", ruta: { choferId: "c1" } }), null);
 });
+
+test("revisión: con chofer pero sin nombre guardado dice 'El de la ruta', no 'sin chofer'", () => {
+  assert.equal(textoChoferPorOmision({ choferId: "c1", chofer: "" }), "El de la ruta");
+});

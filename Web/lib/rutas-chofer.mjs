@@ -16,7 +16,8 @@ export function elegirChoferRuta(choferId, choferes = []) {
 
 /** El texto de la opción vacía ("El de la ruta") en Recolecciones. */
 export function textoChoferPorOmision(ruta) {
-  return ruta?.choferId && ruta?.chofer ? `El de la ruta: ${ruta.chofer}` : "La ruta no tiene chofer asignado";
+  if (!ruta?.choferId) return "La ruta no tiene chofer asignado";
+  return ruta.chofer ? `El de la ruta: ${ruta.chofer}` : "El de la ruta";
 }
 
 /** Advertencia al programar: sin chofer elegido y sin chofer en la ruta, nadie la verá. */

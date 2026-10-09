@@ -89,3 +89,15 @@ export function datosCorreoSolicitud(sol) {
     enlace: ENLACE_RECOLECCIONES,
   };
 }
+
+/**
+ * Cómo buscar la solicitud de la que avisa la app: por su folio o por el que
+ * la app PIDIÓ (db/031 le pone otro si ya estaba ocupado y guarda el pedido
+ * en `folio_pedido`). Solo con un folio válido: el texto va dentro de un
+ * filtro `or` de PostgREST.
+ */
+export function filtroFolioAviso(folio) {
+  if (!esFolioRecoleccion(folio)) return null;
+  const f = folio.trim();
+  return `folio.eq.${f},folio_pedido.eq.${f}`;
+}

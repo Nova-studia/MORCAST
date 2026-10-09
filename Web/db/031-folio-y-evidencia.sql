@@ -9,6 +9,10 @@
 begin;
 
 -- ---------------------------------------------------------- folio
+-- El folio que mandó la app, cuando la base le pone otro: la app avisa a la
+-- oficina con SU folio y así se encuentra la solicitud (lib/avisar-solicitud.js).
+alter table public.solicitudes_recoleccion add column if not exists folio_pedido text;
+
 -- El cliente solo ve SUS folios, así que el "máximo + 1" que calculan el
 -- portal y las apps choca con el de otro cliente (REC-2026-0001 para todos).
 -- La base decide: si viene vacío o ya existe, pone el siguiente libre; un
@@ -17,17 +21,25 @@ create or replace function public.asignar_folio_solicitud()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
   anio   text := to_char(now() at time zone 'America/Matamoros', 'YYYY');
-  ultimo integer;
+  ultimo bigint;
   sig    text;
 begin
   perform pg_advisory_xact_lock(hashtext('folio_solicitud_' || anio));
+  -- Se respeta un folio libre: de una sesión, solo con la forma REC-AAAA-NNNN
+  -- (4 a 6 cifras); el servidor (sin sesión) puede usar otros (REC-DEMO-…).
+  -- Sin este tope un cliente mandaba REC-2026-999999999 y trababa la
+  -- numeración de todos (revisión final de la Entrega 3).
   if new.folio is not null and btrim(new.folio) <> ''
+     and (auth.uid() is null or new.folio ~ ('^REC-' || anio || '-[0-9]{4,6}$'))
      and not exists (select 1 from public.solicitudes_recoleccion where folio = new.folio) then
     return new;
   end if;
-  select coalesce(max(split_part(folio, '-', 3)::integer), 0) into ultimo
+  if new.folio is not null and btrim(new.folio) <> '' then
+    new.folio_pedido := left(new.folio, 40);
+  end if;
+  select coalesce(max(split_part(folio, '-', 3)::bigint), 0) into ultimo
     from public.solicitudes_recoleccion
-   where folio like 'REC-' || anio || '-%' and split_part(folio, '-', 3) ~ '^[0-9]{1,9}$';
+   where folio like 'REC-' || anio || '-%' and split_part(folio, '-', 3) ~ '^[0-9]{1,18}$';
   sig := (ultimo + 1)::text;
   new.folio := 'REC-' || anio || '-' || lpad(sig, greatest(4, length(sig)), '0');
   return new;
@@ -56,8 +68,11 @@ returns trigger language plpgsql security definer set search_path = public as $$
 declare
   previa public.recolecciones;
 begin
+  -- Dos cierres en el mismo instante: el segundo espera y se funde.
+  perform pg_advisory_xact_lock(hashtext('evidencia_' || new.solicitud_id::text));
+
   -- Un chofer solo cierra paradas vivas (nunca una "No procedió").
-  if auth.uid() is not null and not es_personal() and not exists (
+  if auth.uid() is not null and not puede_seccion('recolecciones') and not exists (
        select 1 from public.solicitudes_recoleccion s
         where s.id = new.solicitud_id and s.estado in ('confirmada', 'en-ruta', 'completada')) then
     raise exception 'Esta parada ya no se puede cerrar (está cancelada o marcada como No procedió).';
@@ -68,8 +83,18 @@ begin
     return new;
   end if;
 
-  if auth.uid() is not null and not es_personal() and previa.operador_id is distinct from new.operador_id then
-    raise exception 'Esta recolección ya la cerró otro chofer.';
+  -- Fundir NO puede ser puerta trasera: este camino salta el RLS (la fila
+  -- nueva nunca se inserta y el UPDATE es security definer). Solo funden el
+  -- servidor, quien tiene la sección Recolecciones, o el MISMO chofer que la
+  -- cerró, sobre una parada suya (revisión final de la Entrega 3).
+  if auth.uid() is not null and not puede_seccion('recolecciones') then
+    if previa.operador_id is distinct from auth.uid() then
+      raise exception 'Esta recolección ya la cerró otro chofer.';
+    end if;
+    if new.operador_id is distinct from auth.uid()
+       or new.solicitud_id not in (select public.mis_paradas()) then
+      raise exception 'No puedes cambiar esta evidencia.';
+    end if;
   end if;
 
   update public.recolecciones set

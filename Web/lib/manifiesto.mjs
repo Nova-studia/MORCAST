@@ -21,6 +21,17 @@ export function pesoManifiesto(ev) {
   return PENDIENTE_EMPRESA;
 }
 
+/**
+ * El DÍA del manifiesto: el de la recolección de verdad (la foto de
+ * "después", en Matamoros); sin evidencia, el acordado o el pedido. Así la
+ * fecha y la hora nunca son de días distintos.
+ */
+export function fechaManifiesto(solicitud, ev) {
+  const t = ev?.hora_despues || ev?.hora_antes;
+  if (t) return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Matamoros" }).format(new Date(t));
+  return solicitud?.fecha_confirmada || solicitud?.fecha_pedida || "";
+}
+
 /** HH:MM en Matamoros de cuando se recogió (la foto de "después"). */
 export function horaManifiesto(ev) {
   const t = ev?.hora_despues || ev?.hora_antes;

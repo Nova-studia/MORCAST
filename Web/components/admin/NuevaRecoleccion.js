@@ -7,6 +7,7 @@ import { puntosDeCliente } from "@/lib/datos-solicitudes";
 import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { hoyISO } from "@/lib/vencimiento";
 import { crearRecoleccionOficinaAccion } from "@/app/acciones-auditadas";
+import { textoChoferPorOmision, avisoRutaSinChofer } from "@/lib/rutas-chofer.mjs";
 
 /**
  * "NUEVA RECOLECCIÓN" DE LA OFICINA (Entrega 3, 9-oct-2026).
@@ -51,6 +52,9 @@ export default function NuevaRecoleccion({ choferes = [], onCerrar, onCreada }) 
     return lista.slice(0, 50);
   }, [buscar, clientes]);
   const cliente = clientes.find((c) => c.id === form.clienteId) || null;
+  const punto = puntos.find((p) => p.id === form.domicilioId) || null;
+  const rutaDelPunto = { choferId: punto?.rutaChoferId || null, chofer: punto?.rutaChofer || "" };
+  const sinChofer = form.confirmar && punto ? avisoRutaSinChofer({ choferElegido: form.choferId, ruta: rutaDelPunto }) : null;
 
   const crear = async (e) => {
     e.preventDefault();
@@ -138,11 +142,14 @@ export default function NuevaRecoleccion({ choferes = [], onCerrar, onCreada }) 
             <label style={{ fontSize: "0.8rem", color: "var(--mc-gris)" }}>
               Chofer
               <select className="pt-input" value={form.choferId} onChange={(e) => pon({ choferId: e.target.value })} style={{ display: "block", marginTop: 4, minWidth: 200 }}>
-                <option value="">El de la ruta</option>
+                <option value="">{textoChoferPorOmision(rutaDelPunto)}</option>
                 {choferes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </label>
           </div>
+        )}
+        {sinChofer && (
+          <p style={{ margin: "0 0 0.8rem", fontSize: "0.82rem", color: "#f0895c" }}>{sinChofer}</p>
         )}
         <button type="submit" className="pt-btn pt-btn-verde" disabled={enviando}>
           {enviando ? "Creando…" : form.confirmar ? "Crear y confirmar" : "Crear solicitud"}

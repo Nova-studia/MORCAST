@@ -48,3 +48,14 @@ test("Sectores y puntos: un cliente dado de baja no sale; un servicio cancelado 
   assert.equal(suscripcionVigente({ estado: "activa" }).estado, "activa");
   assert.equal(suscripcionVigente([]), null);
 });
+
+test("revisión: un punto con dos servicios activos sale UNA vez", () => {
+  const dos = [SUS[0], { ...SUS[0], rutas: { ...SUS[0].rutas, id: "r9" } }];
+  assert.equal(puntosAgendables(dos).length, 1);
+});
+
+test("revisión: la fecha del manifiesto es la del día en que se recogió (Matamoros)", async () => {
+  const { fechaManifiesto } = await import("../lib/manifiesto.mjs");
+  assert.equal(fechaManifiesto({ fecha_confirmada: "2026-10-08" }, { hora_despues: "2026-10-10T03:30:00.000Z" }), "2026-10-09");
+  assert.equal(fechaManifiesto({ fecha_confirmada: "2026-10-08", fecha_pedida: "2026-10-07" }, null), "2026-10-08");
+});

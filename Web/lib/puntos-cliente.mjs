@@ -16,6 +16,8 @@ export function puntosAgendables(suscripciones = []) {
         ? { id: s.rutas.id, clave: s.rutas.clave, nombre: s.rutas.nombre, tipo: s.rutas.tipo, dias: s.rutas.dias || [] }
         : null,
     }))
+    // Un punto con dos servicios activos sale una sola vez.
+    .filter((p, i, todos) => todos.findIndex((x) => x.domicilioId === p.domicilioId) === i)
     .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
 }
 
