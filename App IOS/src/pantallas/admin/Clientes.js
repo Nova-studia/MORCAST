@@ -239,6 +239,17 @@ export default function Clientes({ navigation }) {
                 </Accion>
               )}
 
+              {/* La ficha completa (9-oct-2026, como la web): estado,
+                  editar, eliminar, puntos, usuarios e historial. */}
+              {sel.uuid ? (
+                <Accion
+                  icono="file-text"
+                  onPress={() => { const id = sel.uuid; setSel(null); navigation.navigate("FichaCliente", { clienteId: id }); }}
+                >
+                  Abrir ficha completa
+                </Accion>
+              ) : null}
+
               <Seccion>Acceso al portal</Seccion>
               {sel.tieneAcceso ? (
                 <Aviso tipo="ok" style={{ marginTop: 0 }}>Ya tiene acceso al portal y a la app.</Aviso>

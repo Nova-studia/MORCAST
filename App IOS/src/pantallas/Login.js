@@ -8,6 +8,7 @@ import { entrar as entrarSesion } from "../sesion";
 import BotonesSociales from "../BotonesSociales";
 import OlvideClave from "../OlvideClave";
 import { abrirEnNavegador, URL_ALTA } from "../enlaces-web";
+import { tomarAvisoSalida } from "../aviso-salida";
 
 /**
  * `onEntrar(modo)` abre la app en el modo que le toca a la cuenta:
@@ -17,7 +18,9 @@ import { abrirEnNavegador, URL_ALTA } from "../enlaces-web";
 export default function Login({ onEntrar, navigation }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // Si la app acaba de sacar a alguien (cuenta dada de baja, sesión que ya
+  // no vale), aquí se dice por qué (aviso-salida.js, 9-oct-2026).
+  const [error, setError] = useState(() => tomarAvisoSalida() || "");
 
   const [entrando, setEntrando] = useState(false);
 

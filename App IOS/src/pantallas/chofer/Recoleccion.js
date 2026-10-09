@@ -293,9 +293,10 @@ export default function Recoleccion({ route, navigation, completar, onEnRuta }) 
             avisarle al cliente. No bloquea la recolección. */}
         <EnCamino
           parada={servicio}
-          onEnRuta={(p) => {
-            setServicio((sv) => ({ ...sv, estado: "en-ruta", clienteAvisado: true }));
-            onEnRuta?.(p);
+          onEnRuta={(p, avisado) => {
+            // Solo lo que dijo el servidor (9-oct-2026): ver EnCamino.js.
+            setServicio((sv) => ({ ...sv, estado: "en-ruta", clienteAvisado: avisado }));
+            onEnRuta?.(p, avisado);
           }}
           style={{ marginTop: 12 }}
         />

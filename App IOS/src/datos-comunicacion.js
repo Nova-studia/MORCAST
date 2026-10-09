@@ -66,11 +66,21 @@ const CAMPOS_HISTORIAL = `
  */
 export async function listarAvisosEnviados({ limite = 50 } = {}) {
   if (!haySupabase()) return [];
+  // `cliente_ids` (db/030): los avisos a varios clientes elegidos a mano;
+  // con él el historial dice "N clientes elegidos" (9-oct-2026).
   let { data, error } = await supabase
     .from("avisos")
-    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, avisos_lecturas ( count )`)
+    .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, cliente_ids, avisos_lecturas ( count )`)
     .order("creado", { ascending: false })
     .limit(limite);
+  if (error) {
+    // Sin la 030 todavía: como antes.
+    ({ data, error } = await supabase
+      .from("avisos")
+      .select(`${CAMPOS_HISTORIAL}, notificaciones_enviadas, usuarios_destino, avisos_lecturas ( count )`)
+      .order("creado", { ascending: false })
+      .limit(limite));
+  }
   if (error) {
     // Sin la migración 026 esas columnas no existen: el historial va igual.
     ({ data, error } = await supabase
@@ -117,9 +127,10 @@ export async function lectoresDeAviso(avisoId) {
 }
 
 /** Vista previa: a cuántos clientes y correos les llega (lo calcula el servidor). */
-export async function contarDestinatarios({ alcance, sectorId, rutaId, clienteId }) {
-  if (!haySupabase()) return { ok: true, demo: true, resumen: { clientes: 0, correos: 0, sinCorreo: 0 } };
-  return postAdmin("avisos/contar", { alcance, sectorId, rutaId, clienteId }, { espera: 15000 });
+export async function contarDestinatarios({ alcance, sectorId, rutaId, clienteId, clienteIds }) {
+  if (!haySupabase()) return { ok: true, demo: true, resumen: { clientes: alcance === "clientes" ? (clienteIds || []).length : 0, correos: 0, sinCorreo: 0 } };
+  // `clienteIds` con alcance "clientes" (elegidos a mano, 9-oct-2026).
+  return postAdmin("avisos/contar", { alcance, sectorId, rutaId, clienteId, ...(alcance === "clientes" ? { clienteIds } : {}) }, { espera: 15000 });
 }
 
 /**
@@ -138,6 +149,7 @@ export async function mandarAviso(datos, idEnvio) {
       sectorId: datos.sectorId,
       rutaId: datos.rutaId,
       clienteId: datos.clienteId,
+      ...(datos.alcance === "clientes" ? { clienteIds: datos.clienteIds || [] } : {}),
       motivo: datos.motivo,
       titulo: datos.titulo,
       mensaje: datos.mensaje,

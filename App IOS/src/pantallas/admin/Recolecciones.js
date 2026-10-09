@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Modal, Image, TextInput, RefreshControl, Alert, ActivityIndicator,
 } from "react-native";
@@ -8,13 +8,18 @@ import { Tarjeta, Badge, Boton } from "../../ui";
 import { ESTADOS_SOLICITUD_REC } from "../../rutas-datos";
 import { listarOperadores } from "../../datos-remoto";
 import {
-  listarRecoleccionesOficina, programarRecoleccion, rechazarRecoleccion, fotoNoProcedio,
+  buscarRecolecciones, pendientesOficina, recoleccionPorId, programarRecoleccion, rechazarRecoleccion, fotoNoProcedio,
 } from "../../datos-oficina";
 import {
-  hoyISO, estadoVencimiento, ordenarPorUrgencia, opcionesReagenda, textoAtraso, filtrarRecolecciones,
+  hoyISO, estadoVencimiento, ordenarPorUrgencia, opcionesReagenda, textoAtraso,
   queSePuede, planPorOmision, normalizarHora, choferQueVa, fechaCortaDia, HORAS_RAPIDAS, TEXTO_PROGRAMAR,
 } from "../../oficina.mjs";
+import { rangoPorOmision } from "../../web/consulta-recolecciones.mjs";
+import { textoChoferPorOmision, avisoRutaSinChofer } from "../../web/rutas-chofer.mjs";
+import { totalPaginas, textoPagina } from "../../apps-admin.mjs";
+import { Fallo } from "../../piezas-100";
 import CalendarioMes from "./CalendarioMes";
+import CalendarioFecha from "../../CalendarioFecha";
 
 /**
  * RECOLECCIONES DE LA OFICINA EN EL TELÉFONO (6-oct-2026) — la misma
@@ -22,69 +27,120 @@ import CalendarioMes from "./CalendarioMes";
  * por estado, y en cada una confirmar (día, hora y chofer), rechazar con
  * motivo, cambiar una confirmada o reagendar una vencida.
  *
+ * 9-oct-2026 (apps al 100%): se BUSCA EN LA BASE, como la web (folio o
+ * empresa, Desde/Hasta y páginas de 50 con el total). Antes se traían las
+ * últimas 500 y lo de antes desaparecía sin aviso. Las VENCIDAS se piden
+ * aparte: no pueden perderse aunque queden fuera del rango. Y "Nueva
+ * recolección" para los pedidos por teléfono o WhatsApp.
+ *
  * Todo lo que escribe va por el servidor (datos-oficina.js → /api/app/
  * recolecciones/*): ahí quedan la bitácora, el correo y la notificación al
- * cliente y al chofer, igual que desde la web. El peso real del relleno NO
- * está aquí: está apagado (Web/lib/estado-sistema.js, PESO_REAL).
+ * cliente y al chofer, igual que desde la web. El peso real del relleno se
+ * abre en la web (Más → En la web → Peso real).
  *
  * Se llega desde Más, desde "Cambiar" en la Agenda de servicios y al tocar
- * la notificación de una recolección pedida (`params.id` abre esa).
+ * la notificación de una recolección pedida (`params.id` busca esa).
  */
 export default function Recolecciones({ navigation, route }) {
-  const [lista, setLista] = useState([]);
+  const hoy = hoyISO();
+  const [filtros, setFiltros] = useState(() => ({ q: "", ...rangoPorOmision(hoy), estado: "" }));
+  const [texto, setTexto] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [filas, setFilas] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pend, setPend] = useState({ vencidas: [], porConfirmar: 0 });
   const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState(false);
+  const [fallo, setFallo] = useState(null);
   const [refrescando, setRefrescando] = useState(false);
-  const [filtro, setFiltro] = useState("todas");
-  const [selId, setSelId] = useState(null);
+  const [verVencidas, setVerVencidas] = useState(false);
+  const [calendario, setCalendario] = useState(""); // "" | "desde" | "hasta"
+  const [sel, setSel] = useState(null);
   const [choferes, setChoferes] = useState([]);
   const [hecho, setHecho] = useState("");
-  const hoy = hoyISO();
+  const turno = useRef(0);
 
   const cargar = useCallback(async () => {
-    const l = await listarRecoleccionesOficina();
-    if (l === null) setErrorCarga(true);
-    else {
-      setErrorCarga(false);
-      setLista(l);
+    const n = ++turno.current;
+    const [r, p] = await Promise.all([buscarRecolecciones({ ...filtros, pagina }), pendientesOficina(hoy)]);
+    if (n !== turno.current) return;
+    if (r.ok) {
+      setFallo(null);
+      setFilas(r.filas);
+      setTotal(r.total);
+    } else {
+      setFallo({ sinRed: true, motivo: r.motivo });
     }
+    if (p) setPend(p);
     setCargando(false);
+  }, [filtros, pagina, hoy]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    listarOperadores().then(setChoferes).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    cargar();
-    listarOperadores().then(setChoferes).catch(() => {});
-    // Al volver a la pantalla (de la Agenda, de otra pestaña) se relee: la
-    // web, un cliente o el chofer pudieron cambiar algo mientras tanto.
-    const quitar = navigation.addListener("focus", cargar);
-    return quitar;
-  }, [cargar, navigation]);
+  // Al volver a la pantalla (de la Agenda, de "Nueva recolección") se relee:
+  // la web, un cliente o el chofer pudieron cambiar algo mientras tanto.
+  useEffect(() => navigation.addListener("focus", () => cargar()), [cargar, navigation]);
 
-  // `params.id`: abrir esa recolección (notificación o "Cambiar" de la Agenda).
+  // El buscador espera a que se deje de escribir.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFiltros((f) => (f.q === texto ? f : { ...f, q: texto }));
+      setPagina(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [texto]);
+
+  // `params.id`: abrir esa recolección (notificación o "Cambiar" de la
+  // Agenda). Se lee de la base por su id —puede estar fuera del rango— y se
+  // busca su folio para que también quede en la lista.
   const pedida = route?.params?.id || null;
   useEffect(() => {
-    if (!pedida || cargando) return;
-    if (lista.some((x) => x.id === pedida)) {
-      setFiltro("todas");
-      setSelId(pedida);
-    }
+    if (!pedida) return;
+    let vivo = true;
+    recoleccionPorId(pedida).then((x) => {
+      if (!vivo || !x) return;
+      setVerVencidas(false);
+      setTexto(x.folio || "");
+      setFiltros((f) => ({ ...f, q: x.folio || "", desde: "", hasta: "", estado: "" }));
+      setPagina(1);
+      setSel(x);
+    });
     navigation.setParams({ id: undefined });
-  }, [pedida, cargando, lista, navigation]);
+    return () => { vivo = false; };
+  }, [pedida, navigation]);
+
+  // Recién creada en "Nueva recolección".
+  const creada = route?.params?.creada || null;
+  useEffect(() => {
+    if (!creada) return;
+    setHecho(creada);
+    navigation.setParams({ creada: undefined });
+  }, [creada, navigation]);
 
   const refrescar = async () => {
     setRefrescando(true);
     try { await cargar(); } finally { setRefrescando(false); }
   };
 
-  const vencidas = useMemo(() => lista.filter((x) => estadoVencimiento(x, hoy).vencida), [lista, hoy]);
-  const filas = useMemo(() => ordenarPorUrgencia(filtrarRecolecciones(lista, filtro, hoy), hoy), [lista, filtro, hoy]);
-  const porConfirmar = lista.filter((x) => x.estado === "solicitada").length;
-  const sel = lista.find((x) => x.id === selId) || null;
+  const cambiaFiltro = (patch) => {
+    setFiltros((f) => ({ ...f, ...patch }));
+    setPagina(1);
+  };
+
+  const vencidas = pend.vencidas || [];
+  const lista = useMemo(
+    () => (verVencidas ? ordenarPorUrgencia(vencidas, hoy) : filas),
+    [verVencidas, vencidas, filas, hoy]
+  );
+  const paginas = totalPaginas(total);
   const badge = (id) => ESTADOS_SOLICITUD_REC.find((e) => e.id === id) || { texto: id, clase: "none" };
 
-  const alTerminar = async (texto) => {
-    setSelId(null);
-    setHecho(texto);
+  const alTerminar = async (texto2) => {
+    setSel(null);
+    setHecho(texto2);
     await cargar();
   };
 
@@ -92,14 +148,30 @@ export default function Recolecciones({ navigation, route }) {
     <ScrollView
       style={{ flex: 1, backgroundColor: T.fondo }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={T.gris} />}
     >
-      <Text style={s.h1}>Recolecciones</Text>
-      <Text style={s.sub}>
-        {porConfirmar === 0
-          ? "No hay solicitudes por confirmar."
-          : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.h1}>Recolecciones</Text>
+          <Text style={[s.sub, { marginBottom: 0 }]}>
+            {pend.porConfirmar === 0
+              ? "No hay solicitudes por confirmar."
+              : `${pend.porConfirmar} solicitud${pend.porConfirmar === 1 ? "" : "es"} por confirmar.`}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => navigation.navigate("NuevaRecoleccion")}
+          style={s.btnNueva}
+          accessibilityRole="button"
+          accessibilityLabel="Nueva recolección"
+        >
+          <Feather name="plus" size={16} color="#fff" />
+          <Text style={s.btnNuevaTxt}>Nueva</Text>
+        </Pressable>
+      </View>
+
+      <View style={{ height: 14 }} />
 
       {!!hecho && (
         <View style={s.hecho} accessibilityLiveRegion="polite">
@@ -110,7 +182,7 @@ export default function Recolecciones({ navigation, route }) {
       )}
 
       {/* Lo vencido va ARRIBA de todo: es lo que hay que resolver hoy. */}
-      {vencidas.length > 0 && (
+      {vencidas.length > 0 && !verVencidas && (
         <View style={s.vencidas}>
           <Feather name="alert-triangle" size={18} color={T.error} />
           <View style={{ flex: 1 }}>
@@ -119,44 +191,89 @@ export default function Recolecciones({ navigation, route }) {
             </Text>
             <Text style={s.vencidasSub}>Reagéndalas: puedes ponerlas para hoy mismo.</Text>
           </View>
-          <Pressable onPress={() => setFiltro("vencidas")} style={s.vencidasBtn} accessibilityRole="button">
+          <Pressable onPress={() => setVerVencidas(true)} style={s.vencidasBtn} accessibilityRole="button">
             <Text style={s.vencidasBtnTxt}>Ver esas</Text>
           </Pressable>
         </View>
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 8 }}>
-        <Chip on={filtro === "todas"} onPress={() => setFiltro("todas")}>Todas</Chip>
-        {vencidas.length > 0 && (
-          <Chip on={filtro === "vencidas"} onPress={() => setFiltro("vencidas")} alerta>Vencidas ({vencidas.length})</Chip>
-        )}
-        {ESTADOS_SOLICITUD_REC.map((e) => (
-          <Chip key={e.id} on={filtro === e.id} onPress={() => setFiltro(e.id)}>{e.texto}</Chip>
-        ))}
-      </ScrollView>
+      {verVencidas ? (
+        <Pressable onPress={() => setVerVencidas(false)} style={s.volver} accessibilityRole="button">
+          <Feather name="arrow-left" size={15} color={T.accionTxt} />
+          <Text style={s.volverTxt}>Vencidas ({vencidas.length}) · volver a la búsqueda</Text>
+        </Pressable>
+      ) : (
+        <>
+          {/* Búsqueda en la base: folio o empresa. */}
+          <View style={s.buscador}>
+            <Feather name="search" size={16} color={T.gris} />
+            <TextInput
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="Folio o empresa"
+              placeholderTextColor={T.grisClaro}
+              style={s.buscadorInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              accessibilityLabel="Buscar por folio o empresa"
+            />
+            {texto ? (
+              <Pressable onPress={() => setTexto("")} hitSlop={10} accessibilityLabel="Borrar búsqueda"><Feather name="x" size={16} color={T.gris} /></Pressable>
+            ) : null}
+          </View>
+
+          {/* Desde / Hasta sobre la fecha efectiva (por omisión, desde hace 30 días). */}
+          <View style={s.fechasFila}>
+            <Opcion on={calendario === "desde"} onPress={() => setCalendario((c) => (c === "desde" ? "" : "desde"))}>
+              Desde: {filtros.desde ? fechaCortaDia(filtros.desde) : "el inicio"}
+            </Opcion>
+            <Opcion on={calendario === "hasta"} onPress={() => setCalendario((c) => (c === "hasta" ? "" : "hasta"))}>
+              Hasta: {filtros.hasta ? fechaCortaDia(filtros.hasta) : "sin tope"}
+            </Opcion>
+          </View>
+          {calendario ? (
+            <View style={{ marginTop: 8 }}>
+              <CalendarioFecha
+                valor={filtros[calendario]}
+                onCambiar={(f) => { cambiaFiltro({ [calendario]: f }); setCalendario(""); }}
+                min={calendario === "hasta" ? filtros.desde || undefined : undefined}
+                max={calendario === "desde" ? filtros.hasta || undefined : undefined}
+                hoy={hoy}
+              />
+              <Pressable onPress={() => { cambiaFiltro({ [calendario]: "" }); setCalendario(""); }} style={s.quitarFecha} accessibilityRole="button">
+                <Text style={s.quitarFechaTxt}>{calendario === "desde" ? "Sin fecha de inicio" : "Sin tope"}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }} contentContainerStyle={{ gap: 8 }}>
+            <Chip on={filtros.estado === ""} onPress={() => cambiaFiltro({ estado: "" })}>Todas</Chip>
+            {ESTADOS_SOLICITUD_REC.map((e) => (
+              <Chip key={e.id} on={filtros.estado === e.id} onPress={() => cambiaFiltro({ estado: e.id })}>{e.texto}</Chip>
+            ))}
+          </ScrollView>
+        </>
+      )}
 
       {cargando && <Text style={s.vacio}>Leyendo las recolecciones…</Text>}
-      {!cargando && errorCarga && (
-        <View style={s.errorCaja}>
-          <Feather name="alert-circle" size={14} color={T.error} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.errorTxt}>No se pudieron leer las recolecciones. Revisa tu señal.</Text>
-            <Boton variante="linea" onPress={() => { setCargando(true); cargar(); }} style={{ marginTop: 10 }}>Reintentar</Boton>
-          </View>
-        </View>
+      {!cargando && fallo && !verVencidas && (
+        <Fallo fallo={fallo} onReintentar={() => { setCargando(true); cargar(); }} style={{ marginTop: 0, marginBottom: 12 }} />
       )}
-      {!cargando && !errorCarga && filas.length === 0 && (
-        <Text style={s.vacio}>{lista.length === 0 ? "Todavía no hay recolecciones." : "No hay recolecciones con ese estado."}</Text>
+      {!cargando && !fallo && lista.length === 0 && (
+        <Text style={s.vacio}>
+          {verVencidas ? "No hay recolecciones vencidas." : filtros.q || filtros.estado ? "Ninguna recolección con esa búsqueda." : "No hay recolecciones en esas fechas."}
+        </Text>
       )}
 
-      {filas.map((x) => {
+      {lista.map((x) => {
         const b = badge(x.estado);
         const venc = estadoVencimiento(x, hoy);
         const quien = choferQueVa(x);
         return (
           <Pressable
             key={x.id}
-            onPress={() => setSelId(x.id)}
+            onPress={() => setSel(x)}
             accessibilityRole="button"
             accessibilityLabel={`${x.folio}, ${x.cliente}, ${b.texto}${venc.vencida ? `, ${venc.texto}` : ""}`}
           >
@@ -187,7 +304,32 @@ export default function Recolecciones({ navigation, route }) {
         );
       })}
 
-      <Modal visible={!!sel} animationType="slide" transparent onRequestClose={() => setSelId(null)}>
+      {/* Páginas de 50, con el total. */}
+      {!verVencidas && !fallo && total > 0 && (
+        <View style={s.paginas}>
+          <Pressable
+            onPress={() => setPagina((p) => Math.max(1, p - 1))}
+            disabled={pagina <= 1}
+            style={[s.pagBtn, pagina <= 1 && { opacity: 0.35 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Página anterior"
+          >
+            <Feather name="chevron-left" size={18} color={T.tinta} />
+          </Pressable>
+          <Text style={s.pagTxt}>{textoPagina({ pagina, total })}</Text>
+          <Pressable
+            onPress={() => setPagina((p) => Math.min(paginas, p + 1))}
+            disabled={pagina >= paginas}
+            style={[s.pagBtn, pagina >= paginas && { opacity: 0.35 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Página siguiente"
+          >
+            <Feather name="chevron-right" size={18} color={T.tinta} />
+          </Pressable>
+        </View>
+      )}
+
+      <Modal visible={!!sel} animationType="slide" transparent onRequestClose={() => setSel(null)}>
         <View style={s.modalFondo}>
           <View style={s.modal}>
             {sel && (
@@ -197,7 +339,7 @@ export default function Recolecciones({ navigation, route }) {
                 hoy={hoy}
                 choferes={choferes}
                 badge={badge(sel.estado)}
-                onCerrar={() => setSelId(null)}
+                onCerrar={() => setSel(null)}
                 onListo={alTerminar}
               />
             )}
@@ -381,12 +523,17 @@ function Detalle({ s: x, hoy, choferes, badge, onCerrar, onListo }) {
             <FilaChofer
               on={!plan.choferId}
               onPress={() => setPlan((p) => ({ ...p, choferId: "" }))}
-              texto={x.choferRuta ? `El de la ruta (${x.choferRuta})` : "El de la ruta (sin asignar)"}
+              texto={textoChoferPorOmision({ choferId: x.rutaChoferId, chofer: x.choferRuta })}
             />
             {choferes.map((c) => (
               <FilaChofer key={c.id} on={plan.choferId === c.id} onPress={() => setPlan((p) => ({ ...p, choferId: c.id }))} texto={c.nombre} />
             ))}
           </View>
+
+          {/* Sin chofer elegido y sin chofer en la ruta, nadie la vería. */}
+          {!!avisoRutaSinChofer({ choferElegido: plan.choferId, ruta: { choferId: x.rutaChoferId } }) && (
+            <Text style={s.avisoChofer}>{avisoRutaSinChofer({ choferElegido: plan.choferId, ruta: { choferId: x.rutaChoferId } })}</Text>
+          )}
 
           {!!error && <AvisoError texto={error} />}
 
@@ -537,4 +684,17 @@ const s = StyleSheet.create({
   errorTxt: { color: T.error, fontSize: 12.5, flex: 1, lineHeight: 17 },
   btnRechazar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 48, borderRadius: 11, borderWidth: 1, borderColor: "rgba(217,119,107,0.6)", marginTop: 10 },
   btnRechazarTxt: { color: T.error, fontSize: 14.5, fontWeight: "700" },
+  avisoChofer: { color: T.adminTxt, fontSize: 12.5, marginTop: 10, lineHeight: 17 },
+  btnNueva: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: T.accion, borderRadius: 10, paddingHorizontal: 14, minHeight: 44 },
+  btnNuevaTxt: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
+  buscador: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.linea, borderRadius: 10, paddingHorizontal: 12, minHeight: 46 },
+  buscadorInput: { flex: 1, color: T.tinta, fontSize: 14.5, paddingVertical: 10 },
+  fechasFila: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  quitarFecha: { alignSelf: "flex-start", paddingVertical: 8, minHeight: 36 },
+  quitarFechaTxt: { color: T.accionTxt, fontSize: 13, fontWeight: "700" },
+  volver: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12, minHeight: 40 },
+  volverTxt: { color: T.accionTxt, fontSize: 13.5, fontWeight: "700" },
+  paginas: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 4 },
+  pagBtn: { width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: T.linea, alignItems: "center", justifyContent: "center", backgroundColor: T.panel },
+  pagTxt: { color: T.gris, fontSize: 13 },
 });

@@ -15,6 +15,9 @@ import { eliminarMiCuenta } from "../eliminar-cuenta";
 // iconos de línea en un cuadrito de color; los dibujos ya traen sus colores
 // y se distinguen solos, así que van sin cuadro (igual que en la web).
 const MENU = [
+  // 9-oct-2026 (apps al 100%): sus datos, contraseña, contacto de la empresa,
+  // puntos y soporte, como "Mi cuenta" del portal. Sin dibujo en la web.
+  { pantalla: "MiCuenta", feather: "user", titulo: "Mi cuenta", sub: "Tus datos, contraseña, empresa y puntos" },
   { pantalla: "Cobertura", dibujo: "cobertura", titulo: "Cobertura", sub: "¿Pasamos por tu zona?" },
   { pantalla: "Agendar", dibujo: "agendar", titulo: "Agendar recolección", sub: "Pide tu servicio del día de tu ruta" },
   { pantalla: "Reportes", dibujo: "reportes", titulo: "Reportes", sub: "Peso recolectado por periodo" },
@@ -98,7 +101,11 @@ export default function Mas({ navigation, onLogout }) {
                 mientras el dedo lo tiene presionado. */}
             {({ pressed }) => (
               <>
-                <View style={s.ico}><IconoMenu nombre={m.dibujo} activo={pressed} tam={32} /></View>
+                <View style={s.ico}>
+                  {m.dibujo
+                    ? <IconoMenu nombre={m.dibujo} activo={pressed} tam={32} />
+                    : <Feather name={m.feather} size={24} color={T.tealClaro} />}
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.itemTit}>{m.titulo}</Text>
                   <Text style={s.itemSub}>{m.sub}</Text>

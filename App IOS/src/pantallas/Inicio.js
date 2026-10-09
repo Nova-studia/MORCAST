@@ -11,6 +11,7 @@ import { miSaldo, misMovimientos, leerMisServicios } from "../datos-remoto";
 import { useMiEmpresa } from "../mi-empresa";
 import { haySupabase } from "../supabase";
 import AvisosCliente from "../AvisosCliente";
+import { TarjetaSoporte } from "../piezas-100";
 import { esProximo, textoNoProcedio } from "../estado-servicio.mjs";
 import { hoyMatamoros } from "../avisos.mjs";
 
@@ -217,6 +218,10 @@ export default function Inicio({ navigation, route }) {
           </View>
         ))}
       </Tarjeta>
+
+      {/* Soporte a la mano (9-oct-2026, como el Inicio del portal):
+          WhatsApp con el mensaje ya escrito, teléfono y correo. */}
+      <TarjetaSoporte empresa={empresa.empresa} folio={empresa.id} />
     </ScrollView>
   );
 }

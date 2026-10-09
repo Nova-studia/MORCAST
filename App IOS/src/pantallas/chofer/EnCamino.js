@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-nati
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { avisarParada } from "../../datos-remoto";
+import { textoEnCamino } from "../../web/chofer-cierre.mjs";
 
 /**
  * "EN CAMINO": el chofer sale hacia la parada y el CLIENTE se entera (correo
@@ -18,26 +19,33 @@ import { avisarParada } from "../../datos-remoto";
  * está `confirmada` (el botón) o `en-ruta` (la línea de "En camino"); en la
  * ruta de demostración, sin estado, no sale nada.
  *
- * `onEnRuta(parada)` le dice a quien la usa que cambie su copia de la parada:
- * la lista no se vuelve a leer de la base por esto.
+ * `onEnRuta(parada, avisado)` le dice a quien la usa que cambie su copia de
+ * la parada: la lista no se vuelve a leer de la base por esto.
+ *
+ * 9-oct-2026: "el cliente ya fue avisado" SOLO si el servidor contestó
+ * `avisado: true` (`textoEnCamino`). Antes salía siempre, aunque el cliente
+ * no tuviera correo ni la app y nadie se hubiera enterado. Si se cargó ya en
+ * camino no se sabe, y no se promete nada.
  */
 export default function EnCamino({ parada, onEnRuta, style }) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   // Por si quien la usa no pasa `onEnRuta`: que la línea salga igual.
   const [listo, setListo] = useState(false);
+  const [avisadoAqui, setAvisadoAqui] = useState(undefined);
 
   const enRuta = parada?.estado === "en-ruta" || listo;
   if (!enRuta && parada?.estado !== "confirmada") return null;
 
   if (enRuta) {
-    const avisado = listo || parada?.clienteAvisado;
+    const avisado = avisadoAqui !== undefined ? avisadoAqui : parada?.clienteAvisado;
+    const texto = textoEnCamino(avisado);
     return (
-      <View style={[s.linea, style]} accessible accessibilityLabel={avisado ? "En camino. El cliente ya fue avisado." : "En camino."}>
+      <View style={[s.linea, style]} accessible accessibilityLabel={texto}>
         <Feather name="truck" size={15} color={T.ruta} />
         <Text style={s.lineaTxt}>
           <Text style={{ fontWeight: "800" }}>En camino</Text>
-          {avisado ? " · el cliente ya fue avisado" : ""}
+          {texto.slice("En camino".length)}
         </Text>
       </View>
     );
@@ -53,8 +61,11 @@ export default function EnCamino({ parada, onEnRuta, style }) {
       setError(r.motivo || "No se pudo avisar al cliente. Inténtalo otra vez.");
       return;
     }
+    // `avisado` undefined = ya estaba en camino (no se sabe si se avisó).
+    const avisado = typeof r.avisado === "boolean" ? r.avisado : undefined;
+    setAvisadoAqui(avisado);
     setListo(true);
-    onEnRuta?.(parada);
+    onEnRuta?.(parada, avisado);
   };
 
   return (

@@ -1,6 +1,8 @@
 import { idsCuentasPrueba } from "./cuentas-prueba-datos";
 import { supabase, haySupabase } from "./supabase";
 import { postAdmin } from "./api-admin";
+import { accionAdmin } from "./accion";
+import { limpiarBusqueda, filtroFechas, filtroBusqueda, rangoPagina } from "./web/consulta-recolecciones.mjs";
 
 /**
  * LA OFICINA EN EL TELÉFONO — datos y acciones (6-oct-2026, paridad con
@@ -42,7 +44,7 @@ const CAMPOS_RECOLECCION = `
   estado, nota, motivo_rechazo, creado, tipo_residuo, motivo_no_procedio, detalle_no_procedio,
   clientes ( empresa ),
   domicilios ( alias, calle, colonia ),
-  rutas ( clave, nombre, dias, chofer, unidad ),
+  rutas ( clave, nombre, dias, chofer, chofer_id, unidad ),
   choferParada:perfiles!solicitudes_recoleccion_chofer_id_fkey ( nombre ),
   recolecciones ( operador:perfiles!recolecciones_operador_id_fkey ( nombre ) )
 `;
@@ -65,6 +67,9 @@ function aRecoleccion(f) {
     choferId: f.chofer_id || null,
     choferAsignado: f.choferParada?.nombre || "",
     choferRuta: f.rutas?.chofer || "",
+    // El chofer de VERDAD de la ruta (rutas.chofer_id, Entrega 3): sin él,
+    // "El de la ruta" no le llega a nadie (ver `textoChoferPorOmision`).
+    rutaChoferId: f.rutas?.chofer_id || null,
     // Quien la cerró de verdad (ver `choferQueVa` en oficina.mjs).
     operadorReal: f.recolecciones?.[0]?.operador?.nombre || "",
     estado: f.estado,
@@ -91,6 +96,138 @@ export async function listarRecoleccionesOficina() {
     return null;
   }
   return (data || []).map(aRecoleccion);
+}
+
+const sinPruebas = async () => `(${[...(await idsCuentasPrueba())].join(",") || "00000000-0000-0000-0000-000000000000"})`;
+
+/**
+ * RECOLECCIONES BUSCADAS EN LA BASE (9-oct-2026, como `buscarSolicitudesPanel`
+ * de la web): folio o empresa, rango de fechas (la fecha efectiva: la
+ * confirmada si la hay) y páginas de 50 con el total. Antes se traían las
+ * últimas 500 y lo de antes desaparecía sin aviso.
+ *
+ * `{ ok, filas, total }` o `{ ok:false, sinRed, motivo }`.
+ */
+export async function buscarRecolecciones({ q = "", desde = "", hasta = "", estado = "", pagina = 1 } = {}) {
+  if (!haySupabase()) return { ok: true, filas: [], total: 0 };
+  try {
+    const texto = limpiarBusqueda(q);
+    let clienteIds = [];
+    if (texto) {
+      const { data: cs } = await supabase.from("clientes").select("id").or(`empresa.ilike.%${texto}%,folio.ilike.%${texto}%`).limit(200);
+      clienteIds = (cs || []).map((c) => c.id);
+    }
+    let consulta = supabase
+      .from("solicitudes_recoleccion")
+      .select(CAMPOS_RECOLECCION, { count: "exact" })
+      .not("cliente_id", "in", await sinPruebas());
+    const fechas = filtroFechas({ desde, hasta });
+    if (fechas) consulta = consulta.or(fechas);
+    const busca = filtroBusqueda(texto, clienteIds);
+    if (busca) consulta = consulta.or(busca);
+    if (estado) consulta = consulta.eq("estado", estado);
+    const [de, a] = rangoPagina(pagina);
+    // El id desempata: con solo la fecha (muchas el mismo día de ruta) las
+    // páginas repetían unas y se saltaban otras.
+    const { data, error, count } = await consulta.order("fecha_pedida", { ascending: false }).order("id").range(de, a);
+    if (error) {
+      console.warn("[oficina] no se pudieron buscar las recolecciones:", error.message);
+      return { ok: false, sinRed: true, motivo: "No se pudieron cargar las recolecciones. Revisa tu señal.", filas: [], total: 0 };
+    }
+    return { ok: true, filas: (data || []).map(aRecoleccion), total: count ?? (data || []).length };
+  } catch {
+    return { ok: false, sinRed: true, motivo: "No se pudieron cargar las recolecciones. Revisa tu señal.", filas: [], total: 0 };
+  }
+}
+
+/**
+ * Lo que no puede perderse aunque quede fuera del rango de fechas: las
+ * VENCIDAS (sin cerrar y con la fecha ya pasada) y cuántas esperan
+ * confirmación. `null` si no se pudo leer.
+ */
+export async function pendientesOficina(hoy) {
+  if (!haySupabase()) return { vencidas: [], porConfirmar: 0 };
+  try {
+    const ids = await sinPruebas();
+    const [v, c] = await Promise.all([
+      supabase
+        .from("solicitudes_recoleccion")
+        .select(CAMPOS_RECOLECCION)
+        .not("cliente_id", "in", ids)
+        .in("estado", ["solicitada", "confirmada", "en-ruta"])
+        .or(`fecha_confirmada.lt.${hoy},and(fecha_confirmada.is.null,fecha_pedida.lt.${hoy})`)
+        .order("fecha_pedida")
+        .limit(500),
+      supabase
+        .from("solicitudes_recoleccion")
+        .select("id", { count: "exact", head: true })
+        .not("cliente_id", "in", ids)
+        .eq("estado", "solicitada"),
+    ]);
+    if (v.error) return null;
+    return { vencidas: (v.data || []).map(aRecoleccion), porConfirmar: c.count ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
+/** Una recolección por su id (al abrirla por notificación o desde la Agenda). */
+export async function recoleccionPorId(id) {
+  if (!haySupabase() || !id) return null;
+  try {
+    const { data, error } = await supabase.from("solicitudes_recoleccion").select(CAMPOS_RECOLECCION).eq("id", id).maybeSingle();
+    return error || !data ? null : aRecoleccion(data);
+  } catch {
+    return null;
+  }
+}
+
+/* --------------------------------------------- nueva recolección (oficina) */
+
+/** Clientes para escoger (sin los de baja). `null` si no se pudo leer. */
+export async function clientesParaRecoleccion() {
+  if (!haySupabase()) return [];
+  try {
+    const { data, error } = await supabase.from("clientes").select("id, folio, empresa, estado").neq("estado", "baja").order("empresa");
+    return error ? null : data || [];
+  } catch {
+    return null;
+  }
+}
+
+/** Los puntos de UN cliente, cada uno con la ruta (y el chofer) de su servicio activo. */
+export async function puntosDeClienteOficina(clienteId) {
+  if (!haySupabase() || !clienteId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("domicilios")
+      .select("id, alias, colonia, suscripciones ( estado, rutas ( nombre, chofer, chofer_id ) )")
+      .eq("cliente_id", clienteId)
+      .order("alias");
+    if (error) return null;
+    return (data || []).map((d) => {
+      const sus = (d.suscripciones || []).find((x) => x.estado === "activa") || null;
+      return {
+        id: d.id,
+        texto: [d.alias, d.colonia].filter(Boolean).join(" · ") || "Punto sin nombre",
+        ruta: sus?.rutas?.nombre || "",
+        rutaChoferId: sus?.rutas?.chofer_id || null,
+        rutaChofer: sus?.rutas?.chofer || "",
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Crear una recolección desde la oficina (pedidos por teléfono o
+ * WhatsApp). El servidor valida, crea, la anota y, si se confirma ya, avisa
+ * al cliente y al chofer. `{ ok, folio, estado, motivo? }`.
+ */
+export async function crearRecoleccionOficina(datos) {
+  if (!haySupabase()) return { ok: true, demo: true, folio: "REC-DEMO", estado: datos?.confirmar ? "confirmada" : "solicitada" };
+  return resultado(await accionAdmin("recoleccion-crear", datos), "No se pudo crear la recolección.");
 }
 
 /**

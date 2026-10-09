@@ -5,6 +5,8 @@ import { T } from "../../tema";
 import { Tarjeta, TituloTarjeta, Badge } from "../../ui";
 import { embudoSolicitudes, pesos, infoEstado, fechaLarga } from "../../datos-admin";
 import { kpisAdmin, cobranza12Meses, listarCotizaciones } from "../../datos-remoto";
+import { useMisPermisos } from "../../mis-permisos";
+import { puedeVer } from "../../permisos-app.mjs";
 
 const KPIS_VACIOS = {
   ingresosMes: 0, ingresosMesAnterior: 0, solicitudesNuevas: 0,
@@ -24,6 +26,10 @@ export default function PanelAdmin({ navigation }) {
   const [cobranza, setCobranza] = useState({ serie: [], hayDatos: false });
   const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
+  // La pestaña Solicitudes solo existe si su rol la incluye (9-oct-2026).
+  const { yo } = useMisPermisos();
+  const veSolicitudes = puedeVer(yo, "Solicitudes");
+  const irASolicitudes = () => { if (veSolicitudes) navigation?.navigate("Solicitudes"); };
 
   useEffect(() => {
     let vivo = true;
@@ -102,8 +108,8 @@ export default function PanelAdmin({ navigation }) {
           Cada renglón lleva a la bandeja de Solicitudes, donde se atiende. */}
       <Tarjeta>
         <TituloTarjeta
-          derecha={
-            <Pressable onPress={() => navigation?.navigate("Solicitudes")} hitSlop={10} style={s.verTodas} accessibilityRole="button" accessibilityLabel="Ver todas las solicitudes">
+          derecha={veSolicitudes &&
+            <Pressable onPress={irASolicitudes} hitSlop={10} style={s.verTodas} accessibilityRole="button" accessibilityLabel="Ver todas las solicitudes">
               <Text style={s.verTodasTxt}>Ver todas</Text>
               <Feather name="arrow-right" size={14} color={T.accionTxt} />
             </Pressable>
@@ -117,7 +123,7 @@ export default function PanelAdmin({ navigation }) {
           return (
             <Pressable
               key={x.id}
-              onPress={() => navigation?.navigate("Solicitudes")}
+              onPress={irASolicitudes}
               style={[s.recFila, i < recientes.length - 1 && s.recBorde]}
               accessibilityRole="button"
               accessibilityLabel={`${x.empresa}, ${x.servicio || "sin servicio"}, ${est.texto}, ${fechaLarga(x.fecha)}`}

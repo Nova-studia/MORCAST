@@ -6,6 +6,10 @@ import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra"
 import { modoDeRol } from "./entrada-social.mjs";
 import { borrarTokenAlSalir } from "./notificaciones";
 import { olvidarPase } from "./pase-admin";
+import { mensajeErrorLogin } from "./web/estado-cliente.mjs";
+import { olvidarMisPermisos } from "./mis-permisos";
+import { olvidarEstadoCliente } from "./estado-cliente-app";
+import { olvidarCambiosDeMuestra } from "./datos-cuenta";
 
 /**
  * Sesión de la app, para los tres modos.
@@ -62,7 +66,10 @@ export async function entrar(modo, correo, password) {
   });
 
   if (error || !data?.user) {
-    return { ok: false, mensaje: "Correo o contraseña incorrectos." };
+    // A una cuenta dada de BAJA (Supabase la banea) se le dice; antes leía
+    // "contraseña incorrecta" y la persona seguía intentando (9-oct-2026,
+    // la misma regla que el login de la web).
+    return { ok: false, mensaje: mensajeErrorLogin(error) };
   }
 
   const rol = data.user.app_metadata?.rol;
@@ -228,5 +235,10 @@ export async function salir() {
   await conTope(borrarTokenAlSalir().catch(() => {}));
   await conTope(olvidarPase().catch(() => {}));
   olvidarCuentaDeMuestra();
+  // Lo de esta sesión (permisos del rol, estado de la empresa, lo que la
+  // cuenta de muestra cambió) no se le queda al siguiente que entre.
+  olvidarMisPermisos();
+  olvidarEstadoCliente();
+  olvidarCambiosDeMuestra();
   if (haySupabase()) await supabase.auth.signOut();
 }

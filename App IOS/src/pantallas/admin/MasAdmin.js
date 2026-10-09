@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import { useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../../tema";
 import { Tarjeta } from "../../ui";
@@ -6,6 +7,10 @@ import { IconoMenu } from "../../iconos-menu";
 import { usePerfilSesion, iniciales } from "../../mi-perfil";
 import { haySupabase } from "../../supabase";
 import { VERSION_APP } from "../../version";
+import { useMisPermisos, cargarMisPermisos } from "../../mis-permisos";
+import { menuVisible, herramientasVisibles } from "../../apps-admin.mjs";
+import { abrirEnLaWeb } from "../../datos-equipo";
+import { Fallo } from "../../piezas-100";
 
 // Ver la nota del mismo menu del cliente (`pantallas/Mas.js`). Los dibujos
 // son los del menú de la administración web (`AdminShell.js`).
@@ -27,6 +32,9 @@ const MENU = [
   { pantalla: "Puntos", dibujo: "cobertura", titulo: "Puntos de recolección", sub: "Ubicación, referencias y ruta" },
   { pantalla: "ZonasPedidas", dibujo: "zonas-pedidas", titulo: "Zonas pedidas", sub: "Fuera de cobertura" },
   { pantalla: "Unidades", dibujo: "unidades", titulo: "Unidades", sub: "Camiones: activa, taller o baja" },
+  // apps al 100% (9-oct-2026): el chofer de cada ruta y la cuenta propia.
+  { pantalla: "Rutas", feather: "navigation", titulo: "Rutas", sub: "El chofer de cada ruta" },
+  { pantalla: "MiCuenta", feather: "user", titulo: "Mi cuenta", sub: "Tu nombre, teléfono y contraseña" },
 ];
 
 export default function MasAdmin({ navigation, onLogout }) {
@@ -35,6 +43,23 @@ export default function MasAdmin({ navigation, onLogout }) {
   const { perfil, cargando } = usePerfilSesion("admin");
   const nombre = perfil?.nombre || (cargando ? "Leyendo tu sesión…" : "Sin sesión");
   const linea = perfil ? [perfil.rol, perfil.correo].filter(Boolean).join(" · ") : " ";
+
+  // Roles por sección (9-oct-2026): solo lo que su rol abre. Mientras no
+  // llegan sus permisos, solo lo que no pide sección (Mi cuenta).
+  const { yo, cargando: leyendoPermisos, fallo: falloPermisos } = useMisPermisos();
+  const menu = menuVisible(yo, MENU);
+  const herramientas = herramientasVisibles(yo);
+  const [abriendo, setAbriendo] = useState("");
+  const [falloWeb, setFalloWeb] = useState(null);
+
+  const abrirWeb = async (h) => {
+    if (abriendo) return;
+    setAbriendo(h.destino);
+    setFalloWeb(null);
+    const r = await abrirEnLaWeb(h.destino);
+    setAbriendo("");
+    if (!r.ok) setFalloWeb({ sinRed: r.sinRed, motivo: r.motivo, h });
+  };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: T.fondo }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -47,16 +72,26 @@ export default function MasAdmin({ navigation, onLogout }) {
           <View style={{ flex: 1 }}>
             <Text style={s.nombre} numberOfLines={1}>{nombre}</Text>
             <Text style={s.rol} numberOfLines={1}>{linea}</Text>
+            {yo?.rolNombre ? <Text style={s.rol} numberOfLines={1}>Rol: {yo.rolNombre}</Text> : null}
           </View>
         </View>
       </Tarjeta>
 
+      {!yo && leyendoPermisos ? (
+        <View style={s.leyendo}><ActivityIndicator size="small" color={T.gris} /><Text style={s.itemSub}>Leyendo las secciones de tu rol…</Text></View>
+      ) : null}
+      {!yo && falloPermisos ? <Fallo fallo={falloPermisos} onReintentar={cargarMisPermisos} style={{ marginTop: 0, marginBottom: 12 }} /> : null}
+
       <Tarjeta style={{ padding: 6 }}>
-        {MENU.map((m, i) => (
-          <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla)} style={[s.item, i < MENU.length - 1 && s.borde]}>
+        {menu.map((m, i) => (
+          <Pressable key={m.pantalla} onPress={() => navigation.navigate(m.pantalla)} style={[s.item, i < menu.length - 1 && s.borde]}>
             {({ pressed }) => (
               <>
-                <View style={s.ico}><IconoMenu nombre={m.dibujo} activo={pressed} tam={32} /></View>
+                <View style={s.ico}>
+                  {m.dibujo
+                    ? <IconoMenu nombre={m.dibujo} activo={pressed} tam={32} />
+                    : <Feather name={m.feather} size={24} color={T.naranjaClaro} />}
+                </View>
                 <View style={{ flex: 1 }}><Text style={s.itemTit}>{m.titulo}</Text><Text style={s.itemSub}>{m.sub}</Text></View>
                 <Feather name="chevron-right" size={20} color={T.gris} />
               </>
@@ -64,6 +99,33 @@ export default function MasAdmin({ navigation, onLogout }) {
           </Pressable>
         ))}
       </Tarjeta>
+
+      {/* EN LA WEB (fase D): lo que en el teléfono no cabe bien se abre en el
+          panel web, con la sesión ya iniciada (enlace de un solo uso). */}
+      {herramientas.length > 0 ? (
+        <>
+          <Text style={s.seccion}>En la web</Text>
+          <Tarjeta style={{ padding: 6 }}>
+            {herramientas.map((h, i) => (
+              <Pressable
+                key={h.destino}
+                onPress={() => abrirWeb(h)}
+                disabled={!!abriendo}
+                style={[s.item, i < herramientas.length - 1 && s.borde, abriendo && abriendo !== h.destino && { opacity: 0.5 }]}
+                accessibilityRole="link"
+                accessibilityLabel={`${h.titulo}. Abre el panel web`}
+              >
+                <View style={s.ico}><Feather name={h.icono} size={22} color={T.accionTxt} /></View>
+                <View style={{ flex: 1 }}><Text style={s.itemTit}>{h.titulo}</Text><Text style={s.itemSub}>{h.sub}</Text></View>
+                {abriendo === h.destino
+                  ? <ActivityIndicator size="small" color={T.gris} />
+                  : <Feather name="external-link" size={18} color={T.gris} />}
+              </Pressable>
+            ))}
+          </Tarjeta>
+          {falloWeb ? <Fallo fallo={falloWeb} onReintentar={() => abrirWeb(falloWeb.h)} style={{ marginTop: -4, marginBottom: 12 }} /> : null}
+        </>
+      ) : null}
 
       <Pressable
         onPress={onLogout}
@@ -96,4 +158,6 @@ const s = StyleSheet.create({
   itemTit: { color: T.tinta, fontSize: 14.5, fontWeight: "700" },
   itemSub: { color: T.gris, fontSize: 12, marginTop: 2 },
   version: { color: T.grisClaro, fontSize: 11.5, textAlign: "center", marginTop: 18 },
+  seccion: { color: T.gris, fontSize: 11, letterSpacing: 0.5, marginBottom: 8, textTransform: "uppercase", fontWeight: "700" },
+  leyendo: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
 });

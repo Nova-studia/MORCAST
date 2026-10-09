@@ -23,6 +23,10 @@ import { postWeb } from "./api-web";
 import { mezclarChoferes } from "./chofer-servicio.mjs";
 import { evidenciaDeParada, textoUbicacionServicio, ubicacionParaGuardar } from "./evidencia.mjs";
 import { postAdmin } from "./api-admin";
+import { estatusDeParada } from "./web/chofer-cierre.mjs";
+import { motivoAlPedir } from "./apps-cliente.mjs";
+import { cierreYaHecho } from "./apps-admin.mjs";
+import { leerEstadoCliente, conCambiosDeMuestra } from "./datos-cuenta";
 
 /**
  * Consultas de la app contra Supabase.
@@ -186,7 +190,9 @@ export async function leerMisSolicitudes() {
 
   const { data, error } = await supabase
     .from("solicitudes_recoleccion")
-    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, tipo_residuo, motivo_no_procedio, detalle_no_procedio, rutas ( nombre )")
+    // `motivo_rechazo` (9-oct-2026): con él se sabe si una "rechazada" la
+    // canceló el propio cliente, y entonces se enseña "Cancelada".
+    .select("id, folio, origen, fecha_pedida, fecha_confirmada, estado, nota, motivo_rechazo, tipo_residuo, motivo_no_procedio, detalle_no_procedio, rutas ( nombre )")
     .order("fecha_pedida", { ascending: false });
 
   // Cuenta de muestra: lo que el revisor pidió en esta sesión va arriba (no
@@ -198,7 +204,8 @@ export async function leerMisSolicitudes() {
   if (error) {
     return { ok: false, solicitudes: pedidasAqui, motivo: "No pudimos leer tus solicitudes. Revisa tu señal e inténtalo de nuevo." };
   }
-  return { ok: true, solicitudes: pedidasAqui.concat((data || []).map((s) => ({
+  // La cuenta de muestra cancela y reagenda en memoria (datos-cuenta.js).
+  return { ok: true, solicitudes: conCambiosDeMuestra(pedidasAqui.concat((data || []).map((s) => ({
     id: s.id,
     folio: s.folio,
     origen: s.origen,
@@ -206,12 +213,13 @@ export async function leerMisSolicitudes() {
     fechaConfirmada: s.fecha_confirmada,
     estado: s.estado,
     nota: s.nota || "",
+    motivoRechazo: s.motivo_rechazo || "",
     tipoResiduo: s.tipo_residuo || "",
     motivoNoProcedio: s.motivo_no_procedio || "",
     detalleNoProcedio: s.detalle_no_procedio || "",
     rutaNombre: s.rutas?.nombre || "Sin ruta",
     unidad: s.rutas?.unidad || "",
-  }))) };
+  })))) };
 }
 
 /** La lista a secas (`[]` si falla), para quien no necesita distinguir. */
@@ -225,7 +233,7 @@ export async function misSolicitudes() {
  * empresa sale de su sesión y el estado nace en "solicitada". El RLS lo
  * obliga aunque se manipule la llamada.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo = null }) {
+export async function pedirRecoleccion({ rutaClave, rutaId: rutaElegida = null, fecha, nota, origen = "ruta", domicilioId = null, tipoResiduo = null }) {
   if (!haySupabase()) return { ok: true, demo: true };
 
   // La cuenta de muestra del revisor NO escribe en la base: su solicitud le
@@ -253,24 +261,19 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     domId = dom?.id || null;
   }
 
-  let rutaId = null;
-  if (rutaClave) {
+  // La ruta del PUNTO que eligió (9-oct-2026, como el portal); por la clave
+  // solo cuando no se sabe el id (la suscripción de antes).
+  let rutaId = rutaElegida || null;
+  if (!rutaId && rutaClave) {
     const { data: r } = await supabase.from("rutas").select("id").eq("clave", rutaClave).maybeSingle();
     rutaId = r?.id || null;
   }
 
-  // El folio se calcula del más alto que exista, nunca contando filas: si
-  // alguna se borró, contar daría un folio repetido y el folio es único.
-  const año = new Date().getFullYear();
-  const { data: ultimos } = await supabase
-    .from("solicitudes_recoleccion")
-    .select("folio").like("folio", `REC-${año}-%`)
-    .order("folio", { ascending: false }).limit(1);
-  const n = ultimos?.[0]?.folio ? Number(String(ultimos[0].folio).split("-").pop()) : 0;
-  const folio = `REC-${año}-${String((Number.isFinite(n) ? n : 0) + 1).padStart(4, "0")}`;
-
-  const { error } = await supabase.from("solicitudes_recoleccion").insert({
-    folio,
+  // EL FOLIO LO PONE LA BASE (db/031) y se lee de vuelta. Antes se calculaba
+  // aquí "el más alto + 1", pero el cliente solo ve SUS folios: el cálculo
+  // chocaba con los de otros clientes y la solicitud no entraba.
+  const { data: creada, error } = await supabase.from("solicitudes_recoleccion").insert({
+    folio: null,
     cliente_id: perfil.cliente_id,
     domicilio_id: domId,
     ruta_id: rutaId,
@@ -281,25 +284,17 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     // Obligatorio desde la 1.1 (db/023): con él sabe el chofer con qué ir,
     // y respalda un "No procedió" si al llegar el residuo es otro.
     tipo_residuo: tipoResiduo || null,
-  });
+  }).select("folio").single();
+  const folio = creada?.folio;
 
   if (error) {
-    // La politica de la base (db/013) rechaza fechas del pasado y las
-    // disparatadas. Ese rechazo llega como un error de permisos, que no le
-    // dice nada a quien solo se equivoco de dia. Solo "row-level security":
-    // el patron viejo (|violates|policy) tambien atrapaba "duplicate key
-    // value violates unique constraint" y lo vendia como error de fecha.
+    // La politica de la base (db/013 y db/028) rechaza las fechas del pasado
+    // Y las cuentas suspendidas con el MISMO error de permisos. Se pregunta
+    // el estado de la empresa para decir la causa de verdad (ver
+    // `motivoAlPedir`): a un suspendido ya no se le dice "esa fecha".
     const msg = error.message || "";
-    const esFecha = /row-level security/i.test(msg);
-    const esFolio = /duplicate key/i.test(msg);
-    return {
-      ok: false,
-      motivo: esFecha
-        ? "Esa fecha no se puede: elige un dia de hoy en adelante."
-        : esFolio
-          ? "Se cruzó con otra solicitud al mismo tiempo. Inténtalo de nuevo."
-          : msg,
-    };
+    const est = /row-level security/i.test(msg) ? await leerEstadoCliente().catch(() => null) : null;
+    return { ok: false, motivo: motivoAlPedir(msg, est?.ok ? est.estado : null) };
   }
 
   // equipo 1 (6-oct-2026): que se entere la oficina (correo y notificación
@@ -782,15 +777,12 @@ function aParada(s) {
     unidad: s.rutas?.unidades?.numero_economico || s.rutas?.unidad || "Sin unidad",
     nota: s.nota || "",
     motivoNoProcedio: s.motivo_no_procedio || "",
-    // "Completado" es que ya se levantó la evidencia, no solo que el estado
-    // diga completada. "No procedió" también sale de los pendientes: ya
-    // quedó resuelta, no hay que volver.
-    estatus:
-      s.estado === "no-procedio"
-        ? "no-procedio"
-        : s.estado === "completada" && ev
-          ? "completado"
-          : "pendiente",
+    // "No procedió" sale de los pendientes: ya quedó resuelta, no hay que
+    // volver. Hasta el 9-oct-2026 "completado" pedía además poder leer la
+    // evidencia; ahora completada es completada AUNQUE la evidencia sea de otro
+    // chofer (el RLS no le deja leerla y antes salía pendiente: se podía
+    // volver a cerrar). La misma regla que la web (`estatusDeParada`).
+    estatus: estatusDeParada(s.estado),
     // Con las RUTAS de las fotos (antes la fila iba cruda, sin ellas, y el
     // chofer abría una parada completada y no veía nada). Ver evidencia.
     evidencia: evidenciaDeParada(ev),
@@ -1038,6 +1030,16 @@ async function cambiarEstadoParada(solicitudId, estado) {
   return { ok: true };
 }
 
+/** El estado de una parada como está en la base, o null si no se pudo leer. */
+async function estadoDeParada(solicitudId) {
+  try {
+    const { data } = await supabase.from("solicitudes_recoleccion").select("estado").eq("id", solicitudId).maybeSingle();
+    return data?.estado || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function marcarEnRuta(solicitudId) {
   if (!haySupabase()) return { ok: true, demo: true };
   return cambiarEstadoParada(solicitudId, "en-ruta");
@@ -1156,10 +1158,19 @@ export async function cerrarRecoleccion({
     ubicacion: ubicacionParaGuardar(ubicacionAntes, ubicacionDespues),
   });
 
-  if (error) return { ok: false, motivo: error.message };
+  if (error) {
+    // Un reintento de algo que ya quedó (la respuesta se perdió en la
+    // calle): si la parada ya está completada, el chofer terminó.
+    if (cierreYaHecho(await estadoDeParada(solicitudId))) return { ok: true, yaEstaba: true };
+    return { ok: false, motivo: error.message };
+  }
 
   const cierre = await cambiarEstadoParada(solicitudId, "completada");
   if (!cierre.ok) {
+    // Reintento tras una respuesta perdida: la parada ya había quedado
+    // completada (el UPDATE no encuentra fila que cambiar). Eso es éxito, no
+    // error; la evidencia del reintento ya se fundió en la que había (db/031).
+    if (cierreYaHecho(await estadoDeParada(solicitudId))) return { ok: true, yaEstaba: true };
     return {
       ok: false,
       motivo: "Se guardaron las fotos y el peso, pero no se pudo cerrar el servicio. Avisa a la oficina.",

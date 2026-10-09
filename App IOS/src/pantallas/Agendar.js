@@ -5,11 +5,18 @@ import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Badge, Boton, EncabezadoPantalla } from "../ui";
 import { miSuscripcion, leerMisSolicitudes, pedirRecoleccion } from "../datos-remoto";
+import { misPuntos, cambiarMiSolicitud } from "../datos-cuenta";
 import { ESTADOS_SOLICITUD_REC, nombreTipoRuta } from "../rutas-datos";
 import { TIPOS_RESIDUO } from "../cotizar-whatsapp";
 import { validarSolicitudAgenda } from "../agendar.mjs";
 import { textoNoProcedio } from "../estado-servicio.mjs";
 import { aISO, limitesExtra, revisarFechaExtra, fechaConDia } from "../calendario.mjs";
+import { estadoVencimiento, ordenarPorUrgencia, textoAtraso } from "../oficina.mjs";
+import { puntoInicial } from "../web/puntos-cliente.mjs";
+import { puedeCancelar, puedeReagendar, validarReagenda } from "../web/solicitud-cliente.mjs";
+import { insigniaSolicitud, rutaParaAgendar, detalleVencidaCliente, mensajeVencida, PEDIR_SUSPENDIDO } from "../apps-cliente.mjs";
+import { useEstadoCliente } from "../estado-cliente-app";
+import { TarjetaSoporte, Fallo, Listo } from "../piezas-100";
 import CalendarioFecha from "../CalendarioFecha";
 
 /** Próximas fechas (hasta 6) en que pasa la ruta, a partir de mañana. */
@@ -26,12 +33,25 @@ function proximasFechas(dias, cuantas = 6) {
   return fechas;
 }
 
+/**
+ * AGENDAR (cliente). Lo de siempre, más lo que el portal ya hacía
+ * (9-oct-2026, apps al 100%):
+ *   · con VARIOS puntos de recolección, primero el punto; los días son los
+ *     de la ruta de ESE punto, y la solicitud lleva ese punto y esa ruta
+ *     (antes caía siempre en el primero);
+ *   · cuenta suspendida: ve sus solicitudes, pero no pide (la base tampoco
+ *     lo deja, db/028); aquí se explica en vez de fallar al enviar;
+ *   · cancelar (con motivo opcional) o cambiar la fecha de las suyas;
+ *   · "Cancelada" en vez de "Rechazada" cuando la canceló él;
+ *   · las que se pasaron de fecha, arriba y con "Contáctanos".
+ */
 export default function Agendar() {
   const [suscripcion, setSuscripcion] = useState(null);
+  const [puntos, setPuntos] = useState([]);
+  const [puntoId, setPuntoId] = useState("");
   const [mias, setMias] = useState([]);
   // "ruta" = un día de los que pasa su ruta; "extra" = cualquier día de hoy
-  // a un año (6-oct-2026, como `/portal/agendar`). Antes la app solo pedía
-  // días de ruta y mandaba a WhatsApp a quien no tenía ruta.
+  // a un año (6-oct-2026, como `/portal/agendar`).
   const [modo, setModo] = useState("ruta");
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
@@ -42,15 +62,22 @@ export default function Agendar() {
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
-  // Mientras no vuelve `miSuscripcion()` no se sabe si hay ruta: antes
-  // decía "Aún no tienes una ruta asignada" y un segundo después cambiaba.
+  // Mientras no vuelve la lectura no se sabe si hay ruta: antes decía "Aún
+  // no tienes una ruta asignada" y un segundo después cambiaba.
   const [cargando, setCargando] = useState(true);
   // "No pude leer tus solicitudes" no es "no has pedido ninguna".
   const [errorLista, setErrorLista] = useState("");
+  const [errorPuntos, setErrorPuntos] = useState(false);
   const [refrescando, setRefrescando] = useState(false);
+  // Cancelar o cambiar la fecha: { id, folio, modo, fecha, motivo, enviando, fallo }.
+  const [cambio, setCambio] = useState(null);
+  const [hecho, setHecho] = useState("");
   const turno = useRef(0);
+  const primeraVez = useRef(true);
 
-  const ruta = suscripcion?.ruta || null;
+  const { puedeOperar, estado: estadoCuenta, empresa, folio: folioEmpresa } = useEstadoCliente();
+
+  const { punto, ruta, faltaPunto, domicilioId, rutaId, rutaClave } = rutaParaAgendar({ puntos, puntoId, suscripcion });
   const hoy = aISO(new Date());
   const limites = limitesExtra(hoy);
 
@@ -59,11 +86,19 @@ export default function Agendar() {
   const recargar = useCallback(async () => {
     const n = ++turno.current;
     try {
-      const [su, li] = await Promise.all([miSuscripcion().catch(() => undefined), leerMisSolicitudes()]);
+      const [su, li, ps] = await Promise.all([miSuscripcion().catch(() => undefined), leerMisSolicitudes(), misPuntos()]);
       if (n !== turno.current) return;
       if (su !== undefined) setSuscripcion(su);
       setMias(li.solicitudes);
       setErrorLista(li.ok ? "" : li.motivo || "No pudimos leer tus solicitudes.");
+      if (ps === null) setErrorPuntos(true);
+      else {
+        setErrorPuntos(false);
+        setPuntos(ps);
+        // El punto se escoge solo si es uno; si ya había uno elegido y sigue
+        // existiendo, se respeta (volver a la pestaña no lo borra).
+        setPuntoId((actual) => (actual && ps.some((p) => p.domicilioId === actual) ? actual : puntoInicial(ps)));
+      }
     } finally {
       if (n === turno.current) setCargando(false);
     }
@@ -74,9 +109,12 @@ export default function Agendar() {
   useFocusEffect(useCallback(() => { recargar(); }, [recargar]));
 
   // Sin ruta asignada solo se puede pedir una extra: se abre directo ahí.
+  // Solo la primera vez: después lo decide el cliente.
   useEffect(() => {
-    if (!cargando && !ruta) setModo("extra");
-  }, [cargando, ruta]);
+    if (cargando || !primeraVez.current) return;
+    primeraVez.current = false;
+    if (!ruta && !faltaPunto) setModo("extra");
+  }, [cargando, ruta, faltaPunto]);
 
   const refrescar = async () => {
     setRefrescando(true);
@@ -84,6 +122,7 @@ export default function Agendar() {
   };
 
   const fechas = useMemo(() => (ruta ? proximasFechas(ruta.dias) : []), [ruta]);
+  const ordenadas = useMemo(() => ordenarPorUrgencia(mias, hoy), [mias, hoy]);
 
   // Obligatorio desde la 1.1 (db/023); con «Otro», la nota también. En la
   // extra, además, la fecha tiene que caer de hoy a un año (db/013).
@@ -97,8 +136,17 @@ export default function Agendar() {
     setError("");
   };
 
+  const elegirPunto = (id) => {
+    setPuntoId(id);
+    // Cada punto tiene su ruta y sus días: la fecha de otro punto no vale.
+    setFecha("");
+    setError("");
+  };
+
   const enviar = async () => {
     if (enviando) return;
+    if (!puedeOperar) { setError(PEDIR_SUSPENDIDO); return; }
+    if (faltaPunto) { setError("Elige primero el punto: cada uno tiene su ruta y sus días."); return; }
     if (!revision.ok) { setError(revision.mensaje); return; }
     if (modo === "extra") {
       const malFecha = revisarFechaExtra(fecha, hoy);
@@ -108,8 +156,9 @@ export default function Agendar() {
     setError("");
 
     const r = await pedirRecoleccion({
-      rutaClave: ruta?.clave || null,
-      domicilioId: suscripcion?.domicilioId || null,
+      rutaClave,
+      rutaId,
+      domicilioId,
       fecha,
       nota,
       origen: modo,
@@ -118,23 +167,50 @@ export default function Agendar() {
 
     if (!r.ok) {
       // El motivo real cuando lo hay ("Esa fecha no se puede…", "Tu cuenta
-      // no tiene empresa asignada"); "revisa tu señal" sólo si no se sabe.
+      // está suspendida…"); "revisa tu señal" sólo si no se sabe.
       setError(r.motivo || "No se pudo enviar tu solicitud. Revisa tu señal e intenta otra vez.");
       setEnviando(false);
       return;
     }
 
-    // Se relee de la base para que veas el folio real, no uno inventado aquí.
+    // Se relee de la base para que veas lo que de verdad quedó guardado; el
+    // folio es el que puso la base (db/031).
     await recargar();
-    setEnviado(r.folio);
+    setEnviado(r.folio || "nueva");
     setFecha("");
     setNota("");
     setTipoResiduo("");
     setEnviando(false);
   };
 
-  const badge = (id) =>
-    ESTADOS_SOLICITUD_REC.find((e) => e.id === id) || { texto: id, clase: "prog" };
+  /* -------------------------------------------- cancelar / cambiar fecha */
+  const abrirCambio = (sol, que) => {
+    setHecho("");
+    setCambio({ id: sol.id, folio: sol.folio, modo: que, fecha: que === "reagendar" ? "" : "", actual: sol.fechaPedida, motivo: "", enviando: false, fallo: null });
+  };
+
+  const aplicarCambio = async () => {
+    if (!cambio || cambio.enviando) return;
+    let fechaNueva;
+    if (cambio.modo === "reagendar") {
+      const v = validarReagenda({ fecha: cambio.fecha, hoy, actual: cambio.actual });
+      if (!v.ok) { setCambio((c) => ({ ...c, fallo: { motivo: v.motivo } })); return; }
+      fechaNueva = v.fecha;
+    }
+    setCambio((c) => ({ ...c, enviando: true, fallo: null }));
+    const r = await cambiarMiSolicitud({ id: cambio.id, accion: cambio.modo, fecha: fechaNueva, motivo: cambio.motivo });
+    if (!r.ok) {
+      setCambio((c) => (c ? { ...c, enviando: false, fallo: { sinRed: r.sinRed, motivo: r.motivo } } : c));
+      return;
+    }
+    setHecho(
+      cambio.modo === "cancelar"
+        ? `Cancelaste ${cambio.folio}. Ya le avisamos a Morcast.`
+        : `${cambio.folio} quedó para el ${fechaConDia(r.fecha || fechaNueva)}. Morcast la confirma y te avisa.`
+    );
+    setCambio(null);
+    recargar();
+  };
 
   return (
     <ScrollView
@@ -155,10 +231,49 @@ export default function Agendar() {
       <Tarjeta>
         <TituloTarjeta>Nueva solicitud</TituloTarjeta>
 
-        {ruta ? (
+        {/* Suspendida: ve sus solicitudes, pero no pide nuevas (db/028). */}
+        {!puedeOperar ? (
+          <View style={s.bloqueo} accessibilityRole="alert">
+            <Feather name="lock" size={15} color={T.error} style={{ marginTop: 1 }} />
+            <Text style={s.bloqueoTxt}>{PEDIR_SUSPENDIDO}</Text>
+          </View>
+        ) : null}
+
+        {/* Varios puntos con servicio: primero ¿en cuál? */}
+        {puntos.length > 1 && (
+          <>
+            <Text style={s.label}>¿En cuál de tus puntos? <Text style={{ color: T.error }}>*</Text></Text>
+            <View style={[s.fechas, { flexDirection: "column", flexWrap: "nowrap" }]}>
+              {puntos.map((p) => (
+                <Pressable
+                  key={p.domicilioId}
+                  onPress={() => elegirPunto(p.domicilioId)}
+                  style={[s.punto, puntoId === p.domicilioId && s.chipActivo]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: puntoId === p.domicilioId }}
+                >
+                  <Feather name={puntoId === p.domicilioId ? "check-circle" : "map-pin"} size={16} color={puntoId === p.domicilioId ? "#fff" : T.gris} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.chipTxt, puntoId === p.domicilioId && s.chipTxtActivo]}>{p.texto}</Text>
+                    <Text style={[s.puntoRuta, puntoId === p.domicilioId && { color: "#e6eef5" }]}>
+                      {p.ruta ? `${p.ruta.nombre} · ${(p.ruta.dias || []).join(", ") || "sin días"}` : "Sin ruta asignada"}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
+        {errorPuntos ? (
+          <Text style={s.intro}>No se pudieron leer tus puntos y rutas. Jala hacia abajo para reintentar.</Text>
+        ) : faltaPunto ? (
+          <Text style={s.intro}>Elige primero el punto: cada uno tiene su ruta y sus días.</Text>
+        ) : ruta ? (
           <Text style={s.intro}>
+            {punto && puntos.length === 1 ? <>Tu punto: <Text style={s.fuerte}>{punto.texto}</Text>. </> : null}
             Estás dado de alta en <Text style={s.fuerte}>{ruta.nombre}</Text> ·{" "}
-            {nombreTipoRuta(ruta.tipo)}. Pasa {ruta.dias.join(", ")}.
+            {nombreTipoRuta(ruta.tipo)}. Pasa {(ruta.dias || []).join(", ")}.
           </Text>
         ) : cargando ? (
           <Text style={s.intro}>Leyendo tu ruta…</Text>
@@ -257,8 +372,9 @@ export default function Agendar() {
         ) : null}
 
         {/* Se deja tocar aunque falte algo: así se dice QUÉ falta, en vez de
-            un botón apagado sin explicación. */}
-        <Boton onPress={enviar} disabled={!fecha || enviando}>
+            un botón apagado sin explicación. Suspendida, sí se apaga: arriba
+            ya dice por qué. */}
+        <Boton onPress={enviar} disabled={!fecha || enviando || !puedeOperar}>
           <Text style={s.botonTxt}>{enviando ? "Enviando…" : modo === "extra" ? "Pedir recolección extra" : "Enviar solicitud"}</Text>
         </Boton>
 
@@ -274,6 +390,7 @@ export default function Agendar() {
 
       <Tarjeta>
         <TituloTarjeta>Mis solicitudes</TituloTarjeta>
+        <Listo onCerrar={() => setHecho("")}>{hecho}</Listo>
         {errorLista ? (
           <View style={s.errorCaja} accessibilityLiveRegion="polite">
             <Text style={s.errorCajaTxt}>{errorLista}</Text>
@@ -283,31 +400,115 @@ export default function Agendar() {
             </Pressable>
           </View>
         ) : null}
-        {mias.length === 0 ? (
+        {ordenadas.length === 0 ? (
           errorLista ? null : (
             <Text style={s.vacio}>{cargando ? "Leyendo tus solicitudes…" : "Todavía no has pedido ninguna recolección."}</Text>
           )
         ) : (
-          mias.map((sol, i) => {
-            const b = badge(sol.estado);
+          ordenadas.map((sol, i) => {
+            const b = insigniaSolicitud(sol, ESTADOS_SOLICITUD_REC);
+            const venc = estadoVencimiento(sol, hoy);
+            // Solo con id de verdad (las de ejemplo no traen): undefined ===
+            // undefined abría todas.
+            const abierto = Boolean(cambio && sol.id && cambio.id === sol.id);
+            // Suspendida: no cancela ni reagenda (el servidor tampoco deja).
+            const sePuede = puedeOperar && sol.id && puedeCancelar(sol.estado);
             return (
-              <View key={sol.folio} style={[s.fila, i > 0 && s.filaBorde, { alignItems: "flex-start" }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.folio}>{sol.folio}</Text>
-                  <Text style={s.filaDato}>
-                    {fechaConDia(sol.fechaPedida)} · {sol.origen === "extra" ? "Extra" : "De ruta"}
-                  </Text>
-                  <Text style={s.filaResiduo}>{sol.tipoResiduo || "Residuo sin especificar"}</Text>
-                  {sol.estado === "no-procedio" ? (
-                    <Text style={s.noProc}>{textoNoProcedio(sol.motivoNoProcedio, sol.detalleNoProcedio)}</Text>
-                  ) : null}
+              <View key={sol.id || sol.folio} style={[s.fila, i > 0 && s.filaBorde, { alignItems: "flex-start", flexDirection: "column" }]}>
+                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.folio}>{sol.folio}</Text>
+                    <Text style={s.filaDato}>
+                      {fechaConDia(sol.fechaConfirmada || sol.fechaPedida)} · {sol.origen === "extra" ? "Extra" : "De ruta"}
+                    </Text>
+                    <Text style={s.filaResiduo}>{sol.tipoResiduo || "Residuo sin especificar"}</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 6 }}>
+                    {/* Se pasó la fecha y nadie le dijo: antes seguía "Solicitada"
+                        como si todo fuera bien. */}
+                    {venc.vencida ? <Badge clase="mal">Se pasó · {textoAtraso(venc.dias)}</Badge> : null}
+                    <Badge clase={b.clase}>{b.texto}</Badge>
+                  </View>
                 </View>
-                <Badge clase={b.clase}>{b.texto}</Badge>
+                {sol.estado === "no-procedio" ? (
+                  <Text style={s.noProc}>{textoNoProcedio(sol.motivoNoProcedio, sol.detalleNoProcedio)}</Text>
+                ) : null}
+                {venc.vencida ? (
+                  <View style={s.vencida}>
+                    <Text style={s.vencidaTxt}>{detalleVencidaCliente(sol.estado)}</Text>
+                    <TarjetaSoporte compacta mensaje={mensajeVencida(sol.folio)} />
+                  </View>
+                ) : null}
+
+                {sePuede && !abierto ? (
+                  <View style={s.acciones}>
+                    {puedeReagendar(sol.estado) ? (
+                      <Pressable onPress={() => abrirCambio(sol, "reagendar")} style={s.accion} accessibilityRole="button" accessibilityLabel={`Cambiar la fecha de ${sol.folio}`}>
+                        <Feather name="calendar" size={14} color={T.tinta} />
+                        <Text style={s.accionTxt}>Cambiar fecha</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable onPress={() => abrirCambio(sol, "cancelar")} style={s.accion} accessibilityRole="button" accessibilityLabel={`Cancelar ${sol.folio}`}>
+                      <Feather name="x-circle" size={14} color={T.error} />
+                      <Text style={[s.accionTxt, { color: T.error }]}>Cancelar</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {abierto ? (
+                  <View style={s.editor}>
+                    {cambio.modo === "reagendar" ? (
+                      <>
+                        <Text style={s.label}>Fecha nueva</Text>
+                        <CalendarioFecha
+                          valor={cambio.fecha}
+                          onCambiar={(f) => setCambio((c) => ({ ...c, fecha: f, fallo: null }))}
+                          min={limites.min}
+                          max={limites.max}
+                          hoy={hoy}
+                        />
+                        <Text style={s.elegida}>
+                          {cambio.fecha ? <>Pasa al <Text style={s.fuerte}>{fechaConDia(cambio.fecha)}</Text>.</> : "Toca el día nuevo."}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={s.label}>¿Por qué la cancelas? (opcional)</Text>
+                        <TextInput
+                          style={[s.input, { minHeight: 46 }]}
+                          value={cambio.motivo}
+                          maxLength={200}
+                          onChangeText={(t) => setCambio((c) => ({ ...c, motivo: t }))}
+                          placeholder="Ej. Ya no hace falta esta semana"
+                          placeholderTextColor={T.grisClaro}
+                          accessibilityLabel="Motivo de la cancelación"
+                        />
+                      </>
+                    )}
+                    <Fallo fallo={cambio.fallo} onReintentar={aplicarCambio} style={{ marginTop: 0, marginBottom: 10 }} />
+                    <View style={s.acciones}>
+                      <Boton
+                        onPress={aplicarCambio}
+                        disabled={cambio.enviando || (cambio.modo === "reagendar" && !cambio.fecha)}
+                        variante={cambio.modo === "cancelar" ? "linea" : "verde"}
+                        style={{ flex: 1 }}
+                      >
+                        {cambio.enviando ? "Guardando…" : cambio.modo === "cancelar" ? "Sí, cancelar" : "Guardar fecha"}
+                      </Boton>
+                      <Boton onPress={() => setCambio(null)} disabled={cambio.enviando} variante="linea" style={{ flex: 1 }}>
+                        No
+                      </Boton>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             );
           })
         )}
       </Tarjeta>
+
+      {/* Suspendida o con dudas: a un toque de Morcast. */}
+      {estadoCuenta === "suspendido" ? <TarjetaSoporte empresa={empresa} folio={folioEmpresa} /> : null}
     </ScrollView>
   );
 }
@@ -320,11 +521,15 @@ const s = StyleSheet.create({
   elegida: { color: T.gris, fontSize: 12.5, marginTop: -4, marginBottom: 14 },
   noProc: { color: T.error, fontSize: 12.5, marginTop: 6, lineHeight: 18 },
   fuerte: { color: T.tinta, fontWeight: "700" },
+  bloqueo: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: "rgba(217,119,107,0.10)", borderWidth: 1, borderColor: "rgba(217,119,107,0.35)", borderRadius: 10, padding: 10, marginBottom: 12 },
+  bloqueoTxt: { color: T.tinta, fontSize: 13, lineHeight: 18, flex: 1 },
   modos: { flexDirection: "row", gap: 8, marginBottom: 12 },
   modo: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel2, paddingHorizontal: 8 },
   modoOn: { backgroundColor: T.verde, borderColor: T.verde },
   modoTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
   fechas: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 12 },
+  punto: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel2, minHeight: 48 },
+  puntoRuta: { color: T.gris, fontSize: 12, marginTop: 2 },
   chip: {
     paddingVertical: 7,
     paddingHorizontal: 11,
@@ -357,6 +562,12 @@ const s = StyleSheet.create({
   folio: { color: T.tinta, fontSize: 14, fontWeight: "700" },
   filaDato: { color: T.gris, fontSize: 12.5, marginTop: 3 },
   filaResiduo: { color: T.tinta, fontSize: 12.5, marginTop: 2 },
+  vencida: { marginTop: 8, borderLeftWidth: 3, borderLeftColor: T.error, paddingLeft: 10, width: "100%" },
+  vencidaTxt: { color: T.tinta, fontSize: 12.5, lineHeight: 18 },
+  acciones: { flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" },
+  accion: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: T.linea, borderRadius: 9, paddingHorizontal: 12, minHeight: 40, backgroundColor: T.panel2 },
+  accionTxt: { color: T.tinta, fontSize: 13, fontWeight: "700" },
+  editor: { marginTop: 10, width: "100%" },
   errorCaja: { padding: 11, borderRadius: 10, marginBottom: 6, backgroundColor: "rgba(217,119,107,0.10)", borderWidth: 1, borderColor: "rgba(217,119,107,0.35)" },
   errorCajaTxt: { color: T.tinta, fontSize: 13, lineHeight: 18 },
   reintentar: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, borderColor: T.linea, backgroundColor: T.panel, minHeight: 40 },
