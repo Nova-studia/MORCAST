@@ -18,6 +18,8 @@ import { demoPeso } from "@/lib/datos-viajes";
 import { mezclarChoferes } from "@/lib/chofer-servicio.mjs";
 import { choferesDeMisServicios } from "@/app/acciones-portal";
 import { avisarSolicitudNueva } from "@/app/acciones-solicitud";
+import { puntosAgendables } from "@/lib/puntos-cliente.mjs";
+import { residuoDeclarado, pesoManifiesto, horaManifiesto } from "@/lib/manifiesto.mjs";
 
 /**
  * Se piden de una vez los datos de la empresa y de la ruta, en lugar de una
@@ -265,7 +267,27 @@ export async function miSuscripcion() {
 }
 
 /**
+ * Los puntos del cliente donde puede pedir recolección: los que tienen un
+ * servicio activo, cada uno con SU ruta (Entrega 3). Antes se pedía siempre
+ * en el primer punto.
+ */
+export async function misPuntos() {
+  if (!haySupabaseNavegador()) return [];
+  const { data, error } = await supabaseNavegador()
+    .from("suscripciones")
+    .select("estado, domicilio_id, domicilios ( alias, colonia ), rutas ( id, clave, nombre, tipo, dias )")
+    .eq("estado", "activa");
+  if (error) {
+    console.error("[solicitudes] No se pudieron leer los puntos:", error.message);
+    return [];
+  }
+  return puntosAgendables(data || []);
+}
+
+/**
  * Siguiente folio, a partir del número más alto que ya exista.
+ * ⚠️ Ya no se usa al pedir (desde la 031 el folio lo pone la base: el
+ * cliente solo ve SUS folios y este cálculo chocaba con los de otros).
  * Nunca por la cantidad de filas: si alguna se borra, contar da un folio
  * repetido y el folio es único en la base.
  */
@@ -298,7 +320,7 @@ export async function siguienteFolio() {
  * "No procedió". Tiene que ser uno del catálogo (TIPOS_RESIDUO), que es el
  * mismo que usa el cotizador de WhatsApp.
  */
-export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta", tipoResiduo }) {
+export async function pedirRecoleccion({ rutaClave, rutaId: rutaElegida = null, domicilioId = null, fecha, nota, origen = "ruta", tipoResiduo }) {
   if (!TIPOS_RESIDUO.includes(tipoResiduo)) {
     return { ok: false, motivo: "Elige qué tipo de residuo vamos a recoger." };
   }
@@ -313,19 +335,24 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     .from("perfiles").select("cliente_id").eq("id", user.id).single();
   if (!perfil?.cliente_id) return { ok: false, motivo: "Tu cuenta no tiene empresa asignada." };
 
-  const { data: domicilio } = await supabase
-    .from("domicilios").select("id").eq("cliente_id", perfil.cliente_id).limit(1).single();
+  // El punto que eligió el cliente (Entrega 3). Sin elección —un cliente sin
+  // servicio activo— el primero, como antes.
+  let domicilio = domicilioId ? { id: domicilioId } : null;
+  if (!domicilio) {
+    ({ data: domicilio } = await supabase
+      .from("domicilios").select("id").eq("cliente_id", perfil.cliente_id).limit(1).maybeSingle());
+  }
 
-  let rutaId = null;
-  if (rutaClave) {
+  let rutaId = rutaElegida;
+  if (!rutaId && rutaClave) {
     const { data: ruta } = await supabase
       .from("rutas").select("id").eq("clave", rutaClave).single();
     rutaId = ruta?.id || null;
   }
 
-  const folio = await siguienteFolio();
-  const { error } = await supabase.from("solicitudes_recoleccion").insert({
-    folio,
+  // El folio lo pone la base (db/031) y se lee de vuelta: así nunca choca.
+  const { data: creada, error } = await supabase.from("solicitudes_recoleccion").insert({
+    folio: null,
     cliente_id: perfil.cliente_id,
     domicilio_id: domicilio?.id || null,
     ruta_id: rutaId,
@@ -334,7 +361,8 @@ export async function pedirRecoleccion({ rutaClave, fecha, nota, origen = "ruta"
     estado: "solicitada",
     nota: nota || "",
     tipo_residuo: tipoResiduo,
-  });
+  }).select("folio").single();
+  const folio = creada?.folio;
 
   if (error) {
     console.error("[solicitudes] No se pudo pedir:", error.message);
@@ -389,10 +417,11 @@ export async function misServicios({ conFotos = true, conChoferes = true, sinPru
   const { data, error } = await sinPruebasEnConsulta(supabaseNavegador()
     .from("solicitudes_recoleccion")
     .select(`
-      id, folio, estado, fecha_pedida, fecha_confirmada, origen,
+      id, folio, estado, fecha_pedida, fecha_confirmada, origen, tipo_residuo,
       clientes ( empresa ),
+      domicilios ( alias, colonia ),
       rutas ( nombre, tipo, unidad, chofer ),
-      recolecciones ( qr, peso_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
+      recolecciones ( qr, peso_kg, peso_real_kg, foto_antes, foto_despues, hora_antes, hora_despues, ubicacion )
     `), ids)
     .eq("estado", "completada")
     .order("fecha_confirmada", { ascending: false });
@@ -425,7 +454,11 @@ export async function misServicios({ conFotos = true, conChoferes = true, sinPru
         // admin vea de quién es cada servicio.
         cliente: s.clientes?.empresa || "—",
         tipo: nombreTipoRuta(s.rutas?.tipo) || "Recolección",
-        residuo: s.origen === "extra" ? "Recolección extra" : "Residuos de ruta",
+        // Lo que DECLARÓ el cliente al pedir (Entrega 3), no un genérico.
+        residuo: residuoDeclarado(s),
+        hora: horaManifiesto(ev),
+        punto: [s.domicilios?.alias, s.domicilios?.colonia].filter(Boolean).join(" · "),
+        pesoManifiesto: pesoManifiesto(ev),
         contenedor: ev?.qr ? `Contenedor ${ev.qr}` : "Sin contenedor registrado",
         // Nadie mide metros cúbicos: lo que el chofer anota es PESO. El
         // campo se queda porque los PDF viejos lo nombran, pero las

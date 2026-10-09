@@ -10,7 +10,7 @@ import {
   fechaLarga,
 } from "@/lib/portal-datos";
 import { misServicios } from "@/lib/datos-solicitudes";
-import { descargarManifiesto, descargarConstanciaFiscal } from "@/lib/portal-pdf";
+import { descargarManifiesto, descargarConstanciaFiscal, HAY_DATOS_FISCALES } from "@/lib/portal-pdf";
 import { clienteActual } from "@/lib/portal-sesion";
 
 export default function DocumentosPortal() {
@@ -53,10 +53,11 @@ export default function DocumentosPortal() {
     <>
       <div className="pt-page-head">
         <h1>Documentos</h1>
-        <p>Constancia fiscal y manifiestos de manejo de residuos en PDF.</p>
+        <p>{HAY_DATOS_FISCALES ? "Constancia fiscal y manifiestos" : "Manifiestos"} de manejo de residuos en PDF.</p>
       </div>
 
-      {/* Constancia fiscal */}
+      {/* Constancia fiscal: solo con los datos reales (sin RFC decía "Pendiente"). */}
+      {HAY_DATOS_FISCALES && (
       <div className="pt-card" style={{ marginBottom: "1.1rem" }}>
         <div className="pt-card-head"><h2>Documentos fiscales</h2></div>
         {/* La fila se apila en el telefono (`pt-doc-fila`, en portal.css):
@@ -76,6 +77,7 @@ export default function DocumentosPortal() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Manifiestos */}
       <div className="pt-card">

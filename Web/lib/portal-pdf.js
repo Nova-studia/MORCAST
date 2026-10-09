@@ -16,6 +16,14 @@ import {
 } from "@/lib/cotizacion-datos";
 import { TEXTO_AVISO_PRECIOS } from "@/components/AvisoPrecios";
 import { enHold } from "@/lib/estado-sistema";
+import { PENDIENTE_EMPRESA } from "@/lib/manifiesto.mjs";
+
+/**
+ * ¿Ya hay datos fiscales REALES de Morcast? Sin RFC, la constancia que arma
+ * el sistema dice "Pendiente de confirmar": no se ofrece (igual que las apps,
+ * HAY_DATOS_FISCALES). Entrega 3.
+ */
+export const HAY_DATOS_FISCALES = Boolean(EMPRESA_COTIZACION.rfc);
 
 const PENDIENTE = "Pendiente de confirmar";
 
@@ -31,6 +39,10 @@ export const MORCAST_FISCAL = {
   telefonos: EMPRESA_COTIZACION.telefonos.join(" · "),
   correo: EMPRESA_COTIZACION.correos[0],
   actividad: "Manejo de residuos y servicios de remediación",
+  // Para el manifiesto. Llegan con la información de la empresa; mientras,
+  // "Pendiente" (lib/manifiesto.mjs).
+  permisoAmbiental: EMPRESA_COTIZACION.permisoAmbiental || null,
+  destinoFinal: EMPRESA_COTIZACION.destinoFinal || null,
 };
 
 const VERDE = [78, 179, 74];
@@ -209,11 +221,16 @@ export async function descargarManifiesto(servicio, cliente) {
     ["Empresa", cliente.empresa],
     ["RFC", cliente.rfc],
     ["Domicilio", cliente.domicilio],
+    ["Punto", servicio.punto || "—"],
     ["Contrato", cliente.id],
   ]);
+  // Permiso y destino final son datos de Morcast que todavía no llegan: se
+  // dicen "Pendiente" en vez de inventarlos (Entrega 3).
   const yB = bloqueDatos(doc, W / 2 + 10, y, "Prestador de servicio", [
     ["Empresa", "Morcast del Norte, S.A. de C.V."],
     ["RFC", MORCAST_FISCAL.rfc],
+    ["Permiso", MORCAST_FISCAL.permisoAmbiental || PENDIENTE_EMPRESA],
+    ["Destino final", MORCAST_FISCAL.destinoFinal || PENDIENTE_EMPRESA],
     ["Unidad", servicio.unidad],
     ["Operador", servicio.operador],
   ], 230);
@@ -221,14 +238,13 @@ export async function descargarManifiesto(servicio, cliente) {
 
   autoTable(doc, {
     startY: y,
-    head: [["Fecha", "Tipo de residuo", "Descripción", "Contenedor", "Volumen", "Peso"]],
+    head: [["Fecha y hora", "Residuo declarado", "Servicio", "Contenedor", "Peso"]],
     body: [[
-      fechaLarga(servicio.fecha),
-      servicio.tipo,
+      servicio.hora ? `${fechaLarga(servicio.fecha)}, ${servicio.hora} h` : fechaLarga(servicio.fecha),
       servicio.residuo,
+      servicio.tipo,
       servicio.contenedor,
-      servicio.volumen,
-      servicio.peso,
+      servicio.pesoManifiesto || servicio.peso,
     ]],
     theme: "grid",
     headStyles: { fillColor: TEAL, textColor: 255, fontSize: 9 },
@@ -256,7 +272,7 @@ export async function descargarManifiesto(servicio, cliente) {
   doc.text("Firma del generador", 150, y + 14, { align: "center" });
   doc.text("Firma del prestador de servicio", W - 150, y + 14, { align: "center" });
 
-  pie(doc, "Manifiesto de demostración generado por el Portal de Clientes de Morcast del Norte.");
+  pie(doc, "Generado por el Portal de Clientes de Morcast del Norte. Lo marcado «Pendiente» lo completa Morcast.");
   doc.save(`Manifiesto_${servicio.manifiesto}.pdf`);
 }
 

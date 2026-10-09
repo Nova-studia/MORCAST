@@ -11,7 +11,7 @@ import {
 import { IVA, pesos } from "@/lib/portal-datos";
 import { catalogoDelCliente } from "@/lib/datos-precios";
 import { cotizar, lineasDeCotizador } from "@/lib/precios.mjs";
-import { descargarCotizacion, descargarConstanciaFiscal } from "@/lib/portal-pdf";
+import { descargarCotizacion, descargarConstanciaFiscal, HAY_DATOS_FISCALES } from "@/lib/portal-pdf";
 import {
   CONDICIONES_COMERCIALES,
   COBERTURA,
@@ -181,14 +181,16 @@ export default function CotizadorPortal() {
           >
             <DownloadSimple /> {bajando === "cot" ? "Generando…" : "Descargar cotización"}
           </button>
-          <button
-            className="pt-btn"
-            style={{ width: "100%", justifyContent: "center", marginTop: "0.6rem" }}
-            onClick={bajarConstancia}
-            disabled={bajando === "csf"}
-          >
-            <FileText /> {bajando === "csf" ? "Generando…" : "Constancia fiscal (PDF)"}
-          </button>
+          {HAY_DATOS_FISCALES && (
+            <button
+              className="pt-btn"
+              style={{ width: "100%", justifyContent: "center", marginTop: "0.6rem" }}
+              onClick={bajarConstancia}
+              disabled={bajando === "csf"}
+            >
+              <FileText /> {bajando === "csf" ? "Generando…" : "Constancia fiscal (PDF)"}
+            </button>
+          )}
 
           <div style={{ borderTop: "1px solid var(--mc-linea)", marginTop: "1rem", paddingTop: "0.8rem" }}>
             <h3 style={{ fontSize: "0.78rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--mc-verde-claro)", marginBottom: "0.5rem" }}>

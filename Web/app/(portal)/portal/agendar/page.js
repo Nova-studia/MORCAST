@@ -13,9 +13,11 @@ import { permisosDeEstado } from "@/lib/estado-cliente.mjs";
 import { estadoVencimiento, ordenarPorUrgencia, textoAtraso, hoyISO } from "@/lib/vencimiento";
 import {
   miSuscripcion,
+  misPuntos,
   listarSolicitudes,
   pedirRecoleccion,
 } from "@/lib/datos-solicitudes";
+import { puntoInicial } from "@/lib/puntos-cliente.mjs";
 
 /**
  * Fecha en YYYY-MM-DD con la hora LOCAL.
@@ -74,16 +76,23 @@ export default function AgendarPortal() {
     clienteActual().then((c) => setPuedeOperar(permisosDeEstado(c?.estado).puedeOperar)).catch(() => {});
   }, []);
 
-  const ruta = suscripcion?.ruta || null;
+  // Los puntos con servicio activo (Entrega 3). Con varios, el cliente elige
+  // primero en cuál; la ruta (y sus días) son los de ESE punto.
+  const [puntos, setPuntos] = useState([]);
+  const [puntoId, setPuntoId] = useState("");
+  const punto = puntos.find((p) => p.domicilioId === puntoId) || null;
+  const ruta = puntos.length ? punto?.ruta || null : suscripcion?.ruta || null;
 
   // Las solicitudes que llegan son SOLO las de esta empresa: no hace falta
   // filtrarlas aquí porque el RLS ya las filtró en la base.
   useEffect(() => {
     let vivo = true;
-    Promise.all([miSuscripcion(), listarSolicitudes()]).then(([s, lista]) => {
+    Promise.all([miSuscripcion(), listarSolicitudes(), misPuntos()]).then(([s, lista, ps]) => {
       if (!vivo) return;
       setSuscripcion(s);
       setMias(lista);
+      setPuntos(ps);
+      setPuntoId(puntoInicial(ps));
       setCargando(false);
     });
     return () => {
@@ -96,7 +105,8 @@ export default function AgendarPortal() {
   // Con «Otro» la nota pasa a ser obligatoria: "Otro" a secas no le dice al
   // chofer qué llevar ni a la oficina si lo puede recoger.
   const faltaDescribirOtro = tipoResiduo === "Otro" && !nota.trim();
-  const puedeEnviar = Boolean(fecha && tipoResiduo && !faltaDescribirOtro);
+  const faltaPunto = puntos.length > 1 && !punto;
+  const puedeEnviar = Boolean(fecha && tipoResiduo && !faltaDescribirOtro && !faltaPunto);
 
   const enviar = async () => {
     if (!puedeEnviar || enviando || !puedeOperar) return;
@@ -105,6 +115,8 @@ export default function AgendarPortal() {
 
     const r = await pedirRecoleccion({
       rutaClave: ruta?.clave || null,
+      rutaId: ruta?.id || null,
+      domicilioId: punto?.domicilioId || null,
       fecha,
       nota,
       origen: modo,
@@ -147,8 +159,30 @@ export default function AgendarPortal() {
             </div>
           )}
 
+          {puntos.length > 1 && (
+            <div style={{ marginBottom: "0.9rem" }}>
+              <label htmlFor="punto" style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.4rem" }}>
+                ¿En cuál de tus puntos? <span style={{ color: "var(--pt-error)" }}>*</span>
+              </label>
+              <select
+                id="punto"
+                className="pt-input"
+                value={puntoId}
+                onChange={(e) => { setPuntoId(e.target.value); setFecha(""); }}
+                style={{ width: "100%" }}
+              >
+                <option value="" disabled>Elige el punto de recolección</option>
+                {puntos.map((p) => (
+                  <option key={p.domicilioId} value={p.domicilioId}>{p.texto}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div style={{ fontSize: "0.86rem", color: "var(--mc-gris)", marginBottom: "0.9rem" }}>
-            {ruta ? (
+            {faltaPunto ? (
+              <>Elige primero el punto: cada uno tiene su ruta y sus días.</>
+            ) : ruta ? (
               // Sin paréntesis alrededor del tipo: su nombre ya trae los suyos
               // ("Industrial (Roll Off)") y quedaban anidados.
               <>Estás dado de alta en <strong style={{ color: "var(--mc-tinta)" }}>{ruta.nombre}</strong> · {nombreTipoRuta(ruta.tipo)}. Pasa {ruta.dias.join(", ")}.</>
