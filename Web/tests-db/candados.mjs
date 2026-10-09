@@ -92,6 +92,11 @@ const { rows: [sol] } = await db.query(
   `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, ruta_id, fecha_pedida, estado)
    values ('REC-T-1',$1,$2,$3,current_date,'confirmada') returning id`, [cli1.id, dom1.id, ruta.id]);
 const perfiles = (await db.query(`select id, rol from public.perfiles order by rol`)).rows;
+// Como en producción al correr la 029: el admin que ya existía recibe
+// "Administrador completo" (los usuarios de prueba nacen después de las migraciones).
+const ponerCompleto = (id) => db.query(
+  `update public.perfiles set rol_id = (select id from public.roles where nombre = 'Administrador completo') where id = $1`, [id]);
+await ponerCompleto(U.admin);
 console.log("perfiles:", perfiles.map((p) => p.rol).join(", "));
 
 // ---------------------------------------------------------------- pruebas
@@ -484,6 +489,7 @@ const U_PREC = "00000000-0000-0000-0000-0000000000a2";
 await alta(U_PREC, "ap@t.mx", { rol: "admin" });
 await db.query(`update public.perfiles set permisos = '{precios}' where id = $1`, [U_PREC]);
 U.adminPrecios = U_PREC;
+await ponerCompleto(U_PREC);
 const { rows: [con] } = await db.query(
   `insert into public.conceptos (clave, nombre, unidad, modalidad, orden)
    values ('cont-3m3','Contenedor 3 m³','por recolección','por-recoleccion',1) returning id`);
@@ -638,6 +644,57 @@ const { rows: [{ bloq }] } = await db.query(`select bloqueados_por_baja as bloq 
 if (Array.isArray(bloq) && bloq.length === 0) console.log("  ✓ clientes.bloqueados_por_baja existe y nace vacío");
 else { fallas++; console.log("  ✖ falta clientes.bloqueados_por_baja", bloq); }
 
+console.log("\n23 · 029: roles personalizados");
+const { rows: [{ n: nRoles }] } = await db.query(`select count(*)::int n from public.roles where nombre = 'Administrador completo'`);
+igual("la 029 siembra 'Administrador completo'", nRoles, 1);
+const U_RUTAS = "00000000-0000-0000-0000-0000000000a3";
+await alta(U_RUTAS, "ar@t.mx", { rol: "admin" });
+U.adminRutas = U_RUTAS;
+await debeFallar("un admin NO crea roles", "admin",
+  `insert into public.roles (nombre, permisos) values ('Colado', '{rutas}')`);
+await debeFallar("un rol con sección inventada NO entra", "dueno",
+  `insert into public.roles (nombre, permisos) values ('Raro', '{todo}')`);
+await debePasar("el dueño SÍ crea un rol", "dueno",
+  `insert into public.roles (nombre, permisos) values ('Solo rutas', '{rutas}')`, [], 1);
+const { rows: [rolRutas] } = await db.query(`select id from public.roles where nombre = 'Solo rutas'`);
+await debeFallar("un admin NO se pone un rol a sí mismo", "adminRutas",
+  `update public.perfiles set rol_id = $2 where id = $1`, [U_RUTAS, rolRutas.id]);
+await debeFallar("un admin completo NO le cambia el rol a otro", "admin",
+  `update public.perfiles set rol_id = $2 where id = $1`, [U_RUTAS, rolRutas.id]);
+await debePasar("el dueño SÍ le pone el rol", "dueno",
+  `update public.perfiles set rol_id = $2 where id = $1`, [U_RUTAS, rolRutas.id], 1);
+await debePasar("con 'Solo rutas' SÍ lee clientes (leer es de todo el personal)", "adminRutas",
+  `select id from public.clientes where id = $1`, [cli1.id], 1);
+await debePasar("con 'Solo rutas' SÍ crea un sector", "adminRutas",
+  `insert into public.sectores (clave, nombre) values ('T1', 'Sector T')`, [], 1);
+await debeFallar("con 'Solo rutas' NO crea unidades", "adminRutas",
+  `insert into public.unidades (numero_economico) values ('U-T')`);
+await debeFallar("con 'Solo rutas' NO edita clientes", "adminRutas",
+  `update public.clientes set contacto = 'X' where id = $1`, [cli1.id]);
+await debeFallar("con 'Solo rutas' NO registra depósitos", "adminRutas", abono, [cli1.id]);
+await debeFallar("con 'Solo rutas' NO desactiva choferes (no tiene usuarios)", "adminRutas",
+  `update public.perfiles set activo = false where id = $1`, [U.chofer]);
+await debeFallar("con 'Solo rutas' NO sube comprobantes", "adminRutas",
+  `insert into storage.objects (bucket_id, name) values ('comprobantes', $1 || '/x.pdf')`, [cli1.id]);
+await debePasar("el admin completo SÍ crea unidades (como antes)", "admin",
+  `insert into public.unidades (numero_economico) values ('U-T2')`, [], 1);
+await debePasar("el admin completo SÍ edita clientes (como antes)", "admin",
+  `update public.clientes set contacto = 'Y' where id = $1`, [cli1.id], 1);
+await db.query(`update public.perfiles set rol_id = null where id = $1`, [U_RUTAS]);
+await debeFallar("un admin SIN rol NO crea sectores", "adminRutas",
+  `insert into public.sectores (clave, nombre) values ('T4', 'Sector T4')`);
+await db.query(`update public.perfiles set rol_id = $2 where id = $1`, [U_RUTAS, rolRutas.id]);
+await debePasar("el dueño SÍ borra el rol", "dueno", `delete from public.roles where id = $1`, [rolRutas.id], 1);
+const { rows: [{ rol_id: trasBorrar }] } = await db.query(`select rol_id from public.perfiles where id = $1`, [U_RUTAS]);
+igual("al borrar el rol, su gente queda sin rol (no con más)", trasBorrar, null);
+await debeFallar("y ya no escribe en rutas", "adminRutas", `insert into public.sectores (clave, nombre) values ('T5', 'Sector T5')`);
+const { rows: [{ n: nPolTodo }] } = await db.query(
+  `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
+igual("ya no queda ninguna política 'el personal hace todo'", nPolTodo, 0);
+const bRol = (await db.query(`select count(*)::int n from public.bitacora where tabla = 'roles'`)).rows[0].n;
+if (bRol > 0) console.log("  ✓ crear y borrar roles queda en la bitácora");
+else { fallas++; console.log("  ✖ la bitácora no anotó los roles"); }
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -646,7 +703,13 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "026-app-1-1.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "027-precios.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "028-clientes-estados.sql"), "utf8"));
-  console.log("✓ 022 a 028 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 028 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "029-roles.sql"), "utf8"));
+  console.log("✓ 022 a 029 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 029 no son idempotentes:", e.message); }
+const { rows: [{ n: nTodoOtraVez }] } = await db.query(
+  `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
+igual("tras volver a correr todo, sigue sin políticas 'todo'", nTodoOtraVez, 0);
+const { rows: [{ n: nCompletos }] } = await db.query(`select count(*)::int n from public.roles where nombre = 'Administrador completo'`);
+igual("volver a correr la 029 no siembra otra vez", nCompletos, 1);
 console.log(fallas ? `\n✖ ${fallas} FALLAS` : "\n✓ TODO BIEN");
 process.exit(fallas ? 1 : 0);
