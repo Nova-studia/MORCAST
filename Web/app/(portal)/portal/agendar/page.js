@@ -336,7 +336,8 @@ export default function AgendarPortal() {
               const mostrar = estadoParaMostrar(s);
               const b = mostrar === "cancelada" ? { texto: "Cancelada", clase: "" } : badge(s.estado);
               const venc = estadoVencimiento(s, hoyISO());
-              const abierto = cambio?.id === s.id;
+              // Solo con id de verdad (los de ejemplo no traen): undefined === undefined abría todos.
+              const abierto = Boolean(cambio && s.id && cambio.id === s.id);
               return (
                 <div
                   key={s.folio}

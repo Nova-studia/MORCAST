@@ -765,6 +765,24 @@ alguien olvidó la suya, en la pantalla de entrada está **¿Olvidaste tu contra
 No son pantallas tuyas, pero conviene conocerlas: de ahí sale casi todo lo que te
 aparece en el panel.
 
+### Lo que el cliente ya puede hacer solo (desde el 9-oct-2026)
+
+- **Mi cuenta** (tocando el nombre de su empresa arriba):
+  - cambiar su nombre, su teléfono y su contraseña;
+  - cambiar el contacto, el teléfono y el **correo de avisos** de la empresa;
+  - ver sus puntos.
+  - La razón social y el RFC **te los pide por WhatsApp**: no los puede cambiar solo.
+- **Eliminar su cuenta:** borra a ese usuario. La empresa, su historial y sus documentos
+  se quedan. Queda en la Bitácora.
+- **Cancelar una recolección** mientras el chofer no vaya en camino, y **cambiarle la
+  fecha** mientras no la hayas confirmado.
+  - Te llega un correo y una notificación.
+  - Si ya estaba confirmada, al chofer le llega "Te quitaron una parada".
+  - En Recolecciones la ves como *Rechazada* con el motivo *"Cancelada por el cliente"*.
+  - Si te pide cambiar una ya confirmada, la mueves tú desde Recolecciones.
+- **Contactarte:** en Inicio, en Mi cuenta y en sus recolecciones atrasadas tiene botones
+  de WhatsApp, teléfono y correo.
+
 ### Cotización/Alta
 
 Un negocio que todavía no es cliente entra a la página, da clic en **Cotización/Alta** y
