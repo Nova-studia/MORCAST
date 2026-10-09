@@ -10,6 +10,7 @@ import {
   sesionDelToken,
   verificarPase,
 } from "@/lib/mfa.mjs";
+import { seccionDeRuta, leerPermisos, puede } from "@/lib/permisos.mjs";
 
 /**
  * GUARDIA DE RUTAS — se ejecuta en el servidor ANTES de entregar la página.
@@ -175,6 +176,23 @@ export async function proxy(request) {
       url.pathname = "/admin";
       url.search = "";
       return NextResponse.redirect(url);
+    }
+  }
+  // Roles personalizados (db/029): un admin solo abre las secciones de su rol.
+  // Se consulta la base SOLO en páginas que tienen sección (el Panel, Mi
+  // cuenta y la verificación son de todo el personal). Quien decide de verdad
+  // sigue siendo la base y cada acción; esto evita pantallas que no sirven.
+  if (zonaAdmin && rol === "admin") {
+    const seccion = seccionDeRuta(ruta);
+    if (seccion) {
+      const { permisos } = await leerPermisos(supabase, user.id);
+      if (!puede({ rol, permisos }, seccion)) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin";
+        url.search = "";
+        url.searchParams.set("sin_permiso", seccion);
+        return NextResponse.redirect(url);
+      }
     }
   }
   if (zonaChofer && rol !== "operador") return aSuCasa();

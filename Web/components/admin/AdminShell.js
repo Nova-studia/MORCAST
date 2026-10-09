@@ -13,6 +13,7 @@ import IconoAnimado from "@/components/IconoAnimado";
 import TransicionPagina from "@/components/TransicionPagina";
 import AvisoHold from "@/components/AvisoHold";
 import { pesoRealActivo } from "@/lib/estado-sistema";
+import { seccionDeRuta, SECCIONES } from "@/lib/permisos.mjs";
 import useCajonArrastrable from "@/lib/cajon-arrastrable";
 
 const NAV = [
@@ -49,7 +50,7 @@ const NAV = [
   { href: "/admin/clientes", texto: "Clientes", gif: "clientes" },
   { href: "/admin/saldos", texto: "Saldos de clientes", gif: "por-pagar" },
   // Precios reales (7-oct-2026): solo el dueño y quien tenga el permiso.
-  { href: "/admin/precios", texto: "Precios", gif: "agregar-saldo", soloPermiso: "precios" },
+  { href: "/admin/precios", texto: "Precios", gif: "agregar-saldo" },
   { href: "/admin/servicios", texto: "Servicios", gif: "servicios" },
   { href: "/admin/reportes", texto: "Reportes", gif: "reportes" },
   { href: "/admin/usuarios", texto: "Usuarios y roles", gif: "usuarios-y-roles" },
@@ -57,8 +58,9 @@ const NAV = [
 ];
 
 // Los renglones que hoy se enseñan. `soloSi` es para lo que está apagado a
-// propósito (p. ej. el peso real del relleno); `soloPermiso` sí es permiso
-// (db/027) y se resuelve con la sesión, dentro del componente.
+// propósito (p. ej. el peso real del relleno). El permiso de cada renglón
+// sale de su página (lib/permisos.mjs, `seccionDeRuta`) y se resuelve con la
+// sesión, dentro del componente: un admin solo ve las secciones de su rol.
 const NAV_ENCENDIDO = NAV.filter((n) => !n.soloSi || n.soloSi());
 
 export default function AdminShell({ children }) {
@@ -66,7 +68,9 @@ export default function AdminShell({ children }) {
   const router = useRouter();
   const [listo, setListo] = useState(false);
   const [sesion, setSesion] = useState(null);
-  const MENU = NAV_ENCENDIDO.filter((n) => !n.soloPermiso || sesionPuede(sesion, n.soloPermiso));
+  const MENU = NAV_ENCENDIDO.filter((n) => sesionPuede(sesion, seccionDeRuta(n.href)));
+  // ?sin_permiso=<sección> lo pone proxy.js al rebotar a alguien al Panel.
+  const [sinPermiso, setSinPermiso] = useState(null);
   const [abierto, setAbierto] = useState(false);
 
   // El cajon tambien se arrastra con el dedo: deslizar desde el borde
@@ -94,6 +98,8 @@ export default function AdminShell({ children }) {
 
   useEffect(() => {
     setAbierto(false);
+    const p = new URLSearchParams(window.location.search).get("sin_permiso");
+    setSinPermiso(SECCIONES.find((x) => x.id === p)?.texto || null);
   }, [ruta]);
 
   if (!listo) {
@@ -257,6 +263,11 @@ export default function AdminShell({ children }) {
           </header>
           <main className="pt-content">
             <AvisoHold lado="admin" />
+            {sinPermiso && (
+              <div className="pt-login-error" role="alert" style={{ marginBottom: "1rem" }}>
+                Tu rol no incluye <strong>{sinPermiso}</strong>. Si lo necesitas, pídeselo al dueño.
+              </div>
+            )}
             <TransicionPagina>{children}</TransicionPagina>
           </main>
         </div>

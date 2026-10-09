@@ -14,6 +14,7 @@
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
 import { ADMIN_DEMO, ADMIN_PERFIL } from "@/lib/admin-datos";
+import { leerPermisos, puede } from "@/lib/permisos.mjs";
 
 const LLAVE_DEMO = "morcast_admin_sesion";
 
@@ -100,9 +101,8 @@ export async function iniciarSesionAdmin(correo, password) {
     sesion: {
       correo: data.user.email,
       nombre: data.user.user_metadata?.nombre || data.user.email,
-      rol: NOMBRE_ROL[rol] || rol,
       rolId: rol,
-      permisos: await permisosDe(supabase, data.user.id),
+      ...(await datosDeRol(supabase, data.user.id, rol)),
     },
   };
 }
@@ -127,27 +127,30 @@ export async function obtenerSesionAdmin() {
   return {
     correo: user.email,
     nombre: user.user_metadata?.nombre || user.email,
-    rol: NOMBRE_ROL[rol] || rol,
     rolId: rol,
-    permisos: await permisosDe(supabase, user.id),
+    ...(await datosDeRol(supabase, user.id, rol)),
   };
 }
 
 /**
- * Los permisos finos de la cuenta (db/027), p. ej. ["precios"]. Solo sirven
- * para PINTAR el menú y los botones: quien decide de verdad es la base
- * (`tiene_permiso`) y las acciones del servidor.
+ * Rol y permisos efectivos de la cuenta: los de su rol (db/029) más los
+ * sueltos (db/027). Solo sirven para PINTAR el menú y los botones: quien
+ * decide de verdad es la base y las acciones del servidor.
  */
-async function permisosDe(supabase, id) {
-  const { data } = await supabase.from("perfiles").select("permisos").eq("id", id).maybeSingle();
-  return Array.isArray(data?.permisos) ? data.permisos : [];
+async function datosDeRol(supabase, id, rol) {
+  const p = await leerPermisos(supabase, id);
+  return {
+    // Un admin con rol personalizado se presenta con él ("Caja").
+    rol: (rol === "admin" && p.rolNombre) || NOMBRE_ROL[rol] || rol,
+    permisos: p.permisos,
+  };
 }
 
 /** ¿Esta sesión puede ver/usar algo que pide el permiso `p`? (el dueño, todo) */
 export function sesionPuede(sesion, p) {
   if (!sesion) return false;
   if (sesion.demo) return true;
-  return sesion.rolId === "dueno" || (sesion.permisos || []).includes(p);
+  return puede({ rol: sesion.rolId, permisos: sesion.permisos }, p);
 }
 
 /** Cierra la sesión. */
