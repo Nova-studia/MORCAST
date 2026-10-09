@@ -1,6 +1,9 @@
 "use server";
 
 import { exigirSeccion } from "@/lib/permisos-servidor";
+import { validarRecoleccionOficina } from "@/lib/recoleccion-nueva.mjs";
+import { hoyMatamoros } from "@/lib/avisos.mjs";
+import { TIPOS_RESIDUO } from "@/lib/cotizar-whatsapp";
 import { supabaseSesion } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
@@ -130,3 +133,73 @@ export async function asignarRutaAPunto(datos) {
 // No se deja escrita de antemano: una acción de servidor que nadie llama
 // sigue siendo un endpoint abierto al mundo. Cuando haya pantalla, se agrega
 // con la misma forma que las de arriba (exigir dueño, contar filas, registrar).
+
+/**
+ * LA OFICINA CREA UNA RECOLECCIÓN (Entrega 3, 9-oct-2026): pedidos por
+ * teléfono o WhatsApp. Nace "solicitada" o, si la oficina ya la programa,
+ * pasa enseguida por `cambiarEstadoSolicitudComo` (la MISMA que "Confirmar"),
+ * que avisa al cliente y al chofer y escribe la bitácora.
+ *
+ * El INSERT va con la SESIÓN: la base exige la sección Recolecciones
+ * (db/029) y pone el folio (db/031).
+ */
+export async function crearRecoleccionOficinaAccion(datos) {
+  if (!haySupabase()) return { ok: true, demo: true, folio: "REC-DEMO" };
+
+  const { quien, error: sinPermiso } = await exigirPersonal("recolecciones");
+  if (sinPermiso) return { ok: false, motivo: sinPermiso };
+
+  const v = validarRecoleccionOficina(datos || {}, { hoy: hoyMatamoros(), tipos: TIPOS_RESIDUO });
+  if (!v.ok) return v;
+  const l = v.limpio;
+
+  const sb = await supabaseSesion();
+  // El punto tiene que ser de ESE cliente, y la ruta es la de su servicio.
+  const { data: punto } = await sb
+    .from("domicilios")
+    .select("id, cliente_id, clientes ( estado, empresa ), suscripciones ( estado, ruta_id )")
+    .eq("id", l.domicilioId)
+    .maybeSingle();
+  if (!punto || punto.cliente_id !== l.clienteId) return { ok: false, motivo: "Ese punto no es de ese cliente." };
+  if (punto.clientes?.estado === "baja") return { ok: false, motivo: "Ese cliente está dado de baja." };
+  const servicio = (punto.suscripciones || []).find((s) => s.estado === "activa") || (punto.suscripciones || [])[0];
+
+  const { data: creada, error } = await sb
+    .from("solicitudes_recoleccion")
+    .insert({
+      folio: null,
+      cliente_id: l.clienteId,
+      domicilio_id: l.domicilioId,
+      ruta_id: servicio?.ruta_id || null,
+      origen: l.origen,
+      fecha_pedida: l.fecha,
+      estado: "solicitada",
+      nota: l.nota,
+      tipo_residuo: l.tipoResiduo,
+      creada_por: quien.id,
+    })
+    .select("id, folio")
+    .single();
+  if (error || !creada) return { ok: false, motivo: `No se pudo crear: ${error?.message || "sin respuesta"}` };
+
+  await registrar({
+    accion: "crear_recoleccion_oficina",
+    tabla: "solicitudes_recoleccion",
+    registroId: creada.id,
+    detalle: { folio: creada.folio, cliente: punto.clientes?.empresa, fecha: l.fecha, confirmar: l.confirmar },
+  });
+
+  if (!l.confirmar) return { ok: true, folio: creada.folio, estado: "solicitada" };
+
+  const r = await cambiarEstadoSolicitudComo({
+    sb,
+    sbServicio: supabaseServidor(),
+    actor: { id: quien.id, correo: quien.correo },
+    id: creada.id,
+    cambios: { estado: "confirmada", fecha_confirmada: l.fecha, hora_confirmada: l.hora, chofer_id: l.choferId },
+    accion: "confirmar_recoleccion",
+  });
+  return r.ok
+    ? { ok: true, folio: creada.folio, estado: "confirmada" }
+    : { ok: true, folio: creada.folio, estado: "solicitada", motivo: `Se creó, pero no se pudo confirmar: ${r.motivo}` };
+}

@@ -601,3 +601,28 @@ export async function cambiarEstado(id, cambios) {
   }
   return { ok: true };
 }
+
+/**
+ * Los puntos de UN cliente, para "Nueva recolección" de la oficina
+ * (Entrega 3): cada uno con la ruta de su servicio.
+ */
+export async function puntosDeCliente(clienteId) {
+  if (!haySupabaseNavegador() || !clienteId) return [];
+  const { data, error } = await supabaseNavegador()
+    .from("domicilios")
+    .select("id, alias, colonia, suscripciones ( estado, rutas ( nombre ) )")
+    .eq("cliente_id", clienteId)
+    .order("alias");
+  if (error) {
+    console.error("[solicitudes] No se pudieron leer los puntos del cliente:", error.message);
+    return [];
+  }
+  return (data || []).map((d) => {
+    const s = (d.suscripciones || []).find((x) => x.estado === "activa") || null;
+    return {
+      id: d.id,
+      texto: [d.alias, d.colonia].filter(Boolean).join(" · ") || "Punto sin nombre",
+      ruta: s?.rutas?.nombre || "",
+    };
+  });
+}

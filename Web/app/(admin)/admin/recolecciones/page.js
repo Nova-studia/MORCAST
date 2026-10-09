@@ -32,6 +32,7 @@ import {
 import { cambiarEstadoSolicitudAuditado } from "@/app/acciones-auditadas";
 import { pesoRealActivo } from "@/lib/estado-sistema";
 import { textoChoferPorOmision, avisoRutaSinChofer } from "@/lib/rutas-chofer.mjs";
+import NuevaRecoleccion from "@/components/admin/NuevaRecoleccion";
 
 export default function RecoleccionesAdmin() {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -69,6 +70,9 @@ export default function RecoleccionesAdmin() {
   const [vencidasLista, setVencidasLista] = useState([]);
   const [porConfirmar, setPorConfirmar] = useState(0);
   const [recarga, setRecarga] = useState(0);
+  // "Nueva recolección" de la oficina (Entrega 3) y el folio recién creado.
+  const [nueva, setNueva] = useState(false);
+  const [creada, setCreada] = useState(null);
 
   /**
    * Lo que el admin lleva elegido para esta solicitud.
@@ -305,14 +309,37 @@ export default function RecoleccionesAdmin() {
 
   return (
     <>
-      <div className="pt-page-head">
-        <h1>Recolecciones</h1>
-        <p>
-          {porConfirmar === 0
-            ? "No hay solicitudes por confirmar."
-            : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
-        </p>
+      <div className="pt-page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <h1>Recolecciones</h1>
+          <p>
+            {porConfirmar === 0
+              ? "No hay solicitudes por confirmar."
+              : `${porConfirmar} solicitud${porConfirmar === 1 ? "" : "es"} por confirmar.`}
+          </p>
+        </div>
+        <button type="button" className="pt-btn pt-btn-naranja" onClick={() => { setNueva((v) => !v); setCreada(null); }}>
+          {nueva ? "Cancelar" : "Nueva recolección"}
+        </button>
       </div>
+
+      {nueva && (
+        <NuevaRecoleccion
+          choferes={choferes}
+          onCerrar={() => setNueva(false)}
+          onCreada={(r) => {
+            setNueva(false);
+            setCreada(r);
+            setRecarga((n) => n + 1);
+          }}
+        />
+      )}
+      {creada && (
+        <div className="pt-activar-ok" role="status" style={{ marginBottom: "1rem" }}>
+          Listo: {creada.folio} quedó {creada.estado === "confirmada" ? "confirmada (ya se avisó al cliente y al chofer)" : "como solicitud por confirmar"}.
+          {creada.motivo ? ` ${creada.motivo}` : ""}
+        </div>
+      )}
 
       {/* Lo vencido va ARRIBA de los filtros y del listado. Si hay una
           recolección que se pasó de fecha, eso es lo que hay que resolver
