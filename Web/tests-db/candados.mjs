@@ -709,6 +709,53 @@ await debeFallar("'todos' con lista colada NO entra", "admin",
 await debeFallar("un admin SIN la sección Avisos no lo manda", "adminRutas",
   `insert into public.avisos (titulo, mensaje, alcance, cliente_ids) values ('X', 'm', 'clientes', array[$1]::uuid[])`, [cli1.id]);
 
+console.log("\n25 · 031: folio de la base y una sola evidencia por parada");
+await ponerEstado(cli1.id, "activo");
+const pideCon = (folio) =>
+  `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, fecha_pedida, estado)
+   values (${folio}, $1, $2, current_date, 'solicitada') returning folio`;
+const folioDe = async (sql) => (await como("cliente", sql, [cli1.id, dom1.id])).rows[0]?.folio;
+const anio = new Date().getFullYear();
+let fSinFolio = null;
+try { fSinFolio = await folioDe(pideCon("null")); } catch (e) { console.log("  (sin folio:", e.message, ")"); }
+if (fSinFolio && new RegExp(`^REC-${anio}-\\d{4,}$`).test(fSinFolio)) console.log(`  ✓ sin folio, la base pone uno (${fSinFolio})`);
+else { fallas++; console.log("  ✖ sin folio la base no puso uno:", fSinFolio); }
+let fRepetido = null;
+try { fRepetido = await folioDe(pideCon(`'${fSinFolio}'`)); } catch (e) { console.log("  (repetido:", e.message, ")"); }
+if (fRepetido && fRepetido !== fSinFolio) console.log(`  ✓ con un folio ya usado (como el de la app), la base pone otro (${fRepetido})`);
+else { fallas++; console.log("  ✖ un folio repetido no se reasignó:", fRepetido); }
+let fLibre = null;
+try { fLibre = await folioDe(pideCon(`'REC-${anio}-9990'`)); } catch (e) { console.log("  (libre:", e.message, ")"); }
+igual("un folio libre que manda la app se respeta", fLibre, `REC-${anio}-9990`);
+let fSiguiente = null;
+try { fSiguiente = await folioDe(pideCon("''")); } catch (e) { console.log("  (siguiente:", e.message, ")"); }
+igual("el siguiente va después del más alto", fSiguiente, `REC-${anio}-9991`);
+
+const U_C2 = "00000000-0000-0000-0000-00000000000e";
+await alta(U_C2, "c2@t.mx", { rol: "operador" });
+U.chofer2 = U_C2;
+const parada = async (estado, choferId = null) => (await db.query(
+  `insert into public.solicitudes_recoleccion (folio, cliente_id, domicilio_id, ruta_id, fecha_pedida, estado, chofer_id)
+   values ('REC-T-' || floor(random()*1e9)::text, $1, $2, $3, current_date, $4, $5) returning id`,
+  [cli1.id, dom1.id, ruta.id, estado, choferId])).rows[0];
+const s5 = await parada("en-ruta", U_C2);
+const evid = (peso) => `insert into public.recolecciones (solicitud_id, operador_id, peso_kg) values ($1, $2, ${peso})`;
+await debePasar("el chofer cierra la parada (1.ª evidencia)", "chofer", evid(10), [s5.id, U.chofer]);
+await debePasar("reintento del MISMO chofer (app 1.1.1): no truena", "chofer", evid(20), [s5.id, U.chofer]);
+const { rows: [{ n: nEv, peso }] } = await db.query(
+  `select count(*)::int n, max(peso_kg) peso from public.recolecciones where solicitud_id = $1`, [s5.id]);
+igual("sigue habiendo UNA sola evidencia", nEv, 1);
+igual("y quedó lo del reintento (peso 20)", Number(peso), 20);
+await debeFallar("otro chofer NO cierra encima de la evidencia de otro", "chofer2", evid(30), [s5.id, U_C2]);
+const s6 = await parada("no-procedio");
+await db.query(`update public.solicitudes_recoleccion set motivo_no_procedio = 'cerrado' where id = $1`, [s6.id]);
+await debeFallar("tras 'No procedió' no se mete evidencia", "chofer", evid(5), [s6.id, U.chofer]);
+try {
+  await db.query(`insert into public.recolecciones (solicitud_id, operador_id, peso_kg) values ($1, $2, 1)`, [s5.id, U_C2]);
+  const { rows: [{ n: nEv2 }] } = await db.query(`select count(*)::int n from public.recolecciones where solicitud_id = $1`, [s5.id]);
+  igual("el servidor (llave de servicio) también se funde en la misma evidencia", nEv2, 1);
+} catch (e) { fallas++; console.log("  ✖ el servidor no pudo corregir la evidencia —", e.message); }
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -719,8 +766,9 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "028-clientes-estados.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "029-roles.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "030-avisos-varios-clientes.sql"), "utf8"));
-  console.log("✓ 022 a 030 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 030 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "031-folio-y-evidencia.sql"), "utf8"));
+  console.log("✓ 022 a 031 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 031 no son idempotentes:", e.message); }
 const { rows: [{ n: nTodoOtraVez }] } = await db.query(
   `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
 igual("tras volver a correr todo, sigue sin políticas 'todo'", nTodoOtraVez, 0);
