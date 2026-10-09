@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirSeccion } from "@/lib/permisos-servidor";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { correoAvisoEmpleo, correoAcuseEmpleo } from "@/lib/correo";
 import { AVISO_PRIVACIDAD } from "@/lib/datos";
@@ -12,7 +13,6 @@ import {
   EXTENSION_POR_TIPO_CV,
 } from "@/lib/empleo.mjs";
 import { registrar } from "@/lib/bitacora";
-import { usuarioActual } from "@/lib/supabase-sesion";
 
 /**
  * LAS VACANTES DE LA PÁGINA PÚBLICA.
@@ -197,17 +197,13 @@ export async function enviarSolicitudEmpleo(formData) {
   };
 }
 
-const PERSONAL = ["dueno", "admin"];
 
 /** Calcado de `exigirPersonal()` en `acciones-auditadas.js` y
  *  `acciones-alta-cliente.js`: no se comparte un helper porque cada acción
  *  de servidor es su propio endpoint y tiene que exigir el permiso por su
  *  cuenta, no heredarlo de que alguien más lo haya hecho bien. */
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 /**
@@ -251,7 +247,7 @@ export async function registrarAccionEmpleo({ evento, registroId, detalle }) {
   // llamada de red contra un backend que no existe.
   if (!haySupabase()) return;
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("empleo");
   if (sinPermiso) {
     console.warn("[empleo] registrarAccionEmpleo sin permiso:", sinPermiso);
     return;

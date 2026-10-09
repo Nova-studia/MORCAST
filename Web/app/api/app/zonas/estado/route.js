@@ -14,7 +14,7 @@ import { supabaseComoUsuario } from "@/lib/app-sesion-usuario";
 import { ESTADOS_ZONA, esEstado, esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "zonas",
     freno: { nombre: "app-zonas-estado", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

@@ -29,7 +29,7 @@ import { cambiarEstadoSolicitudComo } from "@/lib/recolecciones-oficina";
 import { supabaseDelToken } from "@/lib/supabase-usuario";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "recolecciones",
     freno: { nombre: "app-recolecciones", maximo: 150, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

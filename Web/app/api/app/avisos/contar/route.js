@@ -18,7 +18,7 @@ import { contarDestinatariosServidor } from "@/lib/avisos-servidor";
 
 export async function POST(peticion) {
   // Se pide al cambiar de destino en el formulario: holgado.
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "avisos",
     freno: { nombre: "app-avisos-contar", maximo: 120, minutos: 10 },
   });
   if (r.respuesta) return r.respuesta;

@@ -24,7 +24,7 @@ import { supabaseDelUsuario } from "@/lib/supabase-usuario";
 import { resolverDepositoServidor } from "@/lib/saldos-servidor";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "saldos",
     freno: { nombre: "app-saldos-resolver", maximo: 60, minutos: 10 },
   });
   if (r.respuesta) return r.respuesta;

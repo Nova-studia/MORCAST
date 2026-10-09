@@ -19,7 +19,7 @@ import { origenPermitido } from "@/lib/origen.mjs";
 import { invitarUsuarioEquipoCon } from "@/lib/equipo-servidor";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "usuarios",
     freno: { nombre: "app-usuarios-invitar", maximo: 20, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

@@ -28,7 +28,7 @@ import { activarCuentaRegistradaCon } from "@/lib/cuentas-servidor";
 import { contrasenaLegible, esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "altas",
     freno: { nombre: "app-altas-activar", maximo: 20, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

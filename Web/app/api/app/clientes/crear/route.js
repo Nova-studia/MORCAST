@@ -19,7 +19,7 @@ import { supabaseComoUsuario } from "@/lib/app-sesion-usuario";
 import { filaClienteNuevo } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "clientes",
     freno: { nombre: "app-clientes-crear", maximo: 30, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

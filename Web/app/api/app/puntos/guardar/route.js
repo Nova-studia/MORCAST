@@ -21,7 +21,7 @@ import { guardarPuntoCon } from "@/lib/puntos-servidor";
 import { esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: ["rutas", "clientes"],
     freno: { nombre: "app-puntos-guardar", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

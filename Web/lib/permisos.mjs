@@ -80,3 +80,42 @@ export function validarRol({ nombre, descripcion, permisos } = {}) {
   if (raro) return { ok: false, motivo: `No existe la sección "${raro}".` };
   return { ok: true, limpio };
 }
+
+/**
+ * Lee de la base el rol y los permisos efectivos de `uid`. Sirve con la
+ * sesión (RLS: cada quien ve su perfil y el personal ve los roles) o con la
+ * llave de servicio. Ojo: entre perfiles y roles hay DOS llaves (rol_id y
+ * roles.creado_por), por eso el embed nombra la suya.
+ */
+export async function leerPermisos(sb, uid) {
+  const { data } = await sb
+    .from("perfiles")
+    .select("rol, permisos, rol_id, roles!perfiles_rol_id_fkey ( nombre, permisos )")
+    .eq("id", uid)
+    .maybeSingle();
+  if (!data) return { rol: null, rolId: null, rolNombre: null, permisos: [] };
+  return {
+    rol: data.rol,
+    rolId: data.rol_id || null,
+    rolNombre: data.roles?.nombre || null,
+    permisos: permisosEfectivos(data.permisos, data.roles?.permisos),
+  };
+}
+
+/** El rol con que nace un administrador invitado, si no se escoge otro. */
+export const ROL_COMPLETO = "Administrador completo";
+
+/**
+ * Qué `rol_id` lleva alguien que se invita. Solo los administradores llevan
+ * rol; si no se escogió (p. ej. la app 1.1.1, que no sabe de roles), el
+ * completo: es lo que daba invitar un admin hasta hoy.
+ */
+export function rolDeInvitado({ rol, rolId, roles = [] }) {
+  if (rol !== "admin") return { ok: true, rolId: null };
+  if (rolId) {
+    return roles.some((r) => r.id === rolId)
+      ? { ok: true, rolId }
+      : { ok: false, motivo: "Ese rol ya no existe. Recarga la página." };
+  }
+  return { ok: true, rolId: roles.find((r) => r.nombre === ROL_COMPLETO)?.id || null };
+}

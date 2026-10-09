@@ -35,7 +35,7 @@ export const maxDuration = 60;
 export async function POST(peticion) {
   // Un aviso masivo es algo de pocas veces al día; 10 por hora sobra y frena
   // a un teléfono que se quedara reintentando en bucle.
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "avisos",
     freno: { nombre: "app-avisos-mandar", maximo: 10, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

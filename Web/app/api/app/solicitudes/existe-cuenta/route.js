@@ -11,7 +11,7 @@ import { entrarAppAdmin, responder } from "@/lib/app-ruta";
 import { existeCuentaCon } from "@/lib/cuentas-servidor";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "solicitudes",
     freno: { nombre: "app-solicitudes-existe", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

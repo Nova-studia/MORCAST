@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
-import { usuarioActual } from "@/lib/supabase-sesion";
+import { exigirSeccion } from "@/lib/permisos-servidor";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
 import { invitarUsuarioEquipoCon, cambiarActivoUsuarioCon } from "@/lib/equipo-servidor";
@@ -32,8 +32,9 @@ import { invitarUsuarioEquipoCon, cambiarActivoUsuarioCon } from "@/lib/equipo-s
 export async function invitarUsuarioEquipo(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const quien = await usuarioActual();
-  if (!quien) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+  // Rol con la sección Usuarios (lib/permisos-servidor.js); el dueño, siempre.
+  const { quien, error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
 
   return invitarUsuarioEquipoCon(
     { sb: supabaseServidor(), quien, anotar: registrar, origen: origenPermitido(await headers()) },
@@ -45,8 +46,9 @@ export async function invitarUsuarioEquipo(datos) {
 export async function cambiarActivoUsuario(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const quien = await usuarioActual();
-  if (!quien) return { ok: false, motivo: "Tu sesión se venció. Vuelve a entrar." };
+  // Rol con la sección Usuarios (lib/permisos-servidor.js); el dueño, siempre.
+  const { quien, error } = await exigirSeccion("usuarios");
+  if (error) return { ok: false, motivo: error };
 
   return cambiarActivoUsuarioCon({ sb: supabaseServidor(), quien, anotar: registrar }, datos || {});
 }

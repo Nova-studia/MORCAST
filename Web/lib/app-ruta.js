@@ -1,4 +1,5 @@
 import { supabaseServidor, haySupabase } from "./supabase";
+import { leerPermisos, puede } from "./permisos.mjs";
 import { pasarFreno } from "./freno";
 import { autenticarApp, tokenDeCabecera, MENSAJES_APP, ROLES_PERSONAL } from "./app-auth.mjs";
 import { mfaPanelActivo, secretoPanel, verificarPase } from "./mfa.mjs";
@@ -75,9 +76,19 @@ export async function entrarApp(peticion, { roles, freno }) {
  * `soloDueno: true` para lo que en la web también es solo del dueño
  * (invitar o desactivar administradores).
  */
-export async function entrarAppAdmin(peticion, { freno, soloDueno = false } = {}) {
+export async function entrarAppAdmin(peticion, { freno, soloDueno = false, permiso = null } = {}) {
   const r = await entrarApp(peticion, { roles: soloDueno ? ["dueno"] : ROLES_PERSONAL, freno });
   if (r.respuesta) return r;
+  // Roles personalizados (db/029): estas rutas usan la llave de servicio, que
+  // salta la base, así que aquí se exige la sección como en las acciones de
+  // la web. `permiso` puede ser una lista (basta una).
+  if (permiso) {
+    const { permisos } = await leerPermisos(r.sb, r.usuario.id);
+    const lista = Array.isArray(permiso) ? permiso : [permiso];
+    if (!lista.some((p) => puede({ rol: r.perfil.rol, permisos }, p))) {
+      return { respuesta: responder({ ok: false, motivo: "Tu rol no incluye esta sección. Pídesela al dueño." }, 403) };
+    }
+  }
   if (mfaPanelActivo()) {
     const valido = await verificarPase(
       typeof r.cuerpo.pase === "string" ? r.cuerpo.pase : null,

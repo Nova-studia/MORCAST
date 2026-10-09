@@ -3,18 +3,15 @@
 import { aplicarPermiso } from "@/lib/estado-cliente.mjs";
 import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
 import { haySupabase } from "@/lib/supabase";
+import { exigirSeccion } from "@/lib/permisos-servidor";
 import { registrar } from "@/lib/bitacora";
 import * as P from "@/lib/precios-servidor";
 
-/** Dueño, o admin con el permiso "precios". `usuarioActual()` ya exige el segundo paso. */
+/** Dueño, o admin con "precios" (en su rol o suelto). `usuarioActual()` ya exige el segundo paso. */
 async function exigirPrecios() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  const sb = await supabaseSesion();
-  const { data } = await sb.from("perfiles").select("permisos").eq("id", quien.id).maybeSingle();
-  const puede = quien.rol === "dueno" || (quien.rol === "admin" && (data?.permisos || []).includes("precios"));
-  if (!puede) return { error: "No tienes permiso para cambiar precios." };
-  return { quien, sb };
+  const { quien, error } = await exigirSeccion("precios");
+  if (error) return { error };
+  return { quien, sb: await supabaseSesion() };
 }
 
 const demo = { ok: true, demo: true };

@@ -15,7 +15,7 @@ import { supabaseComoUsuario } from "@/lib/app-sesion-usuario";
 import { ESTADOS_ALTA, esEstado, esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "altas",
     freno: { nombre: "app-altas-estado", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

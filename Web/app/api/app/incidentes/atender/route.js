@@ -22,7 +22,7 @@ import { validarAtencion } from "@/app/(admin)/admin/incidentes/bandeja.mjs";
 import { supabaseDelToken } from "@/lib/supabase-usuario";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "incidentes",
     freno: { nombre: "app-incidentes", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

@@ -16,7 +16,7 @@ import { cambiarActivoUsuarioCon } from "@/lib/equipo-servidor";
 import { esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "usuarios",
     freno: { nombre: "app-usuarios-activo", maximo: 30, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

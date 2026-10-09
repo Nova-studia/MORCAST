@@ -1,6 +1,7 @@
 "use server";
 
-import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
+import { exigirSeccion } from "@/lib/permisos-servidor";
+import { supabaseSesion } from "@/lib/supabase-sesion";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { mandarAvisoServidor, contarDestinatariosServidor } from "@/lib/avisos-servidor";
@@ -27,14 +28,10 @@ import { mandarAvisoServidor, contarDestinatariosServidor } from "@/lib/avisos-s
  * quién llama y se llama.
  */
 
-const PERSONAL = ["dueno", "admin"];
 
 /** Igual que en acciones-auditadas.js: `sin-verificar` (sin el segundo paso) no pasa. */
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 /**
@@ -44,7 +41,7 @@ async function exigirPersonal() {
 export async function contarDestinatarios(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("avisos");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return contarDestinatariosServidor(supabaseServidor(), datos);
@@ -61,7 +58,7 @@ export async function contarDestinatarios(datos) {
 export async function enviarAviso(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("avisos");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return mandarAvisoServidor({

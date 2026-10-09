@@ -1,6 +1,7 @@
 "use server";
 
-import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
+import { exigirSeccion } from "@/lib/permisos-servidor";
+import { supabaseSesion } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { haySupabase } from "@/lib/supabase";
 import { leerKg, cambiosDeRecolecciones } from "@/lib/peso.mjs";
@@ -22,16 +23,10 @@ import { leerKg, cambiosDeRecolecciones } from "@/lib/peso.mjs";
  *    cobro por tonelada; cuando un cliente reclame, esto es lo que contesta.
  */
 
-const PERSONAL = ["dueno", "admin"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  // `sin-verificar` (le falta el código del correo) cae aquí también: no
-  // está en la lista.
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 /** AAAA-MM-DD que de verdad existe. */
@@ -59,7 +54,7 @@ function texto(v, max) {
 export async function guardarViaje(datos = {}) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("recolecciones");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   // Todo se valida otra vez aquí aunque la pantalla ya lo haga: lo que llega
@@ -168,7 +163,7 @@ export async function guardarViaje(datos = {}) {
 export async function fijarFotoTicket(viajeId, ruta) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("recolecciones");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   const r = String(ruta || "");
@@ -199,7 +194,7 @@ export async function fijarFotoTicket(viajeId, ruta) {
 export async function borrarViaje(viajeId) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("recolecciones");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
   if (!UUID.test(String(viajeId || ""))) return { ok: false, motivo: "Ese viaje no existe." };
 
@@ -234,7 +229,7 @@ export async function borrarViaje(viajeId) {
 export async function ponerPesoRealRecoleccion(recoleccionId, kg) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("recolecciones");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
   if (!UUID.test(String(recoleccionId || ""))) return { ok: false, motivo: "Esa recolección no existe." };
 

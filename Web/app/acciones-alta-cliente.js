@@ -1,8 +1,8 @@
 "use server";
 
+import { exigirSeccion } from "@/lib/permisos-servidor";
 import { headers } from "next/headers";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
-import { usuarioActual } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
 import {
@@ -44,20 +44,16 @@ import {
  * nombre de quien tiene la cookie (`registrar`).
  */
 
-const PERSONAL = ["dueno", "admin"];
 
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para dar de alta clientes." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 /** Da de alta la empresa y su primer acceso al portal (ver lib/cuentas-servidor.js). */
 export async function activarCuentaCliente(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("solicitudes");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   const r = await activarCuentaClienteCon({ sb: supabaseServidor(), anotar: registrar }, datos || {});
@@ -73,7 +69,7 @@ export async function activarCuentaCliente(datos) {
 export async function existeCuenta(correo) {
   if (!haySupabase()) return { ok: true, existe: false, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("solicitudes");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return existeCuentaCon(supabaseServidor(), correo);
@@ -83,7 +79,7 @@ export async function existeCuenta(correo) {
 export async function activarCuentaRegistrada(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("altas");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   const r = await activarCuentaRegistradaCon({ sb: supabaseServidor(), anotar: registrar }, datos || {});
@@ -94,7 +90,7 @@ export async function activarCuentaRegistrada(datos) {
 export async function darAccesoACliente(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("clientes");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   const r = await darAccesoAClienteCon(
@@ -108,7 +104,7 @@ export async function darAccesoACliente(datos) {
 export async function enlacesArchivosAlta(solicitudId) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal("altas");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return enlacesArchivosAltaCon(supabaseServidor(), solicitudId);

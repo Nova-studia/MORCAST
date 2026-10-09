@@ -1,6 +1,7 @@
 "use server";
 
-import { supabaseSesion, usuarioActual } from "@/lib/supabase-sesion";
+import { exigirSeccion } from "@/lib/permisos-servidor";
+import { supabaseSesion } from "@/lib/supabase-sesion";
 import { registrar } from "@/lib/bitacora";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { hayResend } from "@/lib/correo";
@@ -28,7 +29,6 @@ import { asignarRutaAPuntoCon, revisarAsignacion } from "@/lib/puntos-servidor";
  * no se salta la seguridad.
  */
 
-const PERSONAL = ["dueno", "admin"];
 
 /**
  * Los avisos NO pueden tumbar la operación.
@@ -51,11 +51,8 @@ async function avisar(que, fn) {
   }
 }
 
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 /**
@@ -69,7 +66,7 @@ async function exigirPersonal() {
 export async function resolverDepositoAuditado(id, estado, notas) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("saldos");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return resolverDepositoServidor({
@@ -93,7 +90,7 @@ export async function resolverDepositoAuditado(id, estado, notas) {
 export async function cambiarEstadoSolicitudAuditado(id, cambios, accion) {
   if (!haySupabase()) return { ok: true, demo: true };
 
-  const { quien, error: sinPermiso } = await exigirPersonal();
+  const { quien, error: sinPermiso } = await exigirPersonal("recolecciones");
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   const r = await cambiarEstadoSolicitudComo({
@@ -120,7 +117,7 @@ export async function asignarRutaAPunto(datos) {
   if (!revisado.ok) return revisado;
   if (!haySupabase()) return { ok: true, demo: true, suscripcion: revisado.resultado };
 
-  const { error: sinPermiso } = await exigirPersonal();
+  const { error: sinPermiso } = await exigirPersonal(["rutas", "clientes"]);
   if (sinPermiso) return { ok: false, motivo: sinPermiso };
 
   return asignarRutaAPuntoCon({ sb: await supabaseSesion(), anotar: registrar }, datos || {});

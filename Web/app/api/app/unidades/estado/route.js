@@ -18,7 +18,7 @@ import { ESTADOS_UNIDAD } from "@/lib/unidades.mjs";
 import { esEstado, esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "unidades",
     freno: { nombre: "app-unidades-estado", maximo: 120, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

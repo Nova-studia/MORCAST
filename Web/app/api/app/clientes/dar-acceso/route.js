@@ -20,7 +20,7 @@ import { esId } from "@/lib/admin-app.mjs";
 
 export async function POST(peticion) {
   // Cada llamada puede crear un usuario y mandar un correo.
-  const r = await entrarAppAdmin(peticion, {
+  const r = await entrarAppAdmin(peticion, { permiso: "clientes",
     freno: { nombre: "app-clientes-acceso", maximo: 20, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;

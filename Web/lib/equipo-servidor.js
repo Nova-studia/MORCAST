@@ -7,6 +7,7 @@ import {
   puedeDarRol,
   puedeCambiarActivo,
 } from "./equipo.mjs";
+import { rolDeInvitado } from "./permisos.mjs";
 
 /**
  * EL EQUIPO DE MORCAST, DEL LADO DEL SERVIDOR: invitar y desactivar.
@@ -34,7 +35,7 @@ const BLOQUEO = "876000h";
 const SIN_BLOQUEO = "none";
 
 /** Invita a alguien al equipo como administrador o chofer. */
-export async function invitarUsuarioEquipoCon({ sb, quien, anotar, origen }, { nombre, correo, rol } = {}) {
+export async function invitarUsuarioEquipoCon({ sb, quien, anotar, origen }, { nombre, correo, rol, rolId } = {}) {
   if (!puedeInvitar(quien)) return { ok: false, motivo: "No tienes permiso para invitar al equipo." };
 
   const v = validarInvitacion({ nombre, correo, rol });
@@ -43,6 +44,12 @@ export async function invitarUsuarioEquipoCon({ sb, quien, anotar, origen }, { n
   if (!puedeDarRol(quien, limpio.rol)) {
     return { ok: false, motivo: "Solo el dueño puede dar acceso de administrador." };
   }
+  // Roles personalizados (db/029): qué secciones tendrá el admin nuevo.
+  const { data: roles } = limpio.rol === "admin"
+    ? await sb.from("roles").select("id, nombre")
+    : { data: [] };
+  const elegido = rolDeInvitado({ rol: limpio.rol, rolId, roles: roles || [] });
+  if (!elegido.ok) return { ok: false, motivo: elegido.motivo };
   // 1) ¿Ya existe ese correo? `generateLink({type:"recovery"})` NO crea al
   //    usuario: contesta error si no existe (ver darAccesoACliente). Aquí, a
   //    diferencia del acceso de cliente, NUNCA se reutiliza una cuenta: si el
@@ -88,7 +95,7 @@ export async function invitarUsuarioEquipoCon({ sb, quien, anotar, origen }, { n
   //    fila no da error, por eso se cuentan las filas.
   const { data: perfilExistente } = await sb
     .from("perfiles").select("id").eq("id", uid).maybeSingle();
-  const datosPerfil = { nombre: limpio.nombre, rol: limpio.rol, cliente_id: null, activo: true };
+  const datosPerfil = { nombre: limpio.nombre, rol: limpio.rol, cliente_id: null, activo: true, rol_id: elegido.rolId };
   const { data: perfil, error: errPerfil } = perfilExistente
     ? await sb.from("perfiles").update(datosPerfil).eq("id", uid).select("id")
     : await sb.from("perfiles").insert({ id: uid, ...datosPerfil }).select("id");
@@ -130,7 +137,7 @@ export async function invitarUsuarioEquipoCon({ sb, quien, anotar, origen }, { n
     accion: "invitar_equipo",
     tabla: "perfiles",
     registroId: uid,
-    detalle: { correo: limpio.correo, nombre: limpio.nombre, rol: limpio.rol },
+    detalle: { correo: limpio.correo, nombre: limpio.nombre, rol: limpio.rol, rolId: elegido.rolId },
   });
 
   return { ok: true, correo: limpio.correo, rol: limpio.rol };

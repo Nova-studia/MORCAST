@@ -67,3 +67,29 @@ test("validarRol: nombre obligatorio y solo secciones que existen", () => {
 test("cada sección tiene texto para las casillas", () => {
   for (const s of SECCIONES) assert.ok(s.id && s.texto, s.id);
 });
+
+test("leerPermisos: junta el rol y los sueltos (y avisa del nombre del rol)", async () => {
+  const { leerPermisos } = await import("../lib/permisos.mjs");
+  const sb = { from: () => ({ select() { return this; }, eq() { return this; },
+    maybeSingle: async () => ({ data: { rol: "admin", permisos: ["precios"], rol_id: "r1", roles: { nombre: "Caja", permisos: ["saldos"] } } }) }) };
+  const p = await leerPermisos(sb, "u1");
+  assert.equal(p.rol, "admin");
+  assert.equal(p.rolNombre, "Caja");
+  assert.deepEqual(p.permisos.sort(), ["precios", "saldos"]);
+});
+
+test("leerPermisos: sin perfil o con error, nada", async () => {
+  const { leerPermisos } = await import("../lib/permisos.mjs");
+  const sb = { from: () => ({ select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data: null, error: { message: "x" } }) }) };
+  assert.deepEqual(await leerPermisos(sb, "u1"), { rol: null, rolId: null, rolNombre: null, permisos: [] });
+});
+
+test("rolDeInvitado: un admin nuevo entra con el rol elegido, o con el completo si no se eligió", async () => {
+  const { rolDeInvitado } = await import("../lib/permisos.mjs");
+  const roles = [{ id: "r1", nombre: "Administrador completo" }, { id: "r2", nombre: "Caja" }];
+  assert.deepEqual(rolDeInvitado({ rol: "operador", rolId: "r2", roles }), { ok: true, rolId: null });
+  assert.deepEqual(rolDeInvitado({ rol: "admin", rolId: "r2", roles }), { ok: true, rolId: "r2" });
+  assert.deepEqual(rolDeInvitado({ rol: "admin", rolId: "", roles }), { ok: true, rolId: "r1" });
+  assert.equal(rolDeInvitado({ rol: "admin", rolId: "zz", roles }).ok, false);
+  assert.deepEqual(rolDeInvitado({ rol: "admin", rolId: null, roles: [] }), { ok: true, rolId: null });
+});

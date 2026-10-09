@@ -1,7 +1,7 @@
 "use server";
 
+import { exigirSeccion } from "@/lib/permisos-servidor";
 import { headers } from "next/headers";
-import { usuarioActual, supabaseSesion } from "@/lib/supabase-sesion";
 import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
@@ -17,13 +17,9 @@ import * as C from "@/lib/clientes-servidor";
  * segundo paso al personal.
  */
 
-const PERSONAL = ["dueno", "admin"];
 
-async function exigirPersonal() {
-  const quien = await usuarioActual();
-  if (!quien) return { error: "Tu sesión se venció. Vuelve a entrar." };
-  if (!PERSONAL.includes(quien.rol)) return { error: "No tienes permiso para esto." };
-  return { quien };
+async function exigirPersonal(seccion) {
+  return exigirSeccion(seccion);
 }
 
 const contexto = (quien) => ({
@@ -36,7 +32,7 @@ const demo = { ok: true, demo: true };
 
 export async function fichaClienteAccion(clienteId) {
   if (!haySupabase()) return { ok: false, motivo: "Sin base (modo demostración)." };
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   const sb = supabaseServidor();
   const [cli, doms, sols, movs] = await Promise.all([
@@ -52,7 +48,6 @@ export async function fichaClienteAccion(clienteId) {
   if (cli.error || !cli.data) return { ok: false, motivo: "No encontré ese cliente." };
   const usuarios = await C.usuariosDeClienteCon({ sb }, { clienteId });
   const conteos = await C.conteosClienteCon({ sb }, { clienteId });
-  const { data: p } = await sb.from("perfiles").select("permisos").eq("id", quien.id).maybeSingle();
   return {
     ok: true,
     cliente: cli.data,
@@ -61,30 +56,30 @@ export async function fichaClienteAccion(clienteId) {
     movimientos: movs.data || [],
     usuarios: usuarios.ok ? usuarios.usuarios : [],
     conteos,
-    puedeEliminar: puedeEliminarCliente({ rol: quien.rol, permisos: p?.permisos || [] }),
+    puedeEliminar: puedeEliminarCliente({ rol: quien.rol, permisos: quien.permisos }),
   };
 }
 
 export async function cambiarEstadoClienteAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.cambiarEstadoClienteCon(contexto(quien), datos);
 }
 
 export async function editarClienteAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.editarClienteCon(contexto(quien), datos);
 }
 
 export async function eliminarClienteAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
-  const { data: p } = await (await supabaseSesion()).from("perfiles").select("permisos").eq("id", quien.id).maybeSingle();
-  if (!puedeEliminarCliente({ rol: quien.rol, permisos: p?.permisos || [] })) {
+  // `quien.permisos` ya trae los del rol y los sueltos (lib/permisos.mjs).
+  if (!puedeEliminarCliente({ rol: quien.rol, permisos: quien.permisos })) {
     return { ok: false, motivo: "Solo el dueño (o a quien él le dé el permiso) puede eliminar clientes." };
   }
   return C.eliminarClienteCon(contexto(quien), datos);
@@ -92,14 +87,14 @@ export async function eliminarClienteAccion(datos) {
 
 export async function accesoUsuarioClienteAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.quitarAccesoClienteCon(contexto(quien), datos);
 }
 
 export async function reenviarAccesoClienteAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.reenviarAccesoClienteCon(
     { ...contexto(quien), origen: origenPermitido(await headers()), enviarCorreo: correoAccesoCliente },
@@ -109,21 +104,21 @@ export async function reenviarAccesoClienteAccion(datos) {
 
 export async function agregarPuntoAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.agregarPuntoCon(contexto(quien), datos);
 }
 
 export async function quitarPuntoAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.quitarPuntoCon(contexto(quien), datos);
 }
 
 export async function cambiarServicioAccion(datos) {
   if (!haySupabase()) return demo;
-  const { quien, error } = await exigirPersonal();
+  const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
   return C.cambiarServicioCon(contexto(quien), datos);
 }
