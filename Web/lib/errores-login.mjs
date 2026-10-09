@@ -25,6 +25,8 @@ export const ERRORES_LOGIN = {
   sesionNoCanjeada: "sesion_no_canjeada",
   /** La sesion murio al activarle la cuenta (cambiar la contraseña revoca). */
   sesionCerrada: "sesion_cerrada",
+  /** El cliente eliminó su cuenta desde Mi cuenta (Entrega 4). */
+  cuentaEliminada: "cuenta_eliminada",
 };
 
 const TEXTOS = {
@@ -33,6 +35,8 @@ const TEXTOS = {
   [ERRORES_LOGIN.sesionNoCanjeada]: "No se pudo iniciar sesión con Google. Inténtalo de nuevo.",
   [ERRORES_LOGIN.sesionCerrada]:
     "Tu sesión se cerró. Vuelve a entrar: si la empresa ya activó tu cuenta, entrarás directo al portal.",
+  [ERRORES_LOGIN.cuentaEliminada]:
+    "Tu cuenta se eliminó. El historial de tu empresa se conserva; si fue un error, escríbenos.",
 };
 
 const GENERICO = "No se pudo entrar. Inténtalo de nuevo.";

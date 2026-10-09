@@ -77,7 +77,7 @@ export default function PortalShell({ children }) {
 
   const activo = (item) =>
     item.exacto ? ruta === item.href : ruta.startsWith(item.href);
-  const seccion = NAV.find((n) => activo(n)) || NAV[0];
+  const seccion = ruta.startsWith("/portal/cuenta") ? { texto: "Mi cuenta" } : NAV.find((n) => activo(n)) || NAV[0];
 
   // Datos de quien entró. CLIENTE solo entra cuando NO hay sesión, que es el
   // modo demostración. Antes se caía a él con `||` en cuanto un campo venía
@@ -181,7 +181,7 @@ export default function PortalShell({ children }) {
             </button>
           </nav>
           <div className="pt-side-pie">
-            Portal de clientes · Fase 2<br />
+            Portal de clientes<br />
             Morcast del Norte
           </div>
         </aside>
@@ -222,13 +222,14 @@ export default function PortalShell({ children }) {
                 <small>{cuenta}</small>
               </div>
             </div>
-            <div className="pt-user">
+            {/* Tocar la empresa abre Mi cuenta (Entrega 4). */}
+            <Link href="/portal/cuenta" className="pt-user" title="Mi cuenta" prefetch={false} style={{ textDecoration: "none", color: "inherit" }}>
               <div className="pt-user-datos" style={{ textAlign: "right" }}>
                 <strong>{empresa}</strong>
                 <span>{folio}</span>
               </div>
               <div className="pt-avatar">{iniciales}</div>
-            </div>
+            </Link>
           </header>
           <main className="pt-content">
             <AvisoHold />

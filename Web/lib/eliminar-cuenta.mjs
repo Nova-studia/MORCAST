@@ -69,7 +69,7 @@ const respuesta = (status, cuerpo) => ({ status, cuerpo });
  * Hace todo el trabajo. `sb` es un cliente de Supabase con la llave de
  * SERVICIO. Nunca lanza: devuelve `{ status, cuerpo }` listo para la ruta.
  */
-export async function eliminarCuenta({ token, sb, log = console }) {
+export async function eliminarCuenta({ token, sb, log = console, origen = "app" }) {
   if (!token) return respuesta(401, { ok: false, mensaje: MENSAJES.sinSesion });
 
   // `getUser(token)` le pregunta al servidor de Auth: comprueba la firma, que
@@ -147,7 +147,8 @@ export async function eliminarCuenta({ token, sb, log = console }) {
     accion: "eliminar_cuenta",
     tabla: "perfiles",
     registro_id: usuario.id,
-    detalle: { cliente_id: clienteId, origen: "app" },
+    // "app" o "web" (Mi cuenta del portal, Entrega 4).
+    detalle: { cliente_id: clienteId, origen: origen === "web" ? "web" : "app" },
   });
 
   return respuesta(200, { ok: true });

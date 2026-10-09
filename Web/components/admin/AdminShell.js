@@ -217,7 +217,7 @@ export default function AdminShell({ children }) {
           </nav>
           <div className="pt-side-pie">
             Morcast del Norte<br />
-            Administración · Fase 2
+            Administración
           </div>
         </aside>
 

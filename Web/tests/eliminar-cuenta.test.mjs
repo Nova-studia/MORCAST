@@ -155,3 +155,12 @@ test("si Auth no deja borrar: 500 con mensaje claro, sin tocar el perfil", async
   assert.ok(perfiles["u-cli"], "si el usuario no se borró, el perfil tampoco");
   assert.equal(sb.hechos.bitacora.length, 0);
 });
+
+test("desde el portal web: la bitácora dice origen 'web' (la app sigue diciendo 'app')", async () => {
+  const sbWeb = sbFalso({ usuarios: { t: cliente }, perfiles: { "u-cli": { cliente_id: "c-1" } } });
+  await eliminarCuenta({ token: "t", sb: sbWeb, log: callado, origen: "web" });
+  assert.equal(sbWeb.hechos.bitacora[0].detalle.origen, "web");
+  const sbApp = sbFalso({ usuarios: { t: cliente }, perfiles: { "u-cli": { cliente_id: "c-1" } } });
+  await eliminarCuenta({ token: "t", sb: sbApp, log: callado });
+  assert.equal(sbApp.hechos.bitacora[0].detalle.origen, "app");
+});

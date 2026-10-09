@@ -14,7 +14,8 @@ import { pasarFreno } from "@/lib/freno";
  * lo suyo: el id sale de la sesión, nunca de un parámetro.
  */
 
-const PUEDEN = ["dueno", "admin", "operador"];
+// El cliente también (Entrega 4): su nombre, teléfono y contraseña.
+const PUEDEN = ["dueno", "admin", "operador", "cliente"];
 
 async function yo() {
   const quien = await usuarioActual();
