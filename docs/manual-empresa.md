@@ -182,7 +182,10 @@ entre a la página ya obtiene la respuesta nueva.
    - **Unidad** — cuál de los camiones la hace.
    - **Días** — da clic a cada día que pasa. Se pintan de naranja los elegidos. Solo
      hay de lunes a sábado; el domingo no se opera.
-   - **Chofer** — quién la maneja.
+   - **Chofer** — quién la maneja. Se escoge **de la lista de choferes** (los que
+     invitaste en Usuarios). Es importante: las recolecciones confirmadas con
+     *"El de la ruta"* le aparecen a ESE chofer. Una ruta sin chofer no se las enseña a
+     nadie.
    - **Cupo por día** — cuántas paradas aguanta esa ruta en un día. Sirve para no
      comprometer más servicios de los que caben.
 4. Dibújale la zona con los pasos de arriba.
@@ -201,6 +204,26 @@ recolección se programa sola: siempre pasa por aquí para que alguien de Morcas
 autorice.
 
 Arriba te dice de un vistazo cuántas están esperando respuesta.
+
+### Buscar y moverte por la lista
+
+- **Buscar:** escribe un folio (*REC-2026-…*) o el nombre de la empresa.
+- **Desde / Hasta:** por omisión se ven las de los últimos 30 días y todas las que vienen.
+  Cambia las fechas para buscar más atrás. Cuenta la fecha acordada, o la pedida si
+  todavía no se confirma.
+- La lista va de **50 en 50**; abajo están **Anterior** y **Siguiente** con el total.
+- Las **vencidas** se cuentan siempre, aunque queden fuera de las fechas.
+
+### Crear una recolección (pedidos por teléfono o WhatsApp)
+
+1. Da clic en **Nueva recolección**.
+2. Busca al **cliente** y escoge su **punto** (cada punto dice su ruta).
+3. Pon la **fecha**, el **tipo de residuo** y, si hace falta, una nota para el chofer.
+4. Si ya sabes cuándo va el camión, marca **Confirmarla ya** y pon hora y chofer:
+   al cliente y al chofer les llega el aviso igual que al confirmar. Si no, queda como
+   *Solicitada* para confirmarla después.
+
+El folio lo pone el sistema y todo queda en la Bitácora.
 
 ### Qué significa cada estado
 
@@ -274,8 +297,10 @@ ya, así que se enteraba sólo si llamaba.
    - **Día:** viene puesto el que pidió el cliente. Cámbialo si no te cuadra.
    - **Hora:** es opcional. Si la pones, al cliente le llega en el correo y deja de
      esperar el camión todo el día. Si no, se le dice que todavía no hay hora.
-   - **Chofer:** déjalo en *"El de la ruta"* casi siempre. Solo lo cambias cuando
-     alguien tiene que cubrir una ruta que no es la suya.
+   - **Chofer:** déjalo en *"El de la ruta: <nombre>"* casi siempre. Solo lo cambias
+     cuando alguien tiene que cubrir una ruta que no es la suya. Si dice *"La ruta no
+     tiene chofer asignado"*, escoge uno aquí o asígnalo en **Rutas**: si no, ningún
+     chofer verá esa recolección.
 4. Da clic en **Confirmar**.
 
 Listo. La solicitud cambia a *Confirmada* y le aparece al chofer en su recorrido del
