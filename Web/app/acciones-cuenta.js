@@ -28,8 +28,15 @@ export async function miCuentaAccion() {
   if (!haySupabase()) return { ok: true, demo: true, nombre: "Demostración", telefono: "", correo: "demo@morcast.mx" };
   const { quien, error } = await yo();
   if (error) return { ok: false, motivo: error };
-  const { data } = await (await supabaseSesion()).from("perfiles").select("nombre, telefono").eq("id", quien.id).maybeSingle();
-  return { ok: true, nombre: data?.nombre || "", telefono: data?.telefono || "", correo: quien.correo };
+  const sb = await supabaseSesion();
+  const [{ data }, { data: { user } }] = await Promise.all([
+    sb.from("perfiles").select("nombre, telefono").eq("id", quien.id).maybeSingle(),
+    sb.auth.getUser(),
+  ]);
+  // Quien entra solo con Google no tiene contraseña que cambiar (Entrega 4).
+  const proveedores = user?.app_metadata?.providers || [user?.app_metadata?.provider].filter(Boolean);
+  const tieneContrasena = proveedores.length === 0 || proveedores.includes("email");
+  return { ok: true, nombre: data?.nombre || "", telefono: data?.telefono || "", correo: quien.correo, tieneContrasena };
 }
 
 export async function guardarMiCuentaAccion({ nombre, telefono } = {}) {

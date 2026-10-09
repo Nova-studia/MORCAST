@@ -64,13 +64,17 @@ export async function cambiarMiSolicitudAccion(datos = {}) {
   }
   const sb = supabaseServidor();
   const origen = origenPermitido(await headers());
+  // El estado de la EMPRESA: suspendida o de baja no cambia nada (db/028).
+  const { data: empresa } = await sb.from("clientes").select("estado").eq("id", quien.cliente_id).maybeSingle();
   return cambiarSolicitudClienteCon(
     {
       sb,
-      quien,
+      quien: { ...quien, estadoCliente: empresa?.estado || "baja" },
       anotar: registrar,
       avisarOficina: async (e) => {
-        const enlace = `${origen}/admin/recolecciones?cambiar=${encodeURIComponent(e.folio)}`;
+        // ?folio= enseña esa solicitud con cualquier estado (?cambiar= filtra
+        // las confirmadas y una cancelada o reagendada no salía).
+        const enlace = `${origen}/admin/recolecciones?folio=${encodeURIComponent(e.folio)}`;
         const tareas = [];
         if (hayResend()) tareas.push(correoCambioSolicitudCliente({ ...e, enlace }));
         tareas.push((async () => {
@@ -79,7 +83,7 @@ export async function cambiarMiSolicitudAccion(datos = {}) {
           await enviarPush(tokens, {
             titulo: e.accion === "cancelar" ? "Recolección cancelada por el cliente" : "Un cliente cambió la fecha",
             cuerpo: `${e.empresa || "Un cliente"} · ${e.folio}${e.accion === "reagendar" ? ` → ${e.despues}` : ""}`,
-            datos: { tipo: "solicitud", folio: e.folio },
+            datos: { tipo: "solicitud", id: e.id, folio: e.folio },
           }, { sb });
         })());
         await Promise.allSettled(tareas);

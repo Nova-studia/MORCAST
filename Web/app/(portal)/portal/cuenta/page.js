@@ -61,7 +61,7 @@ export default function CuentaPortal() {
     e.preventDefault();
     setGuardando(true);
     setAviso(null);
-    const r = await guardarDatosClienteAccion(form);
+    const r = await guardarDatosClienteAccion(form).catch(() => ({ ok: false, motivo: "No se pudo guardar. Revisa tu conexión." }));
     setGuardando(false);
     setAviso(r.ok ? { tipo: "ok", texto: "Guardado. Los avisos te llegarán a ese correo." } : { tipo: "error", texto: r.motivo || "No se guardó." });
   };
@@ -69,7 +69,7 @@ export default function CuentaPortal() {
   const eliminar = async () => {
     setBorrando(true);
     setAvisoBorrar(null);
-    const r = await eliminarMiCuentaAccion({ confirmacion: borrar });
+    const r = await eliminarMiCuentaAccion({ confirmacion: borrar }).catch(() => ({ ok: false, motivo: "No se pudo. Revisa tu conexión." }));
     if (!r.ok) {
       setBorrando(false);
       setAvisoBorrar({ tipo: "error", texto: r.motivo || "No se pudo eliminar." });

@@ -11,7 +11,9 @@ const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function validarDatosCliente({ contacto, telefono, correo } = {}) {
   const limpio = {
     contacto: String(contacto ?? "").trim().replace(/\s+/g, " "),
-    telefono: String(telefono ?? "").replace(/\D/g, "").slice(-10) || null,
+    // Se quita la lada de país (52 o 1) y lo demás tiene que ser de 10:
+    // recortar "los últimos 10" se tragaba un dígito de más sin avisar.
+    telefono: String(telefono ?? "").replace(/\D/g, "").replace(/^(52|1)(?=\d{10}$)/, "") || null,
     correo: String(correo ?? "").trim().toLowerCase(),
   };
   if (limpio.contacto.length > 120) return { ok: false, motivo: "El nombre de contacto es muy largo." };

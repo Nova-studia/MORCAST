@@ -34,7 +34,7 @@ export default function MiCuenta() {
     let vivo = true;
     miCuentaAccion().then((r) => {
       if (!vivo) return;
-      if (r.ok) setDatos({ nombre: r.nombre, telefono: r.telefono, correo: r.correo });
+      if (r.ok) setDatos({ nombre: r.nombre, telefono: r.telefono, correo: r.correo, tieneContrasena: r.tieneContrasena !== false });
       else setError(r.motivo || "No se pudo leer tu cuenta.");
     });
     return () => { vivo = false; };
@@ -44,7 +44,7 @@ export default function MiCuenta() {
     e.preventDefault();
     setGuardando(true);
     setAvisoDatos(null);
-    const r = await guardarMiCuentaAccion({ nombre: datos.nombre, telefono: datos.telefono });
+    const r = await guardarMiCuentaAccion({ nombre: datos.nombre, telefono: datos.telefono }).catch(() => ({ ok: false, motivo: "No se pudo. Revisa tu conexión." }));
     setGuardando(false);
     setAvisoDatos(r.ok ? { tipo: "ok", texto: "Guardado." } : { tipo: "error", texto: r.motivo || "No se guardó." });
   };
@@ -53,7 +53,7 @@ export default function MiCuenta() {
     e.preventDefault();
     setCambiando(true);
     setAvisoClave(null);
-    const r = await cambiarMiContrasenaAccion(clave);
+    const r = await cambiarMiContrasenaAccion(clave).catch(() => ({ ok: false, motivo: "No se pudo. Revisa tu conexión." }));
     setCambiando(false);
     if (!r.ok) { setAvisoClave({ tipo: "error", texto: r.motivo || "No se pudo cambiar." }); return; }
     setClave({ actual: "", nueva: "", repetir: "" });
@@ -91,6 +91,14 @@ export default function MiCuenta() {
           </form>
         </div>
 
+        {datos.tieneContrasena === false ? (
+          <div className="pt-card">
+            <div className="pt-card-head"><h2>Contraseña</h2></div>
+            <p style={{ color: "var(--mc-gris)", fontSize: "0.88rem", margin: 0 }}>
+              Entras con tu cuenta de Google: tu contraseña la maneja Google, no Morcast.
+            </p>
+          </div>
+        ) : (
         <div className="pt-card">
           <div className="pt-card-head"><h2>Cambiar contraseña</h2></div>
           <Aviso aviso={avisoClave} />
@@ -106,6 +114,7 @@ export default function MiCuenta() {
             </button>
           </form>
         </div>
+        )}
       </div>
     </>
   );

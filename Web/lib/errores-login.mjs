@@ -57,8 +57,19 @@ export function mensajeDeError(codigo) {
  */
 export function destinoTrasLogin(volver) {
   const v = typeof volver === "string" ? volver : "";
-  if (!/^\/portal(\/|\?|$)/.test(v)) return "/portal";
-  if (v.includes("..") || v.includes("\\") || v.startsWith("//")) return "/portal";
-  if (/^\/portal\/login(\/|\?|$)/.test(v)) return "/portal";
-  return v;
+  // Nada de caracteres de control (tabulador, salto de línea) ni barras
+  // invertidas: el navegador los "arregla" y se brinca la revisión.
+  if (!v.startsWith("/") || v.startsWith("//") || /[\\\u0000-\u001f]/.test(v)) return "/portal";
+  // Se resuelve como lo haría el navegador (%2e%2e = ..) y se revisa YA resuelta.
+  let u;
+  try {
+    u = new URL(v, "https://morcast.mx");
+  } catch {
+    return "/portal";
+  }
+  if (u.origin !== "https://morcast.mx") return "/portal";
+  const ruta = u.pathname;
+  if (ruta !== "/portal" && !ruta.startsWith("/portal/")) return "/portal";
+  if (ruta === "/portal/login" || ruta.startsWith("/portal/login/")) return "/portal";
+  return ruta + u.search;
 }

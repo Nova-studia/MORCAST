@@ -5,6 +5,7 @@ import { supabaseServidor, haySupabase } from "@/lib/supabase";
 import { registrar } from "@/lib/bitacora";
 import { pasarFreno } from "@/lib/freno";
 import { validarDatosCliente, confirmaEliminar } from "@/lib/cuenta-cliente.mjs";
+import { permisosDeEstado } from "@/lib/estado-cliente.mjs";
 import { eliminarCuenta } from "@/lib/eliminar-cuenta.mjs";
 
 /**
@@ -56,6 +57,11 @@ export async function guardarDatosClienteAccion(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
   const { quien, error } = await soyCliente();
   if (error) return { ok: false, motivo: error };
+  // Suspendida = solo ver y agregar saldo (db/028).
+  const { data: empresa } = await supabaseServidor().from("clientes").select("estado").eq("id", quien.cliente_id).maybeSingle();
+  if (!permisosDeEstado(empresa?.estado || "baja").puedeOperar) {
+    return { ok: false, motivo: "Tu cuenta está suspendida: por ahora no puedes cambiar estos datos. Contáctanos." };
+  }
   const v = validarDatosCliente(datos || {});
   if (!v.ok) return v;
   const { data, error: e } = await supabaseServidor()

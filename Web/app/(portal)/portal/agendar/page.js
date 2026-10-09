@@ -95,19 +95,26 @@ export default function AgendarPortal() {
   const aplicarCambio = async () => {
     if (!cambio || cambio.enviando) return;
     setCambio((c) => ({ ...c, enviando: true, error: "" }));
-    const r = await cambiarMiSolicitudAccion({
-      id: cambio.id,
-      accion: cambio.modo,
-      fecha: cambio.fecha,
-      motivo: cambio.motivo,
-    });
+    let r;
+    try {
+      r = await cambiarMiSolicitudAccion({
+        id: cambio.id,
+        accion: cambio.modo,
+        fecha: cambio.fecha,
+        motivo: cambio.motivo,
+      });
+    } catch {
+      // Sin red o en pleno despliegue: que no se quede el botón trabado.
+      r = { ok: false, motivo: "No se pudo enviar. Revisa tu conexión y vuelve a intentar." };
+    }
     if (!r.ok) {
       setCambio((c) => ({ ...c, enviando: false, error: r.motivo || "No se pudo." }));
       return;
     }
     setHecho(cambio.modo === "cancelar" ? `Cancelaste ${cambio.folio}. Ya le avisamos a Morcast.` : `${cambio.folio} quedó para el ${fechaConDia(r.fecha || cambio.fecha)}. Morcast la confirma y te avisa.`);
     setCambio(null);
-    setMias(await listarSolicitudes());
+    // Si releer falla justo ahora, se queda la lista que había (no "Todavía no has pedido…").
+    listarSolicitudes({ lanzar: true }).then(setMias).catch(() => {});
   };
 
   // Las solicitudes que llegan son SOLO las de esta empresa: no hace falta
@@ -378,7 +385,7 @@ export default function AgendarPortal() {
                       </div>
                     </div>
                   )}
-                  {puedeCancelar(s.estado) && !abierto && (
+                  {puedeCancelar(s.estado) && s.id && !abierto && (
                     <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
                       {puedeReagendar(s.estado) && (
                         <button type="button" className="pt-btn" style={{ padding: "0.3rem 0.65rem", fontSize: "0.82rem" }}

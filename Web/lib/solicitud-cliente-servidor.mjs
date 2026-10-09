@@ -1,4 +1,5 @@
 import { puedeCancelar, puedeReagendar, validarReagenda, motivoCancelacion } from "./solicitud-cliente.mjs";
+import { permisosDeEstado } from "./estado-cliente.mjs";
 
 /**
  * CANCELAR O REAGENDAR, DEL LADO DEL SERVIDOR (Entrega 4, 9-oct-2026).
@@ -14,6 +15,16 @@ import { puedeCancelar, puedeReagendar, validarReagenda, motivoCancelacion } fro
  */
 export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOficina, avisarChofer }, datos = {}) {
   const { id, accion, hoy } = datos;
+  // Suspendida = solo ver y agregar saldo (Luis, 8-oct-2026; db/028). Con el
+  // estado de la empresa que leyó el servidor (`quien.estadoCliente`).
+  if (quien.estadoCliente && !permisosDeEstado(quien.estadoCliente).puedeOperar) {
+    return {
+      ok: false,
+      motivo: quien.estadoCliente === "baja"
+        ? "Tu cuenta está dada de baja."
+        : "Tu cuenta está suspendida: por ahora solo puedes ver y agregar saldo. Contáctanos para restablecerla.",
+    };
+  }
   const { data: s } = await sb
     .from("solicitudes_recoleccion")
     .select("id, folio, estado, cliente_id, chofer_id, fecha_pedida, fecha_confirmada, hora_confirmada, rutas ( chofer_id ), clientes ( empresa )")
@@ -22,7 +33,6 @@ export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOfic
   if (!s || s.cliente_id !== quien.cliente_id) return { ok: false, motivo: "No encontré esa solicitud." };
 
   let cambios;
-  let estados;
   let detalle;
   if (accion === "cancelar") {
     if (!puedeCancelar(s.estado)) {
@@ -34,7 +44,9 @@ export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOfic
       };
     }
     cambios = { estado: "rechazada", motivo_rechazo: motivoCancelacion(datos.motivo) };
-    estados = ["solicitada", "confirmada"];
+    // El UPDATE pide EXACTAMENTE el estado que se leyó: si la oficina la
+    // confirmó o le cambió el chofer entre tanto, no se cancela a ciegas (y el
+    // aviso iría al chofer equivocado). El cliente vuelve a intentar.
     detalle = { folio: s.folio, antes: s.estado, motivo: cambios.motivo_rechazo };
   } else if (accion === "reagendar") {
     if (!puedeReagendar(s.estado)) {
@@ -43,7 +55,6 @@ export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOfic
     const v = validarReagenda({ fecha: datos.fecha, hoy, actual: s.fecha_pedida });
     if (!v.ok) return v;
     cambios = { fecha_pedida: v.fecha };
-    estados = ["solicitada"];
     detalle = { folio: s.folio, antes: s.fecha_pedida, despues: v.fecha };
   } else {
     return { ok: false, motivo: "Acción desconocida." };
@@ -54,7 +65,7 @@ export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOfic
     .update(cambios)
     .eq("id", s.id)
     .eq("cliente_id", quien.cliente_id)
-    .in("estado", estados)
+    .eq("estado", s.estado)
     .select("id");
   if (error) return { ok: false, motivo: `No se pudo guardar: ${error.message}` };
   if (!data?.length) return { ok: false, motivo: "La solicitud cambió mientras tanto. Recarga la página." };
@@ -68,7 +79,7 @@ export async function cambiarSolicitudClienteCon({ sb, quien, anotar, avisarOfic
 
   const empresa = s.clientes?.empresa || "";
   try {
-    await avisarOficina({ accion, folio: s.folio, empresa, ...detalle });
+    await avisarOficina({ accion, id: s.id, folio: s.folio, empresa, ...detalle });
   } catch {
     /* el cambio ya quedó; el aviso no lo deshace */
   }

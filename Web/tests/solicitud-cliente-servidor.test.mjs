@@ -34,7 +34,8 @@ test("cancelar una confirmada: la rechaza con motivo de cliente, avisa a la ofic
   assert.equal(r.ok, true);
   assert.equal(sb.hechos.updates[0].cambios.estado, "rechazada");
   assert.match(sb.hechos.updates[0].cambios.motivo_rechazo, /^Cancelada por el cliente: ya no hay/);
-  assert.deepEqual(sb.hechos.updates[0].filtros.find(([c]) => c === "estado")[1], ["solicitada", "confirmada"], "solo si sigue cancelable");
+  assert.equal(sb.hechos.updates[0].filtros.find(([c]) => c === "estado")[1], "confirmada",
+    "solo si sigue EXACTAMENTE como se leyó (si la oficina la cambió entre tanto, no se pisa y el chofer correcto sabe)");
   assert.equal(d.oficina.length, 1);
   assert.equal(d.chofer[0].uid, "ch1");
   assert.equal(d.notas[0].accion, "cliente_cancela_recoleccion");
@@ -76,4 +77,20 @@ test("reagendar una confirmada: no (eso lo mueve la oficina)", async () => {
   const sb = falso({ ...FILA }); const { ...x } = deps();
   const r = await cambiarSolicitudClienteCon({ sb, quien: QUIEN, anotar: x.anotar, avisarOficina: x.avisarOficina, avisarChofer: x.avisarChofer }, { id: "s1", accion: "reagendar", fecha: "2026-10-20", hoy: "2026-10-09" });
   assert.equal(r.ok, false);
+});
+
+test("revisión: un cliente SUSPENDIDO solo ve (y agrega saldo): no cancela ni reagenda", async () => {
+  for (const estadoCliente of ["suspendido", "baja"]) {
+    const sb = falso({ ...FILA, estado: "solicitada" }); const { d, ...x } = deps();
+    const r = await cambiarSolicitudClienteCon({ sb, quien: { ...QUIEN, estadoCliente }, ...x }, { id: "s1", accion: "cancelar", hoy: "2026-10-09" });
+    assert.equal(r.ok, false, estadoCliente);
+    assert.match(r.motivo, /suspendida|baja/);
+    assert.equal(sb.hechos.updates.length, 0);
+  }
+});
+
+test("revisión: el aviso a la oficina lleva el id de la solicitud (la app abre esa)", async () => {
+  const sb = falso({ ...FILA }); const { d, ...x } = deps();
+  await cambiarSolicitudClienteCon({ sb, quien: QUIEN, ...x }, { id: "s1", accion: "cancelar", hoy: "2026-10-09" });
+  assert.equal(d.oficina[0].id, "s1");
 });

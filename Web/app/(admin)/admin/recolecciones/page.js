@@ -152,6 +152,16 @@ export default function RecoleccionesAdmin() {
   // `?cambiar=<folio>` (el enlace "Cambiar" de la Agenda de servicios) abre
   // esa recolección ya lista para editar.
   const [pedidoCambiar, setPedidoCambiar] = useState("");
+  // `?folio=<folio>` (el correo "Ver en el panel" cuando un cliente cancela o
+  // reagenda, Entrega 4): esa solicitud, con cualquier estado.
+  useEffect(() => {
+    const folio = new URLSearchParams(window.location.search).get("folio");
+    if (!folio) return;
+    setFiltro("todas");
+    setBusqueda(folio);
+    setQ(folio);
+    setRango({ desde: "", hasta: "" });
+  }, []);
   useEffect(() => {
     const folio = new URLSearchParams(window.location.search).get("cambiar");
     if (!folio) return;

@@ -42,3 +42,17 @@ test("el login regresa a donde ibas, pero SOLO dentro del portal", async () => {
     assert.equal(destinoTrasLogin(malo), "/portal", String(malo));
   }
 });
+
+test("revisión: ?volver= con puntos codificados o barras invertidas tampoco sale del portal", async () => {
+  const { destinoTrasLogin } = await import("../lib/errores-login.mjs");
+  for (const malo of ["/portal/%2e%2e/admin", "/portal/.%2e/admin", "/portal/%2E%2E/admin", "/\\evil.com", "/portal/\tadmin", "/portal\n/admin"]) {
+    assert.equal(destinoTrasLogin(malo), "/portal", JSON.stringify(malo));
+  }
+  assert.equal(destinoTrasLogin("/portal/agendar?x=1"), "/portal/agendar?x=1");
+});
+
+test("revisión: un teléfono con dígitos de más no se recorta en silencio", () => {
+  assert.equal(validarDatosCliente({ contacto: "A", correo: "a@b.mx", telefono: "86812345678" }).ok, false);
+  assert.equal(validarDatosCliente({ contacto: "A", correo: "a@b.mx", telefono: "+52 868 123 4567" }).limpio.telefono, "8681234567");
+  assert.equal(validarDatosCliente({ contacto: "A", correo: "a@b.mx", telefono: "+1 956 555 0101" }).limpio.telefono, "9565550101");
+});

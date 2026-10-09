@@ -10,6 +10,7 @@ import {
   fechaLarga,
 } from "@/lib/portal-datos";
 import { misServicios } from "@/lib/datos-solicitudes";
+import ErrorCarga from "@/components/portal/ErrorCarga";
 import { descargarManifiesto, descargarConstanciaFiscal, HAY_DATOS_FISCALES } from "@/lib/portal-pdf";
 import { clienteActual } from "@/lib/portal-sesion";
 
