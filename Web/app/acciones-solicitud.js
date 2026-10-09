@@ -5,6 +5,7 @@ import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { pasarFreno } from "@/lib/freno";
 import { avisarOficinaDeSolicitud } from "@/lib/avisar-solicitud";
 import { esFolioRecoleccion } from "@/lib/solicitud-aviso.mjs";
+import { cambiarSolicitudDeClienteCon } from "@/lib/apps-servidor";
 import { headers } from "next/headers";
 import { registrar } from "@/lib/bitacora";
 import { origenPermitido } from "@/lib/origen.mjs";
@@ -62,37 +63,9 @@ export async function cambiarMiSolicitudAccion(datos = {}) {
   if (!(await pasarFreno(`cambiar-solicitud:${quien.id}`, { maximo: 20, minutos: 60, porIp: false }))) {
     return { ok: false, motivo: "Demasiados cambios seguidos. Espera un poco." };
   }
-  const sb = supabaseServidor();
-  const origen = origenPermitido(await headers());
-  // El estado de la EMPRESA: suspendida o de baja no cambia nada (db/028).
-  const { data: empresa } = await sb.from("clientes").select("estado").eq("id", quien.cliente_id).maybeSingle();
-  return cambiarSolicitudClienteCon(
-    {
-      sb,
-      quien: { ...quien, estadoCliente: empresa?.estado || "baja" },
-      anotar: registrar,
-      avisarOficina: async (e) => {
-        // ?folio= enseña esa solicitud con cualquier estado (?cambiar= filtra
-        // las confirmadas y una cancelada o reagendada no salía).
-        const enlace = `${origen}/admin/recolecciones?folio=${encodeURIComponent(e.folio)}`;
-        const tareas = [];
-        if (hayResend()) tareas.push(correoCambioSolicitudCliente({ ...e, enlace }));
-        tareas.push((async () => {
-          const tokens = await tokensDeUsuarios(sb, await usuariosOficina(sb));
-          if (!tokens.length) return;
-          await enviarPush(tokens, {
-            titulo: e.accion === "cancelar" ? "Recolección cancelada por el cliente" : "Un cliente cambió la fecha",
-            cuerpo: `${e.empresa || "Un cliente"} · ${e.folio}${e.accion === "reagendar" ? ` → ${e.despues}` : ""}`,
-            datos: { tipo: "solicitud", id: e.id, folio: e.folio },
-          }, { sb });
-        })());
-        await Promise.allSettled(tareas);
-      },
-      avisarChofer: async ({ uid, parada }) => {
-        const tokens = await tokensDeUsuarios(sb, [uid]);
-        if (tokens.length) await enviarPush(tokens, mensajePushParada("quitada", parada), { sb });
-      },
-    },
-    { ...datos, hoy: hoyMatamoros() }
+  // El trabajo (y los avisos) vive en lib/apps-servidor.js: el mismo que usa la app.
+  return cambiarSolicitudDeClienteCon(
+    { sb: supabaseServidor(), quien, anotar: registrar, origen: origenPermitido(await headers()) },
+    datos
   );
 }

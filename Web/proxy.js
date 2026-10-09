@@ -37,6 +37,9 @@ const ABIERTAS = [
   // todavía no tiene sesión en el navegador; la página la crea.
   "/portal/entrar",
   "/admin/login",
+  // Puente de la app al panel (9-oct-2026): quien llega aquí todavía no tiene
+  // sesión en el navegador; la página la crea y canjea el pase de la app.
+  "/admin/entrar",
   "/chofer/login",
   "/auth",
 ];

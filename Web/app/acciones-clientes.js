@@ -8,6 +8,7 @@ import { origenPermitido } from "@/lib/origen.mjs";
 import { correoAccesoCliente } from "@/lib/correo";
 import { puedeEliminarCliente } from "@/lib/estado-cliente.mjs";
 import * as C from "@/lib/clientes-servidor";
+import { fichaClienteCon } from "@/lib/apps-servidor";
 import { enviarPush, tokensDeUsuarios } from "@/lib/push.mjs";
 import { mensajePushParada } from "@/lib/oficina-recolecciones.mjs";
 
@@ -48,30 +49,8 @@ export async function fichaClienteAccion(clienteId) {
   if (!haySupabase()) return { ok: false, motivo: "Sin base (modo demostración)." };
   const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
-  const sb = supabaseServidor();
-  const [cli, doms, sols, movs] = await Promise.all([
-    sb.from("clientes").select("*").eq("id", clienteId).maybeSingle(),
-    sb.from("domicilios")
-      .select("id, alias, calle, colonia, cp, referencias, lat, lng, suscripciones ( id, estado, frecuencia, servicios_por_mes, por_llamada, rutas ( id, nombre ) )")
-      .eq("cliente_id", clienteId).order("alias"),
-    sb.from("solicitudes_recoleccion").select("id, folio, estado, fecha_pedida, fecha_confirmada").eq("cliente_id", clienteId)
-      .order("fecha_pedida", { ascending: false }).limit(8),
-    sb.from("movimientos_saldo").select("id, folio, tipo, concepto, monto, estado, fecha").eq("cliente_id", clienteId)
-      .order("fecha", { ascending: false }).limit(8),
-  ]);
-  if (cli.error || !cli.data) return { ok: false, motivo: "No encontré ese cliente." };
-  const usuarios = await C.usuariosDeClienteCon({ sb }, { clienteId });
-  const conteos = await C.conteosClienteCon({ sb }, { clienteId });
-  return {
-    ok: true,
-    cliente: cli.data,
-    puntos: doms.data || [],
-    solicitudes: sols.data || [],
-    movimientos: movs.data || [],
-    usuarios: usuarios.ok ? usuarios.usuarios : [],
-    conteos,
-    puedeEliminar: puedeEliminarCliente({ rol: quien.rol, permisos: quien.permisos }),
-  };
+  // El trabajo vive en lib/apps-servidor.js: el mismo que usa la app.
+  return fichaClienteCon(supabaseServidor(), { clienteId, rol: quien.rol, permisos: quien.permisos });
 }
 
 export async function cambiarEstadoClienteAccion(datos) {

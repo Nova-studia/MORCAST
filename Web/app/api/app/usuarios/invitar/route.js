@@ -24,7 +24,8 @@ export async function POST(peticion) {
   });
   if (r.respuesta) return r.respuesta;
 
-  const { nombre, correo, rol } = r.cuerpo;
+  // rolId (Entrega 2): el rol personalizado del admin invitado; sin él, el completo.
+  const { nombre, correo, rol, rolId } = r.cuerpo;
   const res = await invitarUsuarioEquipoCon(
     {
       sb: r.sb,
@@ -32,7 +33,7 @@ export async function POST(peticion) {
       anotar: (e) => anotarBitacora(r.sb, { usuario: r.usuario, ...e }),
       origen: origenPermitido(peticion.headers),
     },
-    { nombre, correo, rol }
+    { nombre, correo, rol, rolId }
   );
   return responder(res);
 }

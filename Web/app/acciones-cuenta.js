@@ -8,6 +8,7 @@ import { correoContrasenaCambiada } from "@/lib/correo";
 import { validarEdicionUsuario } from "@/lib/equipo.mjs";
 import { cambiarContrasenaCon, validarCambioContrasena } from "@/lib/mi-cuenta.mjs";
 import { pasarFreno } from "@/lib/freno";
+import { cambiarContrasenaServidor } from "@/lib/apps-servidor";
 
 /**
  * MI CUENTA (Entrega 2, 9-oct-2026): personal y choferes. Cada quien SOLO
@@ -73,40 +74,10 @@ export async function cambiarMiContrasenaAccion({ actual, nueva, repetir } = {})
   if (!(await pasarFreno(`mi-contrasena:${quien.id}`, { maximo: 5, minutos: 15, porIp: false }))) {
     return { ok: false, motivo: "Demasiados intentos. Espera 15 minutos." };
   }
-
-  const r = await cambiarContrasenaCon(
-    {
-      comprobar: async (correo, clave) => {
-        const prueba = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-        const { data, error: e } = await prueba.auth.signInWithPassword({ email: correo, password: clave });
-        if (e) return false;
-        // La sesión de prueba se cierra siempre (también si no fuera la misma cuenta).
-        await prueba.auth.signOut({ scope: "local" });
-        return data?.user?.id === quien.id;
-      },
-      guardar: async (uid, clave) => {
-        const { error: e } = await supabaseServidor().auth.admin.updateUserById(uid, { password: clave });
-        if (e) throw new Error(e.message);
-      },
-      avisar: async () => {
-        try { await correoContrasenaCambiada({ correo: quien.correo }); } catch (e) {
-          console.error("[mi-cuenta] no se pudo avisar:", e?.message);
-        }
-      },
-    },
-    { correo: quien.correo, uid: quien.id, actual, nueva, repetir }
+  const { data: { session } } = await (await supabaseSesion()).auth.getSession();
+  // El trabajo vive en lib/apps-servidor.js: el mismo que usa la app.
+  return cambiarContrasenaServidor(
+    { sbServicio: supabaseServidor(), uid: quien.id, correo: quien.correo, token: session?.access_token, anotar: registrar },
+    { actual, nueva, repetir }
   );
-  if (!r.ok) return r;
-  await registrar({ accion: "mi_contrasena", tabla: "perfiles", registroId: quien.id, detalle: {} });
-  // Las sesiones abiertas en OTROS aparatos se cierran: si alguien más tenía
-  // la cuenta, aquí la pierde. Esta sesión sigue.
-  try {
-    const { data: { session } } = await (await supabaseSesion()).auth.getSession();
-    if (session?.access_token) await supabaseServidor().auth.admin.signOut(session.access_token, "others");
-  } catch (e) {
-    console.error("[mi-cuenta] no se cerraron las otras sesiones:", e?.message);
-  }
-  return r;
 }

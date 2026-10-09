@@ -9,7 +9,7 @@ export default function AdminLayout({ children }) {
   const ruta = usePathname();
   // El login y el segundo paso van sin el menú del panel: en ninguno de los
   // dos la persona ha terminado de entrar.
-  if (ruta === "/admin/login" || ruta === "/admin/verificacion") {
+  if (ruta === "/admin/login" || ruta === "/admin/verificacion" || ruta === "/admin/entrar") {
     return <div className="pt-body pt-admin">{children}</div>;
   }
   return <AdminShell>{children}</AdminShell>;

@@ -7,6 +7,7 @@ import { pasarFreno } from "@/lib/freno";
 import { validarDatosCliente, confirmaEliminar } from "@/lib/cuenta-cliente.mjs";
 import { permisosDeEstado } from "@/lib/estado-cliente.mjs";
 import { eliminarCuenta } from "@/lib/eliminar-cuenta.mjs";
+import { cuentaClienteCon, guardarDatosClienteCon } from "@/lib/apps-servidor";
 
 /**
  * MI CUENTA DEL CLIENTE (Entrega 4, 9-oct-2026).
@@ -30,48 +31,14 @@ export async function cuentaClienteAccion() {
   }
   const { quien, error } = await soyCliente();
   if (error) return { ok: false, motivo: error };
-  const sb = supabaseServidor();
-  const [c, d] = await Promise.all([
-    sb.from("clientes").select("folio, empresa, contacto, telefono, correo, rfc").eq("id", quien.cliente_id).maybeSingle(),
-    sb.from("domicilios")
-      .select("id, alias, calle, colonia, cp, suscripciones ( estado, rutas ( nombre, dias ) )")
-      .eq("cliente_id", quien.cliente_id)
-      .order("alias"),
-  ]);
-  if (c.error || !c.data) return { ok: false, motivo: "No se pudieron leer los datos de tu empresa." };
-  const puntos = (d.data || []).map((p) => {
-    const s = (p.suscripciones || []).find((x) => x.estado === "activa") || (p.suscripciones || []).find((x) => x.estado === "pausada");
-    return {
-      id: p.id,
-      alias: p.alias || "Punto",
-      direccion: [p.calle, p.colonia, p.cp].filter(Boolean).join(", "),
-      ruta: s?.rutas?.nombre || "",
-      dias: s?.rutas?.dias || [],
-      pausado: s?.estado === "pausada",
-    };
-  });
-  return { ok: true, empresa: c.data, puntos };
+  return cuentaClienteCon(supabaseServidor(), quien.cliente_id);
 }
 
 export async function guardarDatosClienteAccion(datos) {
   if (!haySupabase()) return { ok: true, demo: true };
   const { quien, error } = await soyCliente();
   if (error) return { ok: false, motivo: error };
-  // Suspendida = solo ver y agregar saldo (db/028).
-  const { data: empresa } = await supabaseServidor().from("clientes").select("estado").eq("id", quien.cliente_id).maybeSingle();
-  if (!permisosDeEstado(empresa?.estado || "baja").puedeOperar) {
-    return { ok: false, motivo: "Tu cuenta está suspendida: por ahora no puedes cambiar estos datos. Contáctanos." };
-  }
-  const v = validarDatosCliente(datos || {});
-  if (!v.ok) return v;
-  const { data, error: e } = await supabaseServidor()
-    .from("clientes")
-    .update(v.limpio)
-    .eq("id", quien.cliente_id)
-    .select("id");
-  if (e || !data?.length) return { ok: false, motivo: `No se guardó: ${e?.message || "ninguna fila"}` };
-  await registrar({ accion: "cliente_edita_contacto", tabla: "clientes", registroId: quien.cliente_id, detalle: v.limpio });
-  return { ok: true };
+  return guardarDatosClienteCon({ sb: supabaseServidor(), anotar: registrar }, { clienteId: quien.cliente_id }, datos);
 }
 
 /**
