@@ -23,3 +23,18 @@ export function puntosAgendables(suscripciones = []) {
 export function puntoInicial(puntos = []) {
   return puntos.length === 1 ? puntos[0].domicilioId : "";
 }
+
+/**
+ * Sectores y puntos del panel (Entrega 3): los puntos de un cliente dado de
+ * baja ya no salen, y un servicio cancelado no pinta ruta (antes un punto
+ * de baja seguía "en" su ruta y el filtro "Sin ruta" no lo encontraba).
+ */
+export function puntoVisibleEnMapa(fila) {
+  return fila?.clientes?.estado !== "baja";
+}
+
+/** La suscripción que cuenta de un punto (activa o pausada), o null. */
+export function suscripcionVigente(subs) {
+  const lista = Array.isArray(subs) ? subs : subs ? [subs] : [];
+  return lista.find((s) => s.estado === "activa") || lista.find((s) => s.estado === "pausada") || null;
+}

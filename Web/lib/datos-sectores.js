@@ -15,6 +15,7 @@
  */
 
 import { supabaseNavegador, haySupabaseNavegador } from "@/lib/supabase-navegador";
+import { puntoVisibleEnMapa, suscripcionVigente } from "@/lib/puntos-cliente.mjs";
 import { agruparCambios, cambiosDeSector, clavesDeSectores, filaDePunto } from "@/lib/sectores.mjs";
 
 /* ==================================================================== */
@@ -153,7 +154,8 @@ function puntoAPantalla(f) {
 
 /** La suscripción embebida (arreglo de 0 o 1) → { clave, nombre, serviciosPorMes, porLlamada } o null. */
 function rutaDeSuscripcion(subs) {
-  const s = Array.isArray(subs) ? subs[0] : subs;
+  // Solo la vigente (activa o pausada): una cancelada ya no es ruta (Entrega 3).
+  const s = suscripcionVigente(subs);
   if (!s) return null;
   return {
     clave: s.rutas?.clave || null,
@@ -171,8 +173,8 @@ export async function listarPuntos() {
     .from("domicilios")
     .select(
       "id, cliente_id, alias, calle, colonia, cp, lat, lng, sector_id, referencias, " +
-      "ubicacion_origen, ubicacion_fecha, clientes ( folio, empresa ), " +
-      "suscripciones ( servicios_por_mes, por_llamada, rutas ( clave, nombre ) )"
+      "ubicacion_origen, ubicacion_fecha, clientes ( folio, empresa, estado ), " +
+      "suscripciones ( estado, servicios_por_mes, por_llamada, rutas ( clave, nombre ) )"
     )
     .order("alias");
 
@@ -184,6 +186,8 @@ export async function listarPuntos() {
   // misma empresa. PostgREST no ordena por la columna de una tabla embebida
   // sin trucos, así que se ordena aquí.
   return (data || [])
+    // Los de clientes dados de baja ya no se trabajan (Entrega 3).
+    .filter(puntoVisibleEnMapa)
     .map(puntoAPantalla)
     .sort((a, b) => a.empresa.localeCompare(b.empresa, "es") || a.alias.localeCompare(b.alias, "es"));
 }

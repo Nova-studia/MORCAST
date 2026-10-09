@@ -57,17 +57,28 @@ async function accesoDeUsuarios(sb, ids, activo) {
   if (ids.length) await paso("perfiles", sb.from("perfiles").update({ activo }).in("id", ids).select("id"));
 }
 
-const hoyMatamoros = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Matamoros" }).format(new Date());
-
 /* ------------------------------------------------------------------ estado */
+
+/**
+ * De las paradas que una baja cancela, las que ya tenían chofer (la
+ * confirmada o en ruta): su chofer, el de la parada o el de la ruta.
+ */
+function paradasConChofer(filas) {
+  return filas
+    .filter((f) => f.estado === "confirmada" || f.estado === "en-ruta")
+    .map((f) => ({
+      uid: f.chofer_id || f.rutas?.chofer_id || null,
+      parada: { id: f.id, folio: f.folio, fecha: f.fecha_confirmada || f.fecha_pedida, hora: f.hora_confirmada || null },
+    }))
+    .filter((x) => x.uid);
+}
 
 /**
  * Los EFECTOS van primero y el estado se guarda al final: si algo falla a la
  * mitad, el cliente sigue en su estado anterior y el botón se puede volver a
  * pulsar (revisión final de la Entrega 1).
  */
-export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId, estado, motivo }) {
+export async function cambiarEstadoClienteCon({ sb, anotar, actor, avisarChoferes = null }, { clienteId, estado, motivo }) {
   const { cliente, error } = await leerCliente(sb, clienteId);
   if (error) return fallo("No se pudo leer el cliente", error);
   if (!cliente) return { ok: false, motivo: "No encontré ese cliente." };
@@ -76,6 +87,7 @@ export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId
   if (!v.ok) return v;
 
   const extra = {};
+  let quitadas = [];
   try {
     if (estado === "suspendido") {
       // Solo lectura: sus usuarios siguen entrando (la base ya no les deja
@@ -90,15 +102,26 @@ export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId
       await accesoDeUsuarios(sb, activos, false);
       extra.bloqueados_por_baja = activos;
       await paso("servicios", sb.from("suscripciones").update({ estado: "cancelada" }).eq("cliente_id", clienteId).neq("estado", "cancelada").select("id"));
-      await paso(
-        "recolecciones futuras",
-        sb.from("solicitudes_recoleccion")
-          .update({ estado: "rechazada", motivo_rechazo: "Cliente dado de baja" })
-          .eq("cliente_id", clienteId)
-          .in("estado", ["solicitada", "confirmada"])
-          .gte("fecha_pedida", hoyMatamoros())
-          .select("id")
-      );
+      // TODAS las que siguen abiertas, también "en ruta" y las que se
+      // confirmaron para otro día (antes se filtraba por la fecha PEDIDA y se
+      // quedaban vivas en la ruta del chofer). Entrega 3.
+      const { data: abiertas, error: errAb } = await sb
+        .from("solicitudes_recoleccion")
+        .select("id, folio, estado, chofer_id, fecha_pedida, fecha_confirmada, hora_confirmada, rutas ( chofer_id )")
+        .eq("cliente_id", clienteId)
+        .in("estado", ["solicitada", "confirmada", "en-ruta"]);
+      if (errAb) throw new Error(`recolecciones abiertas: ${errAb.message}`);
+      const ids = (abiertas || []).map((a) => a.id);
+      if (ids.length) {
+        await paso(
+          "recolecciones abiertas",
+          sb.from("solicitudes_recoleccion")
+            .update({ estado: "rechazada", motivo_rechazo: "Cliente dado de baja" })
+            .in("id", ids)
+            .select("id")
+        );
+      }
+      quitadas = paradasConChofer(abiertas || []);
       const domicilios = await idsDe(sb, "domicilios", "cliente_id", clienteId);
       if (domicilios.length) {
         await paso("contenedores", sb.from("contenedores").update({ domicilio_id: null, estado: "en-bodega" })
@@ -127,6 +150,16 @@ export async function cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId
     );
   } catch (e) {
     return fallo("No se completó el cambio (el cliente sigue como estaba; puedes reintentar)", e);
+  }
+
+  // Al chofer que ya la traía en su ruta: "te quitaron una parada". Va al
+  // final y no detiene nada si falla (el cliente ya quedó dado de baja).
+  if (quitadas.length && avisarChoferes) {
+    try {
+      await avisarChoferes(quitadas.map((q) => ({ ...q, parada: { ...q.parada, cliente: cliente.empresa } })));
+    } catch (e) {
+      console.error("[clientes] no se pudo avisar a los choferes:", e?.message || e);
+    }
   }
 
   await anotar({

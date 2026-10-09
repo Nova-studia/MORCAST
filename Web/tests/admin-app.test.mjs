@@ -166,3 +166,17 @@ test("asignarRutaAPuntoCon: no asigna una ruta desactivada", async () => {
   assert.equal(r.ok, false);
   assert.equal(sb.escrito.length, 0);
 });
+
+test("asignarRutaAPuntoCon: NO reactiva el servicio de un cliente dado de baja (Entrega 3)", async () => {
+  const sb = sbFalso({
+    tablas: {
+      domicilios: { id: "d1", cliente_id: "c1", alias: "Planta 1", clientes: { estado: "baja" } },
+      rutas: { id: "r1", clave: "RT-NORTE", nombre: "Ruta Norte", activa: true },
+      suscripciones: { id: "s1", ruta_id: null, servicios_por_mes: 4, por_llamada: false, estado: "cancelada" },
+    },
+  });
+  const r = await asignarRutaAPuntoCon({ sb, anotar: async () => {} }, { domicilioId: "d1", rutaClave: "RT-NORTE", serviciosPorMes: 4 });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /baja/);
+  assert.equal(sb.escrito.length, 0);
+});

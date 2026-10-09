@@ -8,6 +8,20 @@ import { origenPermitido } from "@/lib/origen.mjs";
 import { correoAccesoCliente } from "@/lib/correo";
 import { puedeEliminarCliente } from "@/lib/estado-cliente.mjs";
 import * as C from "@/lib/clientes-servidor";
+import { enviarPush, tokensDeUsuarios } from "@/lib/push.mjs";
+import { mensajePushParada } from "@/lib/oficina-recolecciones.mjs";
+
+/**
+ * "Te quitaron una parada" al teléfono de cada chofer que traía en su ruta
+ * una recolección del cliente dado de baja (Entrega 3). Lo mismo que manda
+ * Recolecciones al rechazar una parada ya confirmada.
+ */
+async function avisarChoferesBaja(sb, lista) {
+  for (const { uid, parada } of lista) {
+    const tokens = await tokensDeUsuarios(sb, [uid]);
+    if (tokens.length) await enviarPush(tokens, mensajePushParada("quitada", parada), { sb });
+  }
+}
 
 /**
  * PUERTAS DEL PANEL PARA CLIENTES (Entrega 1, 8-oct-2026).
@@ -64,7 +78,8 @@ export async function cambiarEstadoClienteAccion(datos) {
   if (!haySupabase()) return demo;
   const { quien, error } = await exigirPersonal("clientes");
   if (error) return { ok: false, motivo: error };
-  return C.cambiarEstadoClienteCon(contexto(quien), datos);
+  const ctx = contexto(quien);
+  return C.cambiarEstadoClienteCon({ ...ctx, avisarChoferes: (lista) => avisarChoferesBaja(ctx.sb, lista) }, datos);
 }
 
 export async function editarClienteAccion(datos) {

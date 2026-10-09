@@ -37,3 +37,14 @@ test("manifiesto: la hora real de la recolección (Matamoros)", () => {
   assert.equal(horaManifiesto({ hora_despues: "2026-10-09T16:20:00.000Z" }), "11:20");
   assert.equal(horaManifiesto({ hora_despues: null, hora_antes: null }), "");
 });
+
+test("Sectores y puntos: un cliente dado de baja no sale; un servicio cancelado no pinta ruta", async () => {
+  const { puntoVisibleEnMapa, suscripcionVigente } = await import("../lib/puntos-cliente.mjs");
+  assert.equal(puntoVisibleEnMapa({ clientes: { estado: "baja" } }), false);
+  assert.equal(puntoVisibleEnMapa({ clientes: { estado: "suspendido" } }), true);
+  assert.equal(puntoVisibleEnMapa({ clientes: null }), true);
+  assert.equal(suscripcionVigente([{ estado: "cancelada", rutas: { clave: "R1" } }]), null);
+  assert.equal(suscripcionVigente([{ estado: "pausada", rutas: { clave: "R1" } }]).rutas.clave, "R1");
+  assert.equal(suscripcionVigente({ estado: "activa" }).estado, "activa");
+  assert.equal(suscripcionVigente([]), null);
+});

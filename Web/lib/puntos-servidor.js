@@ -54,8 +54,13 @@ export async function asignarRutaAPuntoCon(
   const n = resultado.serviciosPorMes;
 
   const { data: dom } = await sb
-    .from("domicilios").select("id, cliente_id, alias").eq("id", domicilioId).maybeSingle();
+    .from("domicilios").select("id, cliente_id, alias, clientes ( estado )").eq("id", domicilioId).maybeSingle();
   if (!dom) return { ok: false, motivo: "No se encontró ese punto de recolección." };
+  // Asignar ruta reactiva el servicio: a un cliente dado de baja, no
+  // (Entrega 3). Primero se le reactiva desde su ficha.
+  if (dom.clientes?.estado === "baja") {
+    return { ok: false, motivo: "Ese cliente está dado de baja: reactívalo desde su ficha antes de asignarle ruta." };
+  }
 
   let ruta = null;
   if (rutaClave) {

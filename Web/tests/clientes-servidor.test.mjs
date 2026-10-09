@@ -69,6 +69,7 @@ test("baja: bloquea a todos sus usuarios, cancela servicios y solicitudes futura
     clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }],
     perfiles: [{ id: "u1" }, { id: "u2" }],
     domicilios: [{ id: "d1" }],
+    solicitudes_recoleccion: [{ id: "s1", estado: "solicitada", fecha_pedida: "2026-10-20" }],
   });
   const r = await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "baja", motivo: "Ya no contrata" });
   assert.equal(r.ok, true);
@@ -151,7 +152,7 @@ test("revisión: la baja bloquea solo a los usuarios CLIENTE que estaban activos
 });
 
 test("revisión: los efectos van ANTES de guardar el estado (si fallan, se puede reintentar)", async () => {
-  const sb = falso({ clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }], domicilios: [{ id: "d1" }] });
+  const sb = falso({ clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }], perfiles: [{ id: "u1" }], domicilios: [{ id: "d1" }], solicitudes_recoleccion: [{ id: "s1", estado: "confirmada" }] });
   await cambiarEstadoClienteCon({ sb, anotar, actor }, { clienteId: "c1", estado: "baja", motivo: "x" });
   const i = (p) => sb.ops.findIndex((o) => o.startsWith(p));
   const estado = sb.ops.lastIndexOf("clientes:update[id=c1]");
@@ -165,4 +166,26 @@ test("revisión: eliminar NO borra perfiles del personal y no usa listas gigante
   await eliminarClienteCon({ sb, anotar, actor }, { clienteId: "c1", confirmacion: "X" });
   assert.ok(sb.ops.some((o) => o.startsWith("perfiles:select") && o.includes("rol=cliente")));
   assert.ok(!sb.ops.some((o) => o.startsWith("recolecciones:delete")), "las recolecciones se van en cascada con sus solicitudes");
+});
+
+// ---- Entrega 3: lo que deja abierto una baja ----
+test("baja: rechaza TODAS las abiertas (también en-ruta y las confirmadas a otra fecha) y avisa a sus choferes", async () => {
+  const sb = falso({
+    clientes: [{ id: "c1", estado: "activo", folio: "MOR-1", empresa: "Uno" }],
+    perfiles: [],
+    solicitudes_recoleccion: [
+      { id: "s1", folio: "REC-1", estado: "confirmada", chofer_id: "ch1", fecha_pedida: "2026-09-01", fecha_confirmada: "2026-10-20", hora_confirmada: null, rutas: { chofer_id: "ch9" } },
+      { id: "s2", folio: "REC-2", estado: "en-ruta", chofer_id: null, fecha_pedida: "2026-10-09", fecha_confirmada: "2026-10-09", rutas: { chofer_id: "ch2" } },
+      { id: "s3", folio: "REC-3", estado: "solicitada", chofer_id: null, fecha_pedida: "2026-10-30", rutas: null },
+    ],
+  });
+  const avisados = [];
+  const r = await cambiarEstadoClienteCon(
+    { sb, anotar, actor, avisarChoferes: async (lista) => avisados.push(...lista) },
+    { clienteId: "c1", estado: "baja", motivo: "Ya no contrata" });
+  assert.equal(r.ok, true);
+  assert.ok(sb.ops.some((o) => o.startsWith("solicitudes_recoleccion:update") && o.includes("id in 3")),
+    "rechaza las tres por id, sin filtrar por fecha_pedida");
+  assert.deepEqual(avisados.map((a) => a.uid).sort(), ["ch1", "ch2"], "al chofer de la parada o, si no, al de la ruta");
+  assert.equal(avisados.find((a) => a.uid === "ch1").parada.folio, "REC-1");
 });
