@@ -4,8 +4,8 @@
  * El dueño arma roles con casillas ("Caja: Saldos y Clientes"). Esta es la
  * ÚNICA lista de secciones: de aquí salen las casillas, el menú, el guardia
  * de páginas (proxy.js) y las acciones del servidor. La base tiene su copia
- * en db/029 (`roles_permisos_validos`) y tests/permisos.test.mjs compara las
- * dos.
+ * en db/029 y db/032 (`roles_permisos_validos`) y tests/permisos.test.mjs las
+ * compara.
  *
  * Lo que decide de verdad es la base: aquí solo se pinta y se ataja.
  * Sin dependencias, para que `node --test` lo importe directo.
@@ -23,6 +23,9 @@ export const SECCIONES = [
   { id: "solicitudes", texto: "Solicitudes (cotizaciones)", rutas: ["/admin/solicitudes"] },
   { id: "altas", texto: "Altas de clientes", rutas: ["/admin/altas"] },
   { id: "empleo", texto: "Trabaja con nosotros", rutas: ["/admin/empleo"] },
+  // Directorio de empleados y sus gafetes (db/032). No va en "Administrador
+  // completo": trae datos de emergencia y la da el dueño.
+  { id: "personal", texto: "Personal y gafetes", rutas: ["/admin/personal"] },
   { id: "clientes", texto: "Clientes", rutas: ["/admin/clientes"] },
   { id: "saldos", texto: "Saldos de clientes", rutas: ["/admin/saldos"] },
   { id: "precios", texto: "Precios", rutas: ["/admin/precios"] },

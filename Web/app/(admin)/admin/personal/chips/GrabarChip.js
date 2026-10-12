@@ -29,8 +29,10 @@ import s from "./chips.module.css";
  * El chip sale de la tarjeta que la persona tiene en la mano y el código
  * sale de esa misma tarjeta: así no se le graba a Juan el enlace de Pedro.
  *
- * `alGrabar({ codigo, sellado, serie })` avisa cada chip terminado, para que
- * la sección Personal lo apunte en la base cuando exista.
+ * `alGrabar({ codigo, sellado, serie })` avisa cada chip terminado para que
+ * quede anotado en la ficha del empleado (la acción `chipGrabado`), y
+ * contesta `{ ok }` o `{ ok: false, motivo }`. Una prueba sin sellar no se
+ * anota: ese chip todavía no está terminado.
  */
 export default function GrabarChip({ codigoInicial = "", alGrabar }) {
   const [texto, setTexto] = useState(codigoInicial);
@@ -77,9 +79,19 @@ export default function GrabarChip({ codigoInicial = "", alGrabar }) {
     setTexto(valor);
   };
 
-  const termina = (hecho) => {
-    setHechas((lista) => [{ codigo, sellado: hecho.sellado }, ...lista.filter((h) => h.codigo !== codigo)]);
-    alGrabar?.({ codigo, sellado: hecho.sellado, serie: hecho.serie || "" });
+  const termina = async (hecho) => {
+    const suCodigo = codigo;
+    setHechas((lista) => [{ codigo: suCodigo, sellado: hecho.sellado, nota: "" }, ...lista.filter((h) => h.codigo !== suCodigo)]);
+    // Con la casilla de sellar apagada es una prueba: no se anota.
+    if (!alGrabar || !sellar) return;
+    let r;
+    try {
+      r = await alGrabar({ codigo: suCodigo, sellado: hecho.sellado, serie: hecho.serie || "" });
+    } catch {
+      r = { ok: false, motivo: "No se pudo anotar en el panel: revisa tu conexión." };
+    }
+    const nota = r?.ok ? "Anotado en su ficha" : r?.motivo || "No se anotó en el panel.";
+    setHechas((lista) => lista.map((h) => (h.codigo === suCodigo ? { ...h, nota, sinAnotar: !r?.ok } : h)));
   };
 
   const grabar = async () => {
@@ -245,6 +257,7 @@ export default function GrabarChip({ codigoInicial = "", alGrabar }) {
             estado={estado}
             sellar={sellar}
             onEncima={() => grabador.current?.grabarEncima()}
+            onAunque={() => grabador.current?.grabarAunque()}
             onSinSellar={dejarSinSellar}
             onCancelar={soltar}
             onSiguiente={siguiente}
@@ -261,7 +274,10 @@ export default function GrabarChip({ codigoInicial = "", alGrabar }) {
           <ul className={s.hechas}>
             {hechas.map((h) => (
               <li key={h.codigo}>
-                {h.codigo}
+                <span>
+                  {h.codigo}
+                  {h.nota && <small className={h.sinAnotar ? s.mal : undefined}>{h.nota}</small>}
+                </span>
                 <span className={`pt-badge ${h.sellado ? "ok" : "alerta"}`}>{h.sellado ? "Sellado" : "Sin sellar"}</span>
               </li>
             ))}
@@ -273,7 +289,7 @@ export default function GrabarChip({ codigoInicial = "", alGrabar }) {
 }
 
 /** El recuadro que dice qué hacer en cada momento (los pasos de lib/chip-nfc.mjs). */
-function Estado({ estado, sellar, onEncima, onSinSellar, onCancelar, onSiguiente }) {
+function Estado({ estado, sellar, onEncima, onAunque, onSinSellar, onCancelar, onSiguiente }) {
   if (!estado) return null;
   const { paso, motivo } = estado;
 
@@ -314,6 +330,21 @@ function Estado({ estado, sellar, onEncima, onSinSellar, onCancelar, onSiguiente
           Trae el código <b>{estado.codigo}</b>. No se le cambió nada. Revisa que sea la tarjeta correcta.
         </p>
         <button type="button" className="pt-btn" onClick={onEncima}>Grabar encima de todos modos</button>
+        <button type="button" className="pt-btn" onClick={onCancelar}>Cancelar</button>
+      </div>
+    );
+  }
+  if (paso === "chip-dudoso") {
+    return (
+      <div className={`${s.estado} ${s.alerta}`} role="alert">
+        <Warning />
+        <strong>Este chip no parece el correcto</strong>
+        <p>
+          Por su número de serie ({estado.serie}) parece un <b>MIFARE Classic</b>, el de las tarjetas de acceso. Los
+          iPhone y muchos Android no lo leen: no sirve para el gafete. No se le cambió nada.
+        </p>
+        <p>El gafete lleva <b>NTAG213, NTAG215 o NTAG216</b>. Si esta tarjeta vino así de la imprenta, no la aceptes.</p>
+        <button type="button" className="pt-btn" onClick={onAunque}>Grabar de todos modos</button>
         <button type="button" className="pt-btn" onClick={onCancelar}>Cancelar</button>
       </div>
     );

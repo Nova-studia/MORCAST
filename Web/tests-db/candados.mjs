@@ -790,6 +790,107 @@ let ocupado = null;
 try { ocupado = await folioCliente(fSinFolio); } catch (e) { console.log("  (ocupado:", e.message, ")"); }
 igual("revisión: el folio que pidió la app se guarda en folio_pedido cuando se reasigna", ocupado?.folio_pedido, fSinFolio);
 
+console.log("\n26 · 032: personal y gafetes");
+{ // en su propio bloque: los nombres de aquí no chocan con los de arriba
+const COD_1 = "K7M2X9FDQ4", COD_2 = "ABCDEFGH23", COD_3 = "ZZZZ2222YY";
+const { rows: [emp1] } = await db.query(
+  `insert into public.empleados (numero, nombre, apellido_paterno, puesto, tipo_sangre, telefono_emergencia, permiso_emergencia)
+   values ('0001', 'Juan', 'Pérez', 'Chofer', 'O+', '8681234567', true) returning id`);
+const leeEmpleados = `select id from public.empleados`;
+const leeGafetes = `select id from public.gafetes`;
+for (const quien of ["anon", "cliente", "chofer", "adminRutas", "admin", "dueno"]) {
+  await debeFallar(`${quien} NO lee empleados directo (solo el servidor)`, quien, leeEmpleados);
+}
+await debeFallar("el dueño NO escribe empleados directo", "dueno",
+  `insert into public.empleados (numero, nombre) values ('0002', 'Colado')`);
+await debeFallar("un admin NO cambia el tipo de sangre directo", "admin",
+  `update public.empleados set tipo_sangre = 'A+' where id = $1`, [emp1.id]);
+await debeFallar("un chofer NO borra empleados", "chofer", `delete from public.empleados where id = $1`, [emp1.id]);
+await debeFallar("nadie con sesión emite gafetes llamando a la función", "dueno",
+  `select public.emitir_gafete($1, '${COD_1}', 'v1.a.b', null)`, [emp1.id]);
+await debeFallar("ni da de baja llamando a la función", "admin", `select public.baja_empleado($1, 'x')`, [emp1.id]);
+await debeFallar("ni reactiva llamando a la función", "admin", `select public.reactivar_empleado($1)`, [emp1.id]);
+
+// El servidor (llave de servicio) sí.
+const emite = (codigo) => db.query(`select public.emitir_gafete($1, $2, 'v1.a.b', $3) as id`, [emp1.id, codigo, U.dueno]);
+await emite(COD_1);
+for (const quien of ["anon", "cliente", "chofer", "admin", "dueno"]) {
+  await debeFallar(`${quien} NO lee gafetes directo (ahí va el PIN cifrado)`, quien, leeGafetes);
+}
+const vigentes = async () => (await db.query(
+  `select codigo from public.gafetes where empleado_id = $1 and estado = 'vigente'`, [emp1.id])).rows.map((r) => r.codigo);
+igual("el servidor emite el primer gafete", (await vigentes()).join(), COD_1);
+await emite(COD_2);
+igual("al reponer, solo queda vigente el nuevo", (await vigentes()).join(), COD_2);
+const { rows: [viejo] } = await db.query(`select estado, anulado_en is not null as marcado from public.gafetes where codigo = $1`, [COD_1]);
+igual("el anterior queda 'repuesto' y con su fecha", `${viejo.estado}/${viejo.marcado}`, "repuesto/true");
+try {
+  await db.query(`insert into public.gafetes (empleado_id, codigo, pin_cifrado) values ($1, $2, 'v1.a.b')`, [emp1.id, COD_3]);
+  fallas++; console.log("  ✖ entraron DOS gafetes vigentes para la misma persona");
+} catch (e) { console.log("  ✓ no caben dos gafetes vigentes de la misma persona →", e.message); }
+for (const [titulo, codigo, pin] of [
+  ["un código con letras que se confunden (O, I, L) NO entra", "K7M2X9FDO4", "v1.a.b"],
+  ["un código corto NO entra", "K7M2X9", "v1.a.b"],
+  ["un PIN en claro NO entra", COD_3, "482913"],
+]) {
+  try {
+    await db.query(`insert into public.gafetes (empleado_id, codigo, pin_cifrado, estado) values ($1, $2, $3, 'anulado')`, [emp1.id, codigo, pin]);
+    fallas++; console.log(`  ✖ ${titulo} — PASÓ y no debía`);
+  } catch (e) { console.log(`  ✓ ${titulo} → ${e.message}`); }
+}
+try {
+  await db.query(`insert into public.gafetes (empleado_id, codigo, pin_cifrado, estado) values ($1, $2, 'v1.a.b', 'anulado')`, [emp1.id, COD_2]);
+  fallas++; console.log("  ✖ se repitió un código de gafete");
+} catch (e) { console.log("  ✓ un código no se repite →", e.message); }
+
+const { rows: [{ ok: bajaOk }] } = await db.query(`select public.baja_empleado($1, 'Renunció') as ok`, [emp1.id]);
+igual("la baja pasa", bajaOk, true);
+const { rows: [trasBaja] } = await db.query(
+  `select e.estado, e.baja_motivo, e.baja_fecha is not null as con_fecha,
+          (select count(*)::int from public.gafetes g where g.empleado_id = e.id and g.estado = 'vigente') as vigentes,
+          (select estado from public.gafetes where codigo = $2) as gafete
+     from public.empleados e where e.id = $1`, [emp1.id, COD_2]);
+igual("queda de baja, con motivo y fecha, y sin gafete vigente",
+  `${trasBaja.estado}/${trasBaja.baja_motivo}/${trasBaja.con_fecha}/${trasBaja.vigentes}/${trasBaja.gafete}`, "baja/Renunció/true/0/anulado");
+const { rows: [{ ok: bajaOtraVez }] } = await db.query(`select public.baja_empleado($1, 'x') as ok`, [emp1.id]);
+igual("dar de baja dos veces no hace nada la segunda", bajaOtraVez, false);
+try {
+  await emite(COD_3);
+  fallas++; console.log("  ✖ se emitió un gafete a alguien de baja");
+} catch (e) { console.log("  ✓ a alguien de baja no se le emite gafete →", e.message); }
+await db.query(`select public.reactivar_empleado($1)`, [emp1.id]);
+igual("reactivar NO revive el gafete viejo", (await vigentes()).length, 0);
+await emite(COD_3);
+igual("reactivado, se le emite uno nuevo", (await vigentes()).join(), COD_3);
+
+try {
+  await db.query(`update public.empleados set reporta_a = id where id = $1`, [emp1.id]);
+  fallas++; console.log("  ✖ alguien se reporta a sí mismo");
+} catch (e) { console.log("  ✓ nadie se reporta a sí mismo →", e.message); }
+const { rows: [jefa] } = await db.query(
+  `insert into public.empleados (numero, nombre, tipo) values ('0002', 'Dora', 'administrativo') returning id`);
+await db.query(`update public.empleados set reporta_a = $2 where id = $1`, [emp1.id, jefa.id]);
+await db.query(`delete from public.empleados where id = $1`, [jefa.id]);
+const { rows: [{ reporta_a: sinJefa }] } = await db.query(`select reporta_a from public.empleados where id = $1`, [emp1.id]);
+igual("si se borra a la jefa, su gente queda sin jefe (no se borra)", sinJefa, null);
+try {
+  await db.query(`insert into public.empleados (numero, nombre) values ('0001', 'Repetido')`);
+  fallas++; console.log("  ✖ se repitió un número de empleado");
+} catch (e) { console.log("  ✓ el número de empleado no se repite →", e.message); }
+
+await debePasar("el dueño SÍ arma un rol con la sección Personal", "dueno",
+  `insert into public.roles (nombre, permisos) values ('Recursos humanos', '{personal}')`, [], 1);
+const { rows: [{ trae }] } = await db.query(
+  `select 'personal' = any(permisos) as trae from public.roles where nombre = 'Administrador completo'`);
+igual("'Administrador completo' NO trae Personal (la da el dueño)", trae, false);
+const { rows: [cubeta] } = await db.query(`select public, file_size_limit from storage.buckets where id = 'personal'`);
+igual("la cubeta de fotos es privada y con tope", `${cubeta?.public}/${cubeta?.file_size_limit}`, "false/2097152");
+await debeFallar("nadie con sesión sube a la cubeta personal", "dueno",
+  `insert into storage.objects (bucket_id, name) values ('personal', 'x/1.jpg')`);
+await db.query(`insert into storage.objects (bucket_id, name) values ('personal', $1 || '/1.jpg')`, [emp1.id]);
+await debeFallar("ni lee las fotos directo", "admin", `select id from storage.objects where bucket_id = 'personal'`);
+}
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -801,8 +902,9 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "029-roles.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "030-avisos-varios-clientes.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "031-folio-y-evidencia.sql"), "utf8"));
-  console.log("✓ 022 a 031 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 031 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "032-personal-gafetes.sql"), "utf8"));
+  console.log("✓ 022 a 032 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 032 no son idempotentes:", e.message); }
 const { rows: [{ n: nTodoOtraVez }] } = await db.query(
   `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
 igual("tras volver a correr todo, sigue sin políticas 'todo'", nTodoOtraVez, 0);

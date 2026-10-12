@@ -28,11 +28,13 @@ create table if not exists public.roles (
 );
 
 -- La única lista de secciones vive en lib/permisos.mjs; esta es su copia
--- (tests/permisos.test.mjs compara las dos).
+-- (tests/permisos.test.mjs compara las dos). `personal` entró con la 032, que
+-- vuelve a poner este candado; va también aquí para que correr la 029 otra
+-- vez no lo deje sin esa sección.
 alter table public.roles drop constraint if exists roles_permisos_validos;
 alter table public.roles add constraint roles_permisos_validos check (permisos <@ array[
   'rutas', 'recolecciones', 'incidentes', 'avisos', 'unidades', 'contenedores', 'zonas',
-  'solicitudes', 'altas', 'empleo', 'clientes', 'saldos', 'precios', 'servicios', 'reportes',
+  'solicitudes', 'altas', 'empleo', 'personal', 'clientes', 'saldos', 'precios', 'servicios', 'reportes',
   'usuarios', 'bitacora', 'eliminar_clientes'
 ]::text[]);
 

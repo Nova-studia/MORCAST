@@ -42,6 +42,21 @@ export function enlaceDelChip(mensaje) {
 }
 
 /**
+ * ¿El número de serie delata un chip que NO conviene para el gafete?
+ *
+ * Los chips buenos (NTAG213/215/216, MIFARE Ultralight) traen un número de
+ * serie de 7 bytes. Uno de 4 bytes es casi siempre un MIFARE Classic: el
+ * chip barato de las tarjetas de acceso. Algunos Android lo graban, pero no
+ * es NFC estándar y la mayoría de los teléfonos (todos los iPhone) después
+ * NO lo leen: la tarjeta parecería servir en el teléfono que la grabó y
+ * fallaría en el del guardia. Sin número de serie no se opina.
+ */
+export function chipDudoso(serie) {
+  const bytes = String(serie || "").split(/[:\s-]/).filter(Boolean);
+  return bytes.length === 4;
+}
+
+/**
  * Lo que se le dice a la persona cuando Chrome rechaza un paso
  * (`iniciar`, `grabar` o `sellar`). Chrome avisa con el NOMBRE del error.
  */
@@ -60,7 +75,7 @@ export function textoDeError(error, paso) {
     return `No se pudo sellar el chip (${nombre || "error"}).`;
   }
   if (nombre === "NotAllowedError") return "Chrome no dejó grabar este chip. Lo más común es que ya esté sellado y no admita cambios.";
-  if (nombre === "NotSupportedError") return "Este chip no sirve para el gafete: tiene que ser NFC de 13.56 MHz (NTAG213 o NTAG215).";
+  if (nombre === "NotSupportedError") return "Este chip no sirve para el gafete: tiene que ser NTAG213, NTAG215 o NTAG216 (NFC de 13.56 MHz).";
   return `No se pudo grabar el chip (${nombre || "error"}).`;
 }
 
@@ -73,6 +88,9 @@ export function textoDeError(error, paso) {
  * - `otro-gafete`   el chip ya trae el enlace de OTRO gafete (`codigo`); no
  *                   se tocó. `grabarEncima()` lo autoriza para el siguiente
  *                   acercamiento.
+ * - `chip-dudoso`   por su número de serie parece un chip que otros
+ *                   teléfonos no van a leer (`chipDudoso`); no se tocó.
+ *                   `grabarAunque()` lo autoriza.
  * - `reintenta`     falló un paso (`motivo`); basta volver a acercarla.
  * - `falta-sellar`  el enlace quedó grabado pero el chip sigue abierto.
  * - `hecho`         terminado (`sellado`, `yaEstaba`, `serie`).
@@ -83,6 +101,7 @@ export function crearGrabador({ Lector, enlace, sellar = true, alEstado, esperaM
   let corte = null;
   let ocupado = false;
   let encima = false;
+  let aunque = false;
   let terminado = false;
 
   const detenido = () => !corte || corte.signal.aborted;
@@ -110,6 +129,12 @@ export function crearGrabador({ Lector, enlace, sellar = true, alEstado, esperaM
     if (ocupado || terminado || detenido()) return;
     ocupado = true;
     try {
+      // Antes que nada: ¿es un chip de los que sirven? Se pregunta también si
+      // ya trae el enlace, porque lo que sigue (sellarlo) no se deshace.
+      if (chipDudoso(evento?.serialNumber) && !aunque) {
+        avisa("chip-dudoso", { serie: evento.serialNumber });
+        return;
+      }
       const actual = enlaceDelChip(evento?.message);
       const yaEstaba = actual === enlace;
 
@@ -157,7 +182,7 @@ export function crearGrabador({ Lector, enlace, sellar = true, alEstado, esperaM
         lector.onreading = alLeer;
         lector.onreadingerror = () => {
           if (!ocupado && !terminado) {
-            avisa("reintenta", { motivo: "No se pudo leer este chip. Tiene que ser NFC de 13.56 MHz (NTAG213 o NTAG215)." });
+            avisa("reintenta", { motivo: "No se pudo leer este chip. Tiene que ser NTAG213, NTAG215 o NTAG216 (NFC de 13.56 MHz)." });
           }
         };
         await lector.scan({ signal: corte.signal });
@@ -173,6 +198,12 @@ export function crearGrabador({ Lector, enlace, sellar = true, alEstado, esperaM
     /** Autoriza regrabar un chip que ya trae otro gafete. */
     grabarEncima() {
       encima = true;
+      avisa("esperando");
+    },
+
+    /** Autoriza grabar un chip que parece de un tipo que no conviene. */
+    grabarAunque() {
+      aunque = true;
       avisa("esperando");
     },
 

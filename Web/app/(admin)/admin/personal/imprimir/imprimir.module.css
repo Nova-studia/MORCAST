@@ -1,0 +1,339 @@
+/*
+ * LA HOJA PARA LA IMPRENTA — una cara de gafete por página.
+ *
+ * Todo se mide en milímetros del gafete con `--mm`: en pantalla vale unos
+ * píxeles (vista previa) y al imprimir vale 1mm, así que lo que se ve es lo
+ * que sale. Las posiciones son las del diseño v3 aprobado; los tamaños de
+ * página, la sangría y las marcas salen de lib/gafete-impresion.mjs.
+ *
+ * Al imprimir se esconde TODO el panel (menú, barra, avisos). Esas reglas van
+ * atadas a `body:has(.raiz)`: la hoja de estilos se queda cargada al navegar
+ * a otra pantalla, y sin ese candado cualquier otra página del panel
+ * también se imprimiría sin menú (lo mismo que en contenedores/etiquetas).
+ *
+ * El tamaño del papel (@page) NO va aquí: lo pone la página en un <style>
+ * propio, porque cambia entre los gafetes y la hoja de control.
+ */
+
+.raiz {
+  --mm: 4.6px;
+  --teal: #044d57;
+  --naranja: #f77b39;
+  --papel-tinta: #0b0e0f;
+  --papel-gris: #4a5354;
+}
+
+.barra { display: grid; gap: 1rem; margin-bottom: 1.4rem; }
+.controles { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
+.selector { display: grid; gap: 4px; font-size: 0.8rem; color: var(--mc-gris); }
+.selector select { padding: 0.45rem 0.7rem; }
+.nota { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--mc-gris); max-width: 78ch; }
+.avisos {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(214, 164, 74, 0.45);
+  border-radius: var(--mc-radio);
+  background: var(--pt-alerta-tinte);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.avisos > svg { flex: none; font-size: 1.3rem; color: var(--pt-alerta); margin-top: 0.1rem; }
+.avisos p { margin: 0; }
+.avisos p + p { margin-top: 0.3rem; }
+
+.paginas { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+
+/* ---------- Una página: marcas de corte + una cara ---------- */
+.pagina {
+  position: relative;
+  flex: none;
+  width: calc(70 * var(--mm));
+  height: calc(101.6 * var(--mm));
+  background: #fff;
+  overflow: hidden;
+  border-radius: 3px;
+}
+.pagina,
+.pagina * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.marcas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.marcas line { stroke: #000; stroke-width: 0.1; }
+
+.cara {
+  position: absolute;
+  left: calc(8 * var(--mm));
+  top: calc(8 * var(--mm));
+  width: calc(54 * var(--mm));
+  height: calc(85.6 * var(--mm));
+  color: var(--papel-tinta);
+  font-family: var(--fuente-cuerpo), "Instrument Sans", system-ui, sans-serif;
+}
+.cara > * { position: absolute; z-index: 2; }
+/* El fondo se pasa 2 mm del corte por los cuatro lados: la sangría. */
+.cara > .fondo {
+  left: calc(-2 * var(--mm));
+  top: calc(-2 * var(--mm));
+  width: calc(58 * var(--mm));
+  height: calc(89.6 * var(--mm));
+  z-index: 0;
+  display: block;
+}
+/* Guías de pantalla: la línea de corte (con sus esquinas) y la ranura. */
+.cara > .corte {
+  inset: 0;
+  z-index: 3;
+  border-radius: calc(3.18 * var(--mm));
+  outline: 1px dashed rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.cara > .ranura {
+  z-index: 3;
+  left: 50%;
+  top: calc(var(--r-arriba) * var(--mm));
+  width: calc(var(--r-ancho) * var(--mm));
+  height: calc(var(--r-alto) * var(--mm));
+  transform: translateX(-50%);
+  border-radius: 99px;
+  border: 1px dashed rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+/* ---------- Frente ---------- */
+.logo { top: calc(7.4 * var(--mm)); left: 50%; transform: translateX(-50%); height: calc(10.4 * var(--mm)); width: auto; display: block; }
+.foto {
+  top: calc(22.2 * var(--mm));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(26.2 * var(--mm));
+  height: calc(32.2 * var(--mm));
+  padding: calc(1.1 * var(--mm));
+  background: #fff;
+  border-radius: calc(1.7 * var(--mm));
+  box-shadow: 0 calc(0.6 * var(--mm)) calc(1.8 * var(--mm)) rgba(0, 0, 0, 0.26);
+}
+.foto > div { width: 100%; height: 100%; border-radius: calc(0.9 * var(--mm)); overflow: hidden; }
+.foto img,
+.foto svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nombre { top: calc(57.2 * var(--mm)); left: calc(2 * var(--mm)); right: calc(2 * var(--mm)); text-align: center; text-transform: uppercase; }
+.nombres {
+  display: block;
+  font-weight: 600;
+  font-size: calc(3.4 * var(--mm));
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  color: var(--teal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.apellidos {
+  display: block;
+  font-weight: 600;
+  font-size: calc(4.4 * var(--mm));
+  letter-spacing: 0.035em;
+  line-height: 1.12;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.puesto {
+  top: calc(67.7 * var(--mm));
+  left: 50%;
+  transform: translateX(-50%) skewX(-14deg);
+  height: calc(5.8 * var(--mm));
+  max-width: calc(50 * var(--mm));
+  padding: 0 calc(3.1 * var(--mm));
+  background: var(--naranja);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+/* Negro sobre el naranja del logo (7.5:1); blanco no se lee (2.6:1). */
+.puesto span {
+  display: block;
+  transform: skewX(14deg);
+  font-weight: 600;
+  font-size: calc(2 * var(--mm));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--papel-tinta);
+  overflow: hidden;
+}
+.numero {
+  right: calc(4 * var(--mm));
+  bottom: calc(1.45 * var(--mm));
+  text-align: right;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  color: #fff;
+  line-height: 1.15;
+}
+.numero span { display: block; font-size: calc(1.4 * var(--mm)); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.78); }
+.numero strong { display: block; font-size: calc(3 * var(--mm)); font-weight: 500; letter-spacing: 0.08em; }
+
+/* ---------- Vuelta: sin datos personales ---------- */
+.rotulo {
+  top: calc(8.1 * var(--mm));
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: calc(1.8 * var(--mm));
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.qr {
+  top: calc(20.6 * var(--mm));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--lado) * var(--mm));
+  height: calc(var(--lado) * var(--mm));
+  display: block;
+}
+.enlace {
+  top: calc(45.9 * var(--mm));
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: calc(2.05 * var(--mm));
+  letter-spacing: 0.02em;
+}
+.nfc {
+  top: calc(48.9 * var(--mm));
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(1.2 * var(--mm));
+  font-size: calc(2.05 * var(--mm));
+  color: var(--papel-gris);
+}
+.nfc svg { width: calc(4.2 * var(--mm)); height: calc(4.2 * var(--mm)); color: var(--teal); }
+.pin {
+  top: calc(54.6 * var(--mm));
+  left: calc(4.6 * var(--mm));
+  right: calc(4.6 * var(--mm));
+  height: calc(12.4 * var(--mm));
+  border: calc(0.3 * var(--mm)) solid var(--teal);
+  border-radius: calc(1.5 * var(--mm));
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+.pin > div:first-child { flex: 1; padding: calc(1.5 * var(--mm)) calc(1.6 * var(--mm)) 0 calc(2.1 * var(--mm)); }
+.pin strong {
+  display: block;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 500;
+  font-size: calc(1.6 * var(--mm));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--teal);
+}
+.pin p { margin: calc(0.9 * var(--mm)) 0 0; font-size: calc(1.62 * var(--mm)); line-height: 1.34; color: var(--papel-gris); }
+.pinNumero {
+  flex: none;
+  width: calc(19.4 * var(--mm));
+  background: var(--naranja);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  color: var(--papel-tinta);
+  line-height: 1.08;
+}
+.pinNumero b { display: block; font-weight: 500; font-size: calc(4.5 * var(--mm)); letter-spacing: 0.14em; margin-right: -0.14em; }
+.legal {
+  top: calc(69.1 * var(--mm));
+  left: calc(6 * var(--mm));
+  right: calc(6 * var(--mm));
+  text-align: center;
+  font-size: calc(1.66 * var(--mm));
+  line-height: 1.38;
+  color: var(--papel-gris);
+}
+.legal b { font-weight: 500; color: var(--papel-tinta); }
+.sinPartir { white-space: nowrap; }
+.pie {
+  bottom: calc(1.25 * var(--mm));
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: calc(1.55 * var(--mm));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.pieIzq { left: calc(4.2 * var(--mm)); color: rgba(255, 255, 255, 0.82); }
+.pieDer { right: calc(4.2 * var(--mm)); color: #fff; }
+
+/* ---------- Hoja de control (carta) ---------- */
+.control {
+  max-width: 190mm;
+  padding: 12mm;
+  background: #fff;
+  color: #000;
+  border-radius: 4px;
+  font-size: 9.5pt;
+  overflow-x: auto;
+}
+.control header h2 { margin: 0; font-size: 14pt; font-weight: 600; color: #000; }
+.control header p { margin: 2pt 0 10pt; font-size: 9pt; color: #444; }
+.control table { width: 100%; border-collapse: collapse; }
+.control th,
+.control td { border: 0.5pt solid #999; padding: 4pt 5pt; text-align: left; vertical-align: middle; color: #000; }
+.control th { font-size: 7.5pt; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.control tr { break-inside: avoid; }
+.control td i { display: block; width: 11pt; height: 11pt; margin: 0 auto; border: 0.8pt solid #000; }
+.cMono { font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace; font-size: 8.5pt; white-space: nowrap; }
+.control footer { margin-top: 10pt; font-size: 8pt; color: #444; }
+
+@media screen and (max-width: 760px) {
+  .raiz { --mm: 3.6px; }
+}
+
+@media print {
+  .raiz { --mm: 1mm; }
+
+  /* Fuera todo lo del panel; solo quedan las páginas. */
+  :global(body):has(.raiz) :global(.pt-sidebar),
+  :global(body):has(.raiz) :global(.pt-topbar),
+  :global(body):has(.raiz) :global(.pt-overlay),
+  :global(body):has(.raiz) :global(.mc-avance),
+  :global(body):has(.raiz) :global(.pt-content > :not(.mc-pagina)) {
+    display: none !important;
+  }
+  :global(html):has(.raiz),
+  :global(body):has(.raiz),
+  :global(body):has(.raiz) :global(.pt-body),
+  :global(body):has(.raiz) :global(.pt-shell),
+  :global(body):has(.raiz) :global(.pt-main),
+  :global(body):has(.raiz) :global(.pt-content),
+  :global(body):has(.raiz) :global(.mc-pagina) {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .barra { display: none; }
+  .paginas { display: block; }
+  .pagina {
+    width: 70mm;
+    height: 101.6mm;
+    border-radius: 0;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .pagina:last-child { break-after: auto; }
+  /* Las guías de pantalla no se imprimen: el corte lo dan las marcas. */
+  .cara > .corte,
+  .cara > .ranura { display: none; }
+
+  .control { max-width: none; padding: 0; border-radius: 0; overflow: visible; }
+}

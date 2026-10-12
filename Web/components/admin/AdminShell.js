@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   List,
+  IdentificationBadge,
 } from "@phosphor-icons/react/dist/ssr";
 import { obtenerSesionAdmin, cerrarSesionAdmin, sesionPuede } from "@/lib/admin-sesion";
 import { ADMIN_PERFIL } from "@/lib/admin-datos";
@@ -48,6 +49,9 @@ const NAV = [
   // ÚNICO que se ve, y dos renglones con el mismo nombre de icono se vuelven
   // indistinguibles.
   { href: "/admin/empleo", texto: "Trabaja con nosotros", gif: "trabaja-con-nosotros" },
+  // Directorio de empleados y gafetes (db/032). Lleva icono de Phosphor
+  // mientras Luis no entregue su GIF: solo lo ve quien tenga la sección.
+  { href: "/admin/personal", texto: "Personal y gafetes", icono: IdentificationBadge },
   { href: "/admin/clientes", texto: "Clientes", gif: "clientes" },
   { href: "/admin/saldos", texto: "Saldos de clientes", gif: "por-pagar" },
   // Precios reales (7-oct-2026): solo el dueño y quien tenga el permiso.

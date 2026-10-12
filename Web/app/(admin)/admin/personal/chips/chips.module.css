@@ -120,3 +120,13 @@
   font-size: 0.88rem;
   letter-spacing: 0.08em;
 }
+/* Si quedó anotado en la ficha del empleado, o por qué no. */
+.hechas small {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--fuente-cuerpo), system-ui, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  color: var(--mc-gris);
+}
+.hechas small.mal { color: var(--pt-alerta); }

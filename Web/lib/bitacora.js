@@ -88,6 +88,20 @@ export async function listarBitacora({ limite = 200, desde } = {}) {
  * administración, no un programador, así que `aplicar_saldo` no sirve.
  */
 export const TEXTO_ACCION = {
+  // Personal y gafetes (12-oct-2026, db/032). Las anota el servidor: esas
+  // tablas no se tocan desde el navegador. Ninguna lleva datos de emergencia.
+  personal_alta: "Dio de alta a un empleado",
+  personal_editado: "Editó los datos de un empleado",
+  personal_foto: "Cambió la foto de un empleado",
+  personal_baja: "Dio de baja a un empleado",
+  personal_reactivado: "Reactivó a un empleado",
+  personal_importado: "Cargó empleados desde un Excel",
+  gafete_emitido: "Emitió un gafete",
+  gafete_repuesto: "Repuso un gafete (el anterior dejó de valer)",
+  gafete_chip: "Grabó el chip de un gafete",
+  gafete_pin_visto: "Vio el PIN de un gafete en el panel",
+  gafete_impresion: "Abrió la hoja de gafetes para la imprenta (lleva los PIN)",
+  gafete_emergencia: "Alguien abrió la ficha de emergencia de un gafete con su PIN",
   // Entrega 4 (9-oct-2026): portal del cliente.
   cliente_edita_contacto: "El cliente cambió sus datos de contacto",
   cliente_cancela_recoleccion: "El cliente canceló una recolección",
@@ -162,6 +176,8 @@ export const TEXTO_ACCION = {
 
 /** Cómo se llama cada tabla en la bitácora, para las filas que anota la base. */
 export const TEXTO_TABLA = {
+  empleados: "empleado",
+  gafetes: "gafete",
   movimientos_saldo: "movimiento de saldo",
   perfiles: "cuenta de acceso",
   roles: "rol",

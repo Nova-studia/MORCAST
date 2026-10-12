@@ -14,11 +14,22 @@ import {
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("la lista de la base (029) es la misma que la de aquí", () => {
+test("la lista de la base (029 y 032) es la misma que la de aquí", () => {
+  // La 032 vuelve a poner el candado con `personal`; la 029 trae la misma
+  // lista para que correrla otra vez no lo deje sin esa sección.
+  for (const archivo of ["029-roles.sql", "032-personal-gafetes.sql"]) {
+    const sql = fs.readFileSync(path.join(WEB, "db", archivo), "utf8");
+    const bloque = sql.match(/roles_permisos_validos check \(permisos <@ array\[([\s\S]*?)\]/)[1];
+    const enBase = [...bloque.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+    assert.deepEqual(enBase, [...PERMISOS_DE_ROL].sort(), archivo);
+  }
+});
+
+test("'Administrador completo' NO nace con Personal: la da el dueño", () => {
   const sql = fs.readFileSync(path.join(WEB, "db", "029-roles.sql"), "utf8");
-  const bloque = sql.match(/roles_permisos_validos check \(permisos <@ array\[([\s\S]*?)\]/)[1];
-  const enBase = [...bloque.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
-  assert.deepEqual(enBase, [...PERMISOS_DE_ROL].sort());
+  const siembra = sql.match(/values \('Administrador completo',[\s\S]*?array\[([\s\S]*?)\]\)/)[1];
+  assert.ok(!/'personal'/.test(siembra));
+  assert.ok(PERMISOS_DE_ROL.includes("personal"));
 });
 
 test("cada página del panel cae en su sección", () => {
@@ -28,6 +39,8 @@ test("cada página del panel cae en su sección", () => {
   assert.equal(seccionDeRuta("/admin/zonas-pedidas"), "zonas");
   assert.equal(seccionDeRuta("/admin/clientes/123"), "clientes");
   assert.equal(seccionDeRuta("/admin/usuarios"), "usuarios");
+  assert.equal(seccionDeRuta("/admin/personal"), "personal");
+  assert.equal(seccionDeRuta("/admin/personal/chips"), "personal", "grabar chips también pide Personal");
 });
 
 test("el Panel, Mi cuenta y la verificación son de todo el personal", () => {
