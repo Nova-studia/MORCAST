@@ -16,7 +16,10 @@ import { fichaEmergencia } from "./personal.mjs";
  *      el freno del gafete (no hay gafete que cuidar).
  *   3. Freno por gafete: 5 intentos cada 15 minutos, acierten o no.
  *   4. La respuesta de un PIN malo es SIEMPRE la misma, exista o no el
- *      gafete, esté vigente o no, haya firmado permiso la persona o no.
+ *      gafete, esté vigente o no, haya firmado permiso la persona o no: con
+ *      esta acción no se puede tantear qué códigos existen. (Que alguien
+ *      vigente TIENE ficha de emergencia sí se ve en su página: es el botón
+ *      «Datos de emergencia», que solo sale si la hay.)
  */
 
 export const TOPE_POR_IP = { maximo: 20, minutos: 60 };
@@ -30,6 +33,12 @@ export const ESPERA = Object.freeze({
   ok: false,
   espera: true,
   motivo: "Demasiados intentos. Espera 15 minutos o llama a Morcast.",
+});
+/** El tope por IP es por hora: decir "15 minutos" ahí sería mentira. */
+export const ESPERA_LARGA = Object.freeze({
+  ok: false,
+  espera: true,
+  motivo: "Demasiados intentos desde esta conexión. Espera una hora o llama a Morcast.",
 });
 export const SIN_RESPUESTA = Object.freeze({
   ok: false,
@@ -45,10 +54,10 @@ export const SIN_RESPUESTA = Object.freeze({
  *        anota el intento y dice si cabe; si no puede saberlo, debe decir que NO
  * @param {(codigo: string) => Promise<{gafete: object|null, empleado: object|null}>} p.buscar
  * @param {string|null} p.llave  la del PIN (PERSONAL_PIN_LLAVE)
- * @returns `{ ok: true, ficha, gafeteId }`, `PIN_INCORRECTO`, `ESPERA` o `SIN_RESPUESTA`
+ * @returns `{ ok: true, ficha, gafeteId }`, `PIN_INCORRECTO`, `ESPERA`, `ESPERA_LARGA` o `SIN_RESPUESTA`
  */
 export async function resolverEmergencia({ codigo, pin, ip, cabe, buscar, llave }) {
-  if (!(await cabe(`gafete-pin-ip:${ip || "desconocida"}`, TOPE_POR_IP))) return ESPERA;
+  if (!(await cabe(`gafete-pin-ip:${ip || "desconocida"}`, TOPE_POR_IP))) return ESPERA_LARGA;
 
   const c = normalizarCodigo(codigo);
   const p = normalizarPin(pin);

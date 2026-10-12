@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Printer, Warning } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, Check, Printer, Warning } from "@phosphor-icons/react/dist/ssr";
 import {
   TARJETA,
   RANURA,
@@ -18,7 +18,7 @@ import {
 import { nombreCompleto, nombreEnDosLineas, emisionLegible } from "@/lib/personal.mjs";
 import { EMPRESA } from "@/lib/datos";
 import { fotoDelPanel } from "@/lib/foto-gafete";
-import { datosDeImpresion } from "../acciones";
+import { datosDeImpresion, marcarMandados } from "../acciones";
 import { Silueta, LLAVE_IMPRESION } from "../piezas";
 import s from "./imprimir.module.css";
 
@@ -43,6 +43,8 @@ const PAGINA = medidasDePagina();
 const MARCAS = marcasDeCorte();
 const FONDO = { frente: fondoDeCara("frente"), vuelta: fondoDeCara("vuelta") };
 const ONDAS = guilloche();
+/** Debajo de esto la letra ya se achicó tanto que conviene mirarla antes de imprimir. */
+const ESCALA_DE_AVISO = 0.75;
 
 function idsPedidos(parametros) {
   const deLaDireccion = (parametros.get("ids") || "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -69,6 +71,9 @@ function Hoja() {
   const [carga, setCarga] = useState(null);
   const [vista, setVista] = useState("gafetes"); // gafetes | control
   const [orden, setOrden] = useState("tarjeta");
+  const [fotos, setFotos] = useState({}); // id del empleado → true (cargó) | false (falló)
+  const [ajustes, setAjustes] = useState({}); // "Nombre: qué" → escala de la letra
+  const [mandados, setMandados] = useState(null);
 
   useEffect(() => {
     let vivo = true;
@@ -82,7 +87,24 @@ function Hoja() {
 
   const gafetes = useMemo(() => (carga?.ok ? carga.gafetes : []), [carga]);
   const paginas = useMemo(() => paginasDeImpresion(gafetes, orden), [gafetes, orden]);
-  const sinFoto = gafetes.filter((g) => !g.foto_ruta);
+
+  // Estables (useCallback): las llaman efectos de cada tarjeta.
+  const alFoto = useCallback((id, bien) => setFotos((f) => (f[id] === bien ? f : { ...f, [id]: bien })), []);
+  const alAjustar = useCallback((clave, escala) => setAjustes((a) => (a[clave] === escala ? a : { ...a, [clave]: escala })), []);
+
+  const conFoto = gafetes.filter((g) => g.foto_ruta);
+  const sinFoto = gafetes.filter((g) => !g.foto_ruta || fotos[g.empleadoId] === false);
+  // Imprimir antes de que carguen las fotos las dejaría en blanco en el PDF.
+  const fotosPendientes = vista === "gafetes" ? conFoto.filter((g) => !(g.empleadoId in fotos)).length : 0;
+  const apretados = Object.entries(ajustes).filter(([, escala]) => escala < ESCALA_DE_AVISO).map(([clave]) => clave);
+  const porMandar = gafetes.filter((g) => !g.impreso_en).map((g) => g.gafeteId);
+
+  const marcar = async () => {
+    setMandados({ ocupado: true });
+    const r = await marcarMandados(gafetes.map((g) => g.gafeteId))
+      .catch(() => ({ ok: false, motivo: "No se pudo anotar. Revisa tu conexión." }));
+    setMandados(r.ok ? { hechos: true } : { motivo: r.motivo });
+  };
 
   // El tamaño del papel depende de la vista. Va en un <style> de esta página
   // (y no en el módulo de estilos) para que deje de valer al salir de aquí.
@@ -121,26 +143,43 @@ function Hoja() {
               </select>
             </label>
           )}
-          <button type="button" className="pt-btn pt-btn-naranja" onClick={() => window.print()} disabled={!gafetes.length}>
-            <Printer /> Imprimir o guardar PDF
+          <button type="button" className="pt-btn pt-btn-naranja" onClick={() => window.print()} disabled={!gafetes.length || fotosPendientes > 0}>
+            <Printer /> {fotosPendientes > 0 ? `Cargando ${fotosPendientes} ${fotosPendientes === 1 ? "foto" : "fotos"}…` : "Imprimir o guardar PDF"}
           </button>
+          {gafetes.length > 0 && (
+            mandados?.hechos || porMandar.length === 0 ? (
+              <span className={s.hecho}><Check aria-hidden="true" /> Anotados como mandados a la imprenta</span>
+            ) : (
+              <button type="button" className="pt-btn" onClick={marcar} disabled={mandados?.ocupado}>
+                {mandados?.ocupado ? "Anotando…" : "Ya los mandé a la imprenta"}
+              </button>
+            )
+          )}
         </div>
         <p className={s.nota}>
           En la ventana de impresión escoge <strong>Guardar como PDF</strong>, márgenes <strong>Ninguno</strong>, escala{" "}
           <strong>100 %</strong> y activa <strong>Gráficos de fondo</strong>. Cada página trae 2 mm de sangría y marcas
           de corte; la tarjeta mide {TARJETA.ancho} × {TARJETA.alto} mm (CR80). La ranura del cordón no va impresa: la
-          troquela la imprenta arriba, al centro.
+          troquela la imprenta arriba, al centro. Cuando mandes el PDF, pulsa «Ya los mandé a la imprenta» para que
+          dejen de salir como «Sin imprimir».
         </p>
-        {(sinFoto.length > 0 || carga?.sinGafete?.length > 0) && (
+        {(sinFoto.length > 0 || apretados.length > 0 || carga?.sinGafete?.length > 0 || mandados?.motivo) && (
           <div className={s.avisos} role="alert">
             <Warning aria-hidden="true" />
             <div>
               {sinFoto.length > 0 && (
                 <p><strong>{sinFoto.length} sin foto</strong> (saldrían con la silueta): {sinFoto.map(nombreCompleto).join(", ")}.</p>
               )}
+              {apretados.length > 0 && (
+                <p>
+                  <strong>Texto muy largo</strong>: se achicó la letra para que quepa. Míralo antes de imprimir y, si no
+                  convence, acórtalo en su ficha: {apretados.join(", ")}.
+                </p>
+              )}
               {carga?.sinGafete?.length > 0 && (
                 <p><strong>No salen</strong> porque no tienen gafete vigente: {carga.sinGafete.join(", ")}.</p>
               )}
+              {mandados?.motivo && <p>{mandados.motivo}</p>}
             </div>
           </div>
         )}
@@ -158,7 +197,8 @@ function Hoja() {
       ) : vista === "gafetes" ? (
         <div className={s.paginas}>
           {paginas.map(({ cara, gafete }) => (
-            <Pagina key={`${gafete.codigo}-${cara}`} cara={cara} gafete={gafete} />
+            <Pagina key={`${gafete.codigo}-${cara}`} cara={cara} gafete={gafete}
+              fotoMal={fotos[gafete.empleadoId] === false} alFoto={alFoto} alAjustar={alAjustar} />
           ))}
         </div>
       ) : (
@@ -168,8 +208,41 @@ function Hoja() {
   );
 }
 
+/**
+ * Un renglón que NO puede partirse ni cortarse (el nombre, los apellidos, el
+ * puesto): si no cabe a lo ancho, se le achica la letra hasta que quepa. Se
+ * mide ya con las tipografías cargadas; como todo va en `--mm`, la proporción
+ * que sale en pantalla es la misma del PDF. `--f` multiplica el tamaño en
+ * imprimir.module.css.
+ */
+function Ajustar({ className, alMedir, children }) {
+  const caja = useRef(null);
+  const [escala, setEscala] = useState(1);
+
+  useEffect(() => {
+    let vivo = true;
+    const medir = () => {
+      const el = caja.current;
+      if (!vivo || !el) return;
+      el.style.setProperty("--f", "1");
+      const cabe = el.clientWidth;
+      const pide = el.scrollWidth;
+      // Hacia abajo y con tope: una letra de menos de la mitad ya no se lee.
+      const nueva = pide > cabe && cabe > 0 ? Math.max(0.5, Math.floor((cabe / pide) * 100) / 100) : 1;
+      el.style.setProperty("--f", String(nueva));
+      setEscala(nueva);
+    };
+    (document.fonts?.ready || Promise.resolve()).then(medir);
+    return () => { vivo = false; };
+  }, [children]);
+
+  useEffect(() => { alMedir?.(escala); }, [escala, alMedir]);
+
+  return <span ref={caja} className={className} style={{ "--f": escala }}>{children}</span>;
+}
+
 /** Una página: las marcas de corte y, dentro, una cara con su sangría. */
-function Pagina({ cara, gafete }) {
+function Pagina({ cara, gafete, fotoMal, alFoto, alAjustar }) {
   return (
     <section className={s.pagina} aria-label={`${cara === "frente" ? "Frente" : "Vuelta"} del gafete de ${nombreCompleto(gafete)}`}>
       <svg className={s.marcas} viewBox={`0 0 ${PAGINA.ancho} ${PAGINA.alto}`} aria-hidden="true">
@@ -185,27 +258,39 @@ function Pagina({ cara, gafete }) {
         <div className={s.corte} aria-hidden="true" />
         <div className={s.ranura} aria-hidden="true"
           style={{ "--r-ancho": RANURA.ancho, "--r-alto": RANURA.alto, "--r-arriba": RANURA.arriba }} />
-        {cara === "frente" ? <Frente gafete={gafete} /> : <Vuelta gafete={gafete} />}
+        {cara === "frente"
+          ? <Frente gafete={gafete} fotoMal={fotoMal} alFoto={alFoto} alAjustar={alAjustar} />
+          : <Vuelta gafete={gafete} />}
       </div>
     </section>
   );
 }
 
-function Frente({ gafete }) {
+function Frente({ gafete, fotoMal, alFoto, alAjustar }) {
   const [nombres, apellidos] = nombreEnDosLineas(gafete);
   const foto = fotoDelPanel({ id: gafete.empleadoId, foto_ruta: gafete.foto_ruta });
+  const quien = nombreCompleto(gafete);
+  const mideNombre = useCallback((escala) => alAjustar(`${quien} (nombre)`, escala), [alAjustar, quien]);
+  const mideApellidos = useCallback((escala) => alAjustar(`${quien} (apellidos)`, escala), [alAjustar, quien]);
+  const midePuesto = useCallback((escala) => alAjustar(`${quien} (puesto)`, escala), [alAjustar, quien]);
   return (
     <>
       {/* <img> y no next/image: en un PDF para imprenta va el archivo tal cual, sin recomprimir. */}
       <img className={s.logo} src="/img/logo-h-blanco.png" alt="Morcast del Norte" />
       <div className={s.foto}>
-        <div>{foto ? <img src={foto} alt="" /> : <Silueta />}</div>
+        <div>
+          {foto && !fotoMal
+            ? <img src={foto} alt="" onLoad={() => alFoto(gafete.empleadoId, true)} onError={() => alFoto(gafete.empleadoId, false)} />
+            : <Silueta />}
+        </div>
       </div>
       <div className={s.nombre}>
-        <span className={s.nombres}>{nombres}</span>
-        <span className={s.apellidos}>{apellidos}</span>
+        <Ajustar className={s.nombres} alMedir={mideNombre}>{nombres}</Ajustar>
+        <Ajustar className={s.apellidos} alMedir={mideApellidos}>{apellidos}</Ajustar>
       </div>
-      {gafete.puesto && <div className={s.puesto}><span>{gafete.puesto}</span></div>}
+      {gafete.puesto && (
+        <div className={s.puesto}><Ajustar alMedir={midePuesto}>{gafete.puesto}</Ajustar></div>
+      )}
       <div className={s.numero}>
         <span>No. empleado</span>
         <strong>{gafete.numero}</strong>

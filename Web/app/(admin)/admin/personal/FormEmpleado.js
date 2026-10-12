@@ -172,7 +172,10 @@ export default function FormEmpleado({ empleado = null, jefes = [], alGuardar, a
           <input id="e-contacto_emergencia" className="pt-input" value={f.contacto_emergencia || ""} onChange={cambia("contacto_emergencia")} placeholder="María López (esposa)" autoComplete="off" />
         ) })}
         {conEtiqueta({ campo: "telefono_emergencia", etiqueta: "Teléfono de emergencia", children: (
-          <input id="e-telefono_emergencia" className={`pt-input ${s.mono}`} type="tel" inputMode="tel" value={f.telefono_emergencia || ""} onChange={cambia("telefono_emergencia")} placeholder="868 123 4567" autoComplete="off" />
+          <>
+            <input id="e-telefono_emergencia" className={`pt-input ${s.mono}`} type="tel" inputMode="tel" value={f.telefono_emergencia || ""} onChange={cambia("telefono_emergencia")} placeholder="868 123 4567" autoComplete="off" />
+            <small className={s.pista}>Si es de Estados Unidos, con +1 por delante: +1 956 123 4567.</small>
+          </>
         ) })}
         <div className={s.ancho}>
           <label className={s.casilla}>

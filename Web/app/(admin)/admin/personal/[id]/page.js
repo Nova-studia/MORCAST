@@ -159,6 +159,10 @@ export default function FichaEmpleado() {
                 <strong>{dia(vigente.emitido)}</strong>
               </div>
               <div className={s.dato}>
+                <span>Imprenta</span>
+                <strong>{vigente.impreso_en ? `Mandado el ${dia(vigente.impreso_en)}` : "Sin mandar a imprimir"}</strong>
+              </div>
+              <div className={s.dato}>
                 <span>Chip NFC</span>
                 <strong>{vigente.chip_grabado_en ? `Grabado el ${dia(vigente.chip_grabado_en)}` : "Pendiente de grabar"}</strong>
               </div>

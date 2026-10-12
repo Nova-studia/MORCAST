@@ -23,7 +23,7 @@ const COLUMNAS_EMPLEADO =
   "id, numero, nombre, apellido_paterno, apellido_materno, puesto, area, tipo, reporta_a, foto_ruta, estado, " +
   "baja_fecha, baja_motivo, tipo_sangre, alergias, contacto_emergencia, telefono_emergencia, permiso_emergencia, creado";
 // Sin `pin_cifrado`: solo lo trae quien lo va a descifrar o comparar.
-const COLUMNAS_GAFETE = "id, empleado_id, codigo, estado, emitido, chip_grabado_en, anulado_en, anulado_motivo";
+const COLUMNAS_GAFETE = "id, empleado_id, codigo, estado, emitido, impreso_en, chip_grabado_en, anulado_en, anulado_motivo";
 
 /** Un error de la base con un texto que le sirve a quien está en el panel. */
 function fallo(error, que) {
@@ -113,6 +113,13 @@ function almacenReal() {
       if (error) throw fallo(error, "no se pudo anotar el chip");
       return data?.[0] || null;
     },
+    /** Anota que esos gafetes vigentes ya se mandaron a la imprenta. Devuelve cuántos. */
+    async marcarImpresos(ids) {
+      const { data, error } = await sb.from("gafetes").update({ impreso_en: new Date().toISOString() })
+        .in("id", ids).eq("estado", "vigente").is("impreso_en", null).select("id");
+      if (error) throw fallo(error, "no se pudo anotar la impresión");
+      return data?.length || 0;
+    },
     async subirFoto(ruta, archivo, tipo) {
       const { error } = await sb.storage.from("personal").upload(ruta, archivo, { contentType: tipo, upsert: false });
       if (error) throw fallo(error, "no se pudo subir la foto");
@@ -167,6 +174,7 @@ async function sembrar() {
   for (const [numero, [codigo, pin]] of Object.entries(GAFETES_DEMO)) {
     gafetes.push({
       id: `demo-g-${codigo}`, empleado_id: `demo-${numero}`, codigo, estado: "vigente", emitido: ahora,
+      impreso_en: numero === "0024" ? null : ahora,
       chip_grabado_en: numero === "0001" ? ahora : null, anulado_en: null, anulado_motivo: null,
       pin_cifrado: await cifrarPin(pin, codigo, LLAVE_DEMO),
     });
@@ -231,7 +239,7 @@ function almacenDemo() {
       const id = `demo-g-${codigo}`;
       d.gafetes.push({
         id, empleado_id: empleadoId, codigo, pin_cifrado: pinCifrado, estado: "vigente", emitido: ahora,
-        chip_grabado_en: null, anulado_en: null, anulado_motivo: null,
+        impreso_en: null, chip_grabado_en: null, anulado_en: null, anulado_motivo: null,
       });
       return id;
     },
@@ -259,6 +267,12 @@ function almacenDemo() {
       if (!g) return null;
       g.chip_grabado_en = new Date().toISOString();
       return sinPin(g);
+    },
+    async marcarImpresos(ids) {
+      const ahora = new Date().toISOString();
+      const suyos = (await datos()).gafetes.filter((g) => ids.includes(g.id) && g.estado === "vigente" && !g.impreso_en);
+      suyos.forEach((g) => { g.impreso_en = ahora; });
+      return suyos.length;
     },
     async subirFoto(ruta, archivo, tipo) { (await datos()).fotos.set(ruta, { bytes: await archivo.arrayBuffer(), tipo }); },
     async borrarFoto(ruta) { (await datos()).fotos.delete(ruta); },

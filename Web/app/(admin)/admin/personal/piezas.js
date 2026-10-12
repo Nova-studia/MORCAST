@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fotoDelPanel } from "@/lib/foto-gafete";
+import { pasoDelGafete } from "@/lib/personal.mjs";
 import s from "./personal.module.css";
 
 /** Las piezas que comparten las pantallas de Personal. */
@@ -46,13 +47,18 @@ export function Insignia({ clase = "", children }) {
   return <span className={`pt-badge ${clase}`} style={apagada}>{children}</span>;
 }
 
-/** Las insignias del gafete de un empleado de la lista. */
+const PASOS = {
+  baja: { clase: "", texto: "De baja" },
+  "sin-gafete": { clase: "alerta", texto: "Sin gafete" },
+  "sin-imprimir": { clase: "alerta", texto: "Sin imprimir" },
+  "chip-pendiente": { clase: "alerta", texto: "Chip pendiente" },
+  listo: { clase: "ok", texto: "Chip grabado" },
+};
+
+/** La insignia del gafete de un empleado de la lista: en qué paso va. */
 export function EstadoGafete({ empleado }) {
-  if (empleado.estado === "baja") return <Insignia>De baja</Insignia>;
-  if (!empleado.gafete) return <Insignia clase="alerta">Sin gafete</Insignia>;
-  return empleado.gafete.chip_grabado_en
-    ? <Insignia clase="ok">Chip grabado</Insignia>
-    : <Insignia clase="alerta">Chip pendiente</Insignia>;
+  const paso = PASOS[pasoDelGafete(empleado)];
+  return <Insignia clase={paso.clase}>{paso.texto}</Insignia>;
 }
 
 /** Dónde se guarda la selección para la hoja de impresión (ver imprimir/page.js). */

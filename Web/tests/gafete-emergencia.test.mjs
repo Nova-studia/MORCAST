@@ -5,6 +5,7 @@ import {
   resolverEmergencia,
   PIN_INCORRECTO,
   ESPERA,
+  ESPERA_LARGA,
   SIN_RESPUESTA,
   TOPE_POR_IP,
   TOPE_POR_GAFETE,
@@ -108,7 +109,8 @@ test("freno por IP: 20 intentos por hora, repartidos entre los gafetes que sea",
   for (let i = 0; i < TOPE_POR_IP.maximo; i++) {
     assert.equal(await t.pedir(codigos[i % codigos.length], "000000", "9.9.9.9"), PIN_INCORRECTO);
   }
-  assert.equal(await t.pedir(CODIGO, PIN, "9.9.9.9"), ESPERA, "la IP se frena antes de mirar el gafete");
+  assert.equal(await t.pedir(CODIGO, PIN, "9.9.9.9"), ESPERA_LARGA, "la IP se frena antes de mirar el gafete");
+  assert.match(ESPERA_LARGA.motivo, /una hora/, "y no promete 15 minutos");
   assert.ok(!t.claves.slice(-1)[0].startsWith("gafete-pin:"), "y ese intento no se le cobra al gafete");
   assert.equal((await t.pedir(CODIGO, PIN, "8.8.8.8")).ok, true, "otra IP sigue pudiendo");
   assert.equal(TOPE_POR_IP.maximo, 20);
@@ -121,7 +123,8 @@ test("si el freno no puede contar, no se abre nada", async () => {
     cabe: async () => false, // así contesta la acción cuando la base falla
     buscar: async () => { throw new Error("no debería buscar"); },
   });
-  assert.equal(r, ESPERA);
+  assert.equal(r.ok, false);
+  assert.equal(r.espera, true);
 });
 
 test("si la base no contesta al buscar, se dice que no se pudo (no que el PIN está mal)", async () => {

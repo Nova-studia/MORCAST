@@ -29,7 +29,8 @@ const FILTROS = [
   { id: "activos", texto: "Activos", filtro: { estado: "activo" } },
   { id: "administrativos", texto: "Administrativos", filtro: { estado: "activo", tipo: "administrativo" } },
   { id: "general", texto: "Personal general", filtro: { estado: "activo", tipo: "general" } },
-  // Con gafete vigente pero sin chip grabado: lo que falta por terminar.
+  // Lo que falta por terminar: mandarlo a la imprenta y, ya impreso, grabarle el chip.
+  { id: "imprimir", texto: "Sin imprimir", filtro: { sinImprimir: true } },
   { id: "chip", texto: "Chip pendiente", filtro: { chip: true } },
   { id: "baja", texto: "De baja", filtro: { estado: "baja" } },
 ];
@@ -74,6 +75,7 @@ export default function PersonalAdmin() {
   const imprimir = () => router.push(prepararImpresion(marcadosVisibles.map((e) => e.id)));
 
   const activos = empleados.filter((e) => e.estado === "activo").length;
+  const sinImprimir = filtrarPersonal(empleados, { sinImprimir: true }).length;
   const pendientes = filtrarPersonal(empleados, { chip: true }).length;
 
   return (
@@ -83,7 +85,7 @@ export default function PersonalAdmin() {
           <h1>Personal y gafetes</h1>
           <p>
             {carga?.ok
-              ? <>{activos} {activos === 1 ? "empleado activo" : "empleados activos"}{pendientes > 0 && <> · {pendientes} con el chip pendiente</>}</>
+              ? <>{activos} {activos === 1 ? "empleado activo" : "empleados activos"}{sinImprimir > 0 && <> · {sinImprimir} sin imprimir</>}{pendientes > 0 && <> · {pendientes} con el chip pendiente</>}</>
               : "El directorio del personal y sus gafetes con QR y chip."}
           </p>
         </div>

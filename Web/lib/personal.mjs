@@ -66,18 +66,38 @@ export function normalizarSangre(texto) {
   return `${grupo}${m[2] === "+" || m[2].startsWith("POS") ? "+" : "-"}`;
 }
 
-/** Diez dígitos, sin lada del país ni adornos; null si no los hay. */
+/**
+ * Un teléfono, como se guarda: diez dígitos si es de México ("8681234567"),
+ * o "+1" y diez dígitos si es de Estados Unidos ("+19561234567"). null si no
+ * se entiende.
+ *
+ * Matamoros es frontera: el contacto de emergencia de más de uno vive en
+ * Brownsville. Diez dígitos a secas se toman como de México; el de Estados
+ * Unidos hay que escribirlo con su +1 (o 1 por delante), porque por la lada
+ * sola no se puede saber de qué lado es.
+ */
 export function normalizarTelefono(texto) {
-  let d = String(texto ?? "").replace(/\D/g, "");
-  if (d.length === 12 && d.startsWith("52")) d = d.slice(2);
-  if (d.length === 13 && d.startsWith("521")) d = d.slice(3);
-  return d.length === 10 ? d : null;
+  const crudo = String(texto ?? "");
+  const d = crudo.replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) return `+1${d.slice(1)}`;
+  if (d.length === 12 && d.startsWith("52")) return d.slice(2);
+  if (d.length === 13 && d.startsWith("521")) return d.slice(3);
+  return d.length === 10 && !crudo.trim().startsWith("+") ? d : null;
 }
 
-/** "8681234567" → "868 123 4567". */
+/** "8681234567" → "868 123 4567"; "+19561234567" → "+1 956 123 4567". */
 export function telefonoLegible(texto) {
-  const d = normalizarTelefono(texto);
-  return d ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : limpio(texto);
+  const t = normalizarTelefono(texto);
+  if (!t) return limpio(texto);
+  const d = t.slice(-10);
+  return `${t.startsWith("+1") ? "+1 " : ""}${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+}
+
+/** El enlace para marcarlo con un toque, con la lada del país que le toca. */
+export function enlaceDeTelefono(texto) {
+  const t = normalizarTelefono(texto);
+  if (!t) return null;
+  return `tel:${t.startsWith("+") ? t : `+52${t}`}`;
 }
 
 /** "sí", "si", "x", "1", true → true. Lo demás, false: el permiso no se supone. */
@@ -91,14 +111,17 @@ export function esSi(valor) {
  * `{ ok: false, errores }` con un texto por campo.
  *
  * El número de empleado puede venir vacío: se le pone el siguiente
- * (`siguienteNumero`). Los datos de emergencia son opcionales, pero el
- * permiso NO se puede marcar sin tener a quién llamar: una ficha de
- * emergencia vacía no le sirve a nadie.
+ * (`siguienteNumero`); uno de puros dígitos se completa a cuatro cifras
+ * ("24" → "0024") para que no convivan los dos. El puesto puede faltar (la
+ * lista avisa: `faltantes`), porque así llegan renglones del Excel de la
+ * empresa. Los datos de emergencia son opcionales, pero el permiso NO se
+ * puede marcar sin tener a quién llamar: una ficha de emergencia vacía no le
+ * sirve a nadie.
  */
 export function validarEmpleado(entrada = {}) {
   const errores = {};
   const datos = {
-    numero: limpio(entrada.numero).toUpperCase(),
+    numero: normalizarNumero(entrada.numero),
     nombre: limpio(entrada.nombre),
     apellido_paterno: limpio(entrada.apellido_paterno),
     apellido_materno: limpio(entrada.apellido_materno),
@@ -122,8 +145,7 @@ export function validarEmpleado(entrada = {}) {
   for (const campo of ["apellido_paterno", "apellido_materno"]) {
     if (datos[campo].length > TOPES.apellido) errores[campo] = `Máximo ${TOPES.apellido} caracteres.`;
   }
-  if (!datos.puesto) errores.puesto = "Escribe el puesto: va impreso en el gafete.";
-  else if (datos.puesto.length > TOPES.puesto) errores.puesto = `Máximo ${TOPES.puesto} caracteres.`;
+  if (datos.puesto.length > TOPES.puesto) errores.puesto = `Máximo ${TOPES.puesto} caracteres.`;
   if (datos.area.length > TOPES.area) errores.area = `Máximo ${TOPES.area} caracteres.`;
 
   if (limpio(entrada.tipo_sangre)) {
@@ -132,7 +154,7 @@ export function validarEmpleado(entrada = {}) {
   }
   if (limpio(entrada.telefono_emergencia)) {
     datos.telefono_emergencia = normalizarTelefono(entrada.telefono_emergencia);
-    if (!datos.telefono_emergencia) errores.telefono_emergencia = "Deben ser 10 dígitos.";
+    if (!datos.telefono_emergencia) errores.telefono_emergencia = "Deben ser 10 dígitos (si es de Estados Unidos, con +1 por delante).";
   }
   if ((datos.alergias || "").length > TOPES.alergias) errores.alergias = `Máximo ${TOPES.alergias} caracteres.`;
   if ((datos.contacto_emergencia || "").length > TOPES.contacto) {
@@ -144,6 +166,12 @@ export function validarEmpleado(entrada = {}) {
   if (datos.reporta_a && datos.reporta_a === entrada.id) errores.reporta_a = "No puede reportarse a sí mismo.";
 
   return Object.keys(errores).length ? { ok: false, errores } : { ok: true, datos };
+}
+
+/** El número de empleado como se guarda: en mayúsculas y, si es de puros dígitos, con cuatro cifras. */
+export function normalizarNumero(texto) {
+  const n = limpio(texto).toUpperCase();
+  return /^\d{1,3}$/.test(n) ? n.padStart(4, "0") : n;
 }
 
 /**
@@ -234,16 +262,31 @@ export function faltantes(empleado) {
 }
 
 /**
- * La lista del panel, filtrada. `texto` busca en nombre, puesto, área,
- * número y código del gafete; `chip` deja solo los que tienen gafete vigente
- * con el chip sin grabar.
+ * En qué va el gafete de un empleado de la lista (`e.gafete` es el vigente):
+ * "baja" · "sin-gafete" · "sin-imprimir" · "chip-pendiente" · "listo".
+ * Si el chip ya se grabó es que la tarjeta existe, aunque nadie haya marcado
+ * que se mandó a la imprenta.
  */
-export function filtrarPersonal(lista, { texto = "", tipo = "", estado = "", chip = false } = {}) {
+export function pasoDelGafete(e) {
+  if (e?.estado !== "activo") return "baja";
+  if (!e.gafete) return "sin-gafete";
+  if (e.gafete.chip_grabado_en) return "listo";
+  return e.gafete.impreso_en ? "chip-pendiente" : "sin-imprimir";
+}
+
+/**
+ * La lista del panel, filtrada. `texto` busca en nombre, puesto, área,
+ * número y código del gafete; `sinImprimir` deja los que tienen un gafete
+ * vigente que todavía no se manda a la imprenta, y `chip` los que ya se
+ * mandaron pero siguen con el chip sin grabar.
+ */
+export function filtrarPersonal(lista, { texto = "", tipo = "", estado = "", chip = false, sinImprimir = false } = {}) {
   const busca = claveDeNombre(texto);
   return (lista || []).filter((e) => {
     if (tipo && e.tipo !== tipo) return false;
     if (estado && e.estado !== estado) return false;
-    if (chip && !(e.estado === "activo" && e.gafete && !e.gafete.chip_grabado_en)) return false;
+    if (sinImprimir && pasoDelGafete(e) !== "sin-imprimir") return false;
+    if (chip && pasoDelGafete(e) !== "chip-pendiente") return false;
     if (!busca) return true;
     const pajar = claveDeNombre([nombreCompleto(e), e.puesto, e.area, e.numero, e.gafete?.codigo].join(" "));
     return busca.split(" ").every((palabra) => pajar.includes(palabra));

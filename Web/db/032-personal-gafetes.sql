@@ -77,6 +77,8 @@ create table if not exists public.gafetes (
   estado          text not null default 'vigente' check (estado in ('vigente', 'repuesto', 'anulado')),
   emitido         timestamptz not null default now(),
   emitido_por     uuid references public.perfiles (id) on delete set null,
+  -- Cuándo se mandó a la imprenta (lo marca quien saca la hoja). Vacío = sin imprimir.
+  impreso_en      timestamptz,
   chip_grabado_en timestamptz,
   anulado_en      timestamptz,
   anulado_motivo  text

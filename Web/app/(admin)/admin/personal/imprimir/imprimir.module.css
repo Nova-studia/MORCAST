@@ -28,6 +28,7 @@
 .selector { display: grid; gap: 4px; font-size: 0.8rem; color: var(--mc-gris); }
 .selector select { padding: 0.45rem 0.7rem; }
 .nota { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--mc-gris); max-width: 78ch; }
+.hecho { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0; font-size: 0.86rem; color: var(--pt-ok); }
 .avisos {
   display: flex;
   gap: 0.7rem;
@@ -117,10 +118,12 @@
 .foto img,
 .foto svg { display: block; width: 100%; height: 100%; object-fit: cover; }
 .nombre { top: calc(57.2 * var(--mm)); left: calc(2 * var(--mm)); right: calc(2 * var(--mm)); text-align: center; text-transform: uppercase; }
+/* `--f` lo pone <Ajustar> (imprimir/page.js): achica la letra de un renglón
+   que no cabe, en vez de cortarlo. */
 .nombres {
   display: block;
   font-weight: 600;
-  font-size: calc(3.4 * var(--mm));
+  font-size: calc(3.4 * var(--mm) * var(--f, 1));
   letter-spacing: 0.08em;
   line-height: 1.2;
   color: var(--teal);
@@ -131,7 +134,7 @@
 .apellidos {
   display: block;
   font-weight: 600;
-  font-size: calc(4.4 * var(--mm));
+  font-size: calc(4.4 * var(--mm) * var(--f, 1));
   letter-spacing: 0.035em;
   line-height: 1.12;
   white-space: nowrap;
@@ -152,9 +155,11 @@
 /* Negro sobre el naranja del logo (7.5:1); blanco no se lee (2.6:1). */
 .puesto span {
   display: block;
+  /* Sin esto el renglón empuja la etiqueta en vez de dejarse medir. */
+  min-width: 0;
   transform: skewX(14deg);
   font-weight: 600;
-  font-size: calc(2 * var(--mm));
+  font-size: calc(2 * var(--mm) * var(--f, 1));
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--papel-tinta);

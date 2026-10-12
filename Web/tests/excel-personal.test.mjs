@@ -206,6 +206,7 @@ test("revisarCarga: qué se crea, qué falta y qué no cuadra", async () => {
   assert.equal(ana.datos.telefono_emergencia, null);
   assert.equal(ana.datos.permiso_emergencia, false, "sin teléfono no hay ficha de emergencia");
   assert.equal(ana.avisos.length, 4);
+  assert.match(ana.avisos.join(" "), /\+1/, "y dice cómo va uno de Estados Unidos");
   assert.match(ana.avisos.join(" "), /tipo de sangre «Z\+»/);
   assert.match(ana.avisos.join(" "), /no tiene 10 dígitos/);
   assert.match(ana.avisos.join(" "), /Sin foto/);
@@ -217,7 +218,7 @@ test("revisarCarga: qué se crea, qué falta y qué no cuadra", async () => {
 
   assert.equal(sinNombre.estado, "error");
   assert.equal(sinNombre.datos, null);
-  assert.ok(sinNombre.errores.length >= 2, "le falta el nombre y el puesto");
+  assert.match(sinNombre.errores.join(" "), /Escribe el nombre/);
 
   assert.deepEqual(resumen, { crear: 4, errores: 1, repetidas: 0, sinFoto: 1, administrativos: 4 });
 });
@@ -258,6 +259,28 @@ test("revisarCarga: no duplica a quien ya está ni a quien viene dos veces, y no
   assert.equal(resumen.crear, 4);
   assert.equal(resumen.repetidas, 2);
   assert.equal(resumen.sinFoto, 4);
+});
+
+test("revisarCarga: sin puesto se crea y se avisa; y el 24 de Excel es el 0024", () => {
+  const persona = (nombre, extra = {}) => ({
+    archivo: "x.xlsx", hoja: "Personal general", fila: 2, tipo: "general", reporta: "", archivoFoto: "", imagen: null,
+    entrada: { numero: "", nombre, apellido_paterno: "Soto", apellido_materno: "", puesto: "Ayudante", area: "", tipo: "general", ...extra },
+  });
+  const existentes = [{ id: "e1", numero: "0024", nombre: "Otro", apellido_paterno: "Más", apellido_materno: "", estado: "activo" }];
+  const { filas } = revisarCarga([
+    persona("Luis", { puesto: "" }),
+    persona("Eva", { numero: "24" }),   // Excel le quitó los ceros: es el 0024, que ya existe
+    persona("Iván", { numero: "7" }),
+    persona("Rosa", { telefono_emergencia: "+1 956 123 4567", permiso_emergencia: true }),
+  ], { existentes });
+  assert.equal(filas[0].estado, "crear");
+  assert.equal(filas[0].datos.puesto, "");
+  assert.match(filas[0].avisos.join(" "), /Sin puesto/);
+  assert.equal(filas[1].datos.numero, "");
+  assert.match(filas[1].avisos.join(" "), /0024 ya lo tiene otra persona/);
+  assert.equal(filas[2].datos.numero, "0007");
+  assert.equal(filas[3].datos.telefono_emergencia, "+19561234567");
+  assert.equal(filas[3].datos.permiso_emergencia, true);
 });
 
 test("revisarCarga: un «Reporta a» que coincide con varias personas no se adivina", () => {

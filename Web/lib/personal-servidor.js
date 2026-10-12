@@ -223,10 +223,22 @@ export async function paraImprimir(ids) {
       gafetes.push({
         empleadoId: e.id, numero: e.numero, nombre: e.nombre, apellido_paterno: e.apellido_paterno,
         apellido_materno: e.apellido_materno, puesto: e.puesto, foto_ruta: e.foto_ruta,
-        gafeteId: g.id, codigo: g.codigo, pin, emitido: g.emitido, chip_grabado_en: g.chip_grabado_en,
+        gafeteId: g.id, codigo: g.codigo, pin, emitido: g.emitido, impreso_en: g.impreso_en,
+        chip_grabado_en: g.chip_grabado_en,
       });
     }
     return { ok: true, gafetes, sinGafete };
+  } catch (e) {
+    return { ok: false, motivo: motivoDe(e) };
+  }
+}
+
+/** Anota que esos gafetes ya se mandaron a la imprenta. Los que ya lo estaban no cambian. */
+export async function anotarImpresion(gafeteIds) {
+  const ids = [...new Set((Array.isArray(gafeteIds) ? gafeteIds : []).map(String))].slice(0, 300);
+  if (!ids.length) return { ok: true, hechos: 0 };
+  try {
+    return { ok: true, hechos: await almacenPersonal().marcarImpresos(ids) };
   } catch (e) {
     return { ok: false, motivo: motivoDe(e) };
   }

@@ -820,6 +820,8 @@ for (const quien of ["anon", "cliente", "chofer", "admin", "dueno"]) {
 const vigentes = async () => (await db.query(
   `select codigo from public.gafetes where empleado_id = $1 and estado = 'vigente'`, [emp1.id])).rows.map((r) => r.codigo);
 igual("el servidor emite el primer gafete", (await vigentes()).join(), COD_1);
+const { rows: [nuevo] } = await db.query(`select impreso_en, chip_grabado_en from public.gafetes where codigo = $1`, [COD_1]);
+igual("nace sin imprimir y con el chip sin grabar", `${nuevo.impreso_en}/${nuevo.chip_grabado_en}`, "null/null");
 await emite(COD_2);
 igual("al reponer, solo queda vigente el nuevo", (await vigentes()).join(), COD_2);
 const { rows: [viejo] } = await db.query(`select estado, anulado_en is not null as marcado from public.gafetes where codigo = $1`, [COD_1]);

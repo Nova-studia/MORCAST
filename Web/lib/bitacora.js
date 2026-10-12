@@ -101,6 +101,7 @@ export const TEXTO_ACCION = {
   gafete_chip: "Grabó el chip de un gafete",
   gafete_pin_visto: "Vio el PIN de un gafete en el panel",
   gafete_impresion: "Abrió la hoja de gafetes para la imprenta (lleva los PIN)",
+  gafete_mandado: "Marcó gafetes como mandados a la imprenta",
   gafete_emergencia: "Alguien abrió la ficha de emergencia de un gafete con su PIN",
   // Entrega 4 (9-oct-2026): portal del cliente.
   cliente_edita_contacto: "El cliente cambió sus datos de contacto",

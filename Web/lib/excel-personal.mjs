@@ -4,6 +4,7 @@ import {
   validarEmpleado,
   normalizarSangre,
   normalizarTelefono,
+  normalizarNumero,
   esSi,
 } from "./personal.mjs";
 
@@ -151,14 +152,15 @@ export function revisarCarga(personas, { existentes = [], fotosSueltas = [] } = 
       entrada.tipo_sangre = "";
     }
     if (entrada.telefono_emergencia && !normalizarTelefono(entrada.telefono_emergencia)) {
-      avisos.push(`El teléfono de emergencia «${entrada.telefono_emergencia}» no tiene 10 dígitos: se deja vacío.`);
+      avisos.push(`El teléfono de emergencia «${entrada.telefono_emergencia}» no tiene 10 dígitos (o +1 y 10, si es de Estados Unidos): se deja vacío.`);
       entrada.telefono_emergencia = "";
     }
     if (entrada.permiso_emergencia && !entrada.telefono_emergencia) {
       avisos.push("Firmó el permiso pero no hay teléfono de emergencia: no tendrá ficha de emergencia.");
       entrada.permiso_emergencia = false;
     }
-    const numero = String(entrada.numero || "").trim().toUpperCase();
+    // Excel guarda "0024" como el número 24: se completa igual que al capturarlo a mano.
+    const numero = normalizarNumero(entrada.numero);
     if (numero && (numerosUsados.has(numero) || !/^[A-Z0-9-]{1,12}$/.test(numero))) {
       avisos.push(
         numerosUsados.has(numero)
@@ -180,6 +182,7 @@ export function revisarCarga(personas, { existentes = [], fotosSueltas = [] } = 
       else avisos.push(`No se subió la foto «${p.archivoFoto}».`);
     }
     if (!foto && !p.archivoFoto) avisos.push("Sin foto.");
+    if (!String(entrada.puesto || "").trim()) avisos.push("Sin puesto: su gafete saldría sin él. Se le pone en su ficha.");
 
     let estado = "crear";
     let errores = [];

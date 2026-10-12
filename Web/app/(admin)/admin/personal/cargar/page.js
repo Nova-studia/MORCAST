@@ -87,7 +87,10 @@ export default function CargarExcel() {
   };
 
   const cargar = async () => {
-    const porCrear = revision.filas.map((f, indice) => ({ f, indice })).filter((x) => x.f.estado === "crear");
+    // Primero quienes traen su número escrito: a los demás se les pone "el
+    // siguiente", y así nunca le ganan el suyo a alguien que sí lo traía.
+    const porCrear = revision.filas.map((f, indice) => ({ f, indice })).filter((x) => x.f.estado === "crear")
+      .sort((a, b) => Number(Boolean(b.f.datos.numero)) - Number(Boolean(a.f.datos.numero)));
     setFase("cargando");
     setAvance({ hechos: 0, total: porCrear.length });
     const creados = new Map(); // índice en la revisión → id del empleado

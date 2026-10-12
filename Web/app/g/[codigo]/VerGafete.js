@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle,
   XCircle,
@@ -13,7 +14,7 @@ import {
   ArrowClockwise,
 } from "@phosphor-icons/react/dist/ssr";
 import { LARGO_PIN } from "@/lib/pin-gafete.mjs";
-import { telefonoLegible } from "@/lib/personal.mjs";
+import { telefonoLegible, enlaceDeTelefono } from "@/lib/personal.mjs";
 import { abrirEmergencia } from "./acciones";
 import s from "./gafete.module.css";
 
@@ -124,6 +125,21 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
   const [vista, setVista] = useState("verificacion"); // verificacion | pin | emergencia
   const [emergencia, setEmergencia] = useState(null);
 
+  // Una baja tiene que verse aunque la página lleve rato abierta: se le
+  // vuelve a preguntar al servidor cada minuto y al regresar a la pestaña.
+  const router = useRouter();
+  useEffect(() => {
+    const revisar = () => { if (document.visibilityState === "visible") router.refresh(); };
+    const reloj = setInterval(revisar, 60_000);
+    document.addEventListener("visibilitychange", revisar);
+    window.addEventListener("pageshow", revisar);
+    return () => {
+      clearInterval(reloj);
+      document.removeEventListener("visibilitychange", revisar);
+      window.removeEventListener("pageshow", revisar);
+    };
+  }, [router]);
+
   if (ficha.estado === "sin-respuesta") {
     return (
       <main className={s.raiz}>
@@ -193,7 +209,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
             <div><dt className={s.etiqueta}>Teléfono</dt><dd className={s.mono}>{telefonoLegible(emergencia.ficha.telefono)}</dd></div>
           </dl>
           <div className={s.abajo}>
-            <a className={s.btn} href={telDe(emergencia.ficha.telefono)}>
+            <a className={s.btn} href={enlaceDeTelefono(emergencia.ficha.telefono)}>
               <Phone weight="bold" aria-hidden="true" /> Llamar al contacto
             </a>
             <LlamarMorcast telefono={telefono} secundario />

@@ -80,6 +80,7 @@
 .campos > .ancho { grid-column: 1 / -1; }
 .campo { margin: 0; }
 .error { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--pt-error); }
+.pista { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--mc-gris); }
 .seccion {
   margin: 0;
   padding-top: 1.2rem;

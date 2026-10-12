@@ -13,6 +13,7 @@ import {
   reactivarEmpleado,
   emitirGafete,
   paraImprimir,
+  anotarImpresion,
   pinVigente,
   anotarChip,
   enlazarJefes,
@@ -102,7 +103,9 @@ export async function darDeBaja(id, motivo) {
   const { error } = await entrar();
   if (error) return { ok: false, motivo: error };
   const r = await bajaEmpleado(String(id || ""), motivo);
-  if (r.ok) await registrar({ accion: "personal_baja", tabla: "empleados", registroId: id, detalle: { motivo: String(motivo).trim() } });
+  // El motivo NO va a la bitácora (la lee quien tiene esa sección, no Personal):
+  // queda en la ficha del empleado.
+  if (r.ok) await registrar({ accion: "personal_baja", tabla: "empleados", registroId: id });
   return r;
 }
 
@@ -124,7 +127,7 @@ export async function reponerGafete(id, motivo) {
   if (error) return { ok: false, motivo: error };
   const texto = String(motivo ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || "Repuesto";
   const r = await emitirGafete(String(id || ""), { por: quien.id, motivo: texto });
-  if (r.ok) await registrar({ accion: "gafete_repuesto", tabla: "empleados", registroId: id, detalle: { motivo: texto } });
+  if (r.ok) await registrar({ accion: "gafete_repuesto", tabla: "empleados", registroId: id });
   return r;
 }
 
@@ -145,6 +148,15 @@ export async function datosDeImpresion(ids) {
   if (r.ok && r.gafetes.length) {
     await registrar({ accion: "gafete_impresion", tabla: "gafetes", detalle: { gafetes: r.gafetes.length } });
   }
+  return r;
+}
+
+/** Deja anotado que esos gafetes ya se mandaron a la imprenta (salen de «Sin imprimir»). */
+export async function marcarMandados(gafeteIds) {
+  const { error } = await entrar();
+  if (error) return { ok: false, motivo: error };
+  const r = await anotarImpresion(gafeteIds);
+  if (r.ok && r.hechos) await registrar({ accion: "gafete_mandado", tabla: "gafetes", detalle: { gafetes: r.hechos } });
   return r;
 }
 
