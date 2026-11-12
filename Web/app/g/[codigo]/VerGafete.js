@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  CheckCircle,
-  XCircle,
-  WarningCircle,
+  CaretRight,
   Lock,
   Phone,
   EyeSlash,
@@ -83,13 +81,45 @@ function Foto({ codigo, hayFoto, nombre, chica }) {
   );
 }
 
-function Sello({ clase, Icono, titulo, sub, chico }) {
+/**
+ * El contorno festoneado de un sello oficial (como el de un billete o un
+ * título): 18 lóbulos alrededor de un círculo. Se calcula una vez.
+ */
+const ROSETA = (() => {
+  let d = "";
+  for (let i = 0; i <= 360; i += 2.5) {
+    const a = (i * Math.PI) / 180;
+    const r = 45 + 3.2 * Math.cos(18 * a);
+    d += `${i ? "L" : "M"}${(50 + r * Math.cos(a)).toFixed(2)} ${(50 + r * Math.sin(a)).toFixed(2)}`;
+  }
+  return `${d}Z`;
+})();
+
+const SIMBOLO = {
+  ok: "M36 51.5 46 61.5 65 40",
+  mal: "M39 39 61 61M61 39 39 61",
+  duda: "M50 35v19M50 64.5v.5",
+};
+
+function Roseta({ clase }) {
+  return (
+    <svg className={s.roseta} viewBox="0 0 100 100" aria-hidden="true">
+      <path className={s.rosetaBorde} d={ROSETA} />
+      <circle className={s.rosetaAnillo} cx="50" cy="50" r="37" />
+      <circle className={s.rosetaCentro} cx="50" cy="50" r="31" />
+      <path className={s.rosetaSimbolo} d={SIMBOLO[clase]} pathLength="1" />
+    </svg>
+  );
+}
+
+function Sello({ clase, titulo, sub, chico }) {
   return (
     <div className={`${s.sello} ${s[clase]} ${chico ? s.selloChico : ""}`} role="status">
-      <Icono weight="bold" aria-hidden="true" />
-      <div>
+      <Roseta clase={clase} />
+      <div className={s.selloTexto}>
+        <span className={s.selloMarca} aria-hidden="true">Verificación · morcast.mx</span>
         <strong>{titulo}</strong>
-        <span>{sub}</span>
+        <span className={s.selloSub}>{sub}</span>
       </div>
     </div>
   );
@@ -108,10 +138,26 @@ function Reloj({ reloj, rojo, nota }) {
 
 const telDe = (numero) => `tel:+52${String(numero).replace(/\D/g, "")}`;
 
-function LlamarMorcast({ telefono, secundario, naranja }) {
+/**
+ * Contacto con Morcast. La principal es una franja con el número a la vista:
+ * quien verifica (un guardia, una planta) quiere saber A QUIÉN llama.
+ */
+function LlamarMorcast({ telefono, secundario, titulo = "Llamar a Morcast" }) {
+  if (secundario) {
+    return (
+      <a className={s.btn2} href={telDe(telefono)}>
+        <Phone weight="bold" aria-hidden="true" /> Llamar a Morcast
+      </a>
+    );
+  }
   return (
-    <a className={secundario ? s.btn2 : naranja ? s.btnNaranja : s.btn} href={telDe(telefono)}>
-      <Phone weight="bold" aria-hidden="true" /> Llamar a Morcast
+    <a className={s.contacto} href={telDe(telefono)}>
+      <span className={s.contactoIcono}><Phone weight="fill" aria-hidden="true" /></span>
+      <span className={s.contactoTexto}>
+        <span className={s.contactoTitulo}>{titulo}</span>
+        <span className={s.contactoNumero}>{telefono}</span>
+      </span>
+      <CaretRight className={s.contactoFlecha} weight="bold" aria-hidden="true" />
     </a>
   );
 }
@@ -143,7 +189,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
   if (ficha.estado === "sin-respuesta") {
     return (
       <main className={s.raiz}>
-        <Sello clase="duda" Icono={WarningCircle} titulo="Sin respuesta" sub="No se pudo consultar este gafete" />
+        <Sello clase="duda" titulo="Sin respuesta" sub="No se pudo consultar este gafete" />
         <div className={s.pagina}>
           <p className={s.grande}>Inténtalo<br />de nuevo</p>
           <p className={s.texto}>
@@ -165,7 +211,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
   if (ficha.estado !== "vigente") {
     return (
       <main className={s.raiz}>
-        <Sello clase="mal" Icono={XCircle} titulo="No válido" sub="Este gafete no está vigente" />
+        <Sello clase="mal" titulo="No válido" sub="Este gafete no está vigente" />
         <div className={s.pagina}>
           <div className={s.hueco}><EyeSlash aria-hidden="true" /></div>
           <p className={s.grande}>No permitas<br />el acceso</p>
@@ -175,7 +221,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
           </p>
           <Reloj reloj={reloj} rojo />
           <div className={s.abajo}>
-            <LlamarMorcast telefono={telefono} />
+            <LlamarMorcast telefono={telefono} titulo="Reportar este gafete" />
             <Logo />
           </div>
         </div>
@@ -186,7 +232,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
   if (vista === "emergencia" && emergencia) {
     return (
       <main className={s.raiz}>
-        <Sello clase="ok" Icono={CheckCircle} titulo="Vigente" sub="Empleado activo de Morcast del Norte" chico />
+        <Sello clase="ok" titulo="Vigente" sub="Empleado activo de Morcast del Norte" chico />
         <div className={s.pagina}>
           <div className={s.cabecera}>
             <Foto codigo={codigo} hayFoto={ficha.hayFoto} nombre={ficha.nombre} chica />
@@ -223,7 +269,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
   if (vista === "pin") {
     return (
       <main className={s.raiz}>
-        <Sello clase="ok" Icono={CheckCircle} titulo="Vigente" sub={ficha.nombre} chico />
+        <Sello clase="ok" titulo="Vigente" sub={ficha.nombre} chico />
         <div className={s.pagina}>
           <PedirPin
             codigo={codigo}
@@ -238,7 +284,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
 
   return (
     <main className={s.raiz}>
-      <Sello clase="ok" Icono={CheckCircle} titulo="Vigente" sub="Empleado activo de Morcast del Norte" />
+      <Sello clase="ok" titulo="Vigente" sub="Empleado activo de Morcast" />
       <div className={s.pagina}>
         <Credencial codigo={codigo} ficha={ficha} />
         <Reloj reloj={reloj} nota="Si la hora no avanza, no es válida." />
@@ -248,7 +294,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
               <Lock weight="bold" aria-hidden="true" /> Datos de emergencia
             </button>
           )}
-          <LlamarMorcast telefono={telefono} naranja />
+          <LlamarMorcast telefono={telefono} />
         </div>
       </div>
     </main>

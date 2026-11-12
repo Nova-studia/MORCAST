@@ -23,6 +23,8 @@
   --mc-linea: rgba(255, 255, 255, 0.16);
   --mc-superficie: rgba(255, 255, 255, 0.06);
   --mc-gris: #aabfc1; /* 7.6:1 sobre el fondo */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   min-height: 100dvh;
   max-width: 460px;
   margin: 0 auto;
@@ -33,41 +35,92 @@
   color: var(--mc-tinta);
 }
 
-/* ---------- El sello ---------- */
+/* ---------- El sello ----------
+   Un sello de verificación, no una barra de aviso: roseta festoneada como la
+   de un documento oficial, corte en diagonal como la tarjeta y fondo de ondas.
+   Lo que manda sigue siendo el color y la palabra, legibles en < 0.5 s. */
 .sello {
   flex: none;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 1.15rem 1.4rem 1.2rem;
+  gap: 0.95rem;
+  padding: 1.05rem 1.3rem 1.85rem;
   color: #fff;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), 0 100%);
+  background-size: 96px 14.6px, auto;
 }
-.sello > svg { flex: none; font-size: 2.9rem; }
+/* Filete paralelo al corte diagonal. */
+.sello::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  height: 16px;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), rgba(255, 255, 255, 0.4) calc(50% - 1px), rgba(255, 255, 255, 0.4) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  pointer-events: none;
+}
+.selloTexto { min-width: 0; }
+.selloMarca {
+  display: block;
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+}
 .sello strong {
   display: block;
+  margin-top: 0.1rem;
   font-weight: 600;
-  font-size: 1.85rem;
-  letter-spacing: 0.14em;
+  font-size: 1.9rem;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  line-height: 1.1;
+  line-height: 1.08;
 }
-.sello span {
+.selloSub {
   display: block;
   margin-top: 0.2rem;
   font-size: 0.86rem;
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.92);
 }
-.ok { background: var(--mc-verde); }
-.mal { background: var(--rojo-sello); }
-/* Ni verde ni rojo: no se sabe. Gris de superficie con su línea. */
-.duda { background: var(--mc-superficie); border-bottom: 1px solid var(--mc-linea); }
-.duda > svg { color: var(--mc-alerta); }
+.ok {
+  background-image: url("/img/guilloche-fondo.svg"), linear-gradient(135deg, #2f6829 0%, #265421 55%, #1d4519 100%);
+}
+/* No válido: además, el rayado de "VOID" del papel de seguridad. */
+.mal {
+  background-image: url("/img/guilloche-fondo.svg"),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.07) 0 7px, transparent 7px 16px),
+    linear-gradient(135deg, #a3362c 0%, var(--rojo-sello) 55%, #74221c 100%);
+  background-size: 96px 14.6px, auto, auto;
+}
+/* Ni verde ni rojo: no se sabe. */
+.duda { background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); }
 
-.selloChico { padding: 0.7rem 1.4rem; gap: 0.65rem; }
-.selloChico > svg { font-size: 1.6rem; }
-.selloChico strong { font-size: 0.95rem; letter-spacing: 0.16em; }
-.selloChico span { margin-top: 0.05rem; font-size: 0.82rem; }
+.roseta { flex: none; width: 3.5rem; height: 3.5rem; overflow: visible; }
+.rosetaBorde { fill: rgba(255, 255, 255, 0.16); stroke: rgba(255, 255, 255, 0.6); stroke-width: 1.3; }
+.rosetaAnillo { fill: none; stroke: rgba(255, 255, 255, 0.6); stroke-width: 1.2; stroke-dasharray: 2.2 2.8; }
+.rosetaCentro { fill: #fff; }
+.rosetaSimbolo {
+  fill: none;
+  stroke-width: 7.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.ok .rosetaSimbolo { stroke: var(--mc-verde); }
+.mal .rosetaSimbolo { stroke: var(--rojo-sello); }
+.duda .rosetaSimbolo { stroke: #7a5a00; }
+
+.selloChico { padding: 0.65rem 1.3rem 1.25rem; gap: 0.7rem; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), 0 100%); }
+.selloChico::after { display: none; }
+.selloChico .roseta { width: 2.1rem; height: 2.1rem; }
+.selloChico .selloMarca { display: none; }
+.selloChico strong { margin-top: 0; font-size: 0.98rem; letter-spacing: 0.16em; }
+.selloChico .selloSub { margin-top: 0.05rem; font-size: 0.82rem; }
 
 /* ---------- El cuerpo ---------- */
 .pagina {
@@ -183,15 +236,6 @@
 .btn2:disabled { opacity: 0.5; cursor: default; }
 .btn:focus-visible,
 .btn2:focus-visible { outline: 2px solid var(--mc-azul-txt); outline-offset: 2px; }
-
-.btnNaranja {
-  composes: btn;
-  background: var(--logo-naranja);
-  color: var(--papel-tinta);
-  font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
-}
-.btnNaranja:hover { background: #e96c2a; color: var(--papel-tinta); }
 
 .logo { display: block; width: auto; height: 26px; margin: 0.6rem auto 0; opacity: 0.9; }
 
@@ -434,4 +478,113 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--mc-gris);
+}
+
+/* ---------- Contacto con Morcast ----------
+   Franja con el número a la vista, en vez de un botón genérico. */
+.contacto {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 66px;
+  padding: 0.7rem 1rem 0.7rem 0.75rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--mc-tinta);
+  text-decoration: none;
+  transition: background-color 160ms ease, transform 160ms var(--ease-out);
+}
+.contacto:active { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) {
+  .contacto:hover { background: rgba(255, 255, 255, 0.11); color: var(--mc-tinta); }
+}
+.contacto:focus-visible { outline: 2px solid var(--logo-naranja); outline-offset: 2px; }
+.contactoIcono {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--logo-naranja);
+  color: var(--papel-tinta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+.contactoTexto { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.contactoTitulo {
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mc-gris);
+}
+.contactoNumero {
+  margin-top: 0.15rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.contactoFlecha { flex: none; font-size: 1.1rem; color: var(--mc-gris); }
+
+/* ---------- La entrada ----------
+   Al abrir el enlace (QR o chip). Primero el sello, legible en ~0.3 s; luego
+   la tarjeta sube a su lugar, su contenido aparece escalonado y un destello
+   cruza la tarjeta una sola vez, como el holograma de una credencial.
+   Solo transform y opacity (y el trazo del símbolo). Corre una vez: el
+   refresco de cada minuto no vuelve a montar nada. */
+.sello { animation: entraSello 320ms var(--ease-out) both; }
+.roseta { animation: entraRoseta 560ms var(--ease-out) 60ms both; }
+.rosetaSimbolo { animation: traza 320ms var(--ease-out) 300ms both; }
+.selloTexto { animation: entraTexto 380ms var(--ease-out) 120ms both; }
+
+.credencial { animation: entraCredencial 600ms var(--ease-out) 200ms both; }
+.cFoto { animation: entraPieza 420ms var(--ease-out) 380ms both; }
+.cNombre { animation: entraPieza 420ms var(--ease-out) 440ms both; }
+.cPuesto { animation: entraPieza 420ms var(--ease-out) 500ms both; }
+.credencial ~ .reloj,
+.credencial ~ .abajo,
+.hueco ~ .reloj,
+.hueco ~ .abajo { animation: entraSuave 360ms var(--ease-out) 560ms both; }
+
+.credencial::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.55) 47%, rgba(255, 255, 255, 0.15) 53%, transparent 64%);
+  transform: translateX(-120%);
+  animation: destello 1100ms var(--ease-in-out) 820ms both;
+}
+
+@keyframes entraSello { from { opacity: 0; transform: translateY(-12px); } }
+@keyframes entraRoseta { from { opacity: 0; transform: scale(0.8) rotate(-45deg); } }
+@keyframes traza { from { stroke-dashoffset: 1; } }
+@keyframes entraTexto { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes entraCredencial { from { opacity: 0; transform: translateY(32px) scale(0.96); } }
+@keyframes entraPieza { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@keyframes entraSuave { from { opacity: 0; transform: translateY(8px); } }
+@keyframes destello { to { transform: translateX(120%); } }
+@keyframes soloAparece { from { opacity: 0; } }
+
+/* Menos movimiento: todo aparece con un fundido corto, sin desplazarse,
+   sin giro y sin destello. */
+@media (prefers-reduced-motion: reduce) {
+  .sello,
+  .roseta,
+  .selloTexto,
+  .credencial,
+  .cFoto,
+  .cNombre,
+  .cPuesto,
+  .credencial ~ .reloj,
+  .credencial ~ .abajo,
+  .hueco ~ .reloj,
+  .hueco ~ .abajo { animation: soloAparece 200ms ease both; }
+  .rosetaSimbolo { animation: none; }
+  .credencial::after { display: none; }
 }
