@@ -160,15 +160,21 @@ export async function marcarMandados(gafeteIds) {
   return r;
 }
 
-/** La pantalla de grabar chips avisa aquí cuando terminó con una tarjeta. */
-export async function chipGrabado({ codigo, sellado, serie } = {}) {
+/**
+ * La pantalla de grabar chips avisa aquí cuando terminó con una tarjeta. La
+ * ficha del empleado también, con `externo`: el chip se grabó fuera del panel
+ * (iPhone con NFC Tools o la imprenta), así que no se sabe su serie.
+ */
+export async function chipGrabado({ codigo, sellado, serie, externo } = {}) {
   const { error } = await entrar();
   if (error) return { ok: false, motivo: error };
   const r = await anotarChip(codigo);
   if (r.ok) {
     await registrar({
       accion: "gafete_chip", tabla: "gafetes", registroId: r.gafete.id,
-      detalle: { sellado: Boolean(sellado), serie: String(serie || "").slice(0, 40) || undefined },
+      detalle: externo
+        ? { fuera_del_panel: true }
+        : { sellado: Boolean(sellado), serie: String(serie || "").slice(0, 40) || undefined },
     });
   }
   return r.ok ? { ok: true } : r;

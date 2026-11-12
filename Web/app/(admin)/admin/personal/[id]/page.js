@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowSquareOut,
+  CheckCircle,
   ContactlessPayment,
   Eye,
   EyeSlash,
@@ -16,7 +17,7 @@ import { enlaceGafete } from "@/lib/gafetes.mjs";
 import { pinLegible } from "@/lib/pin-gafete.mjs";
 import { nombreCompleto, faltantes } from "@/lib/personal.mjs";
 import { fechaLarga } from "@/lib/portal-datos";
-import { leerEmpleado, darDeBaja, reactivar, reponerGafete, verPin } from "../acciones";
+import { leerEmpleado, darDeBaja, reactivar, reponerGafete, verPin, chipGrabado } from "../acciones";
 import FormEmpleado from "../FormEmpleado";
 import { Foto, Insignia, prepararImpresion } from "../piezas";
 import s from "../personal.module.css";
@@ -185,6 +186,25 @@ export default function FichaEmpleado() {
               <Link href={`/admin/personal/chips?c=${vigente.codigo}`} className="pt-btn" prefetch={false}>
                 <ContactlessPayment /> Grabar chip
               </Link>
+              {/* Para el chip grabado fuera del panel (iPhone con NFC Tools, o la
+                  imprenta): Web NFC solo existe en Chrome de Android. */}
+              {!vigente.chip_grabado_en && (
+                <button
+                  type="button"
+                  className="pt-btn"
+                  disabled={ocupado}
+                  onClick={async () => {
+                    setOcupado(true);
+                    setAviso("");
+                    const r = await chipGrabado({ codigo: vigente.codigo, externo: true });
+                    setOcupado(false);
+                    if (!r.ok) { setAviso(r.motivo); return; }
+                    await cargar();
+                  }}
+                >
+                  <CheckCircle /> Ya lo grabé con otra app
+                </button>
+              )}
               <button type="button" className="pt-btn" disabled={ocupado} onClick={() => { setPanel(panel === "reponer" ? null : "reponer"); setMotivo(""); }}>
                 Reponer gafete
               </button>
