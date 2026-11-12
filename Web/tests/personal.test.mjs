@@ -167,6 +167,7 @@ test("nivel 1: solo lo impreso, y nada de la persona si no es vigente", () => {
   assert.deepEqual(fichaPublica({ gafete: VIGENTE, empleado: JUAN }), {
     estado: "vigente",
     nombre: "Juan Carlos Pérez López",
+    lineas: ["Juan Carlos", "Pérez López"],
     puesto: "Operador de recolección",
     area: "Ruta Norte",
     numero: "0024",

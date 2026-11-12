@@ -108,9 +108,9 @@ function Reloj({ reloj, rojo, nota }) {
 
 const telDe = (numero) => `tel:+52${String(numero).replace(/\D/g, "")}`;
 
-function LlamarMorcast({ telefono, secundario }) {
+function LlamarMorcast({ telefono, secundario, naranja }) {
   return (
-    <a className={secundario ? s.btn2 : s.btn} href={telDe(telefono)}>
+    <a className={secundario ? s.btn2 : naranja ? s.btnNaranja : s.btn} href={telDe(telefono)}>
       <Phone weight="bold" aria-hidden="true" /> Llamar a Morcast
     </a>
   );
@@ -240,13 +240,7 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
     <main className={s.raiz}>
       <Sello clase="ok" Icono={CheckCircle} titulo="Vigente" sub="Empleado activo de Morcast del Norte" />
       <div className={s.pagina}>
-        <Foto codigo={codigo} hayFoto={ficha.hayFoto} nombre={ficha.nombre} />
-        <h1 className={s.nombre}>{ficha.nombre}</h1>
-        <p className={s.puesto}>{ficha.puesto}</p>
-        <div className={s.datos}>
-          <div><span className={s.etiqueta}>No. empleado</span><span className={`${s.valor} ${s.mono}`}>{ficha.numero}</span></div>
-          <div><span className={s.etiqueta}>Área</span><span className={s.valor}>{ficha.area || "—"}</span></div>
-        </div>
+        <Credencial codigo={codigo} ficha={ficha} />
         <Reloj reloj={reloj} nota="Si la hora no avanza, no es válida." />
         <div className={s.abajo}>
           {ficha.hayEmergencia && (
@@ -254,11 +248,60 @@ export default function VerGafete({ codigo, ficha, ahora, telefono }) {
               <Lock weight="bold" aria-hidden="true" /> Datos de emergencia
             </button>
           )}
-          <LlamarMorcast telefono={telefono} />
-          <Logo />
+          <LlamarMorcast telefono={telefono} naranja />
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * La tarjeta, como sale impresa (Morcast Gafetes/propuesta/gafete-v3-tarjeta.html):
+ * franja verde azulada con el logo, franjas naranjas en diagonal, la foto con
+ * marco blanco encima, el fondo de ondas y la banda de abajo con el número.
+ * Las medidas van en milímetros del gafete: 1 mm = 1/54 del ancho.
+ */
+function Credencial({ codigo, ficha }) {
+  const [nombres, apellidos] = ficha.lineas?.length ? ficha.lineas : [ficha.nombre, ""];
+  const [fallo, setFallo] = useState(false);
+  return (
+    <article className={s.credencial} aria-label={`Gafete de ${ficha.nombre}`}>
+      <svg className={s.franjasArriba} viewBox="0 0 54 31.5" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="0,0 54,0 54,19 0,25" fill="#044D57" />
+        <polygon points="0,25 54,19 54,23.5 0,29.5" fill="#F77B39" />
+        <polygon points="0,30.4 54,24.4 54,25.5 0,31.5" fill="#F77B39" />
+      </svg>
+      <Image className={s.cLogo} src="/img/logo-h-blanco.png" alt="Morcast del Norte" width={688} height={200} priority />
+      <div className={s.cFoto}>
+        <div className={s.cFotoIn}>
+          {ficha.hayFoto && !fallo ? (
+            // <img> y no next/image: la sirve una ruta privada, sin caché ni optimizador.
+            <img src={`/g/${codigo}/foto`} alt={`Foto de ${ficha.nombre}`} onError={() => setFallo(true)} />
+          ) : (
+            <Silueta />
+          )}
+        </div>
+      </div>
+      <h1 className={s.cNombre}>
+        <span className={s.cNom}>{nombres}</span>
+        {apellidos && <span className={s.cApe}>{apellidos}</span>}
+      </h1>
+      {ficha.puesto && <p className={s.cPuesto}><span><b>{ficha.puesto}</b></span></p>}
+      <svg className={s.franjasAbajo} viewBox="0 0 54 10.2" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="0,6 54,0 54,1.1 0,7.1" fill="#F77B39" />
+        <polygon points="0,7.1 54,1.1 54,10.2 0,10.2" fill="#044D57" />
+      </svg>
+      <div className={s.cPie}>
+        <div>
+          <span className={s.cEt}>Área</span>
+          <span className={s.cArea}>{ficha.area || "—"}</span>
+        </div>
+        <div className={s.cDer}>
+          <span className={s.cEt}>No. empleado</span>
+          <span className={s.cNum}>{ficha.numero}</span>
+        </div>
+      </div>
+    </article>
   );
 }
 

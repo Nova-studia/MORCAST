@@ -209,6 +209,8 @@ export function fichaPublica({ gafete, empleado } = {}) {
   return {
     estado,
     nombre: nombreCompleto(empleado),
+    // Los dos renglones del gafete impreso: la página repite la tarjeta.
+    lineas: nombreEnDosLineas(empleado),
     puesto: limpio(empleado.puesto),
     area: limpio(empleado.area),
     numero: limpio(empleado.numero),
