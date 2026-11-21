@@ -131,16 +131,22 @@ export function guilloche({ desde = 33, hasta = 80 } = {}) {
   return d;
 }
 
-/** Lado del QR impreso, en mm. */
-export const LADO_QR = 24;
+/**
+ * Lado del QR impreso, en mm. Era 24; bajó a 20 para que a su lado quepa el
+ * círculo de 25 mm donde se pega la calcomanía NFC (el chip ya no va dentro).
+ */
+export const LADO_QR = 20;
+
+/** Diámetro de la calcomanía NFC redonda (NTAG213) que se pega en la vuelta, en mm. */
+export const DIAMETRO_CHIP = 25;
 
 /**
  * El QR del enlace de un gafete, listo para un <svg>: `tam` en módulos y `d`
  * el trazo de los negros (sin margen: alrededor ya hay tarjeta blanca).
  *
  * Corrección **Q** (aguanta ~25 % dañado): el gafete cuelga del cuello todo
- * el día y se raya. El enlace cabe en la versión 3 (29 módulos), que a 24 mm
- * da módulos de 0.83 mm: los lee cualquier teléfono.
+ * el día y se raya. El enlace cabe en la versión 3 (29 módulos), que a 20 mm
+ * da módulos de 0.69 mm: los lee cualquier teléfono de cerca.
  */
 export function qrDeGafete(codigo) {
   const enlace = enlaceGafete(codigo);

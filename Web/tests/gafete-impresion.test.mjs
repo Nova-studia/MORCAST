@@ -101,8 +101,8 @@ test("el QR lleva el enlace del gafete, en versión 3 y con corrección Q", () =
   assert.equal(qr.enlace, "https://morcast.mx/g/K7M2X9FDQ4");
   assert.equal(qr.version, 3);
   assert.equal(qr.tam, 29);
-  assert.equal(LADO_QR, 24);
-  assert.ok(qr.modulo >= 0.8, `cada módulo mide ${qr.modulo} mm`);
+  assert.equal(LADO_QR, 20);
+  assert.ok(qr.modulo >= 0.65, `cada módulo mide ${qr.modulo} mm`);
   // El trazo es EXACTAMENTE la matriz del enlace: ni corrido ni volteado.
   const matriz = encode("https://morcast.mx/g/K7M2X9FDQ4", { ecc: "Q", border: 0 }).data;
   const dibujados = new Set([...qr.d.matchAll(/M(\d+) (\d+)h1v1h-1z/g)].map((m) => `${m[1]},${m[2]}`));

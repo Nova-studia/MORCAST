@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Printer, Warning } from "@phosphor-icons/react/dist/s
 import {
   TARJETA,
   RANURA,
+  DIAMETRO_CHIP,
   LADO_QR,
   medidasDePagina,
   marcasDeCorte,
@@ -160,7 +161,8 @@ function Hoja() {
           En la ventana de impresión escoge <strong>Guardar como PDF</strong>, márgenes <strong>Ninguno</strong>, escala{" "}
           <strong>100 %</strong> y activa <strong>Gráficos de fondo</strong>. Cada página trae 2 mm de sangría y marcas
           de corte; la tarjeta mide {TARJETA.ancho} × {TARJETA.alto} mm (CR80). La ranura del cordón no va impresa: la
-          troquela la imprenta arriba, al centro. Cuando mandes el PDF, pulsa «Ya los mandé a la imprenta» para que
+          troquela la imprenta arriba, al centro. La tarjeta va <strong>sin chip</strong>: el círculo punteado de
+          atrás es la guía para pegar la calcomanía NFC redonda de {DIAMETRO_CHIP} mm. Cuando mandes el PDF, pulsa «Ya los mandé a la imprenta» para que
           dejen de salir como «Sin imprimir».
         </p>
         {(sinFoto.length > 0 || apretados.length > 0 || carga?.sinGafete?.length > 0 || mandados?.motivo) && (
@@ -309,8 +311,8 @@ function Vuelta({ gafete }) {
         <rect width={qr.tam} height={qr.tam} fill="#fff" />
         <path d={qr.d} fill="#000" />
       </svg>
-      <div className={s.enlace}>{qr.enlace.replace("https://", "")}</div>
-      <div className={s.nfc}>
+      {/* Guía para pegar la calcomanía NFC redonda: la calcomanía la tapa por completo. */}
+      <div className={s.chip} style={{ "--diametro": DIAMETRO_CHIP }}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3.5" y="3.5" width="9" height="17" rx="2" />
@@ -319,8 +321,10 @@ function Vuelta({ gafete }) {
             <path d="M18.4 6.6a7.8 7.8 0 0 1 0 10.8" />
           </g>
         </svg>
-        o acerca tu teléfono aquí
+        <span>Chip NFC<br />aquí</span>
       </div>
+      <div className={s.enlace}>{qr.enlace.replace("https://", "")}</div>
+      <div className={s.nfc}>Escanea el código o acerca tu teléfono al círculo</div>
       <div className={s.pin}>
         <div>
           <strong>PIN de emergencia</strong>

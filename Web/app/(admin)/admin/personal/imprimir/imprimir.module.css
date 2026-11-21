@@ -188,14 +188,36 @@
   text-transform: uppercase;
   color: #fff;
 }
+/* Fila del QR (izquierda) y el círculo de la calcomanía NFC (derecha): 3.5 + 20 + 2.5 + 25 + 3 = 54 mm. */
 .qr {
-  top: calc(20.6 * var(--mm));
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(22 * var(--mm));
+  left: calc(3.5 * var(--mm));
   width: calc(var(--lado) * var(--mm));
   height: calc(var(--lado) * var(--mm));
   display: block;
 }
+.chip {
+  top: calc(19.5 * var(--mm));
+  left: calc(26 * var(--mm));
+  width: calc(var(--diametro) * var(--mm));
+  height: calc(var(--diametro) * var(--mm));
+  box-sizing: border-box;
+  border: calc(0.3 * var(--mm)) dashed var(--teal);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(0.9 * var(--mm));
+  font-family: var(--fuente-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: calc(1.45 * var(--mm));
+  letter-spacing: 0.14em;
+  line-height: 1.3;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--papel-gris);
+}
+.chip svg { width: calc(5.2 * var(--mm)); height: calc(5.2 * var(--mm)); color: var(--teal); }
 .enlace {
   top: calc(45.9 * var(--mm));
   left: 0;
@@ -209,14 +231,10 @@
   top: calc(48.9 * var(--mm));
   left: 0;
   right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(1.2 * var(--mm));
+  text-align: center;
   font-size: calc(2.05 * var(--mm));
   color: var(--papel-gris);
 }
-.nfc svg { width: calc(4.2 * var(--mm)); height: calc(4.2 * var(--mm)); color: var(--teal); }
 .pin {
   top: calc(54.6 * var(--mm));
   left: calc(4.6 * var(--mm));
