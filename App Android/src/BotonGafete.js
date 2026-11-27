@@ -20,15 +20,20 @@ import { opcionGafete, TEXTOS_GAFETE } from "./gafete-login.mjs";
  * `onEntrar(modo)`: el modo lo decide el rol de quien acercó el gafete.
  * ⚠️ Igual en App Android y App IOS (solo cambia lo que dice el texto).
  */
-// Tras un fallo se espera: con el gafete quieto, Android lo volvería a leer al
-// instante y gastaría los 4 intentos en un segundo.
-const ESPERA_REINTENTO_MS = 3000;
+// Android: después de CUALQUIER respuesta del servidor que no sea entrar, la
+// lectura automática se detiene y queda "Volver a intentar". Si siguiera sola,
+// un gafete quieto gastaría los intentos y el freno en segundos (revisión final).
 
 export default function BotonGafete({ onEntrar, color = T.tealClaro }) {
   const [opcion, setOpcion] = useState(null);
   const [leyendo, setLeyendo] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [pausado, setPausado] = useState(false);
   const vivo = useRef(true);
+  // `onEntrar` llega nuevo en cada render (cada tecla del formulario): en un
+  // ref para que la lectura de Android NO se reinicie con cada tecla.
+  const alEntrar = useRef(onEntrar);
+  alEntrar.current = onEntrar;
   const esIos = Platform.OS === "ios";
 
   const revisar = useCallback(async () => {
@@ -51,27 +56,24 @@ export default function BotonGafete({ onEntrar, color = T.tealClaro }) {
     const r = await entrarConGafete();
     if (!vivo.current) return { parar: true };
     setLeyendo(false);
-    if (r.ok) { onEntrar(r.modo); return { parar: true }; }
+    if (r.ok) { alEntrar.current(r.modo); return { parar: true }; }
     if (r.usaCorreo) { setOpcion("usaCorreo"); setMensaje(""); return { parar: true }; }
     if (r.cancelado) return { parar: true };
     setMensaje(r.mensaje || TEXTOS_GAFETE.noEntra);
-    return { parar: false };
-  }, [onEntrar]);
+    return { parar: true, fallo: true };
+  }, []);
 
   // Android: lee solo mientras la pantalla está enfocada.
   useFocusEffect(
     useCallback(() => {
-      if (esIos || opcion !== "lista") return undefined;
+      if (esIos || opcion !== "lista" || pausado) return undefined;
       let seguir = true;
       (async () => {
-        while (seguir && vivo.current) {
-          const { parar } = await intentar();
-          if (parar || !seguir) break;
-          await new Promise((listo) => setTimeout(listo, ESPERA_REINTENTO_MS));
-        }
+        const { fallo } = await intentar();
+        if (seguir && fallo) setPausado(true);
       })();
       return () => { seguir = false; dejarDeLeer(); };
-    }, [esIos, opcion, intentar]),
+    }, [esIos, opcion, pausado, intentar]),
   );
 
   if (!opcion || opcion === "oculta") return null;
@@ -94,6 +96,14 @@ export default function BotonGafete({ onEntrar, color = T.tealClaro }) {
           accessibilityRole="button"
         >
           {leyendo ? <ActivityIndicator color={color} /> : <Text style={[s.botonTxt, { color }]}>Acercar gafete</Text>}
+        </Pressable>
+      ) : pausado ? (
+        <Pressable
+          onPress={() => { setMensaje(""); setPausado(false); }}
+          style={({ pressed }) => [s.boton, { borderColor: color }, pressed && { opacity: 0.75 }]}
+          accessibilityRole="button"
+        >
+          <Text style={[s.botonTxt, { color }]}>Volver a intentar</Text>
         </Pressable>
       ) : (
         <View style={s.fila}>

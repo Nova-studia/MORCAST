@@ -12,6 +12,8 @@ import {
   datosDelTag,
   opcionGafete,
   nuevoSecreto,
+  secretoDe,
+  conSecretoNuevo,
 } from "../src/gafete-login.mjs";
 
 // Un registro NDEF de URI como lo entrega react-native-nfc-manager:
@@ -74,4 +76,17 @@ test("gafete-login.mjs es idéntico en las dos apps", (t) => {
   let fuenteIos;
   try { fuenteIos = readFileSync(otra, "utf8"); } catch { return t.skip("no está App IOS junto a esta app"); }
   assert.equal(readFileSync(new URL("../src/gafete-login.mjs", import.meta.url), "utf8").replace(/\r\n/g, "\n"), fuenteIos.replace(/\r\n/g, "\n"));
+});
+
+test("revisión: cada gafete tiene su secreto en este teléfono y volver a vincular lo cambia", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  const a = conSecretoNuevo(null, "MNPQRS2345", "s1", ID);
+  assert.deepEqual(a, { dispositivoId: ID, secretos: { MNPQRS2345: "s1" } });
+  const b = conSecretoNuevo(a, "ABCDEFGH23", "s2", "otro-id-que-no-se-usa");
+  assert.equal(b.dispositivoId, ID); // el teléfono sigue siendo el mismo
+  assert.equal(secretoDe(b, "MNPQRS2345"), "s1"); // vincular otro gafete no rompe el primero
+  const c = conSecretoNuevo(b, "MNPQRS2345", "s3", ID);
+  assert.equal(secretoDe(c, "MNPQRS2345"), "s3");
+  assert.equal(secretoDe(c, "ZZZZ2222YY"), null);
+  assert.equal(secretoDe(null, "MNPQRS2345"), null);
 });

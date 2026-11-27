@@ -90,3 +90,21 @@ export function nuevoSecreto(bytes) {
   if (bits > 0) salida += tabla[(valor << (6 - bits)) & 63];
   return salida;
 }
+
+/**
+ * La identidad del teléfono es `{ dispositivoId, secretos: { <código>: secreto } }`:
+ * un secreto POR GAFETE (un teléfono compartido puede tener varios) y uno
+ * nuevo cada vez que se vincula, así revincular invalida el anterior
+ * (revisión final, 27-nov).
+ */
+export function secretoDe(identidad, codigo) {
+  return identidad?.secretos?.[codigo] || null;
+}
+
+/** La identidad con el secreto nuevo de `codigo` (crea el `dispositivoId` si no había). */
+export function conSecretoNuevo(identidad, codigo, secreto, dispositivoIdNuevo) {
+  return {
+    dispositivoId: identidad?.dispositivoId || dispositivoIdNuevo,
+    secretos: { ...(identidad?.secretos || {}), [codigo]: secreto },
+  };
+}
