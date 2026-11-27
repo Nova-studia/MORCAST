@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import { T } from "./src/tema";
+import Bienvenida from "./src/Bienvenida";
 import { IconoMenu } from "./src/iconos-menu";
 // Cliente
 import Login from "./src/pantallas/Login";
@@ -652,6 +653,8 @@ export default function App() {
           </SafeAreaView>
         )}
       </NavigationContainer>
+      {/* "¡Hola, Oscar!" al entrar con el gafete: encima de todo (Bienvenida.js). */}
+      <Bienvenida />
     </SafeAreaProvider>
   );
 }

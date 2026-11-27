@@ -1,4 +1,4 @@
-import { Platform, Alert } from "react-native";
+import { Platform, Alert, Image } from "react-native";
 import NfcManager, { NfcTech, NfcError } from "react-native-nfc-manager";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
@@ -7,7 +7,7 @@ import { paseActual } from "./pase-admin";
 import { WEB, postWeb } from "./api-web";
 import { llaveroApp as almacenSecreto } from "./almacen-seguro";
 import {
-  LLAVE_TELEFONO, LLAVE_BLOQUEO, TEXTOS_GAFETE, datosDelTag, nuevoSecreto, secretoDe, conSecretoNuevo, motivoSinGafete,
+  LLAVE_TELEFONO, LLAVE_BLOQUEO, TEXTOS_GAFETE, datosDelTag, nuevoSecreto, secretoDe, conSecretoNuevo, motivoSinGafete, urlFotoGafete,
 } from "./gafete-login.mjs";
 
 /**
@@ -160,7 +160,7 @@ export async function bloqueadoLocal() {
 
 /**
  * Lee el gafete y le pregunta al servidor si entra en este teléfono.
- * → `{ ok:true, tokenHash, prueba }` (la prueba sirve para pedir el pase del admin)
+ * → `{ ok:true, sesion, pase, vence, bienvenida }` (todo en un viaje; ver /api/app/gafete/entrar)
  * → `{ ok:false, mensaje, usaCorreo?, cancelado? }`
  */
 export async function probarGafete() {
@@ -171,15 +171,15 @@ export async function probarGafete() {
   // Este gafete nunca se vinculó aquí: se dice lo mismo que el servidor.
   if (!secreto) return { ok: false, mensaje: TEXTOS_GAFETE.noEntra };
   const prueba = { codigo: datos.codigo, serie: datos.serie, dispositivoId: id.dispositivoId, secreto };
+  // La foto de la bienvenida se empieza a bajar YA, mientras contesta el servidor.
+  const foto = urlFotoGafete(WEB, datos.codigo);
+  Image.prefetch(foto).catch(() => {});
   const r = await postSinSesion("gafete/entrar", prueba);
-  if (r.ok && r.tokenHash) return { ok: true, tokenHash: r.tokenHash, prueba };
+  if (r.ok && r.sesion?.access_token) {
+    return { ok: true, sesion: r.sesion, pase: r.pase || null, vence: r.vence || null, bienvenida: { ...(r.bienvenida || {}), foto } };
+  }
   if (r.usaCorreo) await almacenSecreto.setItem(LLAVE_BLOQUEO, "1").catch(() => {});
   return { ok: false, usaCorreo: Boolean(r.usaCorreo), mensaje: r.motivo || TEXTOS_GAFETE.noEntra };
-}
-
-/** Pide el pase del segundo paso con la misma prueba (dueño y administradores). */
-export function pedirPase(prueba) {
-  return postApp("gafete/pase", prueba);
 }
 
 /** Con sesión: lee el gafete y lo vincula a este teléfono. → `{ ok, nombre }` o `{ ok:false, mensaje, cancelado? }` */

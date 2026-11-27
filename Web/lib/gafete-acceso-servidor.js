@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { supabaseServidor, haySupabase } from "./supabase";
 
 /**
@@ -18,30 +19,49 @@ function revisar({ data, error }, que) {
   return data;
 }
 
-/** El gafete del código, su empleado, la cuenta ligada y el vínculo vigente con ese teléfono. */
+/**
+ * El gafete del código, su empleado, la cuenta ligada y el vínculo vigente
+ * con ese teléfono. En DOS tandas en paralelo (antes eran tres seguidas): la
+ * entrada con gafete tardaba ~1.7 s en la prueba del 27-nov. La cuenta sale
+ * del vínculo (`par.perfil_id`); `decidirEntrada` exige que sea la misma del
+ * empleado, así que da igual de cuál se lea.
+ */
 export async function leerParaEntrar(sb, codigo, dispositivoId) {
   const db = sbDe(sb);
-  const gafete = revisar(
-    await db.from("gafetes").select("id, empleado_id, estado, chip_serie").eq("codigo", codigo).maybeSingle(),
-    "leer gafete",
-  );
-  if (!gafete) return { gafete: null, empleado: null, perfil: null, par: null };
-  const [empleado, par] = await Promise.all([
-    db.from("empleados").select("id, estado, perfil_id, nombre").eq("id", gafete.empleado_id).maybeSingle()
-      .then((r) => revisar(r, "leer empleado")),
+  const [gafete, par] = await Promise.all([
+    db.from("gafetes").select("id, empleado_id, estado, chip_serie").eq("codigo", codigo).maybeSingle()
+      .then((r) => revisar(r, "leer gafete")),
     db.from("gafete_telefonos")
-      .select("id, perfil_id, exige_serie, con_pase, fallos, desvinculado_en, secreto_hash")
-      .eq("gafete_id", gafete.id).eq("dispositivo_id", dispositivoId).is("desvinculado_en", null)
+      .select("id, perfil_id, exige_serie, con_pase, fallos, desvinculado_en, secreto_hash, gafetes!inner(codigo)")
+      .eq("dispositivo_id", dispositivoId).eq("gafetes.codigo", codigo).is("desvinculado_en", null)
       .maybeSingle()
       .then((r) => revisar(r, "leer vínculo")),
   ]);
-  const perfil = empleado?.perfil_id
-    ? revisar(
-        await db.from("perfiles").select("id, rol, activo, nombre").eq("id", empleado.perfil_id).maybeSingle(),
-        "leer perfil",
-      )
-    : null;
+  if (!gafete) return { gafete: null, empleado: null, perfil: null, par: null };
+  const [empleado, perfil] = await Promise.all([
+    db.from("empleados").select("id, estado, perfil_id, nombre, puesto").eq("id", gafete.empleado_id).maybeSingle()
+      .then((r) => revisar(r, "leer empleado")),
+    par
+      ? db.from("perfiles").select("id, rol, activo, nombre").eq("id", par.perfil_id).maybeSingle()
+          .then((r) => revisar(r, "leer perfil"))
+      : null,
+  ]);
   return { gafete, empleado, perfil, par };
+}
+
+/**
+ * Canjea el enlace de un solo uso por la sesión, AQUÍ en el servidor (antes
+ * lo hacía la app y después pedía el pase en otra llamada: dos viajes más).
+ * Cliente aparte a propósito: si se usara el de la llave de servicio, tras el
+ * canje sus consultas irían con la sesión del usuario.
+ */
+export async function abrirSesion(tokenHash) {
+  const auth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await auth.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+  if (error || !data?.session) throw new Error(`[gafete] abrir sesión: ${error?.message || "sin sesión"}`);
+  return data.session;
 }
 
 /**

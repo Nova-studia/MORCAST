@@ -2,6 +2,7 @@ import { supabase, haySupabase } from "./supabase";
 import { postApp } from "./api-web";
 import { almacenSecreto } from "./almacen-seguro";
 import { limpiarCodigo, paseUtil, mensajeSegundoPaso } from "./pase-admin.js";
+import { paseRecienEmitido } from "./gafete-login.mjs";
 
 /**
  * SEGUNDO PASO DEL PANEL EN LA APP: el código que llega por correo.
@@ -61,6 +62,13 @@ export async function olvidarPase() {
  *   `red: true` = no se pudo preguntar (sin señal). NO es "válido": la
  *   pantalla ofrece reintentar, pero no abre el panel.
  */
+// El pase que acaba de dar /gafete/entrar: no se vuelve a preguntar al
+// servidor (ver `paseRecienEmitido`).
+let recien = null;
+export function marcarPaseRecien(pase) {
+  recien = pase ? { pase, en: Date.now() } : null;
+}
+
 export async function comprobarPase() {
   // Modo demostración (sin base): no hay servidor que mande códigos.
   if (!haySupabase()) return { valido: true };
@@ -70,6 +78,7 @@ export async function comprobarPase() {
     if (guardado) await olvidarPase();
     return { valido: false };
   }
+  if (paseRecienEmitido(recien, guardado.pase, Date.now())) { recien = null; return { valido: true }; }
 
   const r = await postApp("segundo-paso/estado", { pase: guardado.pase });
   if (r.red) return { valido: false, red: true, motivo: r.motivo };

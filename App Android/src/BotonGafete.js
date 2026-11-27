@@ -7,6 +7,7 @@ import { haySupabase } from "./supabase";
 import { entrarConGafete } from "./sesion";
 import { nfcDisponible, bloqueadoLocal, dejarDeLeer } from "./gafete";
 import { opcionGafete, TEXTOS_GAFETE } from "./gafete-login.mjs";
+import { mostrarBienvenida } from "./bienvenida-evento";
 
 /**
  * "INICIA SESIÓN ACERCANDO TU GAFETE" — la primera opción del inicio de
@@ -56,7 +57,12 @@ export default function BotonGafete({ onEntrar, color = T.tealClaro }) {
     const r = await entrarConGafete();
     if (!vivo.current) return { parar: true };
     setLeyendo(false);
-    if (r.ok) { alEntrar.current(r.modo); return { parar: true }; }
+    if (r.ok) {
+      // "¡Hola, Oscar!" encima de todo; el panel se arma detrás mientras se ve.
+      if (r.bienvenida) mostrarBienvenida(r.bienvenida);
+      alEntrar.current(r.modo);
+      return { parar: true };
+    }
     if (r.usaCorreo) { setOpcion("usaCorreo"); setMensaje(""); return { parar: true }; }
     if (r.cancelado) return { parar: true };
     setMensaje(r.mensaje || TEXTOS_GAFETE.noEntra);

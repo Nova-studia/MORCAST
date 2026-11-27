@@ -125,6 +125,21 @@ export function puedeLigarse({ perfil, ligadoA, empleadoId } = {}) {
   return !ligadoA || ligadoA === empleadoId;
 }
 
+/** "OSCAR CLEMENTE" → "Oscar": el primer nombre, con mayúscula inicial. */
+export function primerNombre(nombre) {
+  const primero = String(nombre || "").trim().split(/\s+/)[0] || "";
+  return primero ? primero.charAt(0).toLocaleUpperCase("es-MX") + primero.slice(1).toLocaleLowerCase("es-MX") : "";
+}
+
+/**
+ * Lo que enseña la animación de bienvenida al entrar con el gafete. "¡Hola!"
+ * y no "Bienvenido": en el sistema no está si es hombre o mujer (Andrei, 27-nov).
+ */
+export function bienvenidaDe(empleado) {
+  const nombre = primerNombre(empleado?.nombre);
+  return { nombre, saludo: nombre ? `¡Hola, ${nombre}!` : "¡Hola!", puesto: String(empleado?.puesto || "") };
+}
+
 /** Lo que contesta POST /api/app/gafete/entrar según la decisión (sin el tokenHash). */
 export function respuestaEntrar(decision) {
   if (decision?.ok) return { status: 200, cuerpo: { ok: true } };

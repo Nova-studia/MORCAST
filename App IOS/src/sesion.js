@@ -5,8 +5,8 @@ import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
 import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
 import { modoDeRol } from "./entrada-social.mjs";
 import { borrarTokenAlSalir } from "./notificaciones";
-import { olvidarPase, guardarPase } from "./pase-admin";
-import { probarGafete, pedirPase, reiniciarIntentos, anotarEntradaConGafete } from "./gafete";
+import { olvidarPase, guardarPase, marcarPaseRecien } from "./pase-admin";
+import { probarGafete, reiniciarIntentos, anotarEntradaConGafete } from "./gafete";
 import { mensajeErrorLogin } from "./web/estado-cliente.mjs";
 import { olvidarMisPermisos } from "./mis-permisos";
 import { olvidarEstadoCliente } from "./estado-cliente-app";
@@ -109,17 +109,18 @@ export async function entrarConGafete() {
   const r = await probarGafete();
   if (!r.ok) return r;
 
-  const { data, error } = await supabase.auth.verifyOtp({ token_hash: r.tokenHash, type: "magiclink" });
+  // La sesión ya viene abierta del servidor (un solo viaje).
+  const { data, error } = await supabase.auth.setSession(r.sesion);
   if (error || !data?.user) return { ok: false, mensaje: "No se pudo abrir la sesión. Inténtalo otra vez." };
 
   anotarEntradaConGafete();
-  const rol = data.user.app_metadata?.rol;
-  if (rol === "dueno" || rol === "admin") {
-    const p = await pedirPase(r.prueba);
-    // Sin pase entra igual y la administración le pide el código por correo.
-    if (p.ok && p.pase) await guardarPase(p);
+  if (r.pase) {
+    await guardarPase({ pase: r.pase, vence: r.vence });
+    marcarPaseRecien(r.pase); // sin "Comprobando tu acceso…"
   }
-  return { ok: true, ...(await destinoDeUsuario(data.user)) };
+  // Sin pase (el vínculo se hizo sin segundo paso) entra igual y la
+  // administración le pide el código por correo.
+  return { ok: true, bienvenida: r.bienvenida, ...(await destinoDeUsuario(data.user)) };
 }
 
 /**

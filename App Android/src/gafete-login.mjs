@@ -118,3 +118,17 @@ export function motivoSinGafete(tag) {
   if (!tag?.ndefMessage?.length) return "No se alcanzó a leer el gafete. Déjalo quieto junto al teléfono hasta que vibre e inténtalo otra vez.";
   return "Ese chip no es un gafete de Morcast.";
 }
+
+/**
+ * ¿Es el pase que acaba de dar /gafete/entrar (hace menos de 2 min)? Entonces
+ * la administración no lo vuelve a preguntar al servidor: el "Comprobando tu
+ * acceso…" costaba ~0.5 s en la prueba del 27-nov.
+ */
+export function paseRecienEmitido(marca, pase, ahoraMs) {
+  return Boolean(marca && pase && marca.pase === pase && ahoraMs - marca.en < 120000);
+}
+
+/** La foto del empleado para la bienvenida: la misma que enseña su gafete. */
+export function urlFotoGafete(web, codigo) {
+  return codigo ? `${String(web).replace(/\/+$/, "")}/g/${codigo}/foto` : null;
+}

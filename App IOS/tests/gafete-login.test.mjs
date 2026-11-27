@@ -15,6 +15,8 @@ import {
   secretoDe,
   conSecretoNuevo,
   motivoSinGafete,
+  paseRecienEmitido,
+  urlFotoGafete,
 } from "../src/gafete-login.mjs";
 
 // Un registro NDEF de URI como lo entrega react-native-nfc-manager:
@@ -96,4 +98,17 @@ test("prueba en iPhone: si no alcanzó a leer el enlace se dice que lo deje quie
   assert.match(motivoSinGafete({ id: "04A1B2C3D4E5F6" }), /quieto/);
   assert.match(motivoSinGafete({ id: "04A1B2C3D4E5F6", ndefMessage: [] }), /quieto/);
   assert.equal(motivoSinGafete({ id: "04A1B2C3D4E5F6", ndefMessage: [registroUri("otro.mx/x")] }), "Ese chip no es un gafete de Morcast.");
+});
+
+test("velocidad: el pase que acaba de dar /gafete/entrar no se vuelve a preguntar (2 min)", () => {
+  const ahora = 1_000_000;
+  assert.equal(paseRecienEmitido({ pase: "p1", en: ahora - 5_000 }, "p1", ahora), true);
+  assert.equal(paseRecienEmitido({ pase: "p1", en: ahora - 125_000 }, "p1", ahora), false);
+  assert.equal(paseRecienEmitido({ pase: "p1", en: ahora }, "otro", ahora), false);
+  assert.equal(paseRecienEmitido(null, "p1", ahora), false);
+});
+
+test("bienvenida: la foto sale de la página del gafete", () => {
+  assert.equal(urlFotoGafete("https://morcast.mx", "MNPQRS2345"), "https://morcast.mx/g/MNPQRS2345/foto");
+  assert.equal(urlFotoGafete("https://morcast.mx", null), null);
 });

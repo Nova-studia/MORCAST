@@ -189,3 +189,16 @@ test("revisión: el pase solo sale si el vínculo se hizo con segundo paso y es 
   assert.equal(puedeDarPase({ par: { perfil_id: OTRO, con_pase: true }, uid: UID }), false);
   assert.equal(puedeDarPase({ par: null, uid: UID }), false);
 });
+
+test("bienvenida: el primer nombre bien escrito para el '¡Hola, …!'", async () => {
+  const { primerNombre, bienvenidaDe } = await import("../lib/gafete-acceso.mjs");
+  assert.equal(primerNombre("OSCAR CLEMENTE"), "Oscar");
+  assert.equal(primerNombre("  josé luis "), "José");
+  assert.equal(primerNombre("ÁNGEL"), "Ángel");
+  assert.equal(primerNombre(""), "");
+  assert.deepEqual(
+    bienvenidaDe({ nombre: "OSCAR CLEMENTE", puesto: "Gerente Administrativo" }),
+    { nombre: "Oscar", saludo: "¡Hola, Oscar!", puesto: "Gerente Administrativo" },
+  );
+  assert.deepEqual(bienvenidaDe({ nombre: "", puesto: "" }), { nombre: "", saludo: "¡Hola!", puesto: "" });
+});
