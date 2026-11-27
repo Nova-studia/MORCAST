@@ -1,7 +1,7 @@
 /**
  * POST /api/app/gafete/vincular — liga el gafete a ESTE teléfono (27-nov-2026).
  *   Authorization: Bearer <access_token>   (entró con correo; el admin, con su segundo paso)
- *   Body: { codigo, serie, dispositivoId, secreto, aparato }
+ *   Body: { codigo, serie, dispositivoId, secreto, aparato, pase? }   (pase: dueño y admins)
  *   → 200 { ok:true, nombre }   → 400 { ok:false, motivo }
  * El gafete tiene que estar ligado a la cuenta de la sesión
  * (`empleados.perfil_id`, lo pone el panel en la ficha del empleado).
@@ -9,8 +9,9 @@
 import { entrarApp, responder } from "@/lib/app-ruta";
 import { anotarBitacora } from "@/lib/app-auth.mjs";
 import {
-  ROLES_GAFETE, TEXTOS_GAFETE, validarPeticion, decidirVinculo, hashSecreto,
+  ROLES_GAFETE, TEXTOS_GAFETE, validarPeticion, decidirVinculo, hashSecreto, vinculoExigePase,
 } from "@/lib/gafete-acceso.mjs";
+import { mfaPanelActivo, secretoPanel, verificarPase } from "@/lib/mfa.mjs";
 import { leerParaEntrar, vincular } from "@/lib/gafete-acceso-servidor";
 
 export async function POST(peticion) {
@@ -19,6 +20,13 @@ export async function POST(peticion) {
     freno: { nombre: "app-gafete-vincular", maximo: 10, minutos: 60 },
   });
   if (r.respuesta) return r.respuesta;
+
+  // Dueño y administradores: con su segundo paso hecho (el `pase` viaja en el
+  // cuerpo, igual que en entrarAppAdmin). Ver `vinculoExigePase`.
+  if (vinculoExigePase(r.perfil?.rol) && mfaPanelActivo() &&
+      !(await verificarPase(r.cuerpo.pase, { uid: r.usuario.id, sesion: r.sesion }, secretoPanel()))) {
+    return responder({ ok: false, segundoPaso: true, motivo: "Primero confirma el código que te llega por correo." }, 403);
+  }
 
   const p = validarPeticion(r.cuerpo);
   if (!p.ok) return responder({ ok: false, motivo: TEXTOS_GAFETE.noEntra }, 400);

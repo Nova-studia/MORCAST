@@ -166,3 +166,10 @@ test("ligar cuenta: solo personal activo y que no sea de otro empleado activo", 
   assert.equal(puedeLigarse({ perfil: chofer, ligadoA: "e1", empleadoId: "e1" }), true);
   assert.equal(puedeLigarse({ perfil: null, ligadoA: null, empleadoId: "e1" }), false);
 });
+
+test("vincular: el dueño y los administradores necesitan su segundo paso; el chofer no", async () => {
+  const { vinculoExigePase } = await import("../lib/gafete-acceso.mjs");
+  assert.equal(vinculoExigePase("dueno"), true);
+  assert.equal(vinculoExigePase("admin"), true);
+  assert.equal(vinculoExigePase("operador"), false);
+});

@@ -84,6 +84,16 @@ export function decidirVinculo({ gafete, empleado, uid, serie } = {}) {
 }
 
 /**
+ * ¿Vincular pide el segundo paso? Sí al dueño y a los administradores: el
+ * gafete vinculado después les SALTA el código por correo, así que vincular
+ * solo con la contraseña dejaría que quien la robe (y tenga el gafete un
+ * momento) se quede sin código para siempre.
+ */
+export function vinculoExigePase(rol) {
+  return rol === "dueno" || rol === "admin";
+}
+
+/**
  * ¿Se puede ligar esta cuenta al empleado `empleadoId`? Solo personal activo
  * (dueño, admin, chofer) y que no esté ligada ya a OTRO empleado activo: una
  * cuenta con dos gafetes sería un gafete prestado.
