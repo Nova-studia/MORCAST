@@ -893,6 +893,47 @@ await db.query(`insert into storage.objects (bucket_id, name) values ('personal'
 await debeFallar("ni lee las fotos directo", "admin", `select id from storage.objects where bucket_id = 'personal'`);
 }
 
+console.log("\n27 · 033: entrar con gafete (teléfonos vinculados)");
+{
+const COD_4 = "MNPQRS2345";
+const TEL_1 = "11111111-1111-4111-8111-111111111111";
+const HASH = "a".repeat(64);
+const { rows: [emp] } = await db.query(
+  `insert into public.empleados (numero, nombre, perfil_id) values ('0100', 'Chofer Gafete', $1) returning id`, [U.chofer]);
+const { rows: [{ id: gid }] } = await db.query(`select public.emitir_gafete($1, $2, 'v1.a.b', null) as id`, [emp.id, COD_4]);
+const vincula = () => db.query(
+  `insert into public.gafete_telefonos (gafete_id, perfil_id, dispositivo_id, secreto_hash, aparato)
+   values ($1, $2, $3, $4, 'Prueba') returning id`, [gid, U.chofer, TEL_1, HASH]);
+const { rows: [par] } = await vincula();
+igual("el servidor vincula un teléfono y nace con 0 fallos y exigiendo serie",
+  (await db.query(`select fallos, exige_serie from public.gafete_telefonos where id = $1`, [par.id])).rows
+    .map((r) => `${r.fallos}/${r.exige_serie}`).join(), "0/true");
+for (const quien of ["anon", "chofer", "dueno"]) {
+  await debeFallar(`${quien} NO lee teléfonos vinculados directo`, quien, `select id from public.gafete_telefonos`);
+  await debeFallar(`${quien} NO lee la serie del chip`, quien, `select chip_serie from public.gafetes`);
+}
+await debeFallar("un chofer NO se vincula un teléfono directo", "chofer",
+  `insert into public.gafete_telefonos (gafete_id, perfil_id, dispositivo_id, secreto_hash) values ($1, $2, $3, $4)`,
+  [gid, U.chofer, "22222222-2222-4222-8222-222222222222", HASH]);
+try {
+  await vincula();
+  fallas++; console.log("  ✖ entraron dos vínculos vigentes del mismo gafete y teléfono");
+} catch (e) { console.log("  ✓ no caben dos vínculos vigentes del mismo gafete y teléfono →", e.message); }
+await db.query(`update public.gafete_telefonos set desvinculado_en = now() where id = $1`, [par.id]);
+let otra = null;
+try { otra = (await vincula()).rows[0]; } catch (e) { console.log("  (revincular:", e.message, ")"); }
+igual("desvinculado, el mismo teléfono se puede volver a vincular", Boolean(otra?.id), true);
+try {
+  await db.query(`update public.gafetes set chip_serie = 'no-es-hex' where id = $1`, [gid]);
+  fallas++; console.log("  ✖ se guardó una serie que no es hexadecimal");
+} catch (e) { console.log("  ✓ la serie del chip solo acepta hexadecimal en mayúsculas →", e.message); }
+await db.query(`update public.gafetes set chip_serie = '04A1B2C3D4E5F6' where id = $1`, [gid]);
+try {
+  await db.query(`update public.gafete_telefonos set secreto_hash = 'corto' where id = $1`, [otra.id]);
+  fallas++; console.log("  ✖ se guardó un secreto que no es un hash");
+} catch (e) { console.log("  ✓ solo se guarda el hash del secreto (64 hex) →", e.message); }
+}
+
 try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "022-candados-de-seguridad.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "023-operacion-ampliada.sql"), "utf8"));
@@ -905,8 +946,9 @@ try {
   await db.exec(fs.readFileSync(path.join(WEB, "db", "030-avisos-varios-clientes.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "031-folio-y-evidencia.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(WEB, "db", "032-personal-gafetes.sql"), "utf8"));
-  console.log("✓ 022 a 032 corren dos veces sin romperse");
-} catch (e) { fallas++; console.log("✖ 022 a 032 no son idempotentes:", e.message); }
+  await db.exec(fs.readFileSync(path.join(WEB, "db", "033-entrar-con-gafete.sql"), "utf8"));
+  console.log("✓ 022 a 033 corren dos veces sin romperse");
+} catch (e) { fallas++; console.log("✖ 022 a 033 no son idempotentes:", e.message); }
 const { rows: [{ n: nTodoOtraVez }] } = await db.query(
   `select count(*)::int n from pg_policies where cmd = 'ALL' and qual like '%es_personal()%'`);
 igual("tras volver a correr todo, sigue sin políticas 'todo'", nTodoOtraVez, 0);
