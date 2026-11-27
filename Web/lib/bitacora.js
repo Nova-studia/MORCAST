@@ -103,6 +103,11 @@ export const TEXTO_ACCION = {
   gafete_impresion: "Abrió la hoja de gafetes para la imprenta (lleva los PIN)",
   gafete_mandado: "Marcó gafetes como mandados a la imprenta",
   gafete_emergencia: "Alguien abrió la ficha de emergencia de un gafete con su PIN",
+  // Entrar a la app con el gafete (27-nov-2026, db/033).
+  gafete_vincular: "Vinculó su gafete a un teléfono",
+  gafete_entrar: "Entró a la app con su gafete",
+  gafete_desvincular: "Desvinculó un teléfono de un gafete",
+  personal_cuenta: "Ligó un empleado con su cuenta de la app",
   // Entrega 4 (9-oct-2026): portal del cliente.
   cliente_edita_contacto: "El cliente cambió sus datos de contacto",
   cliente_cancela_recoleccion: "El cliente canceló una recolección",
