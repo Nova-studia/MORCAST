@@ -39,7 +39,7 @@ export async function leerParaEntrar(sb, codigo, dispositivoId) {
   ]);
   if (!gafete) return { gafete: null, empleado: null, perfil: null, par: null };
   const [empleado, perfil] = await Promise.all([
-    db.from("empleados").select("id, estado, perfil_id, nombre, puesto").eq("id", gafete.empleado_id).maybeSingle()
+    db.from("empleados").select("id, estado, perfil_id, nombre, apellido_paterno, apellido_materno, puesto").eq("id", gafete.empleado_id).maybeSingle()
       .then((r) => revisar(r, "leer empleado")),
     par
       ? db.from("perfiles").select("id, rol, activo, nombre").eq("id", par.perfil_id).maybeSingle()

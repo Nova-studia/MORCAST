@@ -107,6 +107,11 @@ function cancelar() {
   return cancelando;
 }
 
+/** Se resuelve cuando la ventanita del NFC terminó de cerrarse (iPhone). */
+export function ventanaCerrada() {
+  return cancelando;
+}
+
 /** Deja de esperar un gafete (al salir de la pantalla o con "Cancelar"). */
 export function dejarDeLeer() {
   return cancelar();

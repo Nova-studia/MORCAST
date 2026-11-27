@@ -137,7 +137,10 @@ export function primerNombre(nombre) {
  */
 export function bienvenidaDe(empleado) {
   const nombre = primerNombre(empleado?.nombre);
-  return { nombre, saludo: nombre ? `¡Hola, ${nombre}!` : "¡Hola!", puesto: String(empleado?.puesto || "") };
+  // El nombre completo va como en el gafete impreso (en mayúsculas).
+  const completo = [empleado?.nombre, empleado?.apellido_paterno, empleado?.apellido_materno]
+    .map((p) => String(p || "").trim()).filter(Boolean).join(" ").toLocaleUpperCase("es-MX");
+  return { nombre, saludo: nombre ? `¡Hola, ${nombre}!` : "¡Hola!", completo, puesto: String(empleado?.puesto || "") };
 }
 
 /** Lo que contesta POST /api/app/gafete/entrar según la decisión (sin el tokenHash). */

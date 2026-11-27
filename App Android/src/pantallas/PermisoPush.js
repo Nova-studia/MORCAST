@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { esperarBienvenida } from "../bienvenida-evento";
 import { View, Text, Modal, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
@@ -65,7 +66,8 @@ export default function PermisoPush({ modo = "cliente" }) {
       if (await hayQuePreguntar()) {
         // Un respiro para que la persona vea primero su pantalla y no un
         // diálogo encima en cuanto entra.
-        setTimeout(() => { if (vivo) setVisible(true); }, 1200);
+        // Y después de la bienvenida del gafete, si la hay (no le pisa el final).
+        esperarBienvenida().then(() => setTimeout(() => { if (vivo) setVisible(true); }, 1200));
       }
     })().catch(() => {});
     return () => { vivo = false; };

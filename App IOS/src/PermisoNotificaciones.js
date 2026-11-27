@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { esperarBienvenida } from "./bienvenida-evento";
 import { View, Text, Modal, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { T } from "./tema";
@@ -64,7 +65,8 @@ export default function PermisoNotificaciones({ modo = "cliente" }) {
       if (await convieneExplicar()) {
         // Un respiro para que primero se pinte la pantalla: un cuadro encima
         // de una pantalla en blanco parece un error.
-        setTimeout(() => { if (vivo) setVisible(true); }, 1200);
+        // Y después de la bienvenida del gafete, si la hay (no le pisa el final).
+        esperarBienvenida().then(() => setTimeout(() => { if (vivo) setVisible(true); }, 1200));
       }
     })();
     return () => { vivo = false; };

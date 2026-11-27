@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { T } from "./tema";
 import { haySupabase } from "./supabase";
 import { entrarConGafete } from "./sesion";
-import { nfcDisponible, bloqueadoLocal, dejarDeLeer } from "./gafete";
+import { nfcDisponible, bloqueadoLocal, dejarDeLeer, ventanaCerrada } from "./gafete";
 import { opcionGafete, TEXTOS_GAFETE } from "./gafete-login.mjs";
 import { mostrarBienvenida } from "./bienvenida-evento";
 
@@ -59,7 +59,8 @@ export default function BotonGafete({ onEntrar, color = T.tealClaro }) {
     setLeyendo(false);
     if (r.ok) {
       // "¡Hola, Oscar!" encima de todo; el panel se arma detrás mientras se ve.
-      if (r.bienvenida) mostrarBienvenida(r.bienvenida);
+      // En iPhone la animación arranca cuando se cierra la ventanita del NFC.
+      if (r.bienvenida) mostrarBienvenida({ ...r.bienvenida, esperar: esIos ? ventanaCerrada() : null });
       alEntrar.current(r.modo);
       return { parar: true };
     }

@@ -197,8 +197,8 @@ test("bienvenida: el primer nombre bien escrito para el '¡Hola, …!'", async (
   assert.equal(primerNombre("ÁNGEL"), "Ángel");
   assert.equal(primerNombre(""), "");
   assert.deepEqual(
-    bienvenidaDe({ nombre: "OSCAR CLEMENTE", puesto: "Gerente Administrativo" }),
-    { nombre: "Oscar", saludo: "¡Hola, Oscar!", puesto: "Gerente Administrativo" },
+    bienvenidaDe({ nombre: "OSCAR CLEMENTE", apellido_paterno: "MORENO", apellido_materno: "FRANCO", puesto: "Gerente Administrativo" }),
+    { nombre: "Oscar", saludo: "¡Hola, Oscar!", completo: "OSCAR CLEMENTE MORENO FRANCO", puesto: "Gerente Administrativo" },
   );
-  assert.deepEqual(bienvenidaDe({ nombre: "", puesto: "" }), { nombre: "", saludo: "¡Hola!", puesto: "" });
+  assert.deepEqual(bienvenidaDe({ nombre: "", puesto: "" }), { nombre: "", saludo: "¡Hola!", completo: "", puesto: "" });
 });
