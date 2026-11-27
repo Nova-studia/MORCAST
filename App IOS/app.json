@@ -49,7 +49,7 @@
         "react-native-nfc-manager",
         {
           "nfcPermission": "Morcast usa el NFC para leer tu gafete al iniciar sesión.",
-          "includeNdefEntitlement": true
+          "includeNdefEntitlement": false
         }
       ],
       "expo-font",
