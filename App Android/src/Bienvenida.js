@@ -10,9 +10,10 @@ import { escucharBienvenida, terminarBienvenida } from "./bienvenida-evento";
  * tapa la espera.
  *
  *   0 ms     se oscurece la pantalla; la foto entra con resorte
- *   ~200 ms  el anillo naranja gira y se asienta alrededor de la foto
+ *   ~200 ms  el anillo naranja empieza a girar alrededor de la foto
  *   ~250 ms  sube el saludo y el puesto
- *   ~2800 ms la tarjeta se encoge y se desvanece; aparece el panel
+ *   0.2–2.4 s el anillo entra girando despacio; 2.7–3.2 s regresa girando
+ *   ~3.0–3.34 s la tarjeta se encoge y se desvanece; aparece el panel
  *
  * Va en la parte de ARRIBA de la pantalla: en iPhone arranca con la
  * ventanita del NFC todavía abierta abajo y no debe taparla. (Se probó una
@@ -22,8 +23,13 @@ import { escucharBienvenida, terminarBienvenida } from "./bienvenida-evento";
  * modestos). Con "Reducir movimiento" solo aparece y desaparece.
  * ⚠️ Igual en App Android y App IOS.
  */
-// 1.3 s + 1.5 s que pidieron Luis y Andrei (27-nov).
-const ESPERA_MS = 2800;
+// El anillo entra girando DESPACIO y en el último medio segundo regresa
+// girando hacia atrás: entrada y salida (Andrei y Luis, 27-nov; vista previa
+// "Vista previa bienvenida Morcast (sencilla).mp4").
+const ANILLO_ENTRA_MS = 2200; // empieza a los 200 ms
+const ANILLO_REGRESA_EN = 2700; // ms desde el inicio
+const ANILLO_REGRESA_MS = 500;
+const ESPERA_MS = 2800; // "Reducir movimiento": cuánto se queda quieta
 
 export default function Bienvenida() {
   const [datos, setDatos] = useState(null);
@@ -61,15 +67,23 @@ export default function Bienvenida() {
           Animated.spring(foto, { toValue: 1, friction: 6, tension: 90, ...nativo }),
           Animated.sequence([
             Animated.delay(200),
-            Animated.timing(anillo, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), ...nativo }),
+            Animated.timing(anillo, { toValue: 1, duration: ANILLO_ENTRA_MS, easing: Easing.out(Easing.cubic), ...nativo }),
           ]),
           Animated.sequence([
             Animated.delay(250),
             Animated.timing(texto, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), ...nativo }),
           ]),
         ]),
-        Animated.delay(ESPERA_MS - 900),
-        Animated.timing(salida, { toValue: 1, duration: 340, easing: Easing.in(Easing.cubic), ...nativo }),
+        Animated.delay(ANILLO_REGRESA_EN - 200 - ANILLO_ENTRA_MS),
+        Animated.parallel([
+          // El anillo deshace su giro (mismo camino de la entrada, al revés)…
+          Animated.timing(anillo, { toValue: 0, duration: ANILLO_REGRESA_MS, easing: Easing.in(Easing.cubic), ...nativo }),
+          // …y a la mitad empieza a desvanecerse todo.
+          Animated.sequence([
+            Animated.delay(300),
+            Animated.timing(salida, { toValue: 1, duration: 340, easing: Easing.in(Easing.cubic), ...nativo }),
+          ]),
+        ]),
       ]).start(terminar);
     });
     return () => { vivo = false; };
