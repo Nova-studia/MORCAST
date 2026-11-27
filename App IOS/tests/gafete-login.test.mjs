@@ -14,6 +14,7 @@ import {
   nuevoSecreto,
   secretoDe,
   conSecretoNuevo,
+  motivoSinGafete,
 } from "../src/gafete-login.mjs";
 
 // Un registro NDEF de URI como lo entrega react-native-nfc-manager:
@@ -89,4 +90,10 @@ test("revisión: cada gafete tiene su secreto en este teléfono y volver a vincu
   assert.equal(secretoDe(c, "MNPQRS2345"), "s3");
   assert.equal(secretoDe(c, "ZZZZ2222YY"), null);
   assert.equal(secretoDe(null, "MNPQRS2345"), null);
+});
+
+test("prueba en iPhone: si no alcanzó a leer el enlace se dice que lo deje quieto, no que no es de Morcast", () => {
+  assert.match(motivoSinGafete({ id: "04A1B2C3D4E5F6" }), /quieto/);
+  assert.match(motivoSinGafete({ id: "04A1B2C3D4E5F6", ndefMessage: [] }), /quieto/);
+  assert.equal(motivoSinGafete({ id: "04A1B2C3D4E5F6", ndefMessage: [registroUri("otro.mx/x")] }), "Ese chip no es un gafete de Morcast.");
 });

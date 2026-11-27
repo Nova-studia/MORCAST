@@ -7,7 +7,7 @@ import { paseActual } from "./pase-admin";
 import { WEB, postWeb } from "./api-web";
 import { llaveroApp as almacenSecreto } from "./almacen-seguro";
 import {
-  LLAVE_TELEFONO, LLAVE_BLOQUEO, TEXTOS_GAFETE, datosDelTag, nuevoSecreto, secretoDe, conSecretoNuevo,
+  LLAVE_TELEFONO, LLAVE_BLOQUEO, TEXTOS_GAFETE, datosDelTag, nuevoSecreto, secretoDe, conSecretoNuevo, motivoSinGafete,
 } from "./gafete-login.mjs";
 
 /**
@@ -79,8 +79,9 @@ export function leerGafete({ conTope = false } = {}) {
         reloj = setTimeout(() => { seAcabo = true; dejarDeLeer(); }, ESPERA_LECTURA_MS);
       }
       await NfcManager.requestTechnology(NfcTech.Ndef, { alertMessage: "Acerca tu gafete a la parte de arriba del iPhone." });
-      const datos = datosDelTag(await NfcManager.getTag());
-      if (!datos) throw { mensaje: "Ese chip no es un gafete de Morcast." };
+      const tag = await NfcManager.getTag();
+      const datos = datosDelTag(tag);
+      if (!datos) throw { mensaje: motivoSinGafete(tag) };
       return datos;
     } catch (e) {
       if (e?.mensaje) throw e;

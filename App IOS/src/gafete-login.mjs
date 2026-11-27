@@ -108,3 +108,13 @@ export function conSecretoNuevo(identidad, codigo, secreto, dispositivoIdNuevo) 
     secretos: { ...(identidad?.secretos || {}), [codigo]: secreto },
   };
 }
+
+/**
+ * Por qué un chip leído no dio un gafete. En iPhone el enlace se lee en un
+ * segundo paso: si el gafete se retira antes, llega el chip SIN su contenido
+ * (pasó en la prueba del 27-nov). Eso no es "no es de Morcast".
+ */
+export function motivoSinGafete(tag) {
+  if (!tag?.ndefMessage?.length) return "No se alcanzó a leer el gafete. Déjalo quieto junto al teléfono hasta que vibre e inténtalo otra vez.";
+  return "Ese chip no es un gafete de Morcast.";
+}
