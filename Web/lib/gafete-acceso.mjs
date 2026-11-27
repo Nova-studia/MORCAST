@@ -83,6 +83,16 @@ export function decidirVinculo({ gafete, empleado, uid, serie } = {}) {
   return { ok: true, guardarSerie: !gafete.chip_serie && Boolean(serie), exigeSerie: Boolean(serie) };
 }
 
+/**
+ * ¿Se puede ligar esta cuenta al empleado `empleadoId`? Solo personal activo
+ * (dueño, admin, chofer) y que no esté ligada ya a OTRO empleado activo: una
+ * cuenta con dos gafetes sería un gafete prestado.
+ */
+export function puedeLigarse({ perfil, ligadoA, empleadoId } = {}) {
+  if (!perfil || perfil.activo === false || !ROLES_GAFETE.includes(perfil.rol)) return false;
+  return !ligadoA || ligadoA === empleadoId;
+}
+
 /** Lo que contesta POST /api/app/gafete/entrar según la decisión (sin el tokenHash). */
 export function respuestaEntrar(decision) {
   if (decision?.ok) return { status: 200, cuerpo: { ok: true } };

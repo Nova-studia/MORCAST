@@ -19,6 +19,7 @@ import { nombreCompleto, faltantes } from "@/lib/personal.mjs";
 import { fechaLarga } from "@/lib/portal-datos";
 import { leerEmpleado, darDeBaja, reactivar, reponerGafete, verPin, chipGrabado } from "../acciones";
 import FormEmpleado from "../FormEmpleado";
+import AccesoApp from "./AccesoApp";
 import { Foto, Insignia, prepararImpresion } from "../piezas";
 import s from "../personal.module.css";
 
@@ -250,6 +251,9 @@ export default function FichaEmpleado() {
           </ul>
         )}
       </section>
+
+      {/* ---------- Acceso a la app (db/033) ---------- */}
+      <AccesoApp empleadoId={empleado.id} activo={activo} />
 
       {/* ---------- Datos ---------- */}
       <section className="pt-card">

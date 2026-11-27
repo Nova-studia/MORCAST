@@ -18,6 +18,8 @@ import {
   anotarChip,
   enlazarJefes,
 } from "@/lib/personal-servidor";
+import { accesoDe, ligarCuenta, desvincular } from "@/lib/gafete-acceso-servidor";
+import { puedeLigarse } from "@/lib/gafete-acceso.mjs";
 
 /**
  * LAS ACCIONES DE LA SECCIÓN PERSONAL (db/032).
@@ -190,4 +192,58 @@ export async function cerrarCarga({ jefes, creados } = {}) {
     detalle: { empleados: Number(creados) || 0, jefes_enlazados: r.hechos },
   });
   return r;
+}
+
+/* ---------------------------------------------------------------- *
+ * Entrar a la app con el gafete (27-nov-2026, db/033)              *
+ * ---------------------------------------------------------------- */
+
+/** Cuenta ligada, cuentas que se pueden ligar y teléfonos vinculados. */
+export async function leerAcceso(empleadoId) {
+  const { error } = await entrar();
+  if (error) return { ok: false, motivo: error };
+  try {
+    return { ok: true, ...(await accesoDe(null, empleadoId)), demo: !haySupabase() };
+  } catch (e) {
+    console.error("[personal] leerAcceso:", e?.message || e);
+    return { ok: false, motivo: "No se pudo leer el acceso a la app. ¿Ya se corrió la migración 033?" };
+  }
+}
+
+/** Liga el empleado con una cuenta del personal (o con ninguna: `perfilId` vacío). */
+export async function ligarCuentaApp(empleadoId, perfilId) {
+  const { error } = await entrar();
+  if (error) return { ok: false, motivo: error };
+  if (!haySupabase()) return { ok: false, motivo: "Sin base de datos no hay cuentas que ligar." };
+  try {
+    const acceso = await accesoDe(null, empleadoId);
+    if (perfilId) {
+      const perfil = acceso.cuentas.find((c) => c.id === perfilId) || null;
+      if (!puedeLigarse({ perfil, ligadoA: perfil?.ligadoA, empleadoId })) {
+        return { ok: false, motivo: "Esa cuenta no se puede ligar: no es del personal, está desactivada o ya es de otro empleado." };
+      }
+    }
+    await ligarCuenta(null, { empleadoId, perfilId: perfilId || null });
+    await registrar({ accion: "personal_cuenta", tabla: "empleados", registroId: empleadoId, detalle: { cuenta: perfilId || null } });
+    return { ok: true };
+  } catch (e) {
+    console.error("[personal] ligarCuentaApp:", e?.message || e);
+    return { ok: false, motivo: "No se pudo guardar. Inténtalo otra vez." };
+  }
+}
+
+/** Quita un teléfono vinculado (robo, teléfono nuevo). Solo de ESTE empleado. */
+export async function desvincularTelefono(empleadoId, parId) {
+  const { quien, error } = await entrar();
+  if (error) return { ok: false, motivo: error };
+  try {
+    const { telefonos } = await accesoDe(null, empleadoId);
+    if (!telefonos.some((t) => t.id === parId)) return { ok: false, motivo: "Ese teléfono ya no está vinculado." };
+    await desvincular(null, { parId, por: quien?.id ?? null });
+    await registrar({ accion: "gafete_desvincular", tabla: "empleados", registroId: empleadoId, detalle: { telefono: parId, quien: "el panel" } });
+    return { ok: true };
+  } catch (e) {
+    console.error("[personal] desvincularTelefono:", e?.message || e);
+    return { ok: false, motivo: "No se pudo desvincular. Inténtalo otra vez." };
+  }
 }

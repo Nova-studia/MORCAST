@@ -126,3 +126,32 @@ export async function telefonosDe(sb, empleadoId) {
     "leer teléfonos",
   ) || [];
 }
+
+/**
+ * Para la ficha del panel: a qué cuenta está ligado el empleado, las cuentas
+ * del personal que se le pueden ligar (con a quién está ligada cada una) y
+ * los teléfonos vinculados a su gafete vigente.
+ */
+export async function accesoDe(sb, empleadoId) {
+  if (!sb && !haySupabase()) return { perfilId: null, cuentas: [], telefonos: [] };
+  const db = sbDe(sb);
+  const [empleado, perfiles, ligados, telefonos] = await Promise.all([
+    db.from("empleados").select("perfil_id").eq("id", empleadoId).maybeSingle().then((r) => revisar(r, "leer empleado")),
+    db.from("perfiles").select("id, nombre, rol, activo").in("rol", ["dueno", "admin", "operador"]).order("nombre")
+      .then((r) => revisar(r, "leer cuentas")),
+    db.from("empleados").select("id, perfil_id").eq("estado", "activo").not("perfil_id", "is", null)
+      .then((r) => revisar(r, "leer ligados")),
+    telefonosDe(db, empleadoId),
+  ]);
+  const ligadoA = new Map((ligados || []).map((e) => [e.perfil_id, e.id]));
+  return {
+    perfilId: empleado?.perfil_id || null,
+    cuentas: (perfiles || []).map((p) => ({ ...p, ligadoA: ligadoA.get(p.id) || null })),
+    telefonos,
+  };
+}
+
+/** Liga (o desliga, con `perfilId` null) la cuenta de la app de un empleado. */
+export async function ligarCuenta(sb, { empleadoId, perfilId }) {
+  revisar(await sbDe(sb).from("empleados").update({ perfil_id: perfilId }).eq("id", empleadoId), "ligar cuenta");
+}

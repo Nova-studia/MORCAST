@@ -155,3 +155,14 @@ test("respuesta de entrar: 401 genérico, 423 pide correo, 200 ok", () => {
   );
   assert.deepEqual(respuestaEntrar({ ok: true }), { status: 200, cuerpo: { ok: true } });
 });
+
+test("ligar cuenta: solo personal activo y que no sea de otro empleado activo", async () => {
+  const { puedeLigarse } = await import("../lib/gafete-acceso.mjs");
+  const chofer = { id: UID, rol: "operador", activo: true };
+  assert.equal(puedeLigarse({ perfil: { ...chofer, rol: "cliente" }, ligadoA: null, empleadoId: "e1" }), false);
+  assert.equal(puedeLigarse({ perfil: { ...chofer, activo: false }, ligadoA: null, empleadoId: "e1" }), false);
+  assert.equal(puedeLigarse({ perfil: chofer, ligadoA: "e2", empleadoId: "e1" }), false);
+  assert.equal(puedeLigarse({ perfil: chofer, ligadoA: null, empleadoId: "e1" }), true);
+  assert.equal(puedeLigarse({ perfil: chofer, ligadoA: "e1", empleadoId: "e1" }), true);
+  assert.equal(puedeLigarse({ perfil: null, ligadoA: null, empleadoId: "e1" }), false);
+});
