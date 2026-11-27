@@ -861,6 +861,35 @@ manejado siempre. Desde la página sí se puede pedir extra.
 
 ---
 
+## Entrar a la app con el gafete
+
+Desde la versión nueva de las apps, el personal (dueño, administradores y
+choferes) puede entrar **acercando su gafete** al teléfono, sin escribir la
+contraseña. Funciona **solo en el teléfono donde cada quien lo vinculó**: una
+foto del QR o el gafete de otro no sirven en otro celular.
+
+**Antes, una sola vez, en el panel:** Personal → la ficha del empleado →
+**Acceso a la app con el gafete** → en *Cuenta en la app* elegir su cuenta. Sin
+eso, su gafete no se puede vincular.
+
+**Vincular (cada persona, una vez por teléfono):** entra a la app con su correo
+como siempre (el dueño y los administradores, también con su código por
+correo). La app pregunta *"¿Vincular tu gafete a este teléfono?"*; acerca el
+gafete y listo. También está en **Mi cuenta → Mi gafete en este teléfono**.
+
+**Entrar:** en el inicio de sesión de administración o de chofer, la primera
+opción es *"Inicia sesión acercando tu gafete"*. En iPhone se toca **Acercar
+gafete** y se acerca a la parte de arriba del teléfono; en Android basta con
+acercarlo a la parte de atrás con la pantalla abierta.
+
+**Si se equivoca 4 veces seguidas** en un teléfono, ese teléfono pide entrar con
+el correo. Al entrar con el correo, el gafete vuelve a funcionar.
+
+**Robo o teléfono nuevo:** en la ficha del empleado, *Teléfonos vinculados* →
+**Desvincular**. Ese teléfono deja de entrar con el gafete al instante. La
+persona también puede desvincular el suyo desde Mi cuenta. Dar de baja al
+empleado o reponer su gafete corta el acceso solo.
+
 ## Lo que ve el chofer
 
 El chofer entra con su propia cuenta —desde la app del celular o desde

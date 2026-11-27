@@ -446,6 +446,30 @@ propia app.
 **iPhone.** Sin empezar. Necesita cuenta de Apple Developer (99 USD al año) y
 una Mac con Xcode para compilar.
 
+### Entrar con gafete (NFC, 27-nov-2026)
+
+Diseño: `docs/superpowers/specs/2026-11-27-entrar-con-gafete-design.md`.
+
+- **Base:** `db/033` (`gafetes.chip_serie`, tabla `gafete_telefonos`, sin
+  políticas: solo el servidor). Hay que correrla antes de subir la web.
+- **Servidor:** reglas puras en `Web/lib/gafete-acceso.mjs` (con pruebas),
+  consultas en `gafete-acceso-servidor.js`, rutas `app/api/app/gafete/*`
+  (`entrar` sin sesión → `token_hash` de magiclink; `vincular`, `pase`,
+  `telefono` con sesión). El secreto del teléfono solo se guarda como SHA-256.
+- **Apps:** `react-native-nfc-manager` 4.2.0 + `expo-crypto`. Es código nativo:
+  **no sale por EAS Update**, hace falta versión nueva en las dos tiendas. En
+  Android el permiso NFC va también a mano en `AndroidManifest.xml` (la carpeta
+  `android/` está versionada y EAS no corre prebuild). En iPhone, el plugin
+  agrega la capacidad *NFC Tag Reading*; revisarla en el identificador de la
+  app en Apple Developer.
+- **Lógica igual en las dos apps:** `src/gafete-login.mjs` (idéntico, una
+  prueba lo vigila), `src/gafete.js`, `src/BotonGafete.js`,
+  `src/GafeteTelefono.js`. La identidad del teléfono vive en el almacén seguro
+  (`morcast_gafete_telefono`) y **no se borra al cerrar sesión**.
+- **Segundo paso:** vincular exige el pase al dueño y a los administradores;
+  entrar con gafete en el teléfono vinculado les da el pase (decisión de
+  Andrei).
+
 ---
 
 ## 6. Qué revisar cuando algo falla
