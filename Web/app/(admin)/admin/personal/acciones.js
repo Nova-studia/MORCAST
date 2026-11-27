@@ -18,7 +18,7 @@ import {
   anotarChip,
   enlazarJefes,
 } from "@/lib/personal-servidor";
-import { accesoDe, ligarCuenta, desvincular } from "@/lib/gafete-acceso-servidor";
+import { accesoDe, ligarCuenta, desvincular, cerrarVinculosAjenos } from "@/lib/gafete-acceso-servidor";
 import { puedeLigarse } from "@/lib/gafete-acceso.mjs";
 
 /**
@@ -224,6 +224,8 @@ export async function ligarCuentaApp(empleadoId, perfilId) {
       }
     }
     await ligarCuenta(null, { empleadoId, perfilId: perfilId || null });
+    const { quien } = await entrar();
+    await cerrarVinculosAjenos(null, { empleadoId, perfilId: perfilId || null, por: quien?.id ?? null });
     await registrar({ accion: "personal_cuenta", tabla: "empleados", registroId: empleadoId, detalle: { cuenta: perfilId || null } });
     return { ok: true };
   } catch (e) {

@@ -173,3 +173,19 @@ test("vincular: el dueño y los administradores necesitan su segundo paso; el ch
   assert.equal(vinculoExigePase("admin"), true);
   assert.equal(vinculoExigePase("operador"), false);
 });
+
+test("revisión: el freno por gafete va con el teléfono; uno inventado no frena al dueño", async () => {
+  const { clavesFreno } = await import("../lib/gafete-acceso.mjs");
+  const dueno = clavesFreno({ codigo: "MNPQRS2345", dispositivoId: "11111111-1111-4111-8111-111111111111" });
+  const atacante = clavesFreno({ codigo: "MNPQRS2345", dispositivoId: "22222222-2222-4222-8222-222222222222" });
+  assert.ok(dueno.length > 0);
+  for (const clave of dueno) assert.ok(!atacante.includes(clave), `el atacante comparte la clave ${clave}`);
+});
+
+test("revisión: el pase solo sale si el vínculo se hizo con segundo paso y es de esa cuenta", async () => {
+  const { puedeDarPase } = await import("../lib/gafete-acceso.mjs");
+  assert.equal(puedeDarPase({ par: { perfil_id: UID, con_pase: true }, uid: UID }), true);
+  assert.equal(puedeDarPase({ par: { perfil_id: UID, con_pase: false }, uid: UID }), false); // era chofer al vincular
+  assert.equal(puedeDarPase({ par: { perfil_id: OTRO, con_pase: true }, uid: UID }), false);
+  assert.equal(puedeDarPase({ par: null, uid: UID }), false);
+});

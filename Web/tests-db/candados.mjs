@@ -905,9 +905,9 @@ const vincula = () => db.query(
   `insert into public.gafete_telefonos (gafete_id, perfil_id, dispositivo_id, secreto_hash, aparato)
    values ($1, $2, $3, $4, 'Prueba') returning id`, [gid, U.chofer, TEL_1, HASH]);
 const { rows: [par] } = await vincula();
-igual("el servidor vincula un teléfono y nace con 0 fallos y exigiendo serie",
-  (await db.query(`select fallos, exige_serie from public.gafete_telefonos where id = $1`, [par.id])).rows
-    .map((r) => `${r.fallos}/${r.exige_serie}`).join(), "0/true");
+igual("el servidor vincula un teléfono y nace con 0 fallos, exigiendo serie y sin pase",
+  (await db.query(`select fallos, exige_serie, con_pase from public.gafete_telefonos where id = $1`, [par.id])).rows
+    .map((r) => `${r.fallos}/${r.exige_serie}/${r.con_pase}`).join(), "0/true/false");
 for (const quien of ["anon", "chofer", "dueno"]) {
   await debeFallar(`${quien} NO lee teléfonos vinculados directo`, quien, `select id from public.gafete_telefonos`);
   await debeFallar(`${quien} NO lee la serie del chip`, quien, `select chip_serie from public.gafetes`);

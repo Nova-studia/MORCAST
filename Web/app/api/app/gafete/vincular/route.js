@@ -45,6 +45,10 @@ export async function POST(peticion) {
       exigeSerie: d.exigeSerie,
       guardarSerie: d.guardarSerie,
       serie: p.serie,
+      // Con segundo paso: el dueño y los admins lo acaban de pasar (arriba) o
+      // el servidor no lo pide. Un chofer, no: si luego lo ascienden, su
+      // gafete no le salta el código (`puedeDarPase`).
+      conPase: vinculoExigePase(r.perfil?.rol),
     });
     await anotarBitacora(r.sb, {
       usuario: r.usuario,

@@ -13,7 +13,7 @@
 import { entrarApp, responder } from "@/lib/app-ruta";
 import { anotarBitacora, ROLES_PERSONAL } from "@/lib/app-auth.mjs";
 import { firmarPase, secretoPanel, VIGENCIA_PASE_S } from "@/lib/mfa.mjs";
-import { validarPeticion, decidirEntrada, respuestaEntrar, hashSecreto } from "@/lib/gafete-acceso.mjs";
+import { validarPeticion, decidirEntrada, respuestaEntrar, hashSecreto, puedeDarPase } from "@/lib/gafete-acceso.mjs";
 import { leerParaEntrar } from "@/lib/gafete-acceso-servidor";
 
 export async function POST(peticion) {
@@ -30,7 +30,7 @@ export async function POST(peticion) {
   try {
     const datos = await leerParaEntrar(r.sb, p.codigo, p.dispositivoId);
     const decision = decidirEntrada({ ...datos, serie: p.serie, hashRecibido: await hashSecreto(p.secreto) });
-    if (!decision.ok || datos.par.perfil_id !== r.usuario.id) return responder(generico.cuerpo, generico.status);
+    if (!decision.ok || !puedeDarPase({ par: datos.par, uid: r.usuario.id })) return responder(generico.cuerpo, generico.status);
 
     const secreto = secretoPanel();
     if (!secreto) return responder({ ok: false, motivo: "El segundo paso no está configurado en el servidor." }, 500);

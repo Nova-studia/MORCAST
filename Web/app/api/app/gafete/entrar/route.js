@@ -13,7 +13,7 @@ import { responder } from "@/lib/app-ruta";
 import { haySupabase, supabaseServidor } from "@/lib/supabase";
 import { pasarFreno } from "@/lib/freno";
 import { anotarBitacora, MENSAJES_APP } from "@/lib/app-auth.mjs";
-import { validarPeticion, decidirEntrada, respuestaEntrar, hashSecreto } from "@/lib/gafete-acceso.mjs";
+import { validarPeticion, decidirEntrada, respuestaEntrar, hashSecreto, clavesFreno } from "@/lib/gafete-acceso.mjs";
 import { leerParaEntrar, contarFallo, anotarUso } from "@/lib/gafete-acceso-servidor";
 
 export async function POST(peticion) {
@@ -25,12 +25,13 @@ export async function POST(peticion) {
   const generico = respuestaEntrar({ ok: false, motivo: "noEntra" });
   if (!p.ok) return responder(generico.cuerpo, generico.status);
 
-  // Por IP (bots) y por gafete con ventana corta: el gafete nunca queda
-  // bloqueado, solo tiene que esperar unos minutos quien insiste con él.
-  if (!(await pasarFreno("app-gafete-ip", { maximo: 30, minutos: 15 })) ||
-      !(await pasarFreno(`app-gafete-codigo:${p.codigo}`, { maximo: 10, minutos: 15, porIp: false }))) {
-    return responder({ ok: false, motivo: MENSAJES_APP.freno }, 429);
+  // Por IP (bots) y por gafete+teléfono. NUNCA por código solo: es público
+  // (QR) y con su foto se bloquearía al dueño (ver `clavesFreno`).
+  let pasa = await pasarFreno("app-gafete-ip", { maximo: 30, minutos: 15 });
+  for (const clave of clavesFreno(p)) {
+    if (pasa) pasa = await pasarFreno(clave, { maximo: 10, minutos: 15, porIp: false });
   }
+  if (!pasa) return responder({ ok: false, motivo: MENSAJES_APP.freno }, 429);
 
   const sb = supabaseServidor();
   try {

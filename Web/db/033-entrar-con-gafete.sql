@@ -34,12 +34,18 @@ create table if not exists public.gafete_telefonos (
   aparato          text not null default '' check (length(aparato) <= 60),
   -- false solo si al vincular el teléfono no pudo leer la serie (iPhone).
   exige_serie      boolean not null default true,
+  -- true si se vinculó con el segundo paso hecho (dueño y admins). Solo
+  -- así /gafete/pase da el pase: un chofer ascendido a admin no se lo salta.
+  con_pase         boolean not null default false,
   fallos           integer not null default 0 check (fallos >= 0),
   creado           timestamptz not null default now(),
   ultimo_uso       timestamptz,
   desvinculado_en  timestamptz,
   desvinculado_por uuid references public.perfiles (id) on delete set null
 );
+-- Por si la tabla ya existía de una corrida anterior de esta misma 033.
+alter table public.gafete_telefonos add column if not exists con_pase boolean not null default false;
+
 create unique index if not exists gafete_telefonos_un_vigente
   on public.gafete_telefonos (gafete_id, dispositivo_id) where desvinculado_en is null;
 create index if not exists gafete_telefonos_dispositivo_idx on public.gafete_telefonos (dispositivo_id);

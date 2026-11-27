@@ -84,6 +84,28 @@ export function decidirVinculo({ gafete, empleado, uid, serie } = {}) {
 }
 
 /**
+ * Las claves del freno de POST /gafete/entrar (además del freno por IP).
+ *
+ * El código es PÚBLICO (va en el QR): un freno solo por código dejaría que
+ * cualquiera con la foto lo gastara cada 15 minutos y el dueño se quedara sin
+ * entrar con su gafete (revisión final, 27-nov). Va junto con el teléfono:
+ * los teléfonos inventados no tocan la clave del dueño. Contra adivinar no
+ * hace falta más: el secreto es de 256 bits.
+ */
+export function clavesFreno({ codigo, dispositivoId }) {
+  return [`app-gafete:${codigo}:${dispositivoId}`];
+}
+
+/**
+ * ¿/gafete/pase puede dar el pase del segundo paso? Solo si el vínculo es de
+ * esa cuenta y se hizo CON segundo paso (`con_pase`): un chofer que vinculó
+ * sin código y luego lo hacen administrador no se lo salta así.
+ */
+export function puedeDarPase({ par, uid } = {}) {
+  return Boolean(par && uid && par.perfil_id === uid && par.con_pase === true);
+}
+
+/**
  * ¿Vincular pide el segundo paso? Sí al dueño y a los administradores: el
  * gafete vinculado después les SALTA el código por correo, así que vincular
  * solo con la contraseña dejaría que quien la robe (y tenga el gafete un

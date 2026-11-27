@@ -30,7 +30,7 @@ export async function leerParaEntrar(sb, codigo, dispositivoId) {
     db.from("empleados").select("id, estado, perfil_id, nombre").eq("id", gafete.empleado_id).maybeSingle()
       .then((r) => revisar(r, "leer empleado")),
     db.from("gafete_telefonos")
-      .select("id, perfil_id, exige_serie, fallos, desvinculado_en, secreto_hash")
+      .select("id, perfil_id, exige_serie, con_pase, fallos, desvinculado_en, secreto_hash")
       .eq("gafete_id", gafete.id).eq("dispositivo_id", dispositivoId).is("desvinculado_en", null)
       .maybeSingle()
       .then((r) => revisar(r, "leer vínculo")),
@@ -74,10 +74,10 @@ export async function anotarUso(sb, parId) {
 
 /**
  * Vincula el gafete a este teléfono. Un vínculo vigente previo del mismo
- * par se cierra antes (volver a vincular = secreto nuevo). La serie se
+ * par se cierra antes (la app manda un secreto nuevo en cada vínculo). La serie se
  * guarda solo si el gafete todavía no tenía.
  */
-export async function vincular(sb, { gafeteId, perfilId, dispositivoId, secretoHash, aparato, exigeSerie, guardarSerie, serie }) {
+export async function vincular(sb, { gafeteId, perfilId, dispositivoId, secretoHash, aparato, exigeSerie, guardarSerie, serie, conPase = false }) {
   const db = sbDe(sb);
   if (guardarSerie && serie) {
     revisar(await db.from("gafetes").update({ chip_serie: serie }).eq("id", gafeteId).is("chip_serie", null), "guardar serie");
@@ -95,6 +95,7 @@ export async function vincular(sb, { gafeteId, perfilId, dispositivoId, secretoH
       secreto_hash: secretoHash,
       aparato: String(aparato || "").slice(0, 60),
       exige_serie: Boolean(exigeSerie),
+      con_pase: Boolean(conPase),
     }).select("id").single(),
     "vincular",
   );
@@ -154,4 +155,22 @@ export async function accesoDe(sb, empleadoId) {
 /** Liga (o desliga, con `perfilId` null) la cuenta de la app de un empleado. */
 export async function ligarCuenta(sb, { empleadoId, perfilId }) {
   revisar(await sbDe(sb).from("empleados").update({ perfil_id: perfilId }).eq("id", empleadoId), "ligar cuenta");
+}
+
+/**
+ * Al cambiar la cuenta ligada de un empleado: cierra los vínculos de su
+ * gafete vigente que sean de OTRA cuenta. Si no, al volver a ligar la cuenta
+ * anterior sus teléfonos revivirían solos (revisión final, 27-nov).
+ */
+export async function cerrarVinculosAjenos(sb, { empleadoId, perfilId, por = null }) {
+  const db = sbDe(sb);
+  const gafete = revisar(
+    await db.from("gafetes").select("id").eq("empleado_id", empleadoId).eq("estado", "vigente").maybeSingle(),
+    "leer gafete vigente",
+  );
+  if (!gafete) return 0;
+  let q = db.from("gafete_telefonos").update({ desvinculado_en: ahora(), desvinculado_por: por })
+    .eq("gafete_id", gafete.id).is("desvinculado_en", null);
+  if (perfilId) q = q.neq("perfil_id", perfilId);
+  return (revisar(await q.select("id"), "cerrar vínculos ajenos") || []).length;
 }
