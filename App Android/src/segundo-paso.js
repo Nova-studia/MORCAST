@@ -117,11 +117,19 @@ export async function verificarCodigo(texto) {
     return { ok: false, motivo: mensajeSegundoPaso(r.motivo, "Ese código no es. Revisa el último correo que te llegó.") };
   }
 
+  await guardarPase(r);
+  return { ok: true };
+}
+
+/**
+ * Guarda el pase de ESTA sesión. Lo usan el código por correo y la entrada
+ * con gafete (que cuenta como segundo paso: /api/app/gafete/pase).
+ */
+export async function guardarPase({ pase, vence }) {
   const uid = await uidDeSesion();
   try {
-    await almacenSecreto.setItem(LLAVE_PASE, JSON.stringify({ pase: r.pase, vence: r.vence ?? null, uid }));
+    await almacenSecreto.setItem(LLAVE_PASE, JSON.stringify({ pase, vence: vence ?? null, uid }));
   } catch {
     // Sin dónde guardarlo se deja pasar ESTA vez; la próxima pedirá código.
   }
-  return { ok: true };
 }

@@ -148,6 +148,26 @@ export function resumenBitacora(fila) {
  * `aplicar_saldo` no sirve.
  */
 export const TEXTO_ACCION = {
+  // Personal y gafetes (12-oct-2026, db/032). Las anota el servidor: esas
+  // tablas no se tocan desde el navegador. Ninguna lleva datos de emergencia.
+  personal_alta: "Dio de alta a un empleado",
+  personal_editado: "Editó los datos de un empleado",
+  personal_foto: "Cambió la foto de un empleado",
+  personal_baja: "Dio de baja a un empleado",
+  personal_reactivado: "Reactivó a un empleado",
+  personal_importado: "Cargó empleados desde un Excel",
+  gafete_emitido: "Emitió un gafete",
+  gafete_repuesto: "Repuso un gafete (el anterior dejó de valer)",
+  gafete_chip: "Grabó el chip de un gafete",
+  gafete_pin_visto: "Vio el PIN de un gafete en el panel",
+  gafete_impresion: "Abrió la hoja de gafetes para la imprenta (lleva los PIN)",
+  gafete_mandado: "Marcó gafetes como mandados a la imprenta",
+  gafete_emergencia: "Alguien abrió la ficha de emergencia de un gafete con su PIN",
+  // Entrar a la app con el gafete (27-nov-2026, db/033).
+  gafete_vincular: "Vinculó su gafete a un teléfono",
+  gafete_entrar: "Entró a la app con su gafete",
+  gafete_desvincular: "Desvinculó un teléfono de un gafete",
+  personal_cuenta: "Ligó un empleado con su cuenta de la app",
   // Entrega 4 (9-oct-2026): portal del cliente.
   cliente_edita_contacto: "El cliente cambió sus datos de contacto",
   cliente_cancela_recoleccion: "El cliente canceló una recolección",
@@ -221,6 +241,8 @@ export const TEXTO_ACCION = {
 };
 
 export const TEXTO_TABLA = {
+  empleados: "empleado",
+  gafetes: "gafete",
   movimientos_saldo: "movimiento de saldo",
   perfiles: "cuenta de acceso",
   roles: "rol",

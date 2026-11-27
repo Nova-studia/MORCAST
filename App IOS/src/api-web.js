@@ -12,7 +12,7 @@ import { EMPRESA_COTIZACION } from "./cotizacion-datos";
  * Se puede apuntar a otra web (una vista previa de Vercel) con
  * EXPO_PUBLIC_MORCAST_WEB, igual que la eliminación de cuenta.
  */
-const WEB = (process.env.EXPO_PUBLIC_MORCAST_WEB || EMPRESA_COTIZACION.sitio).replace(/\/+$/, "");
+export const WEB = (process.env.EXPO_PUBLIC_MORCAST_WEB || EMPRESA_COTIZACION.sitio).replace(/\/+$/, "");
 
 /** El token vigente, o null. `getSession()` lo renueva si ya venció. */
 export async function tokenDeSesion() {

@@ -92,11 +92,19 @@ export async function verificarCodigo(codigo) {
   if (!r.ok || !r.pase) {
     return { ok: false, motivo: mensajeSegundoPaso(r.motivo, "No se pudo revisar el código. Inténtalo de nuevo.") };
   }
+  await guardarPase(r);
+  return { ok: true };
+}
+
+/**
+ * Guarda el pase de ESTA sesión. Lo usan el código por correo y la entrada
+ * con gafete (que cuenta como segundo paso: /api/app/gafete/pase).
+ */
+export async function guardarPase({ pase, vence }) {
   try {
-    await llaveroApp.setItem(LLAVE, empacarPase({ pase: r.pase, vence: r.vence }, await usuarioId()));
+    await llaveroApp.setItem(LLAVE, empacarPase({ pase, vence }, await usuarioId()));
   } catch {
     // Sin poder guardarlo, igual se entra esta vez; la próxima se pide otro
     // código. Mejor eso que dejar al dueño afuera por un fallo del llavero.
   }
-  return { ok: true };
 }

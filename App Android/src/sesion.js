@@ -5,7 +5,8 @@ import { CHOFER_DEMO, CHOFER_PERFIL } from "./datos-chofer";
 import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra";
 import { modoDeRol } from "./entrada-social.js";
 import { borrarTokenAlSalir } from "./push";
-import { olvidarPase } from "./segundo-paso";
+import { olvidarPase, guardarPase } from "./segundo-paso";
+import { probarGafete, pedirPase, reiniciarIntentos } from "./gafete";
 import { mensajeErrorLogin } from "./web/estado-cliente.mjs";
 
 /**
@@ -88,7 +89,33 @@ export async function entrar(modo, correo, password) {
     return { ok: false, mensaje: mensajePuertaEquivocada(rol) };
   }
 
+  if (modo !== "cliente") reiniciarIntentos(); // sin esperar: no frena la entrada
   return { ok: true, modo, perfil: await perfilDe(data.user, modo) };
+}
+
+/**
+ * Entra acercando el gafete (solo personal; diseño 2026-11-27). Devuelve lo
+ * mismo que `destinoDeUsuario` con `ok:true` —el modo lo decide el rol, no la
+ * pantalla donde se acercó— o `{ ok:false, mensaje, usaCorreo?, cancelado? }`.
+ *
+ * El dueño y los administradores reciben aquí su pase del segundo paso:
+ * gafete + teléfono vinculado cuentan como ese paso (decisión de Andrei).
+ */
+export async function entrarConGafete() {
+  if (!haySupabase()) return { ok: false, mensaje: "La app está en modo de demostración." };
+  const r = await probarGafete();
+  if (!r.ok) return r;
+
+  const { data, error } = await supabase.auth.verifyOtp({ token_hash: r.tokenHash, type: "magiclink" });
+  if (error || !data?.user) return { ok: false, mensaje: "No se pudo abrir la sesión. Inténtalo otra vez." };
+
+  const rol = data.user.app_metadata?.rol;
+  if (rol === "dueno" || rol === "admin") {
+    const p = await pedirPase(r.prueba);
+    // Sin pase entra igual y la administración le pide el código por correo.
+    if (p.ok && p.pase) await guardarPase(p);
+  }
+  return { ok: true, ...(await destinoDeUsuario(data.user)) };
 }
 
 /**
@@ -103,6 +130,8 @@ export async function entrar(modo, correo, password) {
  */
 export async function destinoDeUsuario(usuario) {
   const modo = modoDeRol(usuario?.app_metadata?.rol);
+  // Entró con Google/Apple (o con gafete): este teléfono vuelve a aceptar el gafete.
+  if (modo === "admin" || modo === "chofer") reiniciarIntentos();
   if (modo === "pendiente") {
     olvidarCuentaDeMuestra();
     return { modo, perfil: perfilPendiente(usuario) };
