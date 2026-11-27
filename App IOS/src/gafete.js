@@ -82,6 +82,8 @@ export function leerGafete({ conTope = false } = {}) {
       const tag = await NfcManager.getTag();
       const datos = datosDelTag(tag);
       if (!datos) throw { mensaje: motivoSinGafete(tag) };
+      // Lo que dice la ventanita de Apple mientras se cierra con la palomita.
+      NfcManager.setAlertMessageIOS("¡Listo!").catch(() => {});
       return datos;
     } catch (e) {
       if (e?.mensaje) throw e;
@@ -90,7 +92,11 @@ export function leerGafete({ conTope = false } = {}) {
       throw { mensaje: "No se pudo leer el gafete. Déjalo quieto junto al teléfono e inténtalo otra vez." };
     } finally {
       if (reloj) clearTimeout(reloj);
-      await cancelar();
+      // SIN esperar: en iPhone la cancelación contesta hasta que la ventanita
+      // termina de cerrarse (~2.7 s con la palomita, video del 27-nov) y eso
+      // atrasaba la llamada al servidor. La fila igual hace que la SIGUIENTE
+      // lectura espere a que termine.
+      cancelar();
     }
   });
 }
