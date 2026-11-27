@@ -45,6 +45,13 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Morcast usa el NFC para leer tu gafete al iniciar sesión.",
+          "includeNdefEntitlement": true
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",

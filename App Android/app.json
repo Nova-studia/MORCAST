@@ -46,6 +46,13 @@
         }
       ],
       [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Morcast usa el NFC para leer tu gafete al iniciar sesión.",
+          "includeNdefEntitlement": true
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Morcast usa tu ubicación solo en el modo chofer: para guardar dónde está un punto de recolección y para mandar tu ubicación al reportar un problema."
