@@ -120,8 +120,12 @@ hace `verifyOtp` y queda con su sesión normal. Se anota en la bitácora.
   volver a entrar con el gafete. Desvincular es una acción aparte.
 - **Freno de intentos (decisión de Claude):** el código del gafete es público
   (QR), así que **nunca se bloquea un gafete** por fallos: eso dejaría que
-  cualquiera con la foto del QR le impida entrar a su dueño. El freno es por
-  teléfono (+ IP) con bloqueo temporal, y por gafete solo un retraso creciente.
+  cualquiera con la foto del QR le impida entrar a su dueño.
+- **Al 4.º intento fallido seguido en un teléfono (decisión de Andrei):** ese
+  teléfono ya no deja entrar con gafete y pide **iniciar sesión con correo**
+  (login normal). Se cuenta en el servidor por teléfono (+ IP); entrar con
+  correo en ese teléfono reinicia la cuenta y vuelve a habilitar el gafete.
+  Por gafete solo hay un retraso creciente, sin bloqueo.
 
 ### Desvincular
 
