@@ -6,8 +6,9 @@ import { Boton } from "../../ui";
 import CampoClave from "../../CampoClave";
 import { entrar as entrarSesion } from "../../sesion";
 import OlvideClave from "../../OlvideClave";
+import BotonGafete from "../../BotonGafete";
 
-export default function LoginAdmin({ navigation, onLogin }) {
+export default function LoginAdmin({ navigation, onLogin, onEntrar }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -37,6 +38,9 @@ export default function LoginAdmin({ navigation, onLogin }) {
         <View style={s.chip}><Text style={s.chipTxt}>ADMINISTRACIÓN</Text></View>
         <Text style={s.h1}>Panel de administración</Text>
         <Text style={s.p}>Gestiona solicitudes, clientes, saldos, servicios, reportes y tu equipo.</Text>
+
+        {/* Primera opción: el gafete (diseño 2026-11-27). Debajo, el correo. */}
+        <BotonGafete onEntrar={(modo) => (onEntrar ? onEntrar(modo) : onLogin())} color={T.naranjaClaro} />
 
         {error ? (
           <View style={s.error}><Feather name="alert-circle" size={16} color="#f0895c" /><Text style={s.errorTxt}>{error}</Text></View>

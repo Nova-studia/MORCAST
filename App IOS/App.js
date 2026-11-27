@@ -53,6 +53,7 @@ import AvisosAdmin from "./src/pantallas/admin/AvisosAdmin";
 import BitacoraAdmin from "./src/pantallas/admin/BitacoraAdmin";
 import SegundoPaso from "./src/pantallas/admin/SegundoPaso";
 import { alPedirSegundoPaso } from "./src/candado-admin";
+import { ofrecerVincular } from "./src/gafete";
 // equipo 1: la oficina en el teléfono (recolecciones e incidentes).
 import Recolecciones from "./src/pantallas/admin/Recolecciones";
 import Incidentes from "./src/pantallas/admin/Incidentes";
@@ -131,10 +132,10 @@ function AuthFlow({ onEntrar, onAdmin, onChofer }) {
         {(props) => <Login {...props} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginAdmin">
-        {(props) => <LoginAdmin {...props} onLogin={onAdmin} />}
+        {(props) => <LoginAdmin {...props} onLogin={onAdmin} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginChofer">
-        {(props) => <LoginChofer {...props} onLogin={onChofer} />}
+        {(props) => <LoginChofer {...props} onLogin={onChofer} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       {/* Explorar sin cuenta: lo que ve quien todavía no es cliente. */}
       <AuthStack.Screen name="Explorar" component={Explorar} />
@@ -444,6 +445,9 @@ function AdminConPuerta({ onLogout, alAbrir }) {
   // escrito sigue ahí al volver.
   const [otraVez, setOtraVez] = useState(false);
   useEffect(() => alPedirSegundoPaso(() => setOtraVez(true)), []);
+
+  // Ya con su código por correo (vincular lo exige): "¿Vincular tu gafete?".
+  useEffect(() => { if (abierta) ofrecerVincular(); }, [abierta]);
 
   if (!abierta) return <SegundoPaso onListo={() => setAbierta(true)} onSalir={onLogout} />;
   return (

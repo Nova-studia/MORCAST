@@ -1,6 +1,8 @@
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import NfcManager, { NfcTech, NfcError } from "react-native-nfc-manager";
 import * as Crypto from "expo-crypto";
+import { supabase, haySupabase } from "./supabase";
+import { paseActual } from "./pase-admin";
 import { WEB, postWeb } from "./api-web";
 import { llaveroApp as almacenSecreto } from "./almacen-seguro";
 import { LLAVE_TELEFONO, LLAVE_BLOQUEO, TEXTOS_GAFETE, datosDelTag, nuevoSecreto } from "./gafete-login.mjs";
@@ -142,9 +144,11 @@ export async function vincularGafete() {
   try { datos = await leerGafete(); } catch (e) { return { ok: false, cancelado: Boolean(e?.cancelado), mensaje: e?.mensaje || "" }; }
   let id;
   try { id = await identidadTelefono(); } catch { return { ok: false, mensaje: "Este teléfono no pudo guardar la llave del gafete." }; }
-  const r = await postApp("gafete/vincular", { ...datos, ...id, aparato: nombreAparato() });
+  const pase = (await paseActual().catch(() => null)) || undefined; // dueño y admins (el servidor lo exige)
+  const r = await postApp("gafete/vincular", { ...datos, ...id, aparato: nombreAparato(), pase });
   if (!r.ok) return { ok: false, mensaje: r.motivo || "No se pudo vincular. Inténtalo otra vez." };
   await almacenSecreto.removeItem(LLAVE_BLOQUEO).catch(() => {});
+  await yaPreguntado(await uidActual(), true);
   return { ok: true, nombre: r.nombre || "" };
 }
 
@@ -171,4 +175,70 @@ export async function desvincularEsteTelefono() {
   if (!id) return { ok: true };
   const r = await postApp("gafete/telefono", { dispositivoId: id.dispositivoId, accion: "desvincular" });
   return r.ok ? { ok: true } : { ok: false, mensaje: r.motivo || "No se pudo desvincular." };
+}
+
+/* ---------------------------------------------------------------- *
+ * "¿Vincular tu gafete a este teléfono?" tras entrar con correo     *
+ * ---------------------------------------------------------------- */
+
+const LLAVE_PREGUNTADOS = "morcast_gafete_preguntados";
+
+async function uidActual() {
+  if (!haySupabase()) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.user?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Lee (o anota, con `marcar`) que a esta cuenta ya se le preguntó en este teléfono. */
+async function yaPreguntado(uid, marcar = false) {
+  if (!uid) return true;
+  let lista = [];
+  try { lista = JSON.parse((await almacenSecreto.getItem(LLAVE_PREGUNTADOS)) || "[]"); } catch { lista = []; }
+  if (!marcar) return lista.includes(uid);
+  if (!lista.includes(uid)) {
+    lista.push(uid);
+    await almacenSecreto.setItem(LLAVE_PREGUNTADOS, JSON.stringify(lista.slice(-20))).catch(() => {});
+  }
+  return true;
+}
+
+/** Entró con el gafete: ya está vinculado, no se le vuelve a preguntar. */
+export async function anotarEntradaConGafete() {
+  await yaPreguntado(await uidActual(), true);
+}
+
+/**
+ * Le ofrece una sola vez por cuenta y teléfono vincular su gafete. Se llama
+ * cuando ya entró del todo (chofer: al entrar; dueño y admins: tras su código
+ * por correo, porque vincular lo exige). "Ahora no" no vuelve a preguntar;
+ * queda el botón en Mi cuenta. Nunca lanza.
+ */
+export async function ofrecerVincular() {
+  try {
+    const uid = await uidActual();
+    if (!uid || (await yaPreguntado(uid))) return;
+    const { hayNfc } = await nfcDisponible();
+    if (!hayNfc) return;
+    await yaPreguntado(uid, true);
+    Alert.alert(
+      "¿Vincular tu gafete a este teléfono?",
+      "La próxima vez entras con solo acercarlo, sin escribir tu contraseña.",
+      [
+        { text: "Ahora no", style: "cancel" },
+        {
+          text: "Vincular",
+          onPress: async () => {
+            const r = await vincularGafete();
+            if (r.cancelado) return;
+            Alert.alert(r.ok ? "Gafete vinculado" : "No se pudo vincular",
+              r.ok ? "Ya puedes entrar acercando tu gafete." : r.mensaje || "Inténtalo desde Mi cuenta.");
+          },
+        },
+      ],
+    );
+  } catch { /* nunca estorba la entrada */ }
 }

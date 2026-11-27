@@ -6,8 +6,10 @@ import { Boton } from "../../ui";
 import CampoClave from "../../CampoClave";
 import { entrar as entrarSesion } from "../../sesion";
 import OlvideClave from "../../OlvideClave";
+import BotonGafete from "../../BotonGafete";
+import { ofrecerVincular } from "../../gafete";
 
-export default function LoginChofer({ navigation, onLogin }) {
+export default function LoginChofer({ navigation, onLogin, onEntrar }) {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,6 +27,7 @@ export default function LoginChofer({ navigation, onLogin }) {
       return;
     }
     onLogin(r.perfil);
+    ofrecerVincular(); // "¿Vincular tu gafete a este teléfono?" (una vez)
   };
 
   return (
@@ -37,6 +40,9 @@ export default function LoginChofer({ navigation, onLogin }) {
         <View style={s.chip}><Feather name="truck" size={13} color={T.tealClaro} /><Text style={s.chipTxt}>CHOFER / OPERADOR</Text></View>
         <Text style={s.h1}>Ruta del día</Text>
         <Text style={s.p}>Escanea el QR del contenedor y registra la recolección con foto antes y después.</Text>
+
+        {/* Primera opción: el gafete (diseño 2026-11-27). Debajo, el correo. */}
+        <BotonGafete onEntrar={(modo) => (onEntrar ? onEntrar(modo) : onLogin())} color={T.tealClaro} />
 
         {error ? (
           <View style={s.error}><Feather name="alert-circle" size={16} color="#f0895c" /><Text style={s.errorTxt}>{error}</Text></View>

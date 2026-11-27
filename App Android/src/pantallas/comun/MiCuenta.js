@@ -8,6 +8,7 @@ import { miPerfil, guardarMiPerfil, cambiarMiContrasena } from "../../datos-clie
 import { ADMIN_PERFIL } from "../../datos-admin";
 import { CHOFER_PERFIL } from "../../datos-chofer";
 import { CLIENTE } from "../../datos";
+import GafeteTelefono from "../../GafeteTelefono";
 
 const DEMO = {
   admin: { nombre: ADMIN_PERFIL.nombre, telefono: "", correo: ADMIN_PERFIL.correo },
@@ -146,6 +147,7 @@ export default function MiCuenta({ route }) {
       <Text style={s.sub}>Tu nombre, tu teléfono y tu contraseña.</Text>
       <View>
         <DatosYContrasena modo={modo} />
+        {modo !== "cliente" && <GafeteTelefono />}
       </View>
     </ScrollView>
   );

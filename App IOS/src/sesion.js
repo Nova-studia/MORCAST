@@ -6,7 +6,7 @@ import { marcarCuentaDeMuestra, olvidarCuentaDeMuestra } from "./cuenta-muestra"
 import { modoDeRol } from "./entrada-social.mjs";
 import { borrarTokenAlSalir } from "./notificaciones";
 import { olvidarPase, guardarPase } from "./pase-admin";
-import { probarGafete, pedirPase, reiniciarIntentos } from "./gafete";
+import { probarGafete, pedirPase, reiniciarIntentos, anotarEntradaConGafete } from "./gafete";
 import { mensajeErrorLogin } from "./web/estado-cliente.mjs";
 import { olvidarMisPermisos } from "./mis-permisos";
 import { olvidarEstadoCliente } from "./estado-cliente-app";
@@ -112,6 +112,7 @@ export async function entrarConGafete() {
   const { data, error } = await supabase.auth.verifyOtp({ token_hash: r.tokenHash, type: "magiclink" });
   if (error || !data?.user) return { ok: false, mensaje: "No se pudo abrir la sesión. Inténtalo otra vez." };
 
+  anotarEntradaConGafete();
   const rol = data.user.app_metadata?.rol;
   if (rol === "dueno" || rol === "admin") {
     const p = await pedirPase(r.prueba);

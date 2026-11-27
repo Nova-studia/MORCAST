@@ -57,6 +57,7 @@ import AvisosAdmin from "./src/pantallas/admin/AvisosAdmin";
 import BitacoraAdmin from "./src/pantallas/admin/BitacoraAdmin";
 import VerificacionAdmin from "./src/pantallas/admin/VerificacionAdmin";
 import { alPedirSegundoPaso } from "./src/candado-admin";
+import { ofrecerVincular } from "./src/gafete";
 // equipo 1: la oficina en el teléfono (recolecciones e incidentes).
 import Recolecciones from "./src/pantallas/admin/Recolecciones";
 import Incidentes from "./src/pantallas/admin/Incidentes";
@@ -161,10 +162,10 @@ function AuthFlow({ onEntrar, onAdmin, onChofer, aviso }) {
         {(props) => <Login {...props} onEntrar={onEntrar} aviso={aviso} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginAdmin">
-        {(props) => <LoginAdmin {...props} onLogin={onAdmin} />}
+        {(props) => <LoginAdmin {...props} onLogin={onAdmin} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       <AuthStack.Screen name="LoginChofer">
-        {(props) => <LoginChofer {...props} onLogin={onChofer} />}
+        {(props) => <LoginChofer {...props} onLogin={onChofer} onEntrar={onEntrar} />}
       </AuthStack.Screen>
       {/* Explorar sin cuenta: lo que ve quien todavía no es cliente. */}
       <AuthStack.Screen name="Explorar" component={Explorar} />
@@ -379,7 +380,10 @@ function AdminConCandado({ onLogout, alPasar }) {
   useEffect(() => alPedirSegundoPaso(() => setOtraVez(true)), []);
   // Apps al 100%: con el segundo paso ya hecho, qué secciones tiene su rol.
   useEffect(() => {
-    if (paso) cargarMisPermisos();
+    if (!paso) return;
+    cargarMisPermisos();
+    // Ya con su código por correo (vincular lo exige): "¿Vincular tu gafete?".
+    ofrecerVincular();
   }, [paso]);
   if (!paso) {
     return (

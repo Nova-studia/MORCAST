@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { T } from "../tema";
 import { Tarjeta, TituloTarjeta, Boton } from "../ui";
 import CampoClave from "../CampoClave";
+import GafeteTelefono from "../GafeteTelefono";
 import { abrirWhatsApp } from "../whatsapp";
 import { EMPRESA_COTIZACION } from "../cotizacion-datos";
 import {
@@ -237,6 +238,7 @@ export default function MiCuenta({ route, modo: modoProp }) {
           <TarjetaSoporte empresa={empresa?.empresa} folio={empresa?.folio} />
         </>
       ) : null}
+      {!esCliente && <GafeteTelefono />}
     </ScrollView>
   );
 }
